@@ -23,7 +23,7 @@ import { demSample } from './dem.js';
 import { enemyGroup, allyGroup, gauss, nm, wallLine } from './bhelp.js';
 import { KIT } from './b_nagashinojo.js';
 import * as THREE from 'three';
-import { nobori, jinmaku, umaFollow } from './props.js';
+import { nobori, jinCamp, umaFollow } from './props.js';
 import { RANKS } from './state.js';
 import { sfx } from './audio.js';
 import { KILLS, cut } from './stages.js';
@@ -478,8 +478,17 @@ const k06_sekigahara = {
     F.ieyasu.order = 'move'; F.ieyasu.dest = { ...IEYASU1 };
     F.ieyasu.onArrive = (g) => {
       g.order = 'hold'; g.anchor = { ...IEYASU1 }; g.onArrive = null;
-      if (F.ieyasuU?.alive) F.ieyasuU._k06Seat = { ...F.ieyasuU.pos };
-      if (!F.jinba) { F.jinba = true; rt.scene.add(jinmaku(rt.world, IEYASU1.x, IEYASU1.z - 2, 16, 12, 6, { mon: 'tokugawa' })); rt.scene.add(nobori(rt.world, IEYASU1.x - 10, IEYASU1.z - 10, 'onri', 7)); }
+      // 隊の到着位置を座る所にすると、家康だけ幕の外でしゃがむ。移した本陣にも床几を置き、その前へ着ける。
+      if (F.ieyasuU?.alive && !F.ieyasuU.gone) {
+        const u = F.ieyasuU;
+        u.pos.x = IEYASU1.x; u.pos.z = IEYASU1.z - 5.4; u.pos.y = rt.world.heightAt(u.pos.x, u.pos.z);
+        u._k06Seat = { ...u.pos };
+      }
+      if (!F.jinba) {
+        F.jinba = true;
+        rt.scene.add(jinCamp(rt.world, IEYASU1.x, IEYASU1.z - 2, { mon: 'tokugawa', people: false, fire: false, noUma: true }));
+        rt.scene.add(nobori(rt.world, IEYASU1.x - 10, IEYASU1.z - 10, 'onri', 7));
+      }
     };
   },
   // ⑦ 笹尾山の麓の柵。島左近の隊

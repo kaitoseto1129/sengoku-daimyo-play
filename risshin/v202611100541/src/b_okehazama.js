@@ -1251,6 +1251,7 @@ const okehazama = {
       if (F.yoshiDown && F.yoshimoto?.alive) {
         const p = rt.player.u, y = F.yoshimoto.pos;
         if (Math.hypot(p.pos.x - y.x, p.pos.z - y.z) > 10 ||
+            Math.abs(p.pos.y - y.y) >= 3 ||
             rt.army.wallBetween(p.pos, -1, y) || rt.army.terrainBlocks(p.pos, y)) {
           const pos = honjinWay(rt.army, p, y);
           pin.x = pos.x; pin.z = pos.z; pin.r = pos === y ? 8 : 1; pin.hide = 0;

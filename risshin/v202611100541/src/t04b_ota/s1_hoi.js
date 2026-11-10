@@ -28,6 +28,9 @@ export default {
     workTick(rt, dt);
     return t > 165 && !!F.scout && (broken(F.scout, 0.35) || t > 200) && near(rt, P.work, 26);
   },
+  leave(rt, F) {
+    if (F.scout) { F.scout.noRout = false; F.scout.morale = 0; move(F.scout, { x: 0, z: -10 }); F.scout.order = 'retreat'; }
+  },
   foes: (rt) => [rt.flags.scout],
   max: 240,
 };

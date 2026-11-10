@@ -18,7 +18,8 @@ export function start(rt, ctx) {
   const S = F.aneTsui = { k: 0, t0: rt.t, done: false, at: DEST };
   const live = () => !F.ending && !rt.over && rt.player?.u?.alive;
   rt.marker('aneNomura', DEST, '野村');
-  for (const g of [F.mori, F.shibata, F.inaba, F.kino, F.vanguard]) if (g && g.count && !g.routed) {
+  // 段が破られた時に備えた追い手も野村まで同行し、本人だけを先へ行かせない。
+  for (const g of [F.mori, F.shibata, F.inaba, F.kino, F.vanguard, F.chase]) if (g && g.count && !g.routed && g.order !== 'retreat' && g.order !== 'flee') {
     g.order = 'move'; g.dest = { x: DEST.x + (Math.random() - 0.5) * 20, z: DEST.z + 8 }; g.onArrive = (q) => { q.order = 'attack'; q.seekRange = 40; };
   }
   // 浅井の後ろの手は崩れて北西（小谷）へ。長政の本陣も旗を巻いて退く

@@ -109,7 +109,7 @@ function chaseWaypoint(rt) {
   // 本隊が先に崩れても、まだ門の南にいる本人を堀や逆茂木へ直進させない。
   const exit = sortieWaypoint(rt);
   if (exit) return exit;
-  if (F.oiTail && !spent(F.oiTail)) return F.oiTail.center();
+  // 道中の殿は専用の敵印で示す。城戸口への行き先を動く敵へ替えない。
   return F.kz;
 }
 const GATE_DIRECTIONS = ['南', '南東', '東', '北東', '北', '北西', '西', '南西'];

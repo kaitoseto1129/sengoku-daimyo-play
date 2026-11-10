@@ -69,7 +69,10 @@ export function install(rt, ctx) {
     const p = rt.player.u.pos, el = rt.t - S.t0;
     if (S.k === 0 && Math.hypot(p.x - MI.x, p.z - MI.z) < 7) seen();
     if (S.k === 2 && S.g) {
-      const g = S.g, left = g.units.filter((u) => u.alive).length;
+      const g = S.g;
+      // 生きていても戦場を去った者や戦えない負傷兵は、物見の残勢に数えない。
+      let left = 0;
+      for (const u of g.units) if (scoutActive(u)) left++;
       if (left <= 3 || g.routed) {
         // 味方だけで片付いた時は次の物見を出す。本人の目標を時計で果たさない。
         if (!S.fought) {
@@ -114,10 +117,13 @@ export function stageOf(rt) {
 }
 
 // 退く下知から敗走の動きへ替わる間も、物見を追って持ち場を離れない。
+function scoutActive(u) {
+  return u.alive && u.hp > 0 && !u.gone && !u.fleeing &&
+    !u.dying && !u.downed && !u.woundOut && !u.rearWound && !u.noTarget;
+}
 function scoutTarget(g) {
   if (!g || g.routed || g.order === 'retreat' || g.order === 'flee') return null;
-  return g.units.find((u) => u.alive && u.hp > 0 && !u.gone && !u.fleeing &&
-    !u.dying && !u.downed && !u.woundOut && !u.rearWound && !u.noTarget) || null;
+  return g.units.find(scoutActive) || null;
 }
 
 // 行き先のピン：物見の高み、または物見の小勢
