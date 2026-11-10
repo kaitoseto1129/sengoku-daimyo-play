@@ -18,7 +18,8 @@ export function start(rt, ctx, done) {
     DP.rest({ dur: 5, heal: 0.2, banner: ['井口の町が燃える', '城から新手が下りて来る'],
       say: [['木下藤吉郎', '火は回った。じゃが城が気付いた。出口を固めよ', 3.4]] }),
     DP.hold({
-      at: EXIT, r: 12, dur: 60, noRefill: true, label: '町の出口', title: '町の出口を守れ', sub: '城から下りた斎藤の新手',
+      // 11/10 関所：寄せの残りが遠くで矢を射るだけになると、出口に立ったまま四分余り何も起きなかった（bot 73〜357秒）。二分半で区切る
+      at: EXIT, r: 12, dur: 60, limit: 150, noRefill: true, label: '町の出口', title: '町の出口を守れ', sub: '城から下りた斎藤の新手',
       obj: '町の出口で仲間と並び、斎藤の新手を退けよ',
       waves: [
         { t: 3, say: ['足軽', '山から旗が下りて来る！　斎藤の新手じゃ！'],

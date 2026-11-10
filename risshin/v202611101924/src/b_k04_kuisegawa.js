@@ -47,6 +47,7 @@ const AKASHI_HIDE = T(-46, 44);                 // 明石全登の伏兵（葦�
 // 葦の原（並びの座標の四角）：大垣の側の岸から深田の北へ、人の背より高い葦が茂る。伏兵はこの中に伏せる（11/8 critic60 二1・二4）
 const REED_BED = { x0: -74, x1: -18, z0: 22, z1: 72 };
 const ARIMA = T(78, -26);                       // 有馬豊氏の陣（赤坂の側の岸）
+const RETURN_BANK = T(68, 4);                   // 手勢の渡河先。主人公が殿に戻っても川へ引き返さない。
 const IEYASU = T(205, -150);                    // 赤坂の岡山の家康の本陣（国土地理院の標高で岡山の頂に当たる）
 const RIVER = [[46, -260], [41, -90], [44, 60], [48, 260]].map(([x, z]) => { const p = T(x, z); return [p.x, p.z]; });
 const SC = MEM_TIGHT ? 20 : 12;                 // 塊の一人が史実の何人か
@@ -526,21 +527,24 @@ const k04_kuisegawa = {
         const c = g.center();
         // 敵に組みつかれている間は歩き続けず斬り返す（主人公を追って歩くまま討たれ、手勢が全滅していた。三巡 11/9 豊臣A）
         const lead = g.units.find((u) => u.alive && !u.gone);
-        // 退却の下知の後は追手との斬り合いで足を止めず、主人公と岸へ退く。
+        // 退却の下知の後は追手との斬り合いで足を止めず、岸から有馬の陣へ退く。
         const engaged = F.step < 4 && lead && dist(c, P.pos) < 24 && rt.army.nearestEnemy(lead, 5, (q) => !q.isStruct && !q.civ);
-        if (engaged) { g.order = 'attack'; g.seekRange = 8; }
-        else if (dist(c, P.pos) > 7 || F.step >= 4) {
+        if (F.step >= 4) {
+          // 主人公を追わせると、殿が追手を払う間に手勢まで川へ戻ってしまう。
+          // 下知の行き先を段ごとに固定し、合図の待ちも繰り返さない。
+          g.order = 'retreat'; g.dest = F.step === 4 ? RETURN_BANK : ARIMA;
+          g.speed = 4.2; g.focus = null; g.onArrive = null;
+        }
+        else if (engaged) { g.order = 'attack'; g.seekRange = 8; }
+        else if (dist(c, P.pos) > 7) {
           // 岸の向きは回してある。地図の正方向へずらすと手勢だけ川へ戻ってしまう。
-          // 移動の下知では十m先の敵へ戻る。退却なら手の届く追手だけ払い、岸へ進む。
-          const order = F.step >= 4 ? 'retreat' : 'move';
           // 六割秒ごとの再下知は、走る主人公が三m進むたびに合図の待ちを
           // 延ばしてしまう。十二mずれるまでは同じ行き先へ走らせる。
-          const x = PL.x + (F.step >= 4 ? 3 : -2), z = PL.z + 2;
+          const x = PL.x - 2, z = PL.z + 2;
           const a = x - O_L.x, b = z - O_L.z;
           const tx = ROT_C * a - ROT_S * b, tz = ROT_S * a + ROT_C * b;
-          if (g.order !== order || !g.dest || Math.hypot(g.dest.x - tx, g.dest.z - tz) > 12) g.dest = { x: tx, z: tz };
-          g.order = order; g.speed = 4.2;
-          if (F.step >= 4) g.focus = null;
+          if (g.order !== 'move' || !g.dest || Math.hypot(g.dest.x - tx, g.dest.z - tz) > 12) g.dest = { x: tx, z: tz };
+          g.order = 'move'; g.speed = 4.2;
         }
         else { g.order = 'attack'; g.seekRange = 12; }
       }
@@ -570,12 +574,14 @@ const k04_kuisegawa = {
       if (F.baitPlayerHit && el > 65 && (hurt || dist(lightPos(B.bait), P.pos) < 20)) this.feign(rt);   // 少し戦ってから退くふり（史実）
     } else if (F.step === 2) {
       // 退く島の兵を追い、先手と一緒に川を東へ渡ってから伏兵が出る
-      // 中村の兵だけが先着しても、頼母の旗と合流したことにはしない。
+      // まず頼母の旗との合流を待つ。
       const noi = F.noiU;
       const across = (u) => canReturn(u) && !u.downed && L(u.pos).x < -6 && dist(u.pos, P.pos) < 18;
-      // 頼母一人の足止め・負傷で止めない。待った後も、実際に渡った先手との合流は必須。
+      // 頼母と中村の二組が足止めされても、渡った手勢との合流で防戦に移れる。
+      // 待った後も、実際に渡った先手との合流は必須。
       const joined = noi && across(noi) || el > 60 &&
-        (F.noi.units.some(across) || F.kazu.units.some(across));
+        (F.noi.units.some(across) || F.kazu.units.some(across) ||
+          F.mine.units.some(across) || (rt.squad || []).some(across));
       if (el > 35 && PL.x < -6 && L(lightPos(B.saki)).x < 10 && joined) this.toStep(rt, 3);
     } else if (F.step === 3) {
       if (!F.ringClosed) this.holdVanguard(rt);

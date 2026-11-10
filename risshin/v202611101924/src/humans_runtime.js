@@ -824,6 +824,9 @@ function formGuard(army, cam, on) {
       else if (u.alive && u.name && !u.vatNameOk && !qualityKeeper(u)) { u.vatNameOk = true; if (vatOverflow(u)) real = true; }
       if (real) { /* 描けた */ }
       else if (on && u._formSeen && forced < FORM_FORCE && (fresh ? !u.camHidden : u.mesh.visible || u._formHid)) { forced++; real = showHuman(u); }
+      // 携帯で骨の枠（SKIN_MAX）が埋まり、VAT にも乗らない姿（僧兵・小袖の一揆など）は、軽い部品の姿で描く。
+      //   隠すと、頭上の印だけが残る透明な敵になった（大滝寺の関所 11/10。関所の1「透明な者がいない」）
+      if (!real && MEM_TIGHT && u.alive && !u.dying && !u.isPlayer && humanPool.size + humanBuilding.size >= SKIN_MAX && !vatCan(u)) real = true;
       if (!real) {
         if (!fresh && u.mesh.visible) u._formHid = true;
         u.camHidden = true; u.mesh.visible = false;
@@ -930,7 +933,8 @@ function humansStep(rt, dt, army, cam) {
       if (false && named && !u.isPlayer && u.alive) pr = d * (1 + 0.7 * cen) + (vis ? 0 : 30);
       if (required && !u.isPlayer) pr -= u.alive ? 1e6 : 5e5;
       // 携帯は距離だけで枠を割り当てる。交戦相手は一番先に確保する。
-      if (CPU_LEAN) pr = u.isPlayer ? -1e9 : opponent ? -1e8 : d;
+      //   VAT に乗らない姿（僧兵・小袖の一揆など）は骨の枠を先に取る（VAT に乗る兵は枠の外でも VAT で描ける。大滝寺の関所 11/10）
+      if (CPU_LEAN) pr = u.isPlayer ? -1e9 : opponent ? -1e8 : needReal ? d - 500 : d;
       let entry;
       if (cand.length < humanCandidatePool.length) { entry = humanCandidatePool[cand.length]; cand.push(entry); }
       else {
