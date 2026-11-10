@@ -1404,6 +1404,8 @@ const miki = {
   goalSignBare: true, keepTaskLabel: true, // 木戸の守備を「門へ進め」「ここを攻める」に読み替えない。
   // 下知と討死の知らせは、音を切っていても字幕で読める。
   battleDialogue: true,
+  // 三太夫だけの討死で「三太夫の勢」を済みにせず、残兵と合流は戦の判定に任せる。
+  namedKillCompletesObjectives: false,
   bannerAllowed: (rt) => rt.over || !!rt.flags.ending,
   flagEra: { oda: 'kiri53' },   // 三木の寄せ手は羽柴の手だけ。旗・幟・陣幕は羽柴の五三桐（織田の木瓜でない。11/6 共通の係）
   // 11/3 p100_miki（AR1・AW3）：どこで何をするかを言う。抽象の「集まれ・倒せ」をやめる
