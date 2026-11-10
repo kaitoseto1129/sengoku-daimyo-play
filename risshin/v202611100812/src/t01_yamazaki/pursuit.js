@@ -72,6 +72,8 @@ export function tick(rt, dt, ctx) {
       if (!ctx.live(g) || g.routed) continue;
       const c = g.center();
       if (!c || near(c, GATE, 24)) continue;
+      // 同じ下知を繰り返して、塀を避ける途中の行き先と到着処理を消さない。
+      if (g.order === 'move' && (g._tateRe || g.dest && near(g.dest, GATE, 1))) continue;
       g.stay = false; g.order = 'move'; g.dest = { x: GATE.x, z: GATE.z };
       g.onArrive = (q) => { q.order = 'attack'; q.aggro = 26; q.seekRange = 34; };
     }

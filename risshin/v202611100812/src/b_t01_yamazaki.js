@@ -684,8 +684,12 @@ const t01_yamazaki = {
       if (late && live(F.mimaki) && (F.mkT = (F.mkT || 0) - dt) <= 0) {
         F.mkT = 3;
         const g = F.mimaki, c = g.center();
-        g.order = c && dist(c, P) > 30 ? 'move' : 'attack';
-        g.dest = { x: P.x, z: P.z }; g.aggro = 40; g.seekRange = 60;
+        // 障害物を避ける途中の下知は残す。同じ所へ呼ぶたびに経路を作り直さない。
+        if (!(g.order === 'move' && g._tateRe)) {
+          g.order = c && dist(c, P) > 30 ? 'move' : 'attack';
+          if (g.order === 'move' && (!g.dest || dist(g.dest, P) > 6)) g.dest = { x: P.x, z: P.z };
+        }
+        g.aggro = 40; g.seekRange = 60;
       }
       // 遠くに散っただけの健在な殿も数える。移動の下知で呼び戻し、討たずに達成させない。
       const left = aliveN(F.gobo);

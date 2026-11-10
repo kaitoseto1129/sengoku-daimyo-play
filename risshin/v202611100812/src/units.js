@@ -1507,7 +1507,7 @@ export class Army {
 
   // 馬に乗せる・降ろす（乗り手の手・旗・馬印を鞍の高さへ）
   setMounted(u, on, horse) {
-    if (on && this.world.def.noHorse) return;
+    if (on && this.world.def.noHorse && !(u.isPlayer && this.world.def.playerHorse)) return;
     if (!!u.mounted === on || on && !(horse || u.horse)) return;
     const dy = on ? RIDE.y : -RIDE.y;
     for (const part of [u.hand, u.flag, u.uma]) if (part) part.position.y += dy;

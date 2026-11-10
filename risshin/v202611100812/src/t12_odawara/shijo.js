@@ -81,6 +81,8 @@ export function step(H) {
     kind: 'rest', key: 'shijo', max: 40,
     start(rt, C) {
       const F = rt.flags;
+      // 八王子・韮山の開城後の報。次の巡回と同じ六月二十四日の昼。
+      F.day = -0.5;
       C.groups = []; C.at = rt.player.u.pos.clone ? { x: rt.player.u.pos.x, z: rt.player.u.pos.z } : H.BANK; C.goal = null; C.say = 0;
       rt.unmark('dp');
       rt.say('使番', '各方面より知らせ！　殿下の陣の絵図をご覧あれ', 3.2);
@@ -96,7 +98,7 @@ export function step(H) {
       line(14.5, () => rt.say('使番', '鉢形方面、攻略進展！　鉢形も開きました', 3));
       line(18, () => rt.say('使番', '八王子城、陥落！', 2.8));
       line(21.5, () => rt.say('使番', '岩槻・江戸・玉縄も開城。……忍城、なお抵抗！', 3.4));
-      line(26.5, () => rt.say(nm(rt), '関東に残る北条の旗は、小田原だけか', 3.4));
+      line(26.5, () => rt.say(nm(rt), '小田原と忍には、まだ北条の旗が残っておるか', 3.4));
       line(30.5, () => rt.say('井伊直政', '城の外は、もう全部が敵よ。氏直殿も、城の上から見ておろう', 3.8));
       if (C.say >= 18 && !C.dn) { C.dn = true; F.keisen = Math.max(0, (F.keisen ?? 100) - 30); }
       return el > 35;
