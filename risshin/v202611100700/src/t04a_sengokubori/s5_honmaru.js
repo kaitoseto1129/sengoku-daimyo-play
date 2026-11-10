@@ -8,6 +8,8 @@ export default {
   goal: '本丸へ渡り、最後の根来衆を討て',
   pin: { ...P.hon, label: '本丸' },
   enter(rt, F) {
+    // 本丸前から再開した時、後続の味方を閉じた木戸や虎口に残さない。
+    breakStruct(rt, F.kido); breakStruct(rt, F.gate);
     F.honEntered = false;
     breakStruct(rt, F.honGate);
     rt.world.addFire(-4, 8.5, { size: 1.6, h: 0.6 }); rt.world.addFire(4, 8.5, { size: 1.4, h: 0.6 });

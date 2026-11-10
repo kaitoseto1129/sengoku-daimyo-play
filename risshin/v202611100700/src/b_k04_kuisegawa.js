@@ -94,6 +94,7 @@ const k04_kuisegawa = {
   hideGuideSteps: true,
   noPlayerFoot: true,
   nearbyAllySignLimit: 0,
+  nameTagsAtHead: true,      // 将の頭上に固定し、名札を空や隣の兵の上へずらさない
   foeMarks: true,
   enemyTriangleSigns: true,
   lightEnemyTriangleSigns: true,   // 軽い兵も近くでは一人ずつ所属を示す

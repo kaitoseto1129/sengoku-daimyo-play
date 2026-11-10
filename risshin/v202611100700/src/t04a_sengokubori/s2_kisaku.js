@@ -47,5 +47,10 @@ export default {
     return false;
   },
   foes: (rt) => [rt.flags.waveA, rt.flags.waveB],
+  leave(rt, F) {
+    // 次の段で丸太を作り直す前に、古い丸太と担ぎ手の手の固定を解く。
+    breakStruct(rt, F.kido);
+    if (F.ram) F.ram.tick(0);
+  },
   max: 240,
 };

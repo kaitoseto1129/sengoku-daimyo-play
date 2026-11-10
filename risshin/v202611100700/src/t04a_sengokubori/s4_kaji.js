@@ -1,7 +1,7 @@
 // 千石堀城 ④ 9〜12分「二の丸の火」：東の堀の外から中坊秀行の組が火矢を射込み、二の丸の小屋が次々に燃える。
 // 煙で見通しが落ち、本丸から根来衆が下りて来て最後まで抗う。味方も倒れる。
 import * as THREE from 'three';
-import { P, NEGORO, HASHIBA } from './scene.js';
+import { P, NEGORO, HASHIBA, breakStruct } from './scene.js';
 import { troops, reports, move, broken, fallOne, smoke } from '../toyo15/kit.js';
 import { sfx } from '../audio.js';
 
@@ -10,6 +10,8 @@ export default {
   goal: '二の丸で根来衆と戦え。燃える小屋に寄るな',
   pin: { x: 0, z: -20, label: '二の丸' },
   enter(rt, F) {
+    // 再開時にも、二の丸までの寄せ口は突破済み。
+    breakStruct(rt, F.kido); breakStruct(rt, F.gate);
     F.archers = troops(rt, true, '中坊秀行の火矢の組', P.archer, [{ type: 'bow', n: 6 }], HASHIBA, { facing: -Math.PI / 2 });
     F.archers.stay = true;
     // 新手：堀秀政の手が後ろから入る（門前で討たれた分を埋める。戦場を空にしない）

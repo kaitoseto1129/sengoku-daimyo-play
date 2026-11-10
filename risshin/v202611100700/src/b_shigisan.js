@@ -99,11 +99,16 @@ function gateVolley(rt, dt) {
   if (!P?.alive || F.ending || rt.over || !(F.step >= 1 && F.step < 3.5) || !F.gate?.alive || !F.arch || gone(F.arch)) return;
   const d = Math.hypot(P.pos.x - GATE.x, P.pos.z - GATE.z);
   if (d > 32 || P.hp < P.maxHp * 0.3) return;
-  const live = F.arch.units.filter((u) => u.alive && !u.fleeing && !u.woundOut);
+  if (F.arch.fire === false) return;
+  // 倒れた守兵・退く備から矢を出さない。共通の斉射へも戦える射手だけを渡す。
+  const volley = F.sgVolleyGroup || (F.sgVolleyGroup = { units: [] });
+  const live = volley.units;
+  live.length = 0;
+  for (const u of F.arch.units) if (siegeFighter(u)) live.push(u);
   const bow = live.find((u) => u.type === 'bow');
   if (bow) {
     const a = Math.random() * Math.PI * 2, r = Math.random() * 1.5, x = P.pos.x + Math.cos(a) * r, z = P.pos.z + Math.sin(a) * r;
-    rainVolley(rt.army, F.arch, bow, { x, y: rt.world.heightAt(x, z), z }, Math.hypot(x - bow.pos.x, z - bow.pos.z));
+    rainVolley(rt.army, volley, bow, { x, y: rt.world.heightAt(x, z), z }, Math.hypot(x - bow.pos.x, z - bow.pos.z));
     // 被害は実際に飛ぶ矢の当たりだけ。固定の時刻で別に命を減らすと、到着前や斉射できない時にも傷を負う。
   }
   for (const u of live) if (u.type === 'gun' && Math.random() < .3) { u.target = P; u.aiT = 2.5; }

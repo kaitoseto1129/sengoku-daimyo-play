@@ -8,6 +8,8 @@ export default {
   goal: '土橋を渡り、虎口の門を破れ',
   pin: { x: 0, z: -38, label: '虎口の門' },
   enter(rt, F) {
+    // この段から再開しても、済んだ外の木戸を閉じたままにしない。
+    breakStruct(rt, F.kido);
     F.niGuard = troops(rt, false, '虎口の根来衆', { x: 0, z: -22 }, [{ type: 'ashigaru', n: 14 }, { type: 'gun', n: 4 }, { type: 'samurai', n: 1 }], NEGORO);
     F.niGuard.stay = true;
     F.gateGuns = sentries(rt, '虎口の楼の鉄砲衆', [{ x: -5, z: -31 }, { x: 5, z: -31 }], 0.07);
