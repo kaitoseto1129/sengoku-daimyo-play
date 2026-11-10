@@ -629,7 +629,8 @@ k02_kawada.history = '慶長五年（1600）八月、清洲に集まった東軍
 k02_kawada.bushou = [{ name: '木造長政', g: /木造長政/, at: Infinity }, { name: '百々綱家', g: /綱家/, at: Infinity }, { name: '飯沼長資', g: /長資/, at: Infinity }];
 
 // ---- 行き先の印：段ごとに一か所に決めて動かさず、距離を添える（BK1・BK4・AW3） ----
-const GOALS = [[ISLE, '小屋場島', 9], [GATE, '北岸の柵の口', 10], [GATE, '北岸の柵の口', 10], [YONENO, '米野村', 14], [YONENO, '米野村', 14], [SHINKANO, '新加納の砦', 14], [SHINKANO, '新加納の砦', 14]];
+// 柵越しの砦の中心ではなく、実際に通れる南の木戸を案内する。
+const GOALS = [[ISLE, '小屋場島', 9], [GATE, '北岸の柵の口', 10], [GATE, '北岸の柵の口', 10], [YONENO, '米野村', 14], [YONENO, '米野村', 14], [FORT_GATE, '新加納の砦の木戸', 14], [FORT_GATE, '新加納の砦の木戸', 14]];
 function goalNow(rt) {
   const F = rt.flags;
   // 始まりの札の上に行き先の▼を重ねない（物差し五の4・11/6 写真で重なっていた。札より先の一コマ目で印が立っていた）
@@ -650,7 +651,7 @@ k02_kawada.guideMarker = (rt) => {
   // 距離だけで消すと、柵の九歩手前や砦の木戸の外で案内がなくなる。
   // 入口を通る目標は、柵を越え、砦の内へ入るまで案内を残す。
   if (q[0] === GATE) return insideNorthGuard(p) ? null : 'k02go';
-  if (q[0] === SHINKANO) return inFort(p) ? null : 'k02go';
+  if (q[0] === FORT_GATE) return inFort(p) ? null : 'k02go';
   return Math.hypot(p.x - q[0].x, p.z - q[0].z) < q[2] ? null : 'k02go';
 };
 k02_kawada.travelGuideLabel = (rt) => {

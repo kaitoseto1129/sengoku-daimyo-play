@@ -12,7 +12,7 @@ function reinforce(rt, ctx) {
   const F = rt.flags;
   if (!(F.step === 2 || F.step === 3) || (F.rfN || 0) >= RF_MAX || rt.t - (F.rfT ?? -99) < RF_GAP) return;
   let mine = 0, all = 0;
-  for (const u of rt.army.units) if (u.alive && !u.gone && !u.isStruct) { all++; if (u.team === 0 && !u.isPlayer && !u.woundOut && !u.fleeing && (F.oda || []).includes(u.group)) mine++; }
+  for (const u of rt.army.units) if (u.alive && !u.gone && !u.isStruct) { all++; if (u.team === 0 && !u.isPlayer && !u.woundOut && !u.fleeing && u.group && ((F.oda || []).includes(u.group) || u.group === F.gozume || u.group === F.umaG)) mine++; }
   // 信長の供九人・新手二十一人と、お市一行六人は後から来る。その席も先に残す。
   // 一行が退場した後は席を戻す。登場の済んだ印は退場後も残る。
   const reserved = (F.nobuG ? 0 : 9) + (F.umaG ? 0 : 21) + (F.ichiOut ? 0 : 6);

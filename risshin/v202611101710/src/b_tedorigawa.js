@@ -101,7 +101,8 @@ function pressPlayer(rt, dt) {
   F._pressed.length = 0;
   for (const o of A.units) {
     // 待機中は▼も出さない追手。本人が近づいても、出発の下知より先に引き出さない。
-    if (o.group?.tedoRelieved || o.group?.tedoFrom && !o.group.tedoActive) continue;
+    // 持ち場を守る備えも、隊の「追わせない」下知を個人追撃で破らない。
+    if (o.group?.noHunt || o.group?.tedoRelieved || o.group?.tedoFrom && !o.group.tedoActive) continue;
     // 後送中・倒れかけの兵は、通常の歩みを止めていても追加追撃で動いてしまうため外す。
     if (!o.alive || o.dying || o.gone || o.team === P.team || o.isStruct || o.fleeing || o.woundOut || o.rearWound || o.downed || o.dragging || o.noTarget || o.name || o.mounted ||
         o.type === 'gun' || o.type === 'bow' || o.type === 'busho' || o.group?.routed || o.group?.order === 'path') continue;
@@ -131,7 +132,7 @@ function pressStep(rt, dt) {
   for (let i = list.length - 1; i >= 0; i--) {
     const o = list[i];
     // 渡河の猶予で追手を止めた下知を、前の四秒の狙いで取り消さない。
-    if (o.group?.tedoRelieved) {
+    if (o.group?.noHunt || o.group?.tedoRelieved || o.group?.tedoFrom && !o.group.tedoActive) {
       if (o.target === P && o.pullUntil > now) { o.target = null; o.pullUntil = now; }
       list.splice(i, 1); continue;
     }

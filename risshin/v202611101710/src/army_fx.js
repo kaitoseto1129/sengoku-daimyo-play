@@ -24,16 +24,34 @@ export const ArmyFx = {
     const ground = !!this.world.def.groundStains;
     // 11/10 重さ：平らな跡は一枚ずつ描かず、縁の三通りごとに束ねて描く（最大 48 回の描く呼びかけ → 3 回）。
     //   一枚ずつの位置・色・薄さは今までどおり o.m（描かない入れ物）に持ち、置く時と 0.2 秒ごとに束へ写す。
-    if (!ground) this.stainInst = STAIN_TEX.map((tex) => {
-      const geo = STAIN_PLANE.clone();
-      const al = new THREE.InstancedBufferAttribute(new Float32Array(48), 1); al.setUsage(THREE.DynamicDrawUsage);
-      geo.setAttribute('iAlpha', al);
-      const mat = new THREE.MeshLambertMaterial({ map: tex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 });
+    const alphaPatch = (mat, key) => {
       mat.onBeforeCompile = (sh) => {
         sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float iAlpha;\nvarying float vIA;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvIA = iAlpha;');
         sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vIA;').replace('vec4 diffuseColor = vec4( diffuse, opacity );', 'vec4 diffuseColor = vec4( diffuse, opacity * vIA );');
       };
-      mat.customProgramCacheKey = () => 'stainInst';
+      mat.customProgramCacheKey = () => key;
+      return mat;
+    };
+    // 山道の跡（足場に沿わせて曲げた形）は一枚ずつの形が違うので、縁の絵ごとに一つの形へ写して描く（最大 48 回 → 3 回）
+    if (ground) this.stainMerge = STAIN_TEX.map((tex) => {
+      const N = 48, base = new THREE.PlaneGeometry(2.4, 2.4, 8, 8), V = base.attributes.position.count, bi = base.index.array;
+      const geo = new THREE.BufferGeometry(), dyn = (n) => new THREE.BufferAttribute(new Float32Array(N * V * n), n).setUsage(THREE.DynamicDrawUsage);
+      geo.setAttribute('position', dyn(3)); geo.setAttribute('normal', dyn(3)); geo.setAttribute('color', dyn(3)); geo.setAttribute('iAlpha', dyn(1));
+      const uv = new Float32Array(N * V * 2), idx = new Uint16Array(N * bi.length);
+      for (let k = 0; k < N; k++) { uv.set(base.attributes.uv.array, k * V * 2); for (let j = 0; j < bi.length; j++) idx[k * bi.length + j] = bi[j] + k * V; }
+      geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); geo.setIndex(new THREE.BufferAttribute(idx, 1));
+      geo.setDrawRange(0, 0); base.dispose();
+      const mat = alphaPatch(new THREE.MeshLambertMaterial({ map: tex, vertexColors: true, transparent: true, alphaTest: 0.01, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }), 'stainMerge');
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.frustumCulled = false; mesh.userData.noFreeze = mesh.userData.noMerge = true; mesh.userData.per = bi.length; mesh.userData.V = V;
+      this.scene.add(mesh);
+      return mesh;
+    });
+    if (!ground) this.stainInst = STAIN_TEX.map((tex) => {
+      const geo = STAIN_PLANE.clone();
+      const al = new THREE.InstancedBufferAttribute(new Float32Array(48), 1); al.setUsage(THREE.DynamicDrawUsage);
+      geo.setAttribute('iAlpha', al);
+      const mat = alphaPatch(new THREE.MeshLambertMaterial({ map: tex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }), 'stainInst');
       const im = new THREE.InstancedMesh(geo, mat, 48);
       im.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
       im.setColorAt(0, new THREE.Color(1, 1, 1));
@@ -45,15 +63,10 @@ export const ArmyFx = {
     });
     for (let i = 0; i < 48; i++) {
       let m;
-      if (ground) {
-        const geo = new THREE.PlaneGeometry(2.4, 2.4, 8, 8).rotateX(-Math.PI / 2);
-        m = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: 0x40140e, map: STAIN_TEX[i % STAIN_TEX.length], transparent: true, opacity: 0.5, alphaTest: 0.01, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }));
-        this.scene.add(m);
-      } else {
-        // 描かない入れ物（場面には入れない）。material は色・薄さ・縁の絵を持つだけの箱
-        m = new THREE.Object3D();
-        m.material = { map: STAIN_TEX[i % STAIN_TEX.length], color: new THREE.Color(0x40140e), opacity: 0.5, dispose() {} };
-      }
+      // 描かない入れ物（場面には入れない）。material は色・薄さ・縁の絵を持つだけの箱。山道の跡は曲げる形も持つ
+      m = new THREE.Object3D();
+      m.material = { map: STAIN_TEX[i % STAIN_TEX.length], color: new THREE.Color(0x40140e), opacity: 0.5, dispose() {} };
+      if (ground) m.geometry = new THREE.PlaneGeometry(2.4, 2.4, 8, 8).rotateX(-Math.PI / 2);
       m.visible = false;
       const o = { m, t: 0, life: 0, sx: 0, sz: 0, grow: 0, op: 0 };
       this.stainSlots.push(o);
@@ -62,6 +75,7 @@ export const ArmyFx = {
   },
   // 束ねた染み：見えている跡を縁の絵ごとに束へ写す
   syncStains() {
+    if (this.stainMerge) return this.syncGroundStains();
     const I = this.stainInst;
     if (!I) return;
     const n = [0, 0, 0];
@@ -81,11 +95,35 @@ export const ArmyFx = {
       im.instanceMatrix.needsUpdate = true; im.instanceColor.needsUpdate = true; im.geometry.attributes.iAlpha.needsUpdate = true;
     }
   },
+  syncGroundStains() {
+    const G = this.stainMerge, n = [0, 0, 0], v = new THREE.Vector3(), nm = this._stainNm || (this._stainNm = new THREE.Matrix3());
+    for (const o of this.stains) {
+      const m = o.m;
+      if (!m.visible || !m.geometry) continue;
+      const ti = Math.max(0, STAIN_TEX.indexOf(m.material.map)), mesh = G[ti], k = n[ti]++, V = mesh.userData.V, A = mesh.geometry.attributes;
+      m.updateMatrix(); nm.getNormalMatrix(m.matrix);
+      const P = m.geometry.attributes.position, N = m.geometry.attributes.normal, c = m.material.color, al = m.material.opacity;
+      for (let i = 0; i < V; i++) {
+        const j = k * V + i;
+        v.fromBufferAttribute(P, i).applyMatrix4(m.matrix); A.position.setXYZ(j, v.x, v.y, v.z);
+        v.fromBufferAttribute(N, i).applyMatrix3(nm).normalize(); A.normal.setXYZ(j, v.x, v.y, v.z);
+        A.color.setXYZ(j, c.r, c.g, c.b); A.iAlpha.array[j] = al;
+      }
+    }
+    for (let t = 0; t < G.length; t++) {
+      const g = G[t].geometry;
+      g.setDrawRange(0, n[t] * G[t].userData.per);
+      if (!n[t]) continue;
+      for (const k of ['position', 'normal', 'color', 'iAlpha']) g.attributes[k].needsUpdate = true;
+    }
+  },
   disposeStains() {
     if (!this.stainSlots) return;
     // 専用の形は戦の資源回収が場面から拾う。ここで二度返さない。
     for (const o of this.stainSlots) { if (o.m.parent) this.scene.remove(o.m); o.m.material.dispose(); }
     if (this.stainInst) { for (const im of this.stainInst) { this.scene.remove(im); im.material.dispose(); im.geometry.dispose(); } this.stainInst = null; }
+    if (this.stainMerge) { for (const me of this.stainMerge) { this.scene.remove(me); me.material.dispose(); me.geometry.dispose(); } this.stainMerge = null; }
+    for (const o of this.stainSlots) o.m.geometry?.dispose?.();
     this.stains.length = this.stainPool.length = this.stainSlots.length = 0;
   },
 

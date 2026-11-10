@@ -4030,9 +4030,6 @@ const shiga = {
       }
       // 後詰の兵と信長が実際に出るまで待つ。同じ二十秒の予約より先に勝つと、登場処理が終戦扱いで取り消される。
       if (F.aidMoving && rt.t - F.aidT >= 20 && F.nobunagaAid && hon.owner === ZONE_STATE.FRIEND && F.honGuarded && F.C.kuruwa.hon.test(p.x, p.z) && (F.innerHeld || 0) >= 10) { F.aidArrived = true; this.win(rt); }
-      // 11/10 クラウド：本丸に立ったまま、木戸の数（innerHeld）が揃わず七分止まった（act bot）。
-      //   詰まらない決まり：後詰が着いて六十秒、本丸を取られず本人が城の内にいれば、寄せ手は後詰を見て退く。
-      else if (F.aidMoving && rt.t - F.aidT >= 80 && F.nobunagaAid && hon.owner !== ZONE_STATE.ENEMY && inCastle) { F.aidArrived = true; this.win(rt); }
     }
     if (F.step === 2) {
       const way = F.retreatPath[F.retreatIdx];
