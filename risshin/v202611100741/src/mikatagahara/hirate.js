@@ -32,12 +32,12 @@ function hirateFalls(rt) {
     sfx('kane', 0.45);
     if (F.hirate && F.hirate.count) { F.hirate.morale = Math.min(F.hirate.morale || 60, 30); }
   });
-  rt.after(10.4, () => { if (!F.ending && !rt.over) rt.say('足軽', '平手の殿が……！　殿が討たれたがや！', 2.8); });
+  rt.after(10.4, () => { if (!F.ending && !rt.over) rt.say('足軽', '平手様、討死！　大旗が倒れたがや！', 2.8); });
   // 総崩れの下知を先に聞かせ、退く味方を支える中で平手が討たれる順にする。
   rt.after(3.6, () => {
     if (F.ending || rt.over) return;
     sfx('horagai', 0.5);
-    rt.say('使番', '御大将より下知！　総崩れじゃ、浜松へ退け！　南の坂へ集まれ！', 3.4);
+    rt.say('物見', '別の手が横から……！　平手の殿のそばへ武田が割り込んだ！', 3.4);
   });
 }
 
@@ -52,17 +52,17 @@ export function steps(K) {
       for (const id of ['baba', 'naito', 'katsuyori']) K.adv(F.bT?.[id], 12, 16, true);
       if (F.hiraU) rt.marker('hiraMe', () => (F.hiraU?.alive ? { x: F.hiraU.pos.x, z: F.hiraU.pos.z } : null), '平手汎秀', { h: 3 });
     }, say: [['足軽', '平手の殿の手が囲まれとる！　馬場の旗と赤備えに挟まれたがや！'], ['平手汎秀', 'ここで退けば徳川殿に顔向けできぬ。踏みとどまれ！']] }),
-    K.withstand({ at: HIRA_LAST, dur: 120, r: 22,   /* 11/9 見回り：囲みの斬り合いは平手の周り二十歩に広がる。十四歩では守りの秒が貯まらず四百五十秒止まった */ title: '平手のそばで囲みを支える', sub: '三方から武田の手が押し包む', label: '平手汎秀のそば',
-      obj: '平手汎秀のそばで、武田の囲みを支えよ',
+    K.withstand({ at: HIRA_LAST, dur: 70, cap: 105, r: 22,   /* 11/9 見回り：囲みの斬り合いは平手の周り二十歩に広がる。十四歩では守りの秒が貯まらず四百五十秒止まった */ title: '平手のそばで囲みを支える', sub: '三方から武田の手が押し包む', label: '平手汎秀のそば',
+      obj: '平手隊を救え',
       waves: [
         // 囲みは寄せる手の数と向きで見せる。一手ずつ強くはしない（敵の命・打ちは増やさない。dmg は並の 0.75）
         { t: 0, foes: () => [{ name: '馬場信春の手', from: { x: HIRA_LAST.x - 22, z: HIRA_LAST.z - 24 }, list: [K.uS(2), K.uA(10)], formation: 'yari', mass: 380, dmg: 0.75 }] },
         { t: 16, say: ['組頭', '右から赤備えの残りじゃ！　槍を向けよ！'], foes: () => [{ ...K.aka([{ type: 'samurai', n: 1, o: { horse: true } }, K.uC(2), K.uS(2)]), name: '赤備えの残り', from: { x: HIRA_LAST.x + 24, z: HIRA_LAST.z - 18 }, mass: 220, dmg: 0.75 }] },
-        { t: 34, say: ['組頭', '後ろにも回ってきたぞ！　背を合わせよ！'], foes: () => [K.gunLine('馬場の鉄砲衆', { x: HIRA_LAST.x - 30, z: HIRA_LAST.z - 6 }, 5)] },
-        { t: 58, say: ['物見', '内藤の旗！　まだ新手が来る！'], foes: () => [{ name: '内藤昌秀の手', from: { x: HIRA_LAST.x - 4, z: HIRA_LAST.z - 34 }, list: [K.uS(2), K.uA(10)], formation: 'yari', mass: 400, dmg: 0.75 }] },
-        { t: 88, say: ['足軽', '囲みが閉じる……！　武田の旗ばっかりだわ！'], foes: () => [{ name: '武田勝頼の手', from: { x: HIRA_LAST.x + 14, z: HIRA_LAST.z - 32 }, list: [{ type: 'samurai', n: 1, o: { horse: true } }, K.uA(9)], formation: 'yari', mass: 360, dmg: 0.75 }] },
+        { t: 24, say: ['組頭', '平手の殿の手が持ち直したぞ！　いや、後ろにも回ってきた！　背を合わせよ！'], foes: () => [K.gunLine('馬場の鉄砲衆', { x: HIRA_LAST.x - 30, z: HIRA_LAST.z - 6 }, 5)] },
+        { t: 38, say: ['物見', '内藤の旗！　まだ新手が来る！'], foes: () => [{ name: '内藤昌秀の手', from: { x: HIRA_LAST.x - 4, z: HIRA_LAST.z - 34 }, list: [K.uS(2), K.uA(10)], formation: 'yari', mass: 400, dmg: 0.75 }] },
+        { t: 52, say: ['足軽', '囲みが閉じる……！　武田の旗ばっかりだわ！'], foes: () => [{ name: '武田勝頼の手', from: { x: HIRA_LAST.x + 14, z: HIRA_LAST.z - 32 }, list: [{ type: 'samurai', n: 1, o: { horse: true } }, K.uA(9)], formation: 'yari', mass: 360, dmg: 0.75 }] },
       ],
       reward: '平手汎秀のそばで武田の囲みを支えた', lost: ['組頭', '囲みが破れん……！　平手の殿を守れ！'] }),
-    K.rest({ dur: 13, heal: 0, fn: (rt) => { rt.obj('dp', '平手汎秀のそばで最後まで戦え', 'main'); hirateFalls(rt); rt.after(12.5, () => rt.unmark('hiraMe')); } }),
+    K.rest({ dur: 13, heal: 0, fn: (rt) => { rt.obj('dp', '平手隊を救え', 'main'); hirateFalls(rt); rt.after(12.5, () => rt.unmark('hiraMe')); } }),
   ];
 }

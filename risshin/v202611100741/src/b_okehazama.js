@@ -942,21 +942,20 @@ function DA0(rt, scenery) {
 // 首巻の本陣急襲。八陣の名を当てず、織田は谷の縦列、今川は休息陣と分遣隊。
 const OKEHAZAMA_JIN = [
   battleJin('谷を進む縦備え', 0, fieldPoint(2, 150), Math.PI + FIELD_TURN, [
-    ['okhVan', '谷の先手', '名は伝わらない', 600, 2, 140, 'cols.0', 'oda'],
-    ['okhMain', '谷の本備', '名は伝わらない', 1200, 2, 158, 'cols.2', 'oda'],
-    ['okhNobu', '本陣', '織田信長', 200, 2, 150, 'nob', 'eiraku', 'oda'],
-    ['okhSaku', '善照寺方面の控え', '佐久間信盛', 500, ...zenshojiLocal, 'jinSaku', 'oda'],
-  ], '攻撃兵二千ほど。善照寺方面の五百は別の控え。家臣ごとの配置と各備の割り振りは推定。', fieldPoint),
-  // 七備の和を本陣周辺の約六千（force・札）にそろえる（11/6。前は七千五百）
+    ['okhVan', '谷の先手', '名は伝わらない', 100, 2, 140, 'cols.2', 'oda'],
+    ['okhLeft', '谷の左の組', '名は伝わらない', 100, -4, 148, 'cols.0', 'oda'],
+    ['okhRight', '谷の右の組', '名は伝わらない', 100, 8, 148, 'cols.1', 'oda'],
+    ['okhNobu', '本陣', '織田信長', 1400, 2, 150, 'nob', 'eiraku', 'oda'],
+    ['okhSaku', '善照寺方面の控え', '佐久間信盛', 450, ...zenshojiLocal, 'jinSaku', 'oda'],
+  ], '攻撃兵二千に足らず。善照寺方面の四百五十は別の控え。家臣ごとの配置と各備の割り振りは推定。', fieldPoint),
+  // 布陣図と戦場の軽い軍勢を、docs/fujin/okehazama.md・depthOkehazama の同じ五備へそろえる。
   battleJin('休息中の備え', 1, FIELD_HONJIN, FIELD_TURN, [
-    ['okhYoshi', '本陣', '今川義元', 1000, HONJIN.x, HONJIN.z + 2, 'hatamoto', 'imagawa'],
+    ['okhYoshi', '本陣', '今川義元', 3900, HONJIN.x, HONJIN.z + 2, 'hatamoto', 'imagawa'],
     ['okhGuard', '本陣前の守り', '名は伝わらない', 500, 0, -96, 'enemies.0', 'imagawa'],
-    ['okhFrontEast', '本陣前の右の守り', '名は伝わらない', 300, 40, -92, 'enemies.1', 'imagawa'],
+    ['okhFrontEast', '本陣前の右の守り', '名は伝わらない', 500, 40, -92, 'enemies.1', 'imagawa'],
     // 11/4 布陣図（fujin60）：松井宗信は高根山の先手（本陣と織田の間）。井伊直盛は本陣脇（巻山）。
-    ['okhMatsui', '高根山の坂の先手', '松井宗信', 1500, 16, -94, 'road.2', 'imagawa'],
-    ['okhWest', '本陣左の備え', '井伊直盛', 1000, -22, -118, 'enemies.2', 'imagawa'],
-    ['okhEast', '本陣右の備え', '名は伝わらない', 700, 40, -124, 'enemies.3', 'imagawa'],
-    ['okhReserve', '本陣後ろの控え', '名は伝わらない', 1000, -4, -134, 'enemies.4', 'imagawa'],
+    ['okhMatsui', '高根山の坂の先手', '松井宗信', 600, 16, -94, 'road.2', 'imagawa'],
+    ['okhWest', '本陣左の備え', '井伊直盛', 500, -22, -118, 'enemies.2', 'imagawa'],
   ], '今川全軍は『信長公記』では四万五千、後世には二万五千とも。本陣周辺の六千は推定の目安で、全軍の数ではない。松平元康らの大高・丸根方面の別働勢はここへ集めない。', fieldPoint),
 ];
 
