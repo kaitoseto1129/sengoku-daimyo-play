@@ -3930,7 +3930,11 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
         }
         if (!q.o?.kosode || q.o.name || q.n < 1) return [q];
         const out = [];
-        for (let i = 0; i < q.n; i++) out.push({ ...q, n: 1, o: { ...q.o, kosodeCol: colors[clothesN % colors.length], skin: q.o.skin ?? HONNO_SKINS[(clothesN++ * 3 + 1) % HONNO_SKINS.length] } });
+        for (let i = 0; i < q.n; i++) {
+          // 六色を三つ飛ばしに選ぶと二色だけに偏る。指定済みの肌色があっても衣の順は進める。
+          const index = clothesN++;
+          out.push({ ...q, n: 1, o: { ...q.o, kosodeCol: colors[index % colors.length], skin: q.o.skin ?? HONNO_SKINS[(index + 1) % HONNO_SKINS.length] } });
+        }
         return out;
       });
       return spawnHonno.call(this, group, varied, ...rest);

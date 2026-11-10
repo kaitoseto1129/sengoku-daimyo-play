@@ -727,7 +727,9 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
     const p = rt.player.u.pos, c = g.center();
     if (!F.sasaFire) { F.sasaFire = true; g.fire = true; }
     if (!F.sasaOff && (Math.hypot(p.x - SASA.x, p.z - SASA.z) < 34 || rt.t - F.t0 > 40)) {
-      F.sasaOff = true; g.fire = false; g.fixed = false; g.order = 'move'; g.dest = PORT(1); g.anchor = PORT(1);
+      F.sasaOff = true; g.fire = false;
+      // 退く前の狙いを残すと、丘へ寄せた主人公を追い直して篠山が空にならない。
+      withdraw(g, PORT(1));
       rt.say('足軽', '篠山の鉄砲が丸へ引いていく……？', 3);
     }
     if (F.sasaOff && !F.sasaIn && Math.hypot(c.x - g.dest.x, c.z - g.dest.z) < 6) { F.sasaIn = true; g.noRout = false; g.morale = 0; }

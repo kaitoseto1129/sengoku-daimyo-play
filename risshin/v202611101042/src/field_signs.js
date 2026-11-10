@@ -591,6 +591,9 @@ export function fieldSignsTick(rt, root) {
     let k = Math.max(Math.max(moribeMinPixels, inouMinPixels) * moribePixelScale,
       Math.min(ford ? moribeLimit : lesson ? inouLimit : raid ? (u === missionEnemy || u === commander ? 1.6 : 1.1) : u === commander ? 32 : 3, (lesson || ford ? pixels : width) * moribePixelScale)) *
       (ford || lesson ? 1 : 1 + (pulse > 0 ? 1.2 * pulse : reachable && !raid ? .55 : 0));
+    // 城内の密集でも所属印を消さず、指定された戦だけ画面上の大きさを抑える。
+    if (!special && foe && rt.def.foeSignMaxPixels > 0)
+      k = Math.min(k, rt.def.foeSignMaxPixels * moribePixelScale);
     dummy.position.copy(headPos);
     dummy.quaternion.copy(q);
     // 振りかぶりでも▼の向きは変えず、誰の頭上かを保つ。

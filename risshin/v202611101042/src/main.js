@@ -180,7 +180,7 @@ function ldTick() {
   P.progress = Math.max(P.progress, Math.min(.98, (Math.max(0, P.cur) + P.part) / Math.max(1, P.keys.length)));
   $('loading').style.setProperty('--ld-progress', `${P.progress * 100}%`);
   const left = $('ld-left');
-  if (left && !['inou', 'tennoji', 't08_nejirozaka', 'shiga'].includes(P.battle)) {
+  if (left && !['inou', 'tennoji', 't08_nejirozaka', 'shiga', 'takato'].includes(P.battle)) {
     const elapsed = performance.now() - P.t;
     const current = P.est[Math.max(0, P.cur)] || 0;
     // 目安を過ぎた工程は、残りの半分ほどをまだ要ると見る（「時間がかかっています」の字に替えず、いつも秒で示す。kaito 11/1）
@@ -238,7 +238,7 @@ const stage = (t, key) => {
   el.setAttribute('role', 'region');
   if (!$('ld-left')) el.innerHTML = '<span role="status" aria-live="polite" aria-atomic="true"></span><span aria-live="off" id="ld-left" style="display:block;margin-top:8px"></span>';
   // 初陣でも待つ目安を残す。工程名を畳む表示とは分ける。
-  if (['inou', 'tennoji', 't08_nejirozaka', 'shiga'].includes(ldPlan?.battle)) $('loading').querySelector('.ldmon')?.removeAttribute('data-sec');
+  if (['inou', 'tennoji', 't08_nejirozaka', 'shiga', 'takato'].includes(ldPlan?.battle)) $('loading').querySelector('.ldmon')?.removeAttribute('data-sec');
   const left = $('ld-left');
   const quiet = ['inou', 'tennoji', 't08_nejirozaka', 'shiga'].includes(ldPlan?.battle);
   left.hidden = !t || quiet; left.style.display = t && !quiet ? 'block' : 'none';

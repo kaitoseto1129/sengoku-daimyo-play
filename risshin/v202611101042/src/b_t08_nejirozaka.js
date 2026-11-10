@@ -132,6 +132,8 @@ function clearMarch(g) {
 // 東西から回った組も、砦の北へ逃げず島津の陣のある南の坂下へ戻す。
 function southRetreat(g) {
   g.fleeDir = { x: 0, z: 1 };
+  // 本陣の隊にも向きを確定する。未指定のままだと共通の潰走判定が上書きする。
+  g.fleeSet = true;
   g.fleePath = null;
   for (const u of g.units) if (u.alive) {
     u.moraleFleeDir = null;
@@ -226,7 +228,7 @@ function saruStep(s) {
 
 // 忠隣の段は、寄せた手を崩しても忠隣が生きている間は終わらない
 function tadaStep(s, rt) {
-  const tick = s.tick;
+  const tick = s.tick, end = s.end;
   s.tick = (r, C, m, ctx, el) => {
     // 手勢への退却の下知が出た後は、共通処理の呼び寄せで攻撃へ戻さない。
     if (!rt.flags.tadaHandDone && tick(r, C, m, ctx, el)) rt.flags.tadaHandDone = true;
@@ -234,6 +236,12 @@ function tadaStep(s, rt) {
     if (u?.alive) C.goal = u.pos;
     if (u?.alive && rt.flags.tadaHandDone) rt.objProgress('dp', '土橋の前の坂で、島津忠隣を討ち取れ');
     return rt.flags.tadaHandDone && !!u && !u.alive && !!rt._g5?.own.has('島津忠隣');
+  };
+  s.end = (r, C, ...args) => {
+    // 九十秒より早く討ち取った時も、残る寄せ手に退く下知を出す。
+    // 士気を落とすだけでは組頭が生きている手が砦へ寄せ続ける。
+    withdrawWave(C);
+    end(r, C, ...args);
   };
   s.idleAdvance = false;   // 止まっていても段は先へ飛ばない（忠隣は寄せ続ける。⑤を果たさずに勝ちにしない。kaito 三3）
   s.max = 900;
