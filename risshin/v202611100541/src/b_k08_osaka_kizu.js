@@ -78,6 +78,18 @@ function fightingTarget(groups, p, north) {
 }
 // 味方の隊は持ち場（anchor）を移すだけ。兵は走って付いてくる（名のある武将の隊は order の move で動かない）
 const hold = (g, x, z) => { if (!g || g.routed) return; g.anchor.x = x; g.anchor.z = z; g.order = 'hold'; g.dest = null; g.path = null; g.focus = null; };
+// 東岸の浅野勢は、残る東南の塀へ直進せず、開いた南面か東の切れ目から入る。
+// ④へ進んだ時も、まだ外にいる組の経路を消さない。
+function holdInside(g, x, z) {
+  if (!g || g.routed) return;
+  const c = g.center();
+  hold(g, x, z);
+  if (c.x <= WALL_X) return;
+  const entryZ = c.z > GATE.z ? GATE.z + 18 : -30;
+  g.anchor.x = c.x; g.anchor.z = c.z;
+  g.order = 'path'; g.path = [[WALL_X + 12, entryZ], [12, entryZ], [x, z]]; g.pathIdx = 0;
+  g.onArrive = (q) => { q.order = 'hold'; };
+}
 const gauss = (x, z, cx, cz, s) => Math.exp(-((x - cx) ** 2 + (z - cz) ** 2) / s);
 // 北の口の守りに残る数（柵の外へ押し出された者は守りから外れた者として数えない。追えずに④が止まらないように）
 const guardsNorth = (u) => fightable(u) && Math.abs(u.pos.x) < WALL_X - 0.5 && u.pos.z < GATE.z && u.pos.z > WALL_N - 4;
@@ -511,7 +523,7 @@ const k08_osaka_kizu = {
       if (southGap || westGap || eastGap) { s.hp = 0; s.alive = false; if (s.mesh) s.mesh.visible = false; }
     }
     hold(F.saki, INSIDE.x + 4, INSIDE.z); F.saki.aggro = 24;
-    hold(F.asano, INSIDE.x + 12, INSIDE.z - 4); F.asano.aggro = 22;
+    holdInside(F.asano, INSIDE.x + 12, INSIDE.z - 4); F.asano.aggro = 22;
     hold(F.east, 20, -72);   // 背から北の口を塞ぐ
     // 門が早く破れても、東の外を回る。北寄りの横塀はまだ残っており、
     // ②の経路を消して北の口へ直進させると、その塀に突き当たる。
@@ -553,7 +565,7 @@ const k08_osaka_kizu = {
     F.s4 = [F.w3, F.zen]; F.nN = northLeft(F);   // 北の櫓の上の兵は数えない（⑤で降りて逃げる）
     hold(F.saki, NGATE.x + 3, NGATE.z + 10); F.saki.aggro = 24;
     for (const g of F.allies) g.dmgMult = 0.3;   // 退き口を守る全延の組は死に物狂い（④が一息で済まない。11/6 描いた通しで 0.45 では三十七秒で済み、戦が三分で終わった）
-    hold(F.asano, NGATE.x + 12, NGATE.z + 10); F.asano.aggro = 22;
+    holdInside(F.asano, NGATE.x + 12, NGATE.z + 10); F.asano.aggro = 22;
     hold(F.ikeda, NGATE.x - 10, NGATE.z + 10); F.ikeda.aggro = 22;
     rt.marker('k08', () => northTarget(F, rt.player.u.pos)?.pos || NGATE, '明石全延の組', { red: true, group: F.zen });
     rt.say('明石全延', '北の口を固めよ！　退き口を守れ', 3.2);

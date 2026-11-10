@@ -27,6 +27,13 @@ export function install(rt, K) {
 
 export function start(rt, K) {
   const F = rt.flags;
+  // 合流中の浅野勢は入口までの道を保ち、最後の持ち場だけ変える。
+  // 経路の途中で anchor を砦内へ移すと、残った塀を横切ってしまう。
+  const holdAt = (g, x, z) => {
+    if (g.order === 'path' && g.path?.length) {
+      const last = g.path[g.path.length - 1]; last[0] = x; last[1] = z;
+    } else { g.anchor.x = x; g.anchor.z = z; }
+  };
   F.engunPushedBack = false;
   F.engunN = F.engun ? F.engun.count : 0;
   const S = (t, fn) => rt.after(t, () => { if (F.step === 4 && !F.ending) fn(); });
@@ -47,7 +54,10 @@ export function start(rt, K) {
   // 加勢が北の口へ着く頃：味方が押される（隊を門の内の半ばまで下げる）
   S(40, () => {
     rt.say('蜂須賀の侍', '押される！　門の内まで下がって組を立て直せ！', 3);
-    for (const g of [F.saki, F.asano, F.ikeda]) if (alive(g)) { g.anchor.x = (g.anchor.x || 0) * 0.6; g.anchor.z = K.GATE.z - 18; }
+    for (const g of [F.saki, F.asano, F.ikeda]) if (alive(g)) {
+      const x = g.order === 'path' && g.path?.length ? g.path[g.path.length - 1][0] : g.anchor.x;
+      holdAt(g, (x || 0) * 0.6, K.GATE.z - 18);
+    }
   });
   // 浅野の後備が来て押し返す
   S(58, () => {
@@ -62,7 +72,7 @@ export function start(rt, K) {
     // 長晟は遠い搦手の陣。北の口へは使番が下知を運ぶ。
     rt.say('浅野の使番', '長晟様の下知。後備が参る、北の口へ押し返せ、と', 3);
     S(10, () => {
-      for (const q of [F.saki, F.asano, F.ikeda]) if (alive(q)) { q.anchor.x = K.NGATE.x + (q === F.ikeda ? -10 : q === F.asano ? 12 : 3); q.anchor.z = K.NGATE.z + 10; }
+      for (const q of [F.saki, F.asano, F.ikeda]) if (alive(q)) holdAt(q, K.NGATE.x + (q === F.ikeda ? -10 : q === F.asano ? 12 : 3), K.NGATE.z + 10);
       F.engunPushedBack = true;
     });
   });

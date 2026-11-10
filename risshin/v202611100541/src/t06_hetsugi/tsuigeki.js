@@ -63,7 +63,17 @@ function legB(rt, K) {
 export function pin(rt, K) {
   const S = rt.flags.s2;
   // 先手に当たる前から追撃先を指すと、敵を素通りして進行が止まる。
-  if (!rt.flags.feigned) return K.lightPos(rt.flags.blk.ijuin);
+  if (!rt.flags.feigned) {
+    // 塊と本物の先手は別々に動く。塊の中心へ案内すると、追って来た先手から離れてしまう。
+    const p = rt.player.u.pos;
+    let nearest = null, best = Infinity;
+    for (const g of rt.flags.ijBands || []) for (const u of g.units) {
+      if (!u.alive || u.gone || u.dying || u.noTarget || u.woundOut || u.rearWound || u.fleeing) continue;
+      const dx = u.pos.x - p.x, dz = u.pos.z - p.z, d = dx * dx + dz * dz;
+      if (d < best) { nearest = u; best = d; }
+    }
+    return nearest ? nearest.pos : K.lightPos(rt.flags.blk.ijuin);
+  }
   return S && S.leg === 1 ? SIEGE : { x: K.RING.x, z: K.RING.z + 6 };
 }
 

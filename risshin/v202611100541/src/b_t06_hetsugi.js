@@ -852,7 +852,7 @@ const t06_hetsugi = {
     let q;
     if (F.step === 1 && !shinkou.crossing(b)) q = shinkou.pin(b);
     else if (F.step === 1) q = Math.abs(u.pos.x - FORD.x) > 6 && u.pos.z > 8 ? { x: FORD.x, z: 24 } : { x: FORD.x, z: -22 };
-    else if (F.step === 2) q = F.feigned ? tsuigeki.pin(b, K) : lightPos(F.blk.ijuin);
+    else if (F.step === 2) q = tsuigeki.pin(b, K);
     else if (F.step === 3) q = kyuen.pin(b) || { x: RING.x, z: RING.z + 6 };
     // 浅瀬の外の深みは斜めに渡らない：まず北の岸で浅瀬の口へ寄ってから、まっすぐ渡る
     else if (F.step === 4 && !shingari.crossNow(b)) q = shingari.MOUTH_N;   // 殿：浅瀬の北の口で防ぐ
