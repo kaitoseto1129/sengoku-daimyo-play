@@ -29,7 +29,7 @@ export function start(rt, ctx) {
   [{ type: 'samurai', n: 2, o: { ...ctx.look } }, { type: 'ashigaru', n: 10, o: { ...ctx.look } }]);
   P.g.order = 'hold';
   P.n0 = P.g.units.length;
-  for (const g of F.echUp || []) { if (!g?.count || g.routed) continue; g.order = 'move'; g.dest = { x: ctx.at.x, z: ctx.at.z - 10 }; g.onArrive = (q) => { q.order = 'attack'; q.seekRange = 40; }; }
+  for (const g of F.echUp || []) { if (!g?.count || g.routed) continue; g.order = 'move'; g.dest = ctx.back ? { ...ctx.back } : { x: ctx.at.x, z: ctx.at.z - 10 }; g.onArrive = (q) => { q.order = 'attack'; q.seekRange = 40; }; }
 }
 
 export function pin(rt) { const P = rt.flags.echFuchu; return P && P.s === 0 ? P.pos : null; }

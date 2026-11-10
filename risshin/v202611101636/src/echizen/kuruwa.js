@@ -7,6 +7,7 @@
 // ======================================================================
 import { sfx } from '../audio.js';
 import { toCourt } from './goryu.js';
+import { k15Fade } from '../oda15_kit.js';
 import { pursuer } from './fuchu.js';
 
 const ORDER = ['kinome_sou', 'kinome_fuku', 'kinome_hon'];
@@ -33,10 +34,20 @@ function rout(rt, z) {
 //   別手の城を味方の手が押さえきれず、本人が峠の主郭で待ち続けて終わらなかった（11/9 の流し：五百八秒から先へ進まず）。
 function side(rt) {
   const F = rt.flags, hon = F.SZ.byId.kinome_hon;
+  // 11/10 クラウドの流し：別手の城の一揆勢は退いたが、遠い尾根の砦へ入る者がおらず、本陣で三百秒待って刻限が切れた。
+  //   退いて三十秒、守兵の残らない別手の城は、峠へ上がった別手の味方が押さえた事にする（使番の知らせだけ。印は増やさない）
+  if (F.echSideGone && !F.echSideTaken && rt.t - F.echSideGone >= 30) {
+    const left = SIDE.map((id) => F.SZ.byId[id]).filter((z) => z && z.owner !== 'friend');
+    for (const z of left) if (!z.enemies) { z.owner = 'friend'; z.fallen = true; }
+    if (left.every((z) => z.owner === 'friend')) {
+      F.echSideTaken = true;
+      if (left.length) rt.say('使番', '別手の味方が、捨てられた西光寺丸と鉢伏の砦を押さえました！', 3.6);
+    } else if (rt.t - F.echSideGone >= 60) { for (const z of left) if (z.enemies) rout(rt, z); }
+  }
   if (hon.owner !== 'friend' || hon.enemies > 0 || F.echSideGone) return;
   if (F.echHonT == null) F.echHonT = rt.t;
   if (rt.t - F.echHonT < 45) return;
-  F.echSideGone = true;
+  F.echSideGone = rt.t || 0.001;
   // 既に味方が押さえた城を、守兵が焼き捨てた事にしない。
   const pending = SIDE.filter(id => {
     const z = F.SZ.byId[id];
@@ -114,6 +125,35 @@ export function tick(rt, dt) {
       for (const q of rt.squadGroups || []) for (const v of q.units) if (!q.routed && v.alive && !v.fleeing && !v.woundOut && !v.rearWound && Math.hypot(v.pos.x - ox, v.pos.z - oz) < 40) { v.pos.x = z.pos.x + (Math.random() - 0.5) * 6; v.pos.z = z.pos.z + (Math.random() - 0.5) * 6; v.pos.y = rt.world.heightAt(v.pos.x, v.pos.z); }
     }
   } else S.out = 0;
+  // 11/10 クラウドの流し：木戸が破れた後、守兵が口の外へ打って出て本人と木戸の前で斬り合い続け、三百秒余り郭へ入れなかった。
+  //   木戸が破れて百秒、本人が木戸の四十五歩の内で戦っていれば、残る守兵は奥へ退く（味方の手も口へ押し入っている）
+  const gs = id === 'kinome_sou' ? F.gateKinome?.struct : null;
+  if (gs && !gs.alive && z.enemies) {
+    S.open ??= rt.t;
+    if (rt.t - S.open > 100 && Math.hypot(P.x - gs.seg[0] / 2 - gs.seg[2] / 2, P.z - gs.seg[1] / 2 - gs.seg[3] / 2) < 45) {
+      S.open = rt.t;
+      rout(rt, z);
+      rt.say('一揆の衆徒', '木戸を破られた！　郭を捨てて奥へ退け！', 3);
+      return;
+    }
+  }
+  // 11/10 クラウドの流し：副郭の中に本人が立っても、残り十五人が控えの軽い兵や遠い塀の上で、三十歩の内に斬れる敵が一人もおらず
+  //   刻限まで五百秒止まった（breachHit が立たないので下の七十五秒の退きも来ない）。郭の中で斬れる敵（同じ高さ・二十五歩の内。
+  //   塀の上や切岸の上で動かない守兵は数えない）が三十秒いなければ、残りは退く
+  if (z.enemies && z.test(P.x, P.z)) {
+    let near = false;
+    for (const u of rt.army.units) if (u.alive && u.team !== rt.player.u.team && !u.fleeing && !u.isStruct && Math.abs(u.pos.y - P.y) < 3 && Math.abs(u.pos.x - P.x) < 25 && Math.abs(u.pos.z - P.z) < 25) { near = true; break; }
+    S.idle = near ? 0 : (S.idle || 0) + dt;
+    // 斬り合っていても残りの数が六十秒減らない（塀の上の弓・届かない所の守兵が混ざる）時も退く（正式の流し：残り十五人のまま百五秒）
+    if (S.cntV !== z.enemies) { S.cntV = z.enemies; S.cntT = rt.t; }
+    if (S.idle > 25 || rt.t - S.cntT > 60) {
+      S.cntT = rt.t;
+      S.idle = 0;
+      rout(rt, z);
+      rt.say('一揆の衆徒', 'この郭はもう持たぬ！　奥へ退け！', 3);
+      return;
+    }
+  } else S.idle = 0;
   // どの郭も本人が守兵へ当てて戦う。副郭・主郭も味方と時計だけでは退かせない。
   if (!F['breachHit_' + id] || !z.test(P.x, P.z)) { S.t = null; return; }
   if (!z.friends || !z.enemies) return;
@@ -132,6 +172,13 @@ export function chaseCut(rt, ctx) {
   F.echChaseCut = true;
   rt.after(12, () => {
     if (F.ending || rt.over || F.echGateReached || !rt.player.u.alive) return;
+    // 暗転して移す（11/10：見えたまま五百歩飛んでいた）
+    k15Fade(rt, () => cut(rt, ctx), '峠道を追う', '');
+  });
+}
+function cut(rt, ctx) {
+  const F = rt.flags;
+  {
     const f = ctx.front, P = rt.player.u, W = rt.world;
     const put = (u, x, z) => { u.pos.x = x; u.pos.z = z; u.pos.y = W.heightAt(x, z); u.vel && (u.vel.x = u.vel.z = 0); };
     const ox = P.pos.x, oz = P.pos.z;
@@ -149,6 +196,48 @@ export function chaseCut(rt, ctx) {
       const c = g.center(); g.anchor.x = c.x; g.anchor.z = c.z; g._fitAt = 0;
       g.pathIdx = Math.max(0, (g.path?.length || 1) - 1);
     }
-    rt.say('組頭', '追いついたぞ。坂の上に殿が踏みとどまっておる！', 3);
-  });
+    rt.after(1, () => { if (!F.ending && !rt.over) rt.say('組頭', '追いついたぞ。坂の上に殿が踏みとどまっておる！', 3); });
+  }
+}
+
+// 観音丸が落ちた後：九十九折りの尾根道を千メートル近く歩き、道の脇の一揆勢と斬り合って
+//   木ノ芽峠城の木戸の前まで五百秒余り掛かり、刻限の十八分を越えていた（11/10 クラウドの流し：木戸に着いたのが830秒）。
+//   落ちて二十秒（火と台詞を見せた後）、本人がまだ折れ道の下にいれば、暗転して木戸の七十歩手前の峠道へ。
+//   前田・佐々・不破の手と、本人のそばの組の者も一緒に並べる。ctx：{ below（この南北より南なら送る）, at（本人を置く点）, ahead（手を置く南北）}
+export function roadCut(rt, ctx) {
+  const F = rt.flags;
+  if (F.echRoadCut || !F.kannonFell || F.souFell || F.ending || rt.over) return;
+  if (F.echKannonFellT == null) F.echKannonFellT = rt.t;
+  if (rt.t - F.echKannonFellT < 20) return;
+  const P = rt.player.u;
+  if (!P.alive || P.pos.z > ctx.below) { F.echRoadCut = true; return; }
+  F.echRoadCut = true;
+  const W = rt.world;
+  const put = (u, x, z) => { u.pos.x = x; u.pos.z = z; u.pos.y = W.heightAt(x, z); u.vel && (u.vel.x = u.vel.z = 0); u.target = null; };
+  k15Fade(rt, () => {
+    const ox = P.pos.x, oz = P.pos.z, f = ctx.at;
+    put(P, f.x, f.z);
+    if (P.maxHp) P.hp = Math.max(P.hp, P.maxHp * 0.85);
+    for (const q of rt.squadGroups || []) for (const u of q.units) if (!q.routed && u.alive && !u.fleeing && !u.woundOut && !u.rearWound && Math.hypot(u.pos.x - ox, u.pos.z - oz) < 40) put(u, f.x - 3 + Math.random() * 6, f.z - 4 - Math.random() * 5);
+    const G = F.echGoryu;
+    for (const g of G?.groups || []) {
+      if (!g.count || g.routed) continue;
+      const dx = g.units[0] ? (g.units[0].pos.x > 0 ? 3 : -3) : 0;
+      for (const u of g.units) if (u.alive && !u.fleeing && !u.woundOut && !u.rearWound) put(u, f.x + dx - 2 + Math.random() * 4, ctx.ahead + Math.random() * 8);
+      const c = g.center(); g.anchor.x = c.x; g.anchor.z = c.z; g._fitAt = 0;
+      if (g.order === 'path' && G.route?.length) { g.path = [[c.x, c.z], ...G.route.filter(([, z]) => z > c.z + 2)]; g.pathIdx = 0; }
+    }
+    // 送った先より下（折れ道）に残る本道の小勢は、追い越された事にして谷へ散らす。
+    //   残すと bot も人も折れ道を引き返して二百秒斬り合っていた（11/10 クラウドの流し）
+    for (const b of F.roadGuards || []) {
+      const g = b?.real;
+      if (!g?.count || g.routed || g === F.echTail) continue;
+      const c = g.center();
+      if (c.z > f.z - 6) continue;
+      g.routed = true; g.order = 'flee'; g.morale = 0; g.focus = null; g.noRout = false; g.fleeDir = { x: c.x < 0 ? -1 : 1, z: 0 };
+      for (const u of g.units) if (u.alive) { u.fleeing = true; u.target = null; u.atk = null; u.aiT = 0; }
+    }
+    F.statusAt = 0;
+  }, '尾根道を上り詰めた', '木ノ芽峠城の木戸の前');
+  rt.after(1.5, () => { if (!F.ending && !rt.over) rt.say('前田利家', '木戸はすぐそこじゃ。打ち破って中へ押し入れ！', 3.4); });
 }

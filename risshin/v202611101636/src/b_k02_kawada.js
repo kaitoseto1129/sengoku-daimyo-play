@@ -326,6 +326,11 @@ const k02_kawada = {
   },
   spawn: { x: START.x + 2, z: START.z, heading: Math.PI },
   noWake: true,
+  // 渡河の下知はこの戦の九秒で出す。共通の十五秒の待ちを重ねて兵を止めない。
+  prelude: false,
+  // 共通の勝利札にも戦固有の締めを渡し、見出しを覆い隠さない。
+  victoryTitle: '米野の戦い　勝ち',
+  victoryCaption: '織田秀信は岐阜城へ退いた',
   // 段の時間送りを外しても、共通の十八分打ち切りは別に動く。
   // 未達の目標がある間は本人の到着と戦闘を待ち、放置で負けにしない。
   pacingWait: (rt) => !rt.flags.ending,

@@ -135,7 +135,12 @@ function pressStep(rt, dt) {
       if (o.target === P && o.pullUntil > now) { o.target = null; o.pullUntil = now; }
       list.splice(i, 1); continue;
     }
-    if (!o.alive || o.dying || o.gone || o.fleeing || o.woundOut || o.rearWound || o.downed || o.dragging || o.noTarget || o.group?.routed || o.group?.order === 'path' || o.target !== P || !(o.pullUntil > now) || !P.alive || rt.over || F.ending) { list.splice(i, 1); continue; }
+    if (!o.alive || o.dying || o.gone || o.fleeing || o.woundOut || o.rearWound || o.downed || o.dragging || o.noTarget || o.group?.routed || o.group?.order === 'path' || o.target !== P || !(o.pullUntil > now) || !P.alive || rt.over || F.ending) {
+      // 選び直しの前に後送や敗走へ移った兵にも、四秒の狙いを残さない。
+      // 名簿から外すだけでは、通常の戦いが古い狙いを使ってしまう。
+      if (o.target === P && o.pullUntil > now) { o.target = null; o.pullUntil = now; }
+      list.splice(i, 1); continue;
+    }
     // 救助は通常の後送に任せる。鍔迫り合い・接触で足を止める間も追加の歩みで滑らせない。
     // 攻撃の予備動作中は共通の歩みが減速する。追加追撃でその制限を打ち消さない。
     // 矢に伏せる間と打たれたよろめきも同じ。

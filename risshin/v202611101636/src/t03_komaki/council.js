@@ -8,9 +8,14 @@ import { allyGroup } from '../bhelp.js';
 import { moveSonae } from './depth.js';
 import { seatCommander } from './camp.js';
 
-function say(rt, who, s, t, sec = 3) {
+function after(rt, t, run) {
   const stage = rt.flags.stage;
-  rt.after(t, () => { if (!rt.flags.ending && !rt.flags.transitioning && rt.flags.stage === stage) rt.say(who, s, sec); });
+  rt.after(t, () => {
+    if (!rt.over && rt.player?.u?.alive !== false && !rt.flags.ending && !rt.flags.transitioning && rt.flags.stage === stage) run();
+  });
+}
+function say(rt, who, s, t, sec = 3) {
+  after(rt, t, () => rt.say(who, s, sec));
 }
 
 export function startCouncil(rt, K) {
@@ -47,7 +52,7 @@ export function tickCouncil(rt, K) {
       ['羽柴秀吉', 'その方は荷駄の列を連れて森の陣へ行け。今宵出ると伝えよ', 22.4, 3.2],
     ];
     for (const [who, s, t, sec] of L) say(rt, who, s, t, sec);
-    rt.after(26, () => K.next());
+    after(rt, 26, () => K.next());
   }
 }
 
@@ -83,6 +88,6 @@ export function tickOrders(rt, K) {
     say(rt, '森長可', '篝火はそのままにして陣を払え。徳川の物見に悟られるな', 3.8, 3.2);
     say(rt, '森長可', '者ども、荷を軽うせよ。腰兵糧は三日分じゃ', 8, 3);
     say(rt, '足軽', '具足の紐を締め直せ。夜通し歩くぞ', 12, 2.8);
-    rt.after(16, () => K.next());
+    after(rt, 16, () => K.next());
   }
 }
