@@ -3688,11 +3688,8 @@ const saika = {
     for (const g of rt.army.groups) if (g.team === 1 && g.saikaGuard && g.woke.kind === 'gun') g.fire = F.step < 6 && !F.bankCeasefire && g.id % F.gunPosts.length === volley;
     reinforceBank(rt, dt);
     const el = rt.t - F.stepT, p = rt.player.u.pos;
-    // 生きて任務を続けられる時間を確保する。十八分以内に後陣へ引いて閉じる（11/8 kaito 15分の構成で七分から延ばした）。
-    if (rt.t >= 1080 && F.step !== 6) {
-      F.holdFailure = F.step === 1 ? '杭を外しきれず、渡る道を通せなかった' : F.step === 2 ? '西岸の足場へ届かなかった' : F.step === 3 ? '東岸の旗へ戻れなかった' : F.step === 4 ? '東岸の竹束の陰で列を整えられなかった' : '東岸の敵を払い、旗のそばで守りを保てなかった';
-      return this.win(rt, false);
-    }
+    // 各段の案内で任務へ戻せる間は、経過時間だけで失敗にしない。
+    // 東岸を実際に押された時の敗北は、下の寄せ手と旗の判定で決める。
     // 守りは旗の周囲を保った時間で判定する。味方が敵を払っても達成できる。
     const notice = rt.t >= (F.progressAt || 0);
     if (notice) F.progressAt = rt.t + 0.5;

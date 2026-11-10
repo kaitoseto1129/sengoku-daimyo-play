@@ -2429,7 +2429,7 @@ const shigisan = {
       return null;
     }
     // 炎上中は館の前から南口の外へ退く。古い道の終点で待たせない。
-    if (F.paceEnjou && !F.enjouDone) return 'enjou';
+    if (F.paceEnjou) return 'enjou';   // 口を固めた後も、落城の締めまで南口の外の印を示す
     // 敵が門内から出て来る間も、土橋の持ち場を示す。
     if (F.step === 3.2) return 'sallyPost';
     if (F.castleGuideBlocked) return null;
@@ -4498,7 +4498,9 @@ function sgBot(b, inp, { goTo, patientStrike, strikeTarget }) {
     // 人に示す炎上時の持ち場と同じ所へ退き、館の前で待ち続けない。
     if (F.paceEnjou && !F.enjouDone) {
       const post = b.markers.find((m) => m.id === 'enjou');
-      if (post) { goTo(p, inp, post.pos.x, post.pos.z, 1.5); return; }
+      // 11/10：印の場所は関数の事がある。そのまま .x を読むと行き先が NaN になり、本丸の段で刻限まで立ち止まった。
+      const at = post && (typeof post.pos === 'function' ? post.pos() : post.pos);
+      if (at && Number.isFinite(at.x) && Number.isFinite(at.z)) { goTo(p, inp, at.x, at.z, 1.5); return; }
     }
     if (u.pos.z > GATE.z + 9) { climbBotWay(p, inp, GATE.x, GATE.z + 6, 1, goTo); return; }
     if (u.pos.z > GATE.z - 4) {
@@ -4512,6 +4514,25 @@ function sgBot(b, inp, { goTo, patientStrike, strikeTarget }) {
     // 人に出す帰り先と同じ印を使う。独自の狭い幅で戻すと、札が前を指しても横へ歩き続ける。
     // 最後の角も実際に通ってから曲輪へ入る。柵の口を斜めに飛ばさない。
     const goal = F.castleGuideArrived ? id === 'shu' ? HONMARU_POST : F.SZ.byId[id].pos : F.castleGuidePoint;
+    // 11/10：斬り合いで帯道の西（-55,-120）へ押し出され、四十歩先の角 (-38,-168) へ斜面を直進して十分止まり刻限切れ。
+    //   今の角から十歩より離れた時は、通って来た道の一番近い角へ戻り、そこから角を順にたどる。
+    const route = F.castleRoute, gi = F.castleGuideI;
+    if (!F.castleGuideArrived && route && gi > 0 && Math.hypot(goal.x - u.pos.x, goal.z - u.pos.z) > 10) {
+      let j = gi, best = Infinity;
+      for (let i = Math.max(0, gi - 12); i <= gi; i++) {
+        const d = Math.hypot(route[i][0] - u.pos.x, route[i][1] - u.pos.z);
+        if (d < best) { best = d; j = i; }
+      }
+      // 角の手前で四秒近づけない時（味方の列・斬り合いの押し合い）は、一つ先の角を目当てにする。
+      const R = b._sgRe || (b._sgRe = { j: -1, skip: 0, d: Infinity, t: 0 });
+      if (R.j !== j) { R.j = j; R.skip = 0; R.d = Infinity; R.t = b.t; }
+      const k = Math.min(gi, j + (best < 2.5 ? 1 : 0) + R.skip), q = route[k];
+      const dq = Math.hypot(q[0] - u.pos.x, q[1] - u.pos.z);
+      if (dq < R.d - 0.5) { R.d = dq; R.t = b.t; }
+      else if (b.t - R.t > 4) { R.skip++; R.d = Infinity; R.t = b.t; }
+      goTo(p, inp, q[0], q[1], 0.8);
+      return;
+    }
     goTo(p, inp, goal.x, goal.z, F.castleGuideLeaving ? 0.35 : F.castleGuideArrived ? 1.5 : 0.8);
     return;
   }
