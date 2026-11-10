@@ -60,12 +60,16 @@ export function tick(rt) {
       for (const u of g.units) if (ready(u)) u.target = B;
     }
   }
-  if (v.azeUp && B && (!B.alive || B.hp <= 0 || B.dying) && t > 20) {
+  const fallen = B && (!B.alive || B.hp <= 0 || B.dying);
+  // 物頭が深手で戦列を離れた時も次へ進む。一時の後退や隊の敗走印だけでは済みにしない。
+  const defeated = fallen || B && (B.fleeing || B.gone || B.woundOut && B.invuln);
+  if (v.azeUp && defeated && t > 20) {
     v.azeDone = true; v.ph = null;
     rt.unmark('aze');
     for (const g of v.azeGs) { g.noRout = false; g.morale = 0; g.leader = null; g.fleeSet = true; g.fleeDir = { x: -0.2, z: -1 }; }
-    rt.say('組頭 源八（げんぱち）', '物頭を討ったぞ！　頭を失うた伏兵が逃げてゆく', 3.2);
-    if (t <= 90) rt.award((tr) => tr.side.push('田の畦で斎藤の物頭を討った'), '田の畦で斎藤の物頭を討った');
+    rt.say('組頭 源八（げんぱち）', fallen ? '物頭を討ったぞ！　頭を失うた伏兵が逃げてゆく' : '物頭は戦列を離れた！　残る伏兵を押し返せ！', 3.2);
+    const merit = fallen ? '田の畦で斎藤の物頭を討った' : '田の畦で斎藤の物頭を退けた';
+    if (t <= 90) rt.award((tr) => tr.side.push(merit), merit);
   }
 }
 export function target(rt) {

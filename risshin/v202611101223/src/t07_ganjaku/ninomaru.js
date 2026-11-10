@@ -59,8 +59,16 @@ export function update(rt, K) {
   const p = rt.player.u.pos;
   const secured = el > 40 && left <= 3 && Math.hypot(p.x - NINO.x, p.z - NINO.z) < 14;
   if (left === 0 || secured || (F.n4.fightT != null && ((el > 40 && left <= 3) || rt.t - F.n4.fightT > 185))) {
-    for (const g of [F.nino, F.nino2]) if (g && !g.routed) { g.fire = false; g.noRout = false; g.order = 'retreat'; g.morale = 0; g.fleeSet = true; g.fleeDir = { x: 0.7, z: -0.7 }; }
+    retreat(rt);
     return true;
   }
   return false;
+}
+
+// 通常の制圧と、済んだ段を作り直す再開で同じ撤退を使う。
+export function retreat(rt) {
+  for (const g of [rt.flags.nino, rt.flags.nino2]) if (g && !g.routed) {
+    g.fire = false; g.noRout = false; g.order = 'retreat'; g.morale = 0;
+    g.fleeSet = true; g.fleeDir = { x: 0.7, z: -0.7 };
+  }
 }
