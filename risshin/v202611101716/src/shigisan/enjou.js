@@ -43,7 +43,8 @@ export function install(rt, ctx) {
       const el = rt.t - t0;
       if (el > 60 && held >= 20) {
         done = true; F.enjouDone = true;
-        rt.unmark('enjou'); rt.unmark('enjouR');
+        // 11/10 関所の3：口を固めた後も落城の締めまで十五秒余りある。持ち場の印は消さずに残す（ピンが切れていた）。
+        rt.unmark('enjouR');
         if (R) for (const u of R.units) if (u.alive) { u.fleeing = true; u.moraleFleeDir = { x: 0.6, z: 1 }; }
       }
     },
