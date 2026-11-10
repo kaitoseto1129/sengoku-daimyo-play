@@ -6317,7 +6317,7 @@ honnoji.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
 
 // 15分の構成（docs/oda15_plan_1108.md 32）：段は prototype/src/honnoji/ に一段一ファイル
 k15Shizuka(honnoji); k15Shuen(honnoji);
-{ const K15 = { akechi, uS, uA, nbSet, nbWeapon }; k15Omote(honnoji, K15); k15Kairo(honnoji, K15); k15Saigo(honnoji, K15); k15Uradori(honnoji, K15); }
+{ const K15 = { akechi, uS, uA, nbSet, nbWeapon, say: honnoSay }; k15Omote(honnoji, K15); k15Kairo(honnoji, K15); k15Saigo(honnoji, K15); k15Uradori(honnoji, K15); }
 honnoji.botBrain = k15WrapBot(honnoji.botBrain);
 honnoji.depth = (rt) => (rt.G?.lord ? null : HONNOJI_DEPTH);   // 寺を囲む明智一万三千（軽い備）
 export { honnoji };

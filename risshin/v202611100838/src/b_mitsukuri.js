@@ -2668,7 +2668,8 @@ const mitsukuri = {
   //   織田方は死傷が多かった（千五百の伝え）。城兵は守備隊の損耗割合で減らす。
   force(rt) {
     const F = rt.flags;
-    const lost = Math.min(1500, Math.round((rt.t || 0) * 4.2) + (F.ak || 0) * 12);
+    // 規模へ換算するのは実際の損害だけ。時間だけでは無傷の兵を減らさない。
+    const lost = Math.min(1500, (F.ak || 0) * 12);
     const defendersLost = F.defenders ? F.defenders.reduce((s, b) => s + (b?.lost || 0), 0) : 0;
     return { a: 12000 - lost, a0: 12000,
       b: Math.max(0, Math.round(3000 * (1 - defendersLost / (F.defendTotal || 1)))), b0: 3000 };
@@ -3044,13 +3045,16 @@ const mitsukuri = {
     A: { name: '織田', facing: Math.PI, honjin: { x: 0, z: 90 }, mpu: 4, formation: '雁行', terrain: 'castle', flag: 'oda', armor: 0x302d29, openAt: 60, attrition: 0.002,
       sonae: [
         { id: 'kino', layer: 'sakite', wing: 'center', men: 2300, taisho: '木下藤吉郎', bind: (rt) => rt.flags.kino },
-        { id: 'asai', layer: 'ichi', wing: 'left', men: 1500, taisho: '浅井新八', bind: (rt) => rt.flags.niwa },
+        { id: 'asai', layer: 'ichi', wing: 'left', men: 1700, taisho: '浅井新八', bind: (rt) => rt.flags.niwa },
         { id: 'saku', layer: 'ichi', wing: 'right', men: 2000, taisho: '佐久間信盛', bind: (rt) => rt.flags.saku },
-        { id: 'nobunaga', layer: 'hatamoto', wing: 'center', men: 10000, taisho: '織田信長', hold: true, show: false, at: { x: 0, z: 90 } },
+        { id: 'niwa', layer: 'ichi', wing: 'right', men: 3000, taisho: '丹羽長秀', bind: (rt) => rt.flags.asai?.real },
+        { id: 'nobunaga', layer: 'honjin', wing: 'center', men: 3000, taisho: '織田信長', hold: true, bind: (rt) => rt.flags.odaCamp?.guard },
       ] },
     B: { name: '六角', facing: 0, honjin: { x: 0, z: -117 }, mpu: 4, formation: '方円', terrain: 'castle', flag: 'rokkaku', armor: 0x33291f, openAt: 60, attrition: 0.002,
       sonae: [
         { id: 'san', layer: 'sakite', wing: 'center', men: 800, taisho: '', bind: (rt) => rt.flags.sanDef?.real },
+        { id: 'ni', layer: 'ichi', wing: 'center', men: 900, taisho: '', bind: (rt) => rt.flags.niDef?.real },
+        { id: 'east', layer: 'ichi', wing: 'left', men: 600, taisho: '', bind: (rt) => rt.flags.asaiFoe?.real },
         { id: 'yoshida', layer: 'hatamoto', wing: 'center', men: 700, taisho: '吉田出雲守', hold: true, bind: (rt) => rt.flags.commandGuard },
       ] },
     honjinView: { A: false, B: false },
