@@ -258,10 +258,10 @@ function strayArrows(rt, dt) {
   F.arrowT = 2.4 + Math.random() * 3.6;
   let src = null, best = 0;
   for (const u of rt.army.units) {
-    if (!u.alive || u.gone || u.team !== 1 || u.civ || u.isStruct || u.fleeing || u.group?.routing) continue;
+    if (!u.alive || u.hp <= 0 || u.gone || u.dying || u.downed || u.woundOut || u.rearWound || u.noTarget || u.type !== 'bow' || u.team !== 1 || u.civ || u.isStruct || u.fleeing || u.group?.routing || u.group?.routed || u.group?.order === 'retreat') continue;
     const d = Math.hypot(u.pos.x - P.pos.x, u.pos.z - P.pos.z);
     if (d < 25 || d > 75) continue;
-    const s = Math.random() * (u.type === 'bow' ? 3 : 1);
+    const s = Math.random();
     if (s > best) { best = s; src = u; }
   }
   if (!src) return;
@@ -363,7 +363,11 @@ const inou_spec = {
     if ((F.stage || 0) < 2) {
       const r1 = Math.max(0, Math.min(1, aliveIn(F.l1) / F.l1N));
       // 11/7 fixc2103：柴田勢との乱戦の後の信長方は四百ほど（台詞と『信長公記』）。前は 280 まで減り、台詞の「四百ほど」と合わなかった
-      FORCE.a = round10(Math.max(400, 700 - 600 * (1 - r1))); FORCE.b = round10(700 + 1000 * r1); F.aLeft = FORCE.a;
+      // 敵の減りだけで味方を数えると、味方だけが討たれた時に棒が止まる。
+      // 押される流れに加え、本物の味方の損耗も反映し、四百の下限で全滅を隠さない。
+      const total = Math.max(1, F.line.reduce((n, g) => n + g.units.length, 0));
+      FORCE.a = round10(Math.min(Math.max(400, 700 - 600 * (1 - r1)), 700 * aliveIn(F.line) / total));
+      FORCE.b = round10(700 + 1000 * r1); F.aLeft = FORCE.a;
     } else {
       // 生き残りが減っても二割（百四十人）が残る下限は置かない。
       // 総崩れの瞬間に零へ飛ばさず、退く兵も戦場を去るまでは数える。
