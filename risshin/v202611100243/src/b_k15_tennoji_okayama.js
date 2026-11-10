@@ -211,7 +211,7 @@ const k15_tennoji_okayama = {
   // 行き先は段ごとに地図の場所で固定（三2・critic60「▼の距離が動く」）。頭上の▼は場所の一つだけで、名のある味方（西尾宗次）へ金の▼を付けない（五3）
   actionGuideTarget: () => null,
   routeGuidePriority: () => true,   // 行き先の印を優先し、画面の端の敵将への矢印を出さない
-  goalSignTarget: (rt) => (rt.flags.ending ? null : DEST[rt.flags.step] ? { ...DEST[rt.flags.step](rt) } : null),
+  goalSignTarget: (rt) => (rt.flags.ending ? null : DEST[rt.flags.step] ? { ...DEST[rt.flags.step](rt), hideAfterArrival: true, arrivalId: rt.flags.step } : null),
   pacingCap: 2100,   // 全戦共通の十八分の打ち切りを、この戦は三十五分に（一戦20〜30分。battle_pacing.js）
   playerRegen: 0.012,   // 一戦が二十分を超えるので、退いて息を整える間の戻りを全戦の上限まで（11/8）
   gunFloor: 0.7,   // 鉄砲・矢の傷も少し軽く（毛利の鉄砲に止まったまま十秒で討たれた）
