@@ -63,7 +63,8 @@ export function signTarget(rt) {
   if (!H || H.s !== 2 || !H.esc || !near(me.pos, KOMODA, 24)) return null;
   let best = null, bd = Infinity;
   for (const u of H.esc.units) {
-    if (!u.alive || u.dying || u.gone || u.fleeing || u.noTarget || u.type === 'porter' || Math.abs(u.pos.y - me.pos.y) > 4) continue;
+    if (!u.alive || u.dying || u.gone || u.fleeing || u.woundOut || u.rearWound || u.downed ||
+        u.noTarget || u.type === 'porter' || Math.abs(u.pos.y - me.pos.y) > 4) continue;
     const d = Math.hypot(u.pos.x - me.pos.x, u.pos.z - me.pos.z);
     if (d < bd) { bd = d; best = u; }
   }

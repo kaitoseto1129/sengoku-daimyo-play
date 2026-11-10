@@ -102,10 +102,10 @@ const G = [
   '井伊の赤備えと宇喜多先手前へ出る',
   '宇喜多の先手前で井伊の鉄砲衆を守る',
   '井伊と春日神社前の福島隊後方へ退く',
-  '福島隊に続き宇喜多の先手と槍を合わす',
-  '福島隊のそばで宇喜多の押し返しに耐える',
+  '福島隊と宇喜多先手前で槍を合わす',
+  '福島隊のそばで宇喜多の反撃に耐える',
   '中央右翼の藤堂・京極隊を救援する',
-  '藤堂・京極の陣前で大谷隊の前進を止める',
+  '藤堂・京極の陣前で大谷隊を受ける',
   '藤堂・京極の陣前で大谷隊を押し崩す',
   '天満山の麓で西軍中央を突破する',
   '陣場野の本陣前で島津の突入を受ける',
@@ -255,7 +255,12 @@ const k06_sekigahara = {
   hideNameTag: (u, rt) => !!rt?.flags.otaniDown && u === rt.flags.otaniU && !u.alive,
   foeMarks: true,
   // 描画の有無だけでは山や陣幕の向こうにも印が出る。名前と▼に同じ見通しを使う。
-  enemySignVisible: (rt, u) => u.mesh?.visible === true && sightScreenUnit(rt, u),
+  enemySignVisible(rt, u) {
+    if (!u.mesh || u.camHidden) return false;
+    // 親の隊や描画の束を隠した時も、宙に敵の印だけを残さない。
+    for (let part = u.mesh; part; part = part.parent) if (part.visible === false) return false;
+    return sightScreenUnit(rt, u);
+  },
   foeMarkRange: 30,
   missionPinCaption: '',
   // 戦の途中の保存（battle_checkpoint.js・kaito 11/8）：段の関数を順に流して段の始まりを作り直す（前の段の声・見出しは出さない）。
