@@ -276,8 +276,8 @@ const t03_komaki = {
     // 月と別に足される補助光も抑える。共通の下限 0.4 のままでは、月を弱めても夜の陰が灰白に浮く。
     nightFill: 0.36,
     nightFillMin: 0.2,
-    // 11/10 関所1：夜の段で味方の足軽が白い人形のように浮いた（中ほど・終わりの四方）。忍城・小谷と同じく月の面の補光と夜の増感を下限に
-    unitNightScale: 0.5, lowNightExposure: 1.1,
+    // 11/10 関所1：半分の指定でも共通の下限で兵だけの白い補光が残る。補光を止め、月光と篝火で具足を照らす。
+    unitNightScale: 0, lowNightExposure: 1.1,
     noShafts: true,      // 11/8 八1：空に縦の白い筋（光の筋）が走った
     hatDropRate: 0.25,   // 11/8 八1：転がる陣笠が倒れた兵より目立った。落とすのは四人に一人
     nightLight: { sunI: 0.16, hemiI: 0.2, sky: 0x182033, fog: 0x1c2333, top: 0x060a14 },

@@ -2995,8 +2995,10 @@ const tonezaka = {
             rt2.objProgress('dp', '');
             if (cleared && near(rt2.player.u.pos, C.at, C.botRadius)) return true;
             // 11/10 クラウド：狭い坂道の段で本人が目当ての二十歩手前から進めず、十六分止まった（act bot・取り込み後）。
-            //   詰まらない決まり（波に最大の時間）：決めた長さより二分過ぎて本人が三十歩内にいれば、残る組は退き、次の段へ。
-            if (el >= retreatAt + 90 && near(rt2.player.u.pos, C.at, 30)) {
+            //   損害を受けた寄せを退けた後だけ、三十歩内の詰まりを救う。無傷の備や未到着の後詰を時計で飛ばさない。
+            if (el >= retreatAt + 90 && !C.waves.length &&
+                C.groups.every((g) => g.routed || fighters(g) < g.initial) &&
+                near(rt2.player.u.pos, C.at, 30)) {
               for (const g of C.groups) if (!g.routed && fighting(g)) retreat(g);
               return true;
             }
