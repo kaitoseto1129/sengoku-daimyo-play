@@ -715,6 +715,9 @@ const t06_hetsugi = {
     const fall = (u, who, by) => {
       if (!u || !u.alive) return;
       u.invuln = false;
+      // 史実の討死は、旗本が残る武将を踏みとどまらせる共通処理より優先する。
+      // 鈴木の刃を渡す時も、信親を生かしたまま討死の知らせだけ出さない。
+      u.officerSaved = true;
       rt.army.kill(u, by || null);
       rt.banner(`${who}、討死`, '');
     };

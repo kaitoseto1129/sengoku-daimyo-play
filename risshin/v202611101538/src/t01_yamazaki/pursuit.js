@@ -24,8 +24,9 @@ export function retreatToCastle(rt) {
 
 export function start(rt, ctx) {
   const F = rt.flags;
-  try { const W = rt.world; W.dayClock = null; W.setTime('dusk'); if (W.fade) W.fade.dur = 24; } catch (e) { /* 空はそのまま */ }
-  if (rt.world.setRainTarget) rt.world.setRainTarget(0.12);
+  // 追撃も雨雲の下。晴れた夕焼けへ替えると、朱い日差しと晴れ間が戻ってしまう（critic60 四6）。
+  try { const W = rt.world; W.dayClock = null; W.setTime('storm'); if (W.fade) W.fade.dur = 24; } catch (e) { /* 空はそのまま */ }
+  if (rt.world.setRainTarget) rt.world.setRainTarget(0.3);
   // 光秀と近習は勝竜寺城へ（もう退き始めている）
   retreatToCastle(rt);
   // 道に残る明智の後ろの兵（追う道の途中）

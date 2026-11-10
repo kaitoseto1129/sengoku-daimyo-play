@@ -2761,8 +2761,8 @@ const kanegasaki = {
   travelGuideLabel: rt => rt.G.lord || rt.flags.fleeing ? '退き道へ' : `${LINES[rt.flags.line || 0].mark}へ`,
   dodgeLabel: (_rt, direction, rain) => direction || (rain ? '矢をよける' : '敵から離れる'),
   dodgeGuideLabel: (_rt, arrived, rain) => rain
-    ? arrived ? 'ここで矢をよけよ' : '矢をよけて下がれ'
-    : arrived ? 'ここで槍を構えよ' : '敵から少し離れよ',
+    ? arrived ? '退避の印で矢をよけよ' : '矢をよけて下がれ'
+    : arrived ? '退避の印で槍を構えよ' : '敵から少し離れよ',
   // 一時の回避先を城山へ向けない。今いる場所より道や備から離れさせない。
   dodgePointAllowed: kgGuidePointAllowed,
   retreatPointAllowed: kgGuidePointAllowed,
