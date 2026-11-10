@@ -208,6 +208,7 @@ const k12_kashii = {
   nameTagLimit: 7,        // 亀田・上田・知近・長晟・塙・淡輪・岡部の名を、近い二人だけの枠で消さない（九3・五2）
   waitForPortrait: true,  // 顔が撮れるまで影を出さず、撮れた顔を一度だけ表示する（五6）
   stageGoalsOnly: true,    // 目標は五つの段だけ（「敵を何人討つ」で埋めない。三1）
+  goalsAllRows: true,      // 共通の札にも五行を作らせる。表示用の指定だけでは残り四行が作られない。
   // 戦の途中の保存（battle_checkpoint.js・kaito 11/8）：段の始まりを toStep を順に流して作り直す（前の段の声・見出しは出さない）
   resumeSteps: [1, 2, 3, 4, 5].map((n) => [n, function (rt) { rt.flags.holdPlayer = false; if (n >= 3) this.bringUp(rt); this.toStep(rt, n); }]),
   resumeAt: (rt, n) => { const p = [null, YASU, LINE, VILLAGE, EAST, VILLAGE][n]; return p ? { x: p.x, z: p.z + 14, heading: Math.PI } : null; },
@@ -237,7 +238,8 @@ const k12_kashii = {
   // 行き先のピン：段ごとに一つ（字は出さない）。場所は段ごとに決まっていて動かない（AW3・BK4）。塙の段だけ本人の上
   missionPin(rt) {
     const F = rt.flags;
-    if (!F.step || F.ending || (F.step === 5 && (F.hanaDown || !F.hanaU?.alive))) return null;
+    // 最初の下知を聞く間も①は出ているので、同じ八丁畷の印を消さない。
+    if (F.ending || (F.step === 5 && (F.hanaDown || !F.hanaU?.alive))) return null;
     let p = YASU;
     if (F.step === 2) p = LINE;
     else if (F.step === 3) p = VILLAGE;

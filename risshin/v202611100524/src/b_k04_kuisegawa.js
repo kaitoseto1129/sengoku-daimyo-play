@@ -550,8 +550,9 @@ const k04_kuisegawa = {
   returnedMen(rt) {
     let n = 0;
     const mine = rt.flags.mine?.units || [], squad = rt.squad || [];
-    for (const u of mine) if (canReturn(u) && !u.downed && dist(u.pos, ARIMA) < 20) n++;
-    for (const u of squad) if (!mine.includes(u) && canReturn(u) && !u.downed && dist(u.pos, ARIMA) < 20) n++;
+    // 陣の二十m内には川の縁も入る。主人公と同じく赤坂の岸へ渡り切った兵だけを数える。
+    for (const u of mine) if (canReturn(u) && !u.downed && L(u.pos).x > 60 && dist(u.pos, ARIMA) < 20) n++;
+    for (const u of squad) if (!mine.includes(u) && canReturn(u) && !u.downed && L(u.pos).x > 60 && dist(u.pos, ARIMA) < 20) n++;
     return n;
   },
 

@@ -4582,7 +4582,7 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
     F.preClimb = true;
     rt.uninteract('talk'); rt.uninteract('oteRoad'); rt.unmark('hide');
     document.getElementById('hud')?.removeAttribute('data-odani-talk');
-    odaniMonomi(rt, { at: { x: CLIMB[1][0], z: CLIMB[1][1] }, fires: [{ x: KC.x - 4, z: KC.z }, { x: KC.x + 4, z: KC.z + 6 }, { x: HON.x, z: HON.cz }, { x: HON.x + 5, z: HON.cz - 6 }], next: () => this.climb(rt) });
+    odaniMonomi(rt, { at: { x: CLIMB[1][0], z: CLIMB[1][1] }, fires: [{ x: KC.x - 4, z: KC.z }, { x: KOM.x, z: KOM.cz }, { x: HON.x, z: HON.cz }, { x: HON.x + 5, z: HON.cz - 6 }], next: () => this.climb(rt) });
   },
   // ① 清水谷を登る
   climb(rt) {
