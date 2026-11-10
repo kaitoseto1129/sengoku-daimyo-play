@@ -114,6 +114,7 @@ export function receivedSally(F) { return (F.sallyContact || 0) >= 4 || !!F.sall
 // 門前で実際に斬り合っても、所属の違いで②が残り続けないようにする。
 function sallyFoe(F, u) {
   return u.group === F.reserveDef.real ||
+    !!F.masuSally && u.group === F.masuSally ||
     !!F.gateBrawl && (u.group === F.gateBrawl[2] || u.group === F.gateBrawl[3]) ||
     u.group === F.sanSpear.real && Math.hypot(u.pos.x - OTE.x, u.pos.z - OTE.z) < 12;
 }

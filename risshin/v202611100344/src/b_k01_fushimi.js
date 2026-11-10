@@ -185,7 +185,9 @@ function fushimiWay(army, u, want) {
   // 口を開けただけでは二の丸の石垣へ真っすぐ進んで詰まっていた。
   if (x > 22 && x < 49 && z > -32 && z < -7 && want.x < 22 && want.z > -34 && want.z < 4) {
     const q = u._k01East || (u._k01East = { x: 0, z: -12, botRadius: 1 });
-    q.x = x > 26 && Math.abs(z + 12) > 1 ? Math.max(29, x) : 20;
+    // 曲輪の間（x=24〜26）へ押し出された兵も、まず口の正面へ
+    // 揃える。斜めに x=20 へ向かうと、二の丸の口の脇の石垣に詰まる。
+    q.x = Math.abs(z + 12) > 1 ? (x > 26 ? Math.max(29, x) : x) : 20;
     q.z = -12;
     return q;
   }
