@@ -144,6 +144,12 @@ function tag(st, k, cp, pin) {
       const present = ready && Math.hypot(u.pos.x - C.at.x, u.pos.z - C.at.z) < C.botRadius;
       C.inT = before + (present ? dt : 0);
       const duration = st.max - 35;
+      // 経過時間ではなく、達成判定と同じ本人の守備時間を知らせる。
+      // 持ち場を離れた間に表示だけ零秒へ進めない。
+      const left = Math.max(0, Math.ceil(duration - C.inT));
+      rt.objProgress('dp', !present ? '持ち場へ戻り、味方と守れ' :
+        left > 0 ? `守る あと${left}秒` : C.waves.length ? '持ち場で後の寄せを待て' :
+          fighters(C) ? '残る寄せを味方と押し返せ' : '持ち場の列を保った');
       // 寄せの上限後は残兵を退かせる。本人が守らないまま成功にはしない。
       if (present && C.inT >= duration && !C.waves.length && el >= Math.max(duration + 60, 200)) withdraw(C);
       return present && C.inT >= duration && !C.waves.length && (done ||

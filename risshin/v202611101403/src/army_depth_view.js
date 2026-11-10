@@ -69,7 +69,7 @@ function buildSide(rt, V, D) {
     let flag = null;
     if (V.bigLeft > 0 && s.layer !== 'konida' && (s.taisho || s.layer === 'honjin')) {
       V.bigLeft--;
-      flag = nobori(W, s.x, s.z, s.flag || P.flag || 'tokugawa', s.layer === 'honjin' ? 7 : 6);
+      flag = nobori(W, s.x, s.z, s.flag || P.flag || 'tokugawa', V.plan.flagHeight ?? (s.layer === 'honjin' ? 7 : 6));
       flag.userData.base = { rx: flag.rotation.x, rz: flag.rotation.z };
       flag.visible = s.state !== ST.AWAY;
       rt.scene.add(flag);

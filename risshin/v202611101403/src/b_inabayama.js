@@ -4348,7 +4348,7 @@ const inabayama = {
     // 手当ての操作と道沿いの退避は、省略して分からなくしない。
     if (u.wounds?.bleed > .0001) return reached ? '「手当て」を三秒長押し' : '出血。道なりに味方へ';
     if (u.hp < u.maxHp * .3) return reached ? '命が少ない。構えよう' : '命が少ない。味方へ退く';
-    return reached ? '味方と かまえよう' : '道なりに 味方の後ろへ';
+    return reached ? '味方と構えよ' : '道なりに味方の後ろへ';
   },
   treatmentApproachLabel: '下がって 手当てしよう',
   retreatPathAllowed(rt, point) {
@@ -4583,7 +4583,7 @@ const inabayama = {
     if (F.step !== 2 || F.ending || F.regroup || !F.holdArrived) return null;
     return F.holdGuideLine || (F.holdGuideLine = {
       x: -4, z: SHIKA_Z, halfWidth: 34, depth: 14, flagZ: SHIKA_Z + 5,
-      keepVisibleWithEnemy: true, flagOnly: true, label: '鹿垣の内・ここを守ろう',
+      keepVisibleWithEnemy: true, flagOnly: true, label: '鹿垣の内で城兵を迎え撃て',
     });
   },
   cornerEnemyGuide: true,
