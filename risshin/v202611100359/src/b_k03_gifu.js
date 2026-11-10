@@ -473,6 +473,12 @@ const k03_gifu = {
       if (i >= 0) st.groups.splice(i, 1);
     }
     g.order = 'retreat'; g.dest = { x: EXIT_E.x, z: EXIT_E.z }; g.speed = 4.2; g.aggro = 0; g.noRout = false;
+    // 本人を狙う鉄砲の判断は退却より先に働く。射撃と振りかけの攻撃も解いて退かせる。
+    g.fire = false; g.peaceful = true;
+    for (const u of g.units) {
+      u.target = null; u.atk = null; u.swing = null; u.bind = null; u.watch = null;
+      u.aiT = 0;
+    }
   },
 
   // 段を進める（右上の目標と行き先のピン）
