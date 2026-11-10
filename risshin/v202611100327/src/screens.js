@@ -1839,9 +1839,11 @@ function resultCardHtml(G, r, lost, sq) {
   // 11/8 critic60 佐和山（五1・常識）：負けの札に「敗北」だけで、何で負けたか分からなかった。大きな字の下に負けたわけを一行
   // 11/8 critic60（五6・長島ほか七戦）：画面は一枚だけ前に。勝ちの札の後ろへ次の戦の絵の札をはみ出させない
   const thumb = '';
+  const foughtSec = Math.max(0, Math.round(r.takenSec ?? r.stats?.time ?? 0));
   return `<div class="rs-wrap"><section class="rs-card${lost ? ' lost' : ''}" aria-label="${esc(r.battle || '')}の結果">
     <div class="rs-fb" id="rs-fb-slot"></div>
     <h2 class="rs-title">${lost ? '敗北' : BATTLES[r.battleIndex]?.winWord ? BATTLES[r.battleIndex].winWord : BATTLES[r.battleIndex]?.id === 't03_komaki' ? '小牧の対陣、膠着' : BATTLES[r.battleIndex]?.id === 't12_odawara' ? '小田原城、開城' : DUTY.has(BATTLES[r.battleIndex]?.id) || outcomeLines(BATTLES[r.battleIndex]?.id, true) ? '務めを果たした' : '合戦に勝利'}</h2>${lost ? `<p class="rs-clear">${esc(r.downInfo ? 'あなたが討たれた' : String(r.failureReason || '任務を果たせなかった').split(/[。！？\n]/)[0])}</p>` : `<p class="rs-clear">${BATTLES[r.battleIndex]?.winWord && BATTLES[r.battleIndex]?.victoryCaption ? BATTLES[r.battleIndex].victoryCaption : BATTLES[r.battleIndex]?.id === 't03_komaki' ? '二重堀を守り、三河への中入りへ' : BATTLES[r.battleIndex]?.id === 't12_odawara' ? '北条氏直が降伏' : BATTLES[r.battleIndex]?.id === 'k04_kuisegawa' ? '西軍の勝利　有馬の陣へ生還' : DUTY.has(BATTLES[r.battleIndex]?.id) ? '生きて戦を終えた' : '敵を退けた'}</p>`}${histRow(BATTLES[r.battleIndex]?.id, !lost)}${starRow}
+    <p class="rs-clear">戦った時間　${Math.floor(foughtSec / 60)}分${String(foughtSec % 60).padStart(2, '0')}秒</p>
     <div class="rs-cols">
       <ul class="rs-goals" aria-label="目標 ${three.length}つのうち ${nOn}つを果たした">${three.map((g) => `<li class="${g.on ? 'on' : ''}"><i class="rs-star" role="img" aria-label="${g.on ? '果たした' : 'まだ'}">${RS_STAR}</i><span>${esc(g.t)}</span></li>`).join('')}</ul>
       <div class="rs-rew"><h3>${lost ? '得た物' : '褒美'}</h3><ul>${rowHtml}</ul></div>
