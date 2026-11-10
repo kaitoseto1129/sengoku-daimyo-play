@@ -654,7 +654,7 @@ function sunoNearFrame(group) {
   return group;
 }
 
-// 固定の逆茂木は柵の向きごとに結合する。手前を透かす材質と地面に沿う形は保つ。
+// 固定の逆茂木は柵の向きごとに結合する。地面に沿う形は保つ。
 // 兵・壊れる柵・完成時に外す足場はここへ入れない。
 function sunoMergeSakamogi(scene, rows) {
   for (const groups of Object.values(rows)) {
@@ -1096,7 +1096,8 @@ function sunoSakamogi(world, x, z, rot, len) {
   }
   const group = new THREE.Group();
   for (const [parts, mat] of [[wood, sunoWoodMat], [rope, sunoRopeMat]]) {
-    const mesh = new THREE.Mesh(mergeGeometries(parts), sunoNearMaterial(mat, true));
+    // 柵外の低い枝束は切り抜かない。根だけ消えて枝先が宙に残る断面を防ぐ。
+    const mesh = new THREE.Mesh(mergeGeometries(parts), mat);
     for (const geo of parts) geo.dispose();
     mesh.castShadow = true; mesh.receiveShadow = true; group.add(mesh);
   }
@@ -2695,12 +2696,14 @@ function sunoWorkPoint(s) {
 }
 
 // 普請は実在の人足が持ち場へ着いてから進む。敵が迫れば作業を止める。
+// 安全な砦で人足の到着だけが六十秒止まった時は、交代作業で詰まりを解く。
 function finishBuild(rt, order, onDone, reinforce = false) {
   const F = rt.flags;
   if (!order.length || rt.over || F.ending || F.won) return;
   if (F.buildBusy) { if (!reinforce) F.buildPending = { order, onDone }; return; }
   F.buildBusy = true;
   let i = 0, worked = 0, point = null, retreatUntil = 0;
+  let stalledAt = rt.t;
   const done = () => {
     F.buildBusy = false; F.workHands = false; F.workNotice = '';
     const wk = F.wk;
@@ -2719,7 +2722,7 @@ function finishBuild(rt, order, onDone, reinforce = false) {
     }
     // 待つ間に直った区画を、もう一度結び直して期限を使わない。
     if (!reinforce) {
-      while (i < order.length && order[i].alive && !order[i].building) { i++; worked = 0; point = null; }
+      while (i < order.length && order[i].alive && !order[i].building) { i++; worked = 0; point = null; stalledAt = rt.t; }
       if (i === order.length) { done(); return; }
     }
     // 最後の寄せが退き、破れ目が塞がったら、任意の補強より点検を先にする。
@@ -2767,8 +2770,12 @@ function finishBuild(rt, order, onDone, reinforce = false) {
     if (F.sunoTask === 'rescue') sunoProgress(rt, 'rescue', F.workNotice);
     // 人足が結んでいる間は、掛矢で杭を打つ音が柵ぎわから聞こえる（普請が進んでいる事を画面の字に頼らず伝える）。
     F.workHands = !retreating && needed > 0 && hands >= needed;
+    const safe = !retreating && workers > 0 && rt.player.u.alive && rt.player.u.hp > 0 && fortSafe(rt);
+    if (F.workHands || !safe) stalledAt = rt.t;
+    const relief = safe && rt.t - stalledAt >= 60;
     if (F.workHands) { worked += F.buildStock > 0 ? 2 : 1; if (F.buildStock > 0) F.buildStock--; rt.army.play('knock', { x, z }, 0.55); rt.after(0.45, () => { if (!rt.over) rt.army.play('knock', { x: x + 1, z }, 0.4); }); }
-    if (worked >= 5) {
+    if (worked >= 5 || relief) {
+      if (relief) rt.say('人足', '手を替えて、柵を結び直したぞ！', 3);
       if (reinforce && !s.reinforced) { s.maxHp *= 1.25; s.reinforced = true; }
       // 倒れる途中の更新を外し、束ねた柵も元の姿へ戻してから見せる。
       if (rt.army.falling) rt.army.falling = rt.army.falling.filter((f) => f.s !== s);
@@ -2777,7 +2784,7 @@ function finishBuild(rt, order, onDone, reinforce = false) {
       s.alive = true; s.hp = s.maxHp; s.building = false; s.mesh.visible = true;
       if (s.stumps) { rt.scene.remove(s.stumps); s.stumps = null; }
       rt.army.play('knock', { x, z }, 0.8);
-      worked = 0; point = null; i++;
+      worked = 0; point = null; stalledAt = rt.t; i++;
     }
     if (i < order.length) rt.after(1, step);
     else done();

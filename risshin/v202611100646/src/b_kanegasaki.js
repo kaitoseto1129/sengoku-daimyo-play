@@ -3758,9 +3758,9 @@ const kanegasaki = {
       if (F.exitGap === undefined || gap < F.exitGap - 1) { F.exitGap = gap; F.exitProgressAt = rt.t; }
     }
     rt.objProgress('main', d < KUTSUKI.r ? F.exitWaiting : `若狭への道まで あと${Math.ceil(retreatDistance(rt, KUTSUKI))}m`);
-    // 11/10 kanegasaki_spec_1109「全員は逃げられない」：殿を果たした後は、退き口で三十秒待てば残る者と抜ける（遅れた組は後から退いてくる）。
-    const waitedOut = F.exitReady && F.exitWaitStart !== undefined && rt.t - F.exitWaitStart >= 30;
-    if (d < KUTSUKI.r && (this.escortReady(rt) || waitedOut) && (F.exitReady || rt.t - F.fleeing >= 15)) {
+    // 全員の生還は求めないが、三将と残兵六割の合流は時間で省かない。
+    // 届かない時は下の退く下知と期限で決着させ、未合流を成功に変えない。
+    if (d < KUTSUKI.r && this.escortReady(rt) && (F.exitReady || rt.t - F.fleeing >= 15)) {
       rt.unmark('kutsuki'); rt.unzone('kutsuki');
       if (F.exitReady) this.win(rt, '残った味方と、若狭へ向かう道へ退いた');
       else {
