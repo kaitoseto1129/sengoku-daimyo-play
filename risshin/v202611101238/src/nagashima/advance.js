@@ -59,12 +59,22 @@ export const ADV_POINTS = P;
 // 生きて戦える者の数（崩れた・逃げた・深手の者を除く）
 function fighters(C) {
   let n = 0;
-  for (const g of C.groups) if (!g.routed) for (const u of g.units) {
+  for (const g of C.groups) if (!g.routed && g.order !== 'retreat') for (const u of g.units) {
     // 深手で後送された者や武器を捨てた者を、残る守兵として探させない。
     if (u.alive && u.hp > 0 && !u.dying && !u.gone && !u.fleeing && !u.woundOut &&
         !u.rearWound && !u.downed && !u.noTarget && !u.civ && !u.isStruct) n++;
   }
   return n;
+}
+// 本人が戦線を保った後の刻限。柵や水路に残った隊にも撤退を命じ、
+// 頭が生きていても下知で退けるよう、行き先も渡す。
+function withdraw(C) {
+  for (const g of C.groups) if (!g.routed && g.order !== 'retreat') {
+    g.noRout = false; g.morale = 0; g.order = 'retreat';
+    g.fire = false;
+    // 南の舟入りでは川へ下がらず、家族のいる在所の側へ退く。
+    g.dest = { x: C.at.x, z: C.at.z + (C.at.z < -110 ? 24 : -24) };
+  }
 }
 // 制圧の段：本人が持ち場へ進み、寄せた数の ratio が崩れたら残りは奥へ退く。
 function take(o) {
@@ -87,8 +97,8 @@ function take(o) {
     const tot = C.nTot || 0;
     if (tot && (tot - fighters(C)) / tot >= (o.ratio ?? 0.7)) return true;
     if (o.leader && C.groups.some((g) => g.leader && !g.leader.alive) && (tot - fighters(C)) / tot >= 0.4) return true;
-    // 刻限は残兵を探し続けないための救い。四割を崩すまでは制圧扱いにしない。
-    if (el > (o.cap || 170) && tot && fighters(C) <= tot * 0.6) return true;
+    // 刻限を越えた残兵には撤退の下知を出す。本人不在・後続待ちではここへ来ない。
+    if (el > (o.cap || 170)) { withdraw(C); return false; }
     return false;
   };
   return st;
@@ -135,6 +145,7 @@ function tag(st, k, cp, pin) {
       C.inT = before + (present ? dt : 0);
       const duration = st.max - 35;
       // 寄せの上限後は残兵を退かせる。本人が守らないまま成功にはしない。
+      if (present && C.inT >= duration && !C.waves.length && el >= Math.max(duration + 60, 200)) withdraw(C);
       return present && C.inT >= duration && !C.waves.length && (done ||
         el >= Math.max(duration + 60, 200) && C.nTot > 0 && fighters(C) <= C.nTot * 0.6);
     };

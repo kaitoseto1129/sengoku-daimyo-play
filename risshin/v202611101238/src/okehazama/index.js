@@ -51,8 +51,7 @@ export function pin(rt) {
       v.ph === 'ii' ? v.C.fieldPoint(-14, -104) : v.C.fieldPoint(10, -96);
     v.phasePin = { x: q.x, z: q.z, r: 6, hide: 0, key: 'o15-' + v.ph, always: true, area: true };
   }
-  const u = sign(rt);
-  if (u) { v.phasePin.x = u.pos.x; v.phasePin.z = u.pos.z; }
+  // 場所のピンを追う敵に合わせて動かさない。相手は sign の頭上の▼で示す。
   return v.phasePin;
 }
 export function sign(rt) {
