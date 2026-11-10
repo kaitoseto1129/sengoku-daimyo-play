@@ -3204,7 +3204,10 @@ function inabaClimbClash(rt) {
 }
 
 function inabaMeleeContact(rt, u, t) {
-  return u.alive && !u.fleeing && t?.alive && !t.fleeing && !t.isStruct
+  return u.alive && u.hp > 0 && !u.dying && !u.downed && !u.gone && !u.woundOut
+    && !u.rearWound && !u.evacuatedWound && !u.fleeing
+    && t?.alive && t.hp > 0 && !t.dying && !t.downed && !t.gone && !t.woundOut
+    && !t.rearWound && !t.evacuatedWound && !t.fleeing && !t.noTarget && !t.isStruct
     && Math.abs(u.pos.y - t.pos.y) <= 3
     && Math.hypot(u.pos.x - t.pos.x, u.pos.z - t.pos.z) <= Math.max(3, (u.reach || 0) + 1)
     && !rt.army.wallBetween(u.pos, -1, t.pos, (u.wpnKind || u.lookWeapon) === 'spear')
@@ -3216,13 +3219,13 @@ function inabaClimbGuideEnemy(rt) {
   const F = rt.flags;
   if (F.step !== 3 || F.ending || F.retreatMarked || F.regroup) return null;
   const previous = F.climbGuideEnemy;
-  if (F.climbGuideAt > rt.t && previous?.alive && !previous.fleeing && !previous.gone) return previous;
+  if (F.climbGuideAt > rt.t && inabaFoe(previous) && !previous.offscreen) return previous;
   F.climbGuideAt = rt.t + .1;
   let best = null, distance = Infinity;
   for (const group of F.climbFoes || []) {
     if (gone(group)) continue;
     for (const enemy of group.units) {
-      if (enemy.gone || enemy.woundOut || enemy.noTarget || enemy.offscreen || !sightScreenUnit(rt, enemy) ||
+      if (!inabaFoe(enemy) || enemy.offscreen || !sightScreenUnit(rt, enemy) ||
           !inabaMeleeContact(rt, enemy, rt.player.u) && !inabaMeleeContact(rt, rt.player.u, enemy)) continue;
       const d = Math.hypot(enemy.pos.x - rt.player.u.pos.x, enemy.pos.z - rt.player.u.pos.z) - (enemy === previous ? 2 : 0);
       if (d < distance) { best = enemy; distance = d; }
@@ -4028,7 +4031,7 @@ function buildKaraTrail(rt) {
 // 稲生の水準（10/25）：倒す相手は、残りに数える組の中で一番近い一人。札・ピン・▼で同じ本人を使う。
 // 深手・逃げる兵・建物は数えない。選び直しは一コマに一度だけ。
 const inabaFoe = (u) => !!u?.alive && u.hp > 0 && !u.gone && !u.dying && !u.downed && !u.woundOut && !u.fleeing &&
-  !u.noTarget && !u.isStruct && !u.civ && u.mesh?.visible !== false;
+  !u.rearWound && !u.evacuatedWound && !u.noTarget && !u.isStruct && !u.civ && u.mesh?.visible !== false;
 function honTargetGroup(rt) {
   const F = rt.flags;
   if (F.step !== 4 || F.sig || F.ending) return null;
@@ -4037,7 +4040,7 @@ function honTargetGroup(rt) {
 }
 function nearestFoeOf(rt, group) {
   const F = rt.flags;
-  if (F.foePickT === rt.t && F.foePickG === group) return F.foePick;
+  if (F.foePickT === rt.t && F.foePickG === group && (!F.foePick || inabaFoe(F.foePick))) return F.foePick;
   F.foePickT = rt.t; F.foePickG = group;
   if (!group) return (F.foePick = null);
   const list = Array.isArray(group) ? group : [group];
@@ -4536,7 +4539,7 @@ const inabayama = {
       return marks;
     }
     if (F.step !== 2 || F.ending || F.regroup) { marks.length = 0; return marks; }
-    if (F.holdEnemyScan > rt.t) return marks;
+    if (F.holdEnemyScan > rt.t && (!marks.length || inabaFoe(marks[0]) && !marks[0].offscreen)) return marks;
     F.holdEnemyScan = rt.t + .2;
     const p = rt.player.u.pos;
     // 坂を下りて鹿垣の端へ回る城兵も、近づく先から▼で指す（11/3 kaito Z：迎える相手が分からなかった）
@@ -4545,7 +4548,7 @@ const inabayama = {
       const group = i ? F.ote2 : F.ote;
       if (!group || group === F.ote2 && !group.sent) continue;
       for (const u of group.units) {
-        if (!u.alive || u.gone || u.fleeing || u.woundOut || u.noTarget || u.offscreen || !sightScreenUnit(rt, u)) continue;
+        if (!inabaFoe(u) || u.offscreen || !sightScreenUnit(rt, u)) continue;
         const d = Math.hypot(u.pos.x - p.x, u.pos.z - p.z) - (u === marks[0] ? 2 : 0);
         if (d < distance) { best = u; distance = d; }
       }

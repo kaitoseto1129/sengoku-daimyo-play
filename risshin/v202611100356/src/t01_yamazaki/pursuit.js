@@ -88,7 +88,8 @@ function finaleTick(rt, ctx) {
   while (F.finaleIndex < FINALE_AT.length && F.finaleT >= FINALE_AT[F.finaleIndex]) {
     switch (F.finaleIndex++) {
       case 0:
-        if (F.mitsuG) { F.mitsuG.order = 'retreat'; F.mitsuG.dest = { x: 80, z: -260 }; F.mitsuG.speed = 3.2; }
+        // 城へ入る時の到着処理を外す。移動限界（210）の内で北へ抜け、城内へ引き返させない。
+        if (F.mitsuG) { F.mitsuG.onArrive = null; F.mitsuG.order = 'retreat'; F.mitsuG.dest = { x: 80, z: -208 }; F.mitsuG.speed = 3.2; }
         rt.banner('明智光秀、山崎より敗走', '');
         break;
       case 1: rt.say('黒田官兵衛', '日向は夜のうちに城を抜け、坂本へ落ちましょう。道々の郷人が黙ってはおりますまい', 4.4); break;

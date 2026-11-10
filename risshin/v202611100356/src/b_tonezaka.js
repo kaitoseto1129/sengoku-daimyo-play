@@ -2950,6 +2950,8 @@ const tonezaka = {
       // 共通の放置・時間切れによる段送りで、未達成の目標を飛ばさない。
       if (st.kind === 'hold' || st.kind === 'move') {
         st.idleAdvance = false; st.max = st.limit = Infinity;
+        // 共通の四分・七分の打ち切りでも、未到着・敵が残る追撃を達成扱いにしない。
+        st.noHardCap = true;
         if (st.kind === 'hold') {
           const tick = st.tick;
           st.tick = (rt2, C, m, ctx, el, dt) => {
