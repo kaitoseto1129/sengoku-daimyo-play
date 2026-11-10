@@ -499,6 +499,11 @@ const k04_kuisegawa = {
     // 防戦の長さは実際の経過秒で数える。間引いた判定の回数で数えると、
     // 携帯でコマが遅れた時だけ百三十秒の防戦が長引いてしまう。
     if (F.step === 3 && F.defended && F.noiU?.alive && dist(F.noiU.pos, P.pos) < 12) F.nearT = (F.nearT || 0) + dt;
+    // 追撃と斉射も経過秒で数える。判定の間引きで携帯だけ間隔を延ばさない。
+    if (F.step >= 4) {
+      F.chaseT = (F.chaseT ?? 0) - dt;
+      if (PL.x <= 60) F.backFireT = (F.backFireT ?? 3) - dt;
+    }
     if ((F.scanT = (F.scanT || 0) - dt) > 0) return;
     F.scanT = 0.25;
     const menRemain = F.mine.units.some(canReturn) || (rt.squad || []).some(canReturn);
@@ -523,7 +528,7 @@ const k04_kuisegawa = {
     else if (F.step === 5 && dist(P.pos, ARIMA) < 14 && this.returnedMen(rt) > 0) this.win(rt);
     // 退く段：西軍は川まで追うが渡らない（史実：有馬の隊が岸で受け、西軍は大垣へ引いた）。近い追手は人の走りより少し遅い
     if (F.step >= 4) {
-      if ((F.chaseT = (F.chaseT || 0) - 0.25) <= 0) {
+      if ((F.chaseT ?? 0) <= 0) {
         F.chaseT = 2;
         const to = T(Math.min(PL.x, 30), PL.z);
         for (const b of [B.shima, B.akashi, B.bait]) if (b && !b.routedL && dist(lightPos(b), P.pos) > 30) this.go(b, to, 2.2, { charge: true });
@@ -546,7 +551,7 @@ const k04_kuisegawa = {
       }
       // 退き口へ入っただけでは傷を回復させない。
       // 背の葦と川べりから西軍の鉄砲が撃ちかける（煙と音。川を渡り切るまで）
-      if (PL.x <= 60 && (F.backFireT = (F.backFireT ?? 3) - 0.25) <= 0) { F.backFireT = 5 + Math.random() * 3; const q = T(Math.min(PL.x, 30) - 16, PL.z + (Math.random() - 0.5) * 14); rt.army.play('volley', q, 1.1); }
+      if (PL.x <= 60 && (F.backFireT ?? 3) <= 0) { F.backFireT = 5 + Math.random() * 3; const q = T(Math.min(PL.x, 30) - 16, PL.z + (Math.random() - 0.5) * 14); rt.army.play('volley', q, 1.1); }
     }
   },
 

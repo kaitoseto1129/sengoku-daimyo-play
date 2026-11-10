@@ -29,7 +29,7 @@ export function start(rt, ctx) {
     for (const u of q.units) { u.pos.x = P.pos.x - 3 + Math.random() * 2; u.pos.z = P.pos.z + 3 + Math.random() * 4; u.pos.y = rt.world.heightAt(u.pos.x, u.pos.z); }
     q.order = 'follow';
   }
-  rt.after(1.5, () => rt.say('侍大将', '夜明けまで間がある。鉄砲組の持ち場を見て回れ', 3.4));
+  rt.after(1.5, () => { if (!F.ending && !rt.over && I.s === 0) rt.say('侍大将', '夜明けまで間がある。鉄砲組の持ち場を見て回れ', 3.4); });
   return I;
 }
 
@@ -57,7 +57,7 @@ export function tick(rt, dt) {
       rt.say('前田利家', '玉は込めてある。柵の内から、引き付けて放つ', 3.4);
       try { sfx('taiko', 0.5); } catch (e) { /* 音が無くても進む */ }
       for (const n of ['真田信綱', '真田昌輝', '内藤昌豊', '土屋昌次', '原昌胤', '山県昌景', '馬場信春', '武田勝頼']) { try { revealName(rt, n); } catch (e) { /* 名の無い将は飛ばす */ } }
-      rt.after(3.6, () => rt.say('前田利家', '川向こうに武田の物見が出た。柵の外へ出て誘い出せ。深追いはするな', 4));
+      rt.after(3.6, () => { if (!F.ending && !rt.over && I.s === 1) rt.say('前田利家', '川向こうに武田の物見が出た。柵の外へ出て誘い出せ。深追いはするな', 4); });
     }
     return true;
   }

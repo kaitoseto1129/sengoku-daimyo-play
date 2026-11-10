@@ -3121,11 +3121,13 @@ function withstand(o) {
     const p = rt.player.u.pos;
     const inPost = Math.hypot(p.x - C.at.x, p.z - C.at.z) < (o.r || 14);
     // 本人が不在の間に味方だけで退けた敵を、後から守った実績にしない。
+    // 輪の反対側の敵も、本人から二十二歩より遠ければ接敵には数えない。
     if (inPost && !C.metEnemy) for (const g of C.groups) {
       if (g.routed) continue;
       // 倒れた兵や手当てへ離脱した兵を、今から寄せて来た敵として数えない。
       for (const u of g.units) if (u.alive && !u.fleeing && !u.gone && !u.dying && !u.woundOut && !u.rearWound && !u.downed && !u.noTarget &&
-          Math.hypot(u.pos.x - C.at.x, u.pos.z - C.at.z) < (o.r || 14) + 8) { C.metEnemy = true; break; }
+          Math.hypot(u.pos.x - C.at.x, u.pos.z - C.at.z) < (o.r || 14) + 8 &&
+          Math.hypot(u.pos.x - p.x, u.pos.z - p.z) < 22) { C.metEnemy = true; break; }
       if (C.metEnemy) break;
     }
     C.inT = held + (inPost && C.metEnemy ? dt : 0);

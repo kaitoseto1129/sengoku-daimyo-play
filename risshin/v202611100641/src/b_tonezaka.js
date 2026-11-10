@@ -1619,7 +1619,7 @@ const tonezaka = {
   //   寄る・退く・守り直すの下知は組頭の声だけで伝える。
   missionHeading(rt) {
     const F = rt.flags;
-    if (F.ending) return '一乗谷の奥の道を守り通した';
+    if (F.ending && rt.tracker?.main) return '一乗谷の奥の道を守り通した';
     if (F.toneHead) return F.toneHead;
     return TONE_LINE[F.step] || TONE_LINE[1];
   },
