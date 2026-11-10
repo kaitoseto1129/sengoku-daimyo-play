@@ -2385,6 +2385,10 @@ function installNodaWater(rt) {
         shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
           if (vWaterBed.x <= 0.01) discard;
           diffuseColor.a *= smoothstep(0.01, 0.18, vWaterBed.x);`);
+        // 共通の砂・泡の処理は頂点色の後で明るい色を代入するため、
+        // この川の濁り色を最後に戻す。流れのむらと水際の透けは残す。
+        shader.fragmentShader = shader.fragmentShader.replace('#include <alphamap_fragment>', `#include <alphamap_fragment>
+          diffuseColor.rgb = vColor.rgb * (0.82 + bedNoise * 0.24);`);
       };
     }
     pos.needsUpdate = true;
