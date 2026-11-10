@@ -26,7 +26,7 @@ export function install(rt, ctx) {
     rt.unmark('hieiMi');
     if (arrived) {
       rt.award((t) => { t.side.push('坂本の湖岸から比叡の三塔を見届けた'); t.special = { label: '山の伽藍を見届けた', pts: 8 }; }, '比叡の三塔を見届けた', MI);
-      try { if (ctx.vista && !rt.player.lock) rt.player.cine = { ...ctx.vista, t: 5, vista: true, crane: true, encounter: true }; } catch (e) { /* 視点が無くても進む */ }
+      // 山を見上げる向きは本人に任せ、到着しても視点を勝手に動かさない。
     }
     rt.say('明智光秀', '本坂を登れば東塔、その奥に西塔、さらに北の尾根の先が横川じゃ', 4);
     rt.after(8, () => sally());

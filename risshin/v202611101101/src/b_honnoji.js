@@ -939,8 +939,8 @@ function guardClear(rt, x, z, from = rt.player.u.pos) {
   }
   return false;
 }
-function guardGuide(rt) {
-  const F = rt.flags, p = rt.player.u.pos, nb = F.nb.pos, q = F.guardGuide;
+function guardGuide(rt, goal = rt.flags.nb.pos) {
+  const F = rt.flags, p = rt.player.u.pos, nb = goal, q = F.guardGuide;
   F.guardDistance = Infinity;
   F.guardDirect = guardClear(rt, nb.x, nb.z);
   if (F.guardDirect) { q.x = nb.x; q.z = nb.z; F.guardDistance = Math.hypot(p.x - nb.x, p.z - nb.z); return; }
@@ -3747,6 +3747,15 @@ const honnoji = {
             if (!patrolClear(prt, g.path[j][0], g.path[j][1], u.pos)) continue;
             const q = u._honnoWayWant || (u._honnoWayWant = { x: 0, z: 0 });
             q.x = g.path[j][0]; q.z = g.path[j][1];
+            // 狭い道も全員を同じ一点へ集めない。通れる時だけ左右の列を保つ。
+            if (g.units.length > 1) {
+              const dx = q.x - u.pos.x, dz = q.z - u.pos.z, length = Math.hypot(dx, dz);
+              if (length > 0.1) {
+                const side = u.slot % 2 ? 0.45 : -0.45;
+                const x = q.x + dz / length * side, z = q.z - dx / length * side;
+                if (patrolClear(prt, x, z, u.pos)) { q.x = x; q.z = z; }
+              }
+            }
             return q;
           }
           return want;
@@ -4554,7 +4563,7 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
     rt.obj('main', '上様を守れ', 'main', true);
     rt.zone('gt', PT.hikae.x + 3, PT.hikae.z, 7);
     F.uma.order = 'hold'; F.uma.anchor = { x: -55, z: 86 };
-    const at = (s, f) => rt.after(s, () => { if (F.hp === 7 && !F.ending) f(); });
+    const at = (s, f) => rt.after(s, () => { if (F.hp === 7 && !F.ending && !F.k15on) f(); });
     // 廊下の北の口（障子の向こう）から、目の前へ明智の兵が踏み込んで斬りかかる
     // 御殿へ入った直後は、小姓衆が襖を立てる数秒だけ息を整えられる（布を巻くならこの間）。
     at(1.5, () => { if (!F.bound?.[7]) honnoSay(rt, '小姓', '襖を立てた！　今のうちに息を整えよ。すぐ来るぞ', 3); });
@@ -6325,7 +6334,7 @@ honnoji.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
 
 // 15分の構成（docs/oda15_plan_1108.md 32）：段は prototype/src/honnoji/ に一段一ファイル
 k15Shizuka(honnoji); k15Shuen(honnoji);
-{ const K15 = { akechi, uS, uA, nbSet, nbWeapon, say: honnoSay }; k15Omote(honnoji, K15); k15Kairo(honnoji, K15); k15Saigo(honnoji, K15); k15Uradori(honnoji, K15); }
+{ const K15 = { akechi, uS, uA, nbSet, nbWeapon, guardGuide, guardClear, pushBack, holdFoes, say: honnoSay }; k15Omote(honnoji, K15); k15Kairo(honnoji, K15); k15Saigo(honnoji, K15); k15Uradori(honnoji, K15); }
 honnoji.botBrain = k15WrapBot(honnoji.botBrain);
 honnoji.depth = (rt) => (rt.G?.lord ? null : HONNOJI_DEPTH);   // 寺を囲む明智一万三千（軽い備）
 export { honnoji };

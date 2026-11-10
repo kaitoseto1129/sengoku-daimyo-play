@@ -110,6 +110,17 @@ function requirePresence(s, contactNames = null) {
     // 本人に寄せが届く前は、刻だけで敵の士気を削らない。
     // 波は全て出すが、接敵を待たずに残兵が崩れると達成条件を満たせなくなる。
     const holdEl = s.kind === 'hold' && !C.k01Engaged ? Math.min(el, s.max - 35 - 0.001) : el;
+    // 隅櫓・破城隊の主力を退けても、壁際の残兵だけで止めない。
+    // 本人が持ち場におり、後続が尽き、六割以上を崩した時だけ
+    // 長く残った敵を退かせる。刻だけでは達成させない。
+    if (s.kind === 'fight' && p.alive && d < (C.botRadius || 14) + 8 &&
+      el > s.max + 40 && !C.later?.length && C.nTot > 0) {
+      let left = 0;
+      for (const g of C.groups) if (!g.routed) left += g.count;
+      if (left <= C.nTot * 0.4) for (const g of C.groups) if (!g.routed && g.count) {
+        g.noRout = false; g.morale = 0;
+      }
+    }
     const finished = tick(rt, C, m, ctx, holdEl, dt);
     if (p.alive && d < (C.botRadius || 14)) C.present = true;
     // 共通の在陣時間は持ち場の三十歩外でも増える。一瞬だけ着いて

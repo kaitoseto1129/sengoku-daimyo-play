@@ -2178,7 +2178,7 @@ const nagashima = {
       q.arrived = p.z >= BANK_Z && Math.hypot(p.x - at.x, p.z - at.z) < 3;
       return q;
     }
-    if (F.advEnding) { const at = !F.advSaid && F.advWalk; if (!at) return null; q.x = at.x; q.z = at.z; q.r = q.hide = 3.5; q.arrived = Math.hypot(p.x - at.x, p.z - at.z) < 3.5; return q; }
+    if (F.advEnding) { const at = !F.advSaid && F.advWalk; if (!at) return null; q.x = at.x; q.z = at.z; q.r = q.hide = 3.5; q.label = '南の堤'; q.arrived = Math.hypot(p.x - at.x, p.z - at.z) < 3.5; return q; }
     { const at = F.ngMonomi || (F.dpOn && (F.dp?.cur?.at || F.dp?.cur?.s?.pin)) || (F.adv && F.advLastAt); if (F.adv && at && at !== F.ngMonomi) F.advLastAt = at; if (at) { const next = F.adv ? fortWay(rt.player.u, at) : at; q.x = next.x; q.z = next.z; q.r = q.hide = next.botRadius ?? 4; q.label = next !== at ? '堤の砦の木戸' : this.travelGuideLabel(rt); q.arrived = Math.hypot(p.x - next.x, p.z - next.z) < q.r; return q; } }
     const stage = this.taskOf(rt);
     let spot = null;
@@ -3727,7 +3727,8 @@ const nagashima = {
     for (const g of rt.army.groups || []) if (g.team === 1 && !g.routed && g.units?.length && !g.units[0]?.isStruct) {
       // 崩す（追撃の知らせが出る）のでなく、手を止めて家族の集まる所へ下がる
       g.noRout = true; g.order = 'hold'; g.aggro = 0; g.seekRange = 0; g.fire = false; g.anchor = { x: -48, z: -113 };
-      for (const u of g.units) if (u.alive) { u.target = null; u.atk = null; u.noTarget = true; }
+      // 振り下ろしは target・atk と別に進むので、手を止めた後の一撃も取り消す。
+      for (const u of g.units) if (u.alive) { u.target = null; u.atk = null; u.swing = null; u.reload = null; u.charging = false; u.noTarget = true; }
     }
     // 水郷を進む段でも、結末の中江・屋長島への着火を落とさない。降った長島城は対象外。
     rt.after(3, () => {
