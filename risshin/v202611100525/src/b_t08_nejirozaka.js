@@ -359,6 +359,8 @@ const t08_nejirozaka = {
   noLeaderFollow: true,
   noGroundGuide: true,
   dpNoMark: true,
+  // 共通の任務札が一件表示でも、①〜⑤を最初から並べる。
+  goalsAllRows: true,
   // 東の尾根から来る黒田・小早川の名も、砦の奥から分かる距離にする。
   nameRange: 140,
   // 距離だけでなく名札の枠も確保し、近くの将で後詰二人の名を消さない。
@@ -621,9 +623,12 @@ t08_nejirozaka.botBrain = (b, inp, { goTo, patientStrike }) => {
   inp.quickCmd = null;
   inp.k.delete('KeyW');
   if (!u.alive || F.ending) return;
-  // 深手の時は塀の内の味方の所へ下がって息を整える（15分の長い守りで、坂へ追って倒れた。11/8 bot）
-  if (u.hp < u.maxHp * 0.4 || (b.botRest && u.hp < u.maxHp * 0.75)) { b.botRest = true; goTo(p, inp, POST.x, POST.z - 6, 2); return; }
-  b.botRest = false;
+  // 固定位置で七割五分まで自然回復を待つと、敵が寄った時に退き続ける。
+  // 共通の頭で安全な味方を探して手当てし、済んだら忠隣への止めにも戻る。
+  const needsTreatment = u.hp < u.maxHp * 0.5 && p.treatmentLeft > 0 && !p.bandaged;
+  if (F.dp?.on && (needsTreatment || p.sta < p.maxSta * 0.22 || F.dpBack)) {
+    depthBot(b, inp, goTo); return;
+  }
   // ⑤：寄せ手を崩した後は遠くても忠隣へ向かう。共通の頭は討たれない指定の将を選ばない。
   const T = F.dp?.on && F.dp.i === 7 && F.tadaU?.alive && (F.tadaHandDone || Math.hypot(F.tadaU.pos.x - u.pos.x, F.tadaU.pos.z - u.pos.z) < 14) ? F.tadaU : null;
   if (T && patientStrike) {
