@@ -3288,6 +3288,8 @@ const sunomata = {
         return q;
       }
       q.x = p.x; q.z = p.z; q.r = q.hide = 5;
+      // 持ち場に着いても守備は続く。共通の六歩以内の非表示で行き先を消さない。
+      q.hideDistance = 0;
       q.waiting = true; q.arrived = Math.hypot(me.x - p.x, me.z - p.z) < 5;
       // 持ち場の白い太い輪（半径五歩）は、地面を大きな弧で横切る線に見えた（10/28）。行き先は旗のピンだけで示す。
       return q;
@@ -3295,7 +3297,11 @@ const sunomata = {
     const u = stage === 2 ? sunomata.commanderTarget(rt) : sunoNearestFoe(rt);
     if (!u) return null;
     // 届く敵は頭上の印だけ。柵や小屋が間にある時は、近くても通れる口へ回す。
-    if (rt.player.inRange && rt.player.rangeCueTarget === u) return null;
+    if (rt.player.inRange && rt.player.rangeCueTarget === u) {
+      q.x = u.pos.x; q.z = u.pos.z; q.unit = u; q.enemy = true;
+      q.r = q.hide = 8;
+      return q;
+    }
     const route = F.sunoRoute || (F.sunoRoute = {
       x: 0, y: 0, z: 0, at: -1,
       capture: (_p, _inp, x, z) => {

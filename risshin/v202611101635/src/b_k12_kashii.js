@@ -816,6 +816,14 @@ html:root body #hud#hud#hud.kashii-goals #h-prog#h-prog.goal-mode .pg-goals :is(
   botBrain(b, inp, { goTo, patientStrike, canStrike }) {
     const p = b.player, u = p.u, F = b.flags;
     if (F.holdPlayer || !F.step || F.ending) return;
+    // 団右衛門の討死後は淡輪の斬り込みを迎える。村の味方が散った時も、
+    // ピンが消えた後の南の備えへ戻って接触待ちを終わらせられなくしない。
+    if (F.hanaDown && F.awaU?.alive && F.awaContactT == null) {
+      if (p.lock) inp.e.add('KeyQ');
+      inp.guardHold = false;
+      goTo(p, inp, F.awaU.pos.x, F.awaU.pos.z, 3);
+      return;
+    }
     // 味方が先に必要数を崩した時も、その場所へ出て槍を構える。
     // 敵がいないと patientStrike を呼べず、参戦の判定を待ったまま止まっていた。
     // 未到着・棒立ちの本人を済ませる条件は変えない。

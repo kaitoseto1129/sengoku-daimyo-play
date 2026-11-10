@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { rockShape, rockTuftShape, groundRocks } from './rock_shape.js';
 import { drawGroundAt } from './render_camera.js';
-import { dirtTex, mudTex } from './nature.js';
+import { dirtTex, mudTex, leafTex } from './nature.js';
 import { pressureTick } from './battle_pressure.js';
 import { localClear } from './army_local_way.js';
 import { evPerson } from './b_ev6.js';
@@ -723,32 +723,29 @@ function tanoHamlet(rt) {
   snow.count = si; snow.receiveShadow = true; snow.computeBoundingSphere(); if (snow.instanceColor) snow.instanceColor.needsUpdate = true;
   // 背の山の杉：道から離れた高い山肌に、群れと疎らな所を作って置く。
   // 一つの滑らかな円錐は、写真と並べると玩具の木に見えた（10/29 15:10 採点：背の山の杉）。
-  // 杉の樹冠を四段の枝の層に分け、縁を不ぞろいに崩す。木ごとに暗い緑の濃さと色味を変える。形は一つを使い回す。
+  // 通し確認で残った円錐の段を、共通の杉の葉を使う枝房へ替える。
+  // 四段・各三房を折り、従来と同じ四十八面で奥行きと枝先の隙間を作る。
   const tiers = [];
   for (let k = 0; k < 4; k++) {
-    // 六角形の中間の輪を葉先へ回し、輪郭を十二方向に刻む。
-    // 一段十八面から十二面へ減らし、山肌の林を重くせず角ばりを細かくする。
-    const r = 1 - k * 0.22, h = 0.4 - k * 0.04, tier = new THREE.ConeGeometry(r, h, 12, 1, true);
-    const p = tier.attributes.position;
-    for (let i = 0; i < p.count; i++) {
-      const y = p.getY(i);
-      if (y > h * 0.25) continue;
-      const a = Math.atan2(p.getZ(i), p.getX(i));
-      const j = 0.84 * (1 + 0.2 * Math.sin(a * 3 + k * 1.9) + 0.12 * Math.sin(a * 5 - k));
-      // 葉先ごとに張り出しと垂れを変え、水平な六角形の裾を残さない。
-      p.setX(i, p.getX(i) * j);
-      p.setZ(i, p.getZ(i) * j);
-      p.setY(i, y - h * 0.15 * Math.abs(Math.sin(a * 5 + k)));
+    const r = 1 - k * 0.22, h = 0.45 - k * 0.04;
+    for (let j = 0; j < 3; j++) {
+      const a = k * 2.39996 + j * Math.PI * 2 / 3;
+      const tier = new THREE.PlaneGeometry(r * 1.65, h, 2, 1);
+      const p = tier.attributes.position;
+      for (let i = 0; i < p.count; i++) {
+        // 中央を折り出し、横からも葉房の厚みが読めるようにする。
+        p.setZ(i, Math.abs(p.getX(i)) * 0.22);
+      }
+      tier.rotateX(0.65 + 0.15 * Math.sin(a + k));
+      tier.rotateY(a);
+      tier.translate(Math.sin(a) * r * 0.28, -0.3 + k * 0.22 + 0.04 * Math.sin(a * 1.7), Math.cos(a) * r * 0.28);
+      tiers.push(tier);
     }
-    // 七角形の七倍の波は各頂点で同じ値になり、段の角も上下に揃っていた。
-    // 枝の段をずらして回し、円錐の稜線が幹の上下へ一直線に続くのを防ぐ。
-    tier.rotateY(k * 2.39996);
-    tier.translate(0.025 * Math.sin(k * 2.4), -0.5 + h / 2 + k * 0.22, 0.025 * Math.cos(k * 2.4)); tiers.push(tier);
   }
   const sugiGeo = mergeGeometries(tiers); sugiGeo.computeVertexNormals();
   // 日の当たる面が深い緑に見えるよう、葉に弱い自己の明るみを足す（暗い谷でも黒い影にしない。10/29 採点）。
   // 谷から見上げても枝の裏が消えないよう、底板を持たない葉房の両面を描く。
-  const cones = new THREE.InstancedMesh(sugiGeo, new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0x0e1a0c, side: THREE.DoubleSide }), 1450);
+  const cones = new THREE.InstancedMesh(sugiGeo, new THREE.MeshLambertMaterial({ map: leafTex('cedar'), alphaTest: 0.42, color: 0xffffff, emissive: 0x0e1a0c, side: THREE.DoubleSide }), 1450);
   const leaf = new THREE.Color(), leafA = new THREE.Color(0x4a6a38), leafB = new THREE.Color(0x66804a); // 逆光でも黒い切り紙にしない（10/29 撮り）
   const trunks = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.5, 0.7, 1, 5), new THREE.MeshLambertMaterial({ color: 0x7a4128 }), 1450); // 杉の赤茶の幹
   let ci = 0;

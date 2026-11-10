@@ -15,6 +15,8 @@ const B = { x: 24, z: -142 };    // 右の谷筋（VALLEY_ROAD の初めの手�
 const BACK = { x: 0, z: -165 };  // 麓の参道の集まり場
 export const GOAL = '雨の森と谷筋で、潜む一揆の残党を狩る';
 const near = (p, q, r) => Math.hypot(p.x - q.x, p.z - q.z) < r;
+// 討死動作中・後送中の者を、残る敵や行き先へ数えない（寺攻めと同じ条件）。
+const fighter = (u) => siegeFighter(u) && u.hp > 0 && !u.dying && !u.rearWound;
 
 export function active(rt) { const Y = rt.flags.ikYama; return !!Y && !Y.done; }
 export function pin(rt) {
@@ -25,7 +27,7 @@ export function pin(rt) {
     const p = rt.player.u.pos;
     let target = null, nearest = Infinity;
     if (Y.g) for (const u of Y.g.units) {
-      if (!siegeFighter(u)) continue;
+      if (!fighter(u)) continue;
       const d = Math.hypot(u.pos.x - p.x, u.pos.z - p.z);
       if (d < nearest) { target = u.pos; nearest = d; }
     }
@@ -54,7 +56,7 @@ function band(rt, Y, at, list, name) {
   g.order = 'attack';
   return g;
 }
-const standing = (g) => g.units.filter(siegeFighter).length;
+const standing = (g) => g.units.filter(fighter).length;
 function rout(g) {
   g.fleeDir = { x: Math.sign(g.anchor.x) || -1, z: -0.6 };
   g.noRout = false; g.morale = 0; g.routed = true; g.order = 'flee'; g.focus = null;

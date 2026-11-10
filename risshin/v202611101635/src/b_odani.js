@@ -5302,7 +5302,9 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
     const path = ROUTE_O.slice(idx).reverse();
     this.march(g, [[start.x, start.z], ...path], 0);
     g.onArrive = (q) => { q.order = 'attack'; q.focus = null; q.seekRange = 12; };
-    rt.say('組頭', gone(F.ono) ? '庭は取った！　南木戸から道へ戻り、小隊を退けよ'
+    rt.say('組頭', gone(F.ono) ? F.onoEntered
+      ? '庭の守りは退いた！　南木戸から道へ戻り、小隊を退けよ'
+      : '南木戸から庭へ入れ。道の小隊にも備えよ'
       : F.onoInGarden ? '屋敷から新手じゃ！　庭の敵を味方と退けよ'
         : '屋敷から新手じゃ！　南木戸から庭へ進め', 4);
     rt.marker('relief', centerOf(g), '味方を押す敵の小隊', { red: true, group: g });

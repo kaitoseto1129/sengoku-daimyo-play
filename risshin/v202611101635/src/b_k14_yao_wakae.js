@@ -494,9 +494,12 @@ const k14_yao_wakae = {
   kimuraEnd(rt, byMe) {
     const F = rt.flags;
     if (F.kimuraDone || !canProgress(rt)) return;
-    F.kimuraDone = true;
     const U = F.kimuraU;
+    if (!U || U.gone) return;
     if (U?.alive) { U.invuln = false; rt.army.kill(U); }
+    // 討死が成立してから若江の崩れと勝ちを予約する。
+    if (U.alive) return;
+    F.kimuraDone = true;
     rt.banner('木村重成、討死', '若江の堤に散る　二十三歳');
     // 勝ちの印（t.main）はここで立てない。立てると目標の札が勝ったと見て、④⑤の残りの時が止まり、果たさずに印が付く（三3）
     if (byMe) rt.award((t) => { t.special = { label: '木村重成を討ち取った', pts: 40 }; }, '木村重成を討ち取った', U?.pos);
@@ -602,9 +605,16 @@ const k14_yao_wakae = {
     }
     if (F.step >= 2 && !F.kawate && dist(P.pos, F.sakiG.center()) < 55 && (rt.t - F.stepT > 40 || F.step >= 3)) {
       // 井伊の先手の川手良列が深入りして討たれる（史実）。堤の鉄砲に撃たれ、右の先鋒の庵原朝昌が代わる
-      F.kawate = true;
       const u = F.sakiG.units.find((q) => q.name === '川手良列' && q.alive);
-      if (u) { u.invuln = false; rt.army.kill(u); rt.say('井伊の侍', '川手良列殿、深入りして伏兵に討たれ、お討死！', 2.8); rt.after(3.2, () => rt.say('井伊の侍', '庵原朝昌殿が先手を継がれる。押せ！', 2.6)); }
+      if (u) {
+        u.invuln = false; rt.army.kill(u);
+        // 共通の討死処理が見送った時は、交代の知らせも済みの印も出さず次に確かめる。
+        if (!u.alive) {
+          F.kawate = true;
+          rt.say('井伊の侍', '川手良列殿、深入りして伏兵に討たれ、お討死！', 2.8);
+          rt.after(3.2, () => rt.say('井伊の侍', '庵原朝昌殿が先手を継がれる。押せ！', 2.6));
+        }
+      }
     }
     // ①：長瀬川の堤に伏せた槍が、主人公が寄るのを待って一斉に立つ（八尾の芯。二3）
     if (F.step === 1 && F.fuseG?.ambush && dist(P.pos, FUSE) < 34) {

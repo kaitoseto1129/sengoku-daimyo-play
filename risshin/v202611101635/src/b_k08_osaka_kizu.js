@@ -121,6 +121,11 @@ const northTarget = (F, p) => fightingTarget(F.s4, p, F);
 // 北門をまたぐ時は、手当てに下がる場合も開いた門を通る。
 function goNorthTo(b, inp, goTo, target, radius) {
   const p = b.player, pos = p.u.pos;
+  // 竹束の陰から戦線へ戻る時も、先に中央の通り道へ出る。
+  if (pos.z > GATE.z + 16.2 && target.z < GATE.z + 15 && Math.abs(pos.x) > 2.5) {
+    goTo(p, inp, GATE.x, pos.z, 1);
+    return;
+  }
   // 北門の外から横塀の外の敵へ戻る時は、先に北門をくぐる。
   // 横塀の切れ目へ先に向かうと、まだ残る北の塀を斜めに横切って止まる。
   if (pos.z < WALL_N && Math.abs(pos.x) <= WALL_X && target.z >= WALL_N && b.army.wallBetween(pos, -1, target)) {
@@ -160,6 +165,9 @@ const northLeft = (F) => {
   }
   return n;
 };
+// 残兵を追い切れない時も、両方の組を半数まで崩して北の口を保てる。
+// 自動操作も同じ条件で追撃から持ち場の確保へ切り替える。
+const northCanHold = (rt) => northLeft(rt.flags) <= rt.flags.nN * 0.5 && engun.remaining(rt) <= (rt.flags.engunN || 0) * 0.5;
 const flee = (g, shore = false) => {
   if (!g || g.count <= 0) return;
   // 岸の組は東の塀の外へ、それ以外は開いた北の口から博労淵へ退く。
@@ -764,7 +772,7 @@ const k08_osaka_kizu = {
       const left = northLeft(F);
       // 加勢が塀の外で足止めされても、両方の手を半数まで崩し北の口を押さえれば退ける。
       // 出撃と後備の押し返しは engun.cleared で待つ。時間だけでは達成しない。
-      F.northHeld = F.northJoined && insideFort(P) && near(P, NORTH_AT, 16) && left <= F.nN * 0.5 && engun.remaining(rt) <= (F.engunN || 0) * 0.5 ? (F.northHeld || 0) + dt : 0;
+      F.northHeld = F.northJoined && insideFort(P) && near(P, NORTH_AT, 16) && northCanHold(rt) ? (F.northHeld || 0) + dt : 0;
       const secured = rt.t - F.tS > 180 && F.northHeld > 8;
       if (F.northJoined && (left <= Math.floor(F.nN * 0.2) || secured) && rt.t - F.tS > 45 && engun.cleared(rt, secured)) this.stage5(rt);
     } else if (F.step === 5) {
@@ -792,11 +800,12 @@ k08_osaka_kizu.botBrain = (b, inp, { goTo, patientStrike }) => {
   // 共通の自動操作にも休息を伝え、性格による突進や射撃への持ち替えで退避を上書きさせない。
   b.botRest = !!F.botRest && F.step >= 2 && F.step <= 4;
   //   竹束の列（GATE.z+15）は真ん中の通り道から抜ける（斜めに下がると竹束に詰まって門の前に立ち続けた）
-  //   ③④は砦の内で、門の外まで下がる間に追ってきた侍に背から討たれた（11/6 fixc0823 の描いた通しで二度）。先手の列の八歩後ろで癒える
+  //   ③④も破れた南面から竹束の陰へ。先手の八歩後ろでは前線と共に動き、北の櫓の射程内で休み続けていた。
   if (F.botRest && F.step >= 3 && F.step <= 4) {
     const rest = F.botRestAt || (F.botRestAt = { x: 0, z: 0 });
-    rest.x = gc.x; rest.z = gc.z + 8;
-    goNorthTo(b, inp, goTo, rest, 2);
+    const passing = u.pos.z < GATE.z + 16.2;
+    rest.x = passing ? 0 : -8.2; rest.z = GATE.z + (passing ? 17.5 : 16.9);
+    goNorthTo(b, inp, goTo, rest, 0.6);
     return;
   }
   //   ②は通り道の真ん中に立つと門の内の鉄砲に撃ち抜かれた（同じ通しで 111 秒に討たれた）。通り道を抜けたら西の竹束の真後ろに隠れる
@@ -807,6 +816,17 @@ k08_osaka_kizu.botBrain = (b, inp, { goTo, patientStrike }) => {
   if (u.hp < u.maxHp * 0.35 && Math.hypot(u.pos.x - gc.x, u.pos.z - gc.z) > 4) { goTo(p, inp, gc.x, gc.z, 3); return; }
   // 櫓の床の上の撃ち手は地上から突けない。届かない相手の下で足を止めない。
   const e = b.army.nearestEnemy(u, 12, (o) => fightable(o) && !o.group?.routed && !o.isStruct && o.type !== 'dummy' && Math.abs(o.pos.y - u.pos.y) < 3 && !b.army.wallBetween(u.pos, -1, o.pos));
+  if (F.step === 4 && b.t - F.tS > 180 && northCanHold(b)) {
+    // 塀の外の残兵を追うと、守りを崩していても北の口の保持が始まらない。
+    // 持ち場へ戻り、近くの敵にはその場で応戦する。
+    goNorthTo(b, inp, goTo, NORTH_AT, 2);
+    if (e) {
+      const d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
+      p.yaw = Math.atan2(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
+      patientStrike(p, inp, e, d);
+    }
+    return;
+  }
   if (e && F.step >= 1 && F.step < 5) {
     const d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
     p.yaw = Math.atan2(e.pos.x - u.pos.x, e.pos.z - u.pos.z);

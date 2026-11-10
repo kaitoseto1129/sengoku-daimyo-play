@@ -3698,7 +3698,7 @@ const nagashima = {
         r.after(6.4, () => r.say('足軽', '……女子供が、荷を抱えて立っとる', 3));
         r.award((t) => { t.side.push('包囲 完成'); }, '包囲を完成させた');
       },
-      desperate(r) { r.army.play('eshout', { x: -48, z: -110 }, 1.4); r.army.play('bell', { x: -44, z: -82 }, .5); },
+      desperate(r) { r.army.play('eshout', { x: -48, z: -110 }, 1.4); r.army.play('bellRapid', { x: -44, z: -82 }, .5); },
       breakFailed(r) { r.say('組頭', '……止まった。', 3); },
     };
   },

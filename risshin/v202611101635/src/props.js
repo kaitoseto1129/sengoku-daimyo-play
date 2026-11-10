@@ -1068,8 +1068,8 @@ export function jinmaku(world, cx, cz, w, d, gapSouth = 6, o = {}) {
   return grp;
 }
 
-const NB_ROOT_DEF = '#ifdef USE_INSTANCING\n#define NB_ROOT (modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0))\n#else\n#define NB_ROOT (modelMatrix * vec4(0.0, 0.0, 0.0, 1.0))\n#endif\n';
-// 11/10 重さ：幟の根元（modelMatrix の原点）を、束（InstancedMesh）で描く時は一本ごとの行列から取る
+const NB_ROOT_DEF = '#ifndef NB_ROOT\n#ifdef USE_INSTANCING\n#define NB_ROOT (modelMatrix * instanceMatrix * vec4(0.0,0.0,0.0,1.0))\n#else\n#define NB_ROOT (modelMatrix * vec4(0.0,0.0,0.0,1.0))\n#endif\n#endif\n';
+// 11/10 重さ：幟の根元（modelMatrix の原点）を、束（InstancedMesh）で描く時は一本ごとの行列から取る（二度足しても定義が重ならない・置き換えの字に当たらない書き方）
 const nbRoot = (src) => NB_ROOT_DEF + src.split('modelMatrix * vec4(0.0, 0.0, 0.0, 1.0)').join('NB_ROOT');
 // 幟の布：竿から離れるほど、下へ行くほど大きくはためく
 const noboriMats = new Map();
@@ -1149,7 +1149,7 @@ function nearNoboriMaterial(base) {
       // 透かさずに、塞ぐ間は幟一本ごと画面の外（視錐台の外）へ逃がす。点の間引きの砂嵐も出ない。
       .replace('#include <project_vertex>', `#include <project_vertex>
       if (vNearNobori < 0.55) gl_Position = vec4(0.0, 0.0, -2.0, 1.0);`);
-    if (!sh.vertexShader.startsWith(NB_ROOT_DEF)) sh.vertexShader = nbRoot(sh.vertexShader);
+    sh.vertexShader = nbRoot(sh.vertexShader);
   };
   m.userData.nbInst = true;
   m.customProgramCacheKey = () => base.customProgramCacheKey() + '_near_nobori';
