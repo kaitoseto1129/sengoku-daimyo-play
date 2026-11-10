@@ -145,7 +145,7 @@ const ACH = [
   { id: 'tennoji', name: '天王寺の囲みを破る', desc: '天王寺砦の囲みを破り、敵を押し戻す', test: (c) => c.id === 'tennoji' && c.main },
   { id: 'saika', name: '川向こうに踏みとどまる', desc: '雑賀で小雑賀川の東岸を守る', test: (c) => c.id === 'saika' && c.main },
   { id: 'tedorigawa', name: '手取川を生きて渡る', desc: '手取川で最後尾を守り、生きて川を渡る', test: (c) => c.id === 'tedorigawa' && c.main },
-  { id: 'shigisan', name: '信貴山の天守へ', desc: '信貴山城を攻め、天守の前まで進む', test: (c) => c.id === 'shigisan' && c.main },
+  { id: 'shigisan', name: '信貴山城の本丸へ', desc: '信貴山城の本丸の南口へ攻め入り、館の前を固める', test: (c) => c.id === 'shigisan' && c.main },
   { id: 'kizugawa', name: '鉄の船の一撃', desc: '木津川口で敵の大船に大鉄砲を当て、海を守る', test: (c) => c.id === 'kizugawa' && c.main && side(c, '引き付けた敵の大船に大鉄砲を当てた') },
   { id: 'miki', name: '兵糧の道を断つ', desc: '三木の大村坂で別所勢を討ち、兵糧の道を断つ', test: (c) => c.id === 'miki' && c.main },
   { id: 'arioka', name: '上ろう塚の木戸を守る', desc: '有岡の惣構えに入り、上ろう塚の木戸を固める', test: (c) => c.id === 'arioka' && c.main },

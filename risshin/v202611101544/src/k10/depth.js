@@ -27,5 +27,6 @@ export default {
       { id: 'harufusa', layer: 'gozume', wing: 'center', men: 2000, taisho: '大野治房', hold: true, at: { x: -228, z: 6 } },
     ] },
   byMen: true,   // 軽い兵を史実の兵数の比で配る（11/9 徳川C。docs/fujin/k10_shigino.md）
+  bindTail: true,   // 本物の隊に結んだ備の後ろに、兵数の比の軽い列（army_depth_view.js の buildTail。クラウド厚み係 11/10）
   honjinView: { A: false, B: false },
 };

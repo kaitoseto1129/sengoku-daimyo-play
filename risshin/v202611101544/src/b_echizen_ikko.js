@@ -2716,33 +2716,7 @@ const echizen_ikko = {
   },
   playerRegen: 0.025,   // 10/28：近くで止まった敵が構え直す直しの後、山門の前で囲まれて倒れる回が増えた   // 斬り合いの合間は命が少しずつ戻る
   playerTaken: 0.32,   // 11/9 二巡（織田H）：本堂の段で bot が二回続けて倒れたので 0.42→0.32。狭い惣門の前で四方から突かれ、二分で倒れていた（bot 10/26）。人数と斬り合いは減らさない
-  // 麓の参道を登る間、惣門の切妻の屋根と奥の本堂の大屋根が画面の上で切れていた（10/28 採点）。
-  // 惣門の屋根が画面の上四分の一に入るまで、目線だけを上げる（本人が画面に残る角度まで。位置は変えない）。
-  frameCamera(rt, pos, look) {
-    const P = rt.player, F = rt.flags, u = P.u;
-    if (!look || mode() !== 'attack' || rt.game?.photo || rt._rts?.on || P.fpK >= .5 || P.cine) return;
-    const want = F.step === 1 && u.pos.z < GATE_SOMON.z - 8 && u.pos.z > VILLAGE.z - 20 ? 1 : 0;
-    F.somonLookK = (F.somonLookK || 0) + (want - (F.somonLookK || 0)) * .05;
-    if (F.somonLookK < .01) return;
-    const gx = GATE_SOMON.x - pos.x, gz = GATE_SOMON.z - pos.z, gd = Math.hypot(gx, gz);
-    const gy = rt.world.heightAt(GATE_SOMON.x, GATE_SOMON.z) + 7.5 - pos.y;
-    // 竹束の列をよけて斜めに登る間、惣門が画面の横の外（約50度）へ外れていた（10/28 採点）。
-    // 門が画面の端から内へ入るまで、目線だけを門の側へ振る（約23度まで・位置は変えない・本人は画面に残る）。
-    {
-      const lx = look.x - pos.x, lz = look.z - pos.z;
-      let d = Math.atan2(gx, gz) - Math.atan2(lx, lz);
-      d = Math.atan2(Math.sin(d), Math.cos(d));
-      const turn = Math.sign(d) * Math.min(.4, Math.max(0, Math.abs(d) - .5)) * F.somonLookK;
-      if (turn) {
-        const c = Math.cos(turn), s = Math.sin(turn);
-        look.x = pos.x + lx * c + lz * s; look.z = pos.z - lx * s + lz * c;
-      }
-    }
-    const ld = Math.max(.5, Math.hypot(look.x - pos.x, look.z - pos.z));
-    const cur = Math.atan2(look.y - pos.y, ld), gate = Math.atan2(gy, gd);
-    const lift = Math.min(.21, Math.max(0, gate - .22 - cur)) * F.somonLookK;   // 約12度まで
-    if (lift > 0) look.y = pos.y + Math.tan(cur + lift) * ld;
-  },
+  // 視線は本人の操作に任せ、惣門へ自動で振り向かせたり見上げさせたりしない。
   get spawn() { return mode() === 'defend' ? { x: 0, z: 10, heading: Math.PI } : { x: VILLAGE.x, z: VILLAGE.z - 2, heading: 0 }; },
   // 11/1：共通の既定（本人へ四人が同時に打つ・構えずに受けた一太刀は命の五割）で bot が倒れて負けた。寄せる数・敵の強さ・大軍の見た目は変えず、
   //   一太刀を二割五分（侍は三割）に、刃を受けた後の3秒は次の刃を通さない（同じ一瞬に二太刀・三太刀を浴びない）。

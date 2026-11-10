@@ -140,7 +140,11 @@ function requiredStage(s) {
     return done && (s.kind !== 'hold' || (C.inT >= 45 && fighting &&
       Math.hypot(rt.player.u.pos.x - C.at.x, rt.player.u.pos.z - C.at.z) < C.botRadius)) &&
       // 一度交戦していても、本人が倒れた後に味方だけで殿を崩して勝ちにはしない。
-      (s.kind !== 'fight' || rt.flags.step !== 4 || (el >= 30 && C.engaged && fighting));
+      // 共通は残り二人でも済みとするが、交戦済みでも踏みとどまる殿を残して締めない。
+      // 残兵を探して全滅させる必要はなく、横撃による退却の下知でも済む。
+      (s.kind !== 'fight' || rt.flags.step !== 4 || (el >= 30 && C.engaged && fighting &&
+        !C.groups.some((g) => !gone(g) && g.units.some((u) => u.alive && !u.gone && !u.fleeing &&
+          !u.dying && !u.woundOut && !u.rearWound && !u.downed))));
   };
   return s;
 }
