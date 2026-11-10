@@ -971,6 +971,7 @@ const iwamura = {
   missionSignTarget(rt) {
     const F = rt.flags, p = rt.player.u.pos;
     if (F.ending || rt.over || !rt.player.u.alive) return null;
+    if (IW_HIRU.active(rt)) return IW_HIRU.signTarget(rt);
     let nearest = null, best = Infinity;
     const groups = F.step === 3 ? F.roadDefenders : F.contacts;
     for (const g of groups || []) {
@@ -997,7 +998,9 @@ const iwamura = {
     q.r = q.hide = 5;
     let pos;
     if (IW_HIRU.active(rt)) {
-      pos = IW_HIRU.pin(rt) || p;
+      const e = IW_HIRU.signTarget(rt);
+      if (e) { pos = e.pos; q.unit = e; q.enemy = true; q.r = q.hide = 3; }
+      else { pos = IW_HIRU.signPin(rt) || p; q.route = pos !== IW_HIRU.pin(rt) && !!rt.flags.iwHiru && (rt.flags.iwHiru.s === 2 || rt.flags.iwHiru.s === 4); }
     } else if (F.iwKaijo) {
       pos = IW_KAIJO.pin(rt) || p;
       const e = IW_KAIJO.envoy(rt);
@@ -1378,6 +1381,7 @@ const iwamura = {
     lookoutLogFrame: true, // 高画質の城の井楼で、指定済みの丸太組みを描く。
     moveLim: 410,   // 広げた本丸・帯曲輪・裏道の兵を麓へ引き戻さない。
     noHorse: true, // 武将の自動乗馬も止め、狭い柵と追撃路では徒立ちにする。
+    playerHorse: true, // 11/10 関所の5：組頭以上は自分の馬に乗れる。ほかの兵と武将は徒立ちのまま（def.noHorse）。
     nearAllyFadeRadius: 2.2, // 近い味方の扱いを描画直前の判定へそろえる。
     // critic60：始まりが昼の明るさだった（四6）。始まりの札から十日の月の夜。霧と霞も初めから月の下の暗い紺。
     time: 'night',
@@ -1931,7 +1935,8 @@ html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.iwamura-army #army
     for (const [x, z] of [[-10, 40], [14, 42]]) { rt.scene.add(campfire(W, x, z)); W.addFire(x, z); }
     // 柵の外の両口と山道の折れを照らす。兵の通る筋には置かず、光は共通の四灯を使う。
     // critic60（十1）：山道の折れごとに道ばたの篝火を置き、闇でも道筋が火の並びで分かるようにする（追撃の▼と同じ折れ）。
-    kagaribiRow(rt, [[23, -32], [-23, -60], [9, -20], [-9, -48], [-6, -78]], { lit: true, nightOnly: false });
+    // 11/10 関所の5：[9,-20] は一の折れの道の真ん中で、本人の馬が火を怖がって昼の段から動けなかった。道の脇（五歩）へ。
+    kagaribiRow(rt, [[23, -32], [-23, -60], [13.5, -17], [-9, -48], [-6, -78]], { lit: true, nightOnly: false });
     for (const [x, z] of [[-6, -18], [72, 10], [-25, -34], [25, -62]]) {
       rt.scene.add(campfire(W, x, z)); W.addFire(x, z);
     }

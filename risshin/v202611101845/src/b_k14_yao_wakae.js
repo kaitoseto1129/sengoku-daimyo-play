@@ -87,6 +87,8 @@ const sm = (a, b, v) => { const k = Math.max(0, Math.min(1, (v - a) / (b - a)));
 const standing = (u) => fieldStanding(u) && !u.downed && !u.rearWound && u.hp > 0;
 const stepAlive = (F) => aliveN(F.stepG) + (F.step === 1 ? aliveN(F.fuseG) : 0);   // 八尾では横の備と伏せ槍を合わせて数える
 const live = (g) => g && g.units.some(standing);
+// 段が変わっても、退く下知と敗走を前進・攻撃で取り消さない。
+const canMarch = (g) => live(g) && !g.routed && g.order !== 'retreat' && g.order !== 'flee';
 // 深手で戦えない者・後送済みの者は、目標の残兵に数えない（共通の戦力判定と揃える）。
 const aliveN = (g) => (g ? g.units.reduce((n, u) => n + (standing(u) ? 1 : 0), 0) : 0);
 // 横の備の討取りで伏せ槍の分を埋めない。両隊それぞれ六割を退ける。
@@ -426,22 +428,22 @@ const k14_yao_wakae = {
     if (n === 1) {
       // 八尾へ：手勢と井伊の騎馬は主人公の脇を南へ駆ける（update が主人公の脇へ寄せ続ける。一5・九4）
       F.choSide.order = 'hold'; F.choSide.seekRange = 12; F.choSide.dmgMult = 0.4; F.choSide.defMult = 0.9;   // 赤備えが着くまでは槍を構えて待つ
-      if (live(F.todoGun)) { F.todoGun.order = 'attack'; F.todoGun.seekRange = 60; }
-      for (const g of [F.mine, F.kibaG]) { g.order = 'move'; g.dest = FLANK_GO; g.speed = 6.2; g.noRun = false; g.focus = null; }
+      if (canMarch(F.todoGun)) { F.todoGun.order = 'attack'; F.todoGun.seekRange = 60; }
+      for (const g of [F.mine, F.kibaG]) if (canMarch(g)) { g.order = 'move'; g.dest = FLANK_GO; g.speed = 6.2; g.noRun = false; g.focus = null; }
       rt.after(3, () => rt.say(nm(rt), '皆、南へ！　藤堂殿を助ける', 2.4));
     } else if (n === 2) {
       // 伝令：若江で井伊の隊と木村重成がぶつかった。八尾の戦いは後ろで続く
       rt.say('使番', '井伊隊、木村重成と交戦！　若江へお戻りを！', 3);
       rt.after(3.4, () => rt.say(nm(rt), '承知。皆、北へ！', 2));
-      for (const g of [F.mine, F.kibaG]) if (live(g)) { g.order = 'move'; g.dest = NAITO_GO; g.speed = 6.2; g.noRun = false; g.focus = null; }
-      for (const g of [F.sakiG, F.iharaG]) if (live(g)) { g.onArrive = null; g.order = 'attack'; g.seekRange = 70; g.aggro = 14; }
+      for (const g of [F.mine, F.kibaG]) if (canMarch(g)) { g.order = 'move'; g.dest = NAITO_GO; g.speed = 6.2; g.noRun = false; g.focus = null; }
+      for (const g of [F.sakiG, F.iharaG]) if (canMarch(g)) { g.onArrive = null; g.order = 'attack'; g.seekRange = 70; g.aggro = 14; }
       F.naitoG.order = 'attack'; F.naitoG.seekRange = 60;
       if (F.choSide.order === 'flee') { /* 横の備は崩れて退いた */ } else if (live(F.choSide)) { F.choSide.order = 'move'; F.choSide.dest = { ...CHO_A }; }
     } else if (n === 3) {
       rt.say('井伊直孝', '内藤は崩れた。北の田の山口を討て！', 2.8);
       F.yamaG.order = 'attack'; F.yamaG.seekRange = 60;
       // 南の田から北の田へも同行する。内藤の近くで攻め続けると、北の山口は索敵の外に残る。
-      if (live(F.kibaG)) { F.kibaG.order = 'move'; F.kibaG.dest = YAMA; F.kibaG.speed = 6.2; F.kibaG.focus = null; }
+      if (canMarch(F.kibaG)) { F.kibaG.order = 'move'; F.kibaG.dest = YAMA; F.kibaG.speed = 6.2; F.kibaG.focus = null; }
     } else if (n === 4) {
       rt.say('井伊直孝', '両翼が崩れた。堤の木村の本隊へかかれ！', 2.8);
       rt.after(3, () => rt.say('木村重成', '長門守重成これにあり。両将軍の首を取らずに、どこへ退けようか！', 3));
@@ -454,9 +456,9 @@ const k14_yao_wakae = {
       // 庵原の隊が一度押し返され、直孝が本陣から重ねて下知する（史実では二度目の押し。直孝は本陣の旗本に囲まれたまま。一2）
       rt.after(6.4, () => rt.say('井伊直孝', '庵原が押し返されたか。退くな、もう一押しじゃ！', 3));
       // 井伊の手の安藤重勝が木村の首を狙って寄る（史実で首を取った者）
-      F.andoG.onArrive = null; F.andoG.order = 'attack'; F.andoG.seekRange = 50; F.andoG.focus = F.kimuraU;
+      if (canMarch(F.andoG)) { F.andoG.onArrive = null; F.andoG.order = 'attack'; F.andoG.seekRange = 50; F.andoG.focus = F.kimuraU; }
       // 先手と庵原の隊も堤の木村の本隊へ寄せる（主人公一人で堤へ行かせない）
-      for (const g of [F.sakiG, F.iharaG, F.kibaG]) if (live(g)) { g.order = 'attack'; g.noRun = false; g.seekRange = 70; g.aggro = 16; }
+      for (const g of [F.sakiG, F.iharaG, F.kibaG]) if (canMarch(g)) { g.order = 'attack'; g.noRun = false; g.seekRange = 70; g.aggro = 16; }
     }
   },
 
@@ -566,7 +568,7 @@ const k14_yao_wakae = {
       // 八尾・内藤・山口へ騎馬も同行する。行き先は替えず、先なら控え、遅れれば馬を急がせる。
       const kb = F.kibaG;
       const GO = F.step === 1 ? FLANK_GO : F.step === 2 ? NAITO_GO : YAMA;
-      if (F.step <= 3 && live(kb) && kb.order === 'move') {
+      if (F.step <= 3 && canMarch(kb) && kb.order === 'move') {
         const dx = GO.x - P.pos.x, dz = GO.z - P.pos.z, d = Math.hypot(dx, dz) || 1;
         const ahead = ((kb.anchor.x - P.pos.x) * dx + (kb.anchor.z - P.pos.z) * dz) / d;
         // 共通の駆け足補正（騎馬は最低6.5）で、待つ速さや徒歩の主への足並みを上書きさせない。
@@ -576,7 +578,7 @@ const k14_yao_wakae = {
       // 着いた隊から横の備へかかる（徒の隊は着くまで駆け続ける）
       if (F.step <= 3) {
         const AT = STEP_AT[F.step];
-        if (live(kb) && kb.order === 'move' && dist(kb.center(), AT) < 40) { kb.order = 'attack'; kb.noRun = false; kb.seekRange = 40; }
+        if (canMarch(kb) && kb.order === 'move' && dist(kb.center(), AT) < 40) { kb.order = 'attack'; kb.noRun = false; kb.seekRange = 40; }
       }
       if (F.step === 1 && F.choSide.order === 'hold' && [F.mine, F.kibaG].some((g) => live(g) && dist(g.center(), FLANK) < 36)) {
         F.choSide.order = 'attack'; F.choSide.seekRange = 30;

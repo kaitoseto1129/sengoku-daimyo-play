@@ -98,10 +98,8 @@ export function soboStep(NG) {
       C.goal = C.at = cleared || !target ? P(0, 22) : target.pos;
       rt.objProgress('dp', '');
       // 本人が路地の合流場所へ戻ってから済ませる。
-      // 退いた後も合流場所へ着けないまま一分たてば先へ（本人の位置だけで段を止めない）
-      if (C.withdraw && C.withdrawT == null) C.withdrawT = el;
       return el > 140 && cleared && u.alive && !u.downed && !u.dying && !u.fleeing && !rt.retryOpen
-        && (Math.hypot(u.pos.x - at.x, u.pos.z - at.z) < 18 || C.withdraw && el - C.withdrawT > 60);
+        && Math.hypot(u.pos.x - at.x, u.pos.z - at.z) < 18;
     },
     end(rt, C) { for (const g of C.groups) flee(g); rt.unmark('dp'); rt.objDone('dp'); rt.award((t) => t.side.push('僧坊の路地で鉄砲衆を追い詰めた'), '僧坊の鉄砲衆を討った'); },
   };

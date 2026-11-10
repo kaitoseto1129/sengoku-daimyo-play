@@ -85,13 +85,16 @@ function done(rt) {
   if (v.raid) { v.raid.noRout = false; v.raid.morale = 0; }
   if (F.wk) { F.wk.order = 'move'; F.wk.dest = { x: -6, z: -10 }; F.wk.onArrive = (g) => { g.order = 'hold'; g.anchor = { x: -6, z: -10 }; }; }
   const lost = !F.wk?.units.some(ready);
+  const delivered = !lost && F.wk.units.every((u) => !ready(u) ||
+    Math.abs(u.pos.x) < v.C.FORT - 2 && Math.abs(u.pos.z) < v.C.FORT - 2);
   // 運ぶのは人足。護衛を済ませた後に、主人公の手運びをもう一度要求しない。
   // 人足を失った場合も、砦に積んだ予備材を柵の兵が引き継ぐ。
   F.woodDelivered = true;
-  rt.say(lost ? '前野長康' : '人足', lost
+  rt.say(!delivered ? '前野長康' : '人足', lost
     ? '人足を失った。柵の兵は砦の予備材で普請を引き継げ。砦を守るぞ！'
+    : !delivered ? '荷が遅れている。柵の兵は砦の予備材で普請を引き継げ。砦を守るぞ！'
     : '材木は砦へ入ったぞ。さあ、柵を結ぶ！', 3);
-  if (!lost) rt.award((t) => t.side.push('材木を運ぶ人足を守った'), '材木を運ぶ人足を守った');
+  if (delivered) rt.award((t) => t.side.push('材木を運ぶ人足を守った'), '材木を運ぶ人足を守った');
   rt.after(3, () => v.then?.());
 }
 
@@ -141,13 +144,11 @@ export function tick(rt) {
   }
   const raidGone = v.raid && (v.raid.routed || !v.raid.units.some(ready));
   // 人足が砦の内へ戻った（着いた知らせが押し合いで来ない時も、砦の内に入れば戻ったとみなす。11/9 bot が止まった）
-  //   11/10 関所：門の外で人足一人が押し合いで止まると、本人がその人足に付いたまま護衛が終わらなかった（bot 九分止まる）。
-  //   特定の一人に頼らず、七割が入って四十秒か、帰りの下知から九十秒で戻ったとみなす（docs/sunomata_spec_1109.md の決まり1・5）。
+  // 帰路の停滞は上の歩き直しと fushin.js の救済で扱う。時間だけで門外の荷を到着済みにしない。
   if (v.backT && !v.wkHome && F.wk?.units.some(ready)) {
     const live = F.wk.units.filter(ready);
     const inside = live.filter((u) => Math.abs(u.pos.x) < v.C.FORT - 2 && Math.abs(u.pos.z) < v.C.FORT - 2).length;
-    const late = rt.t - v.backT;
-    if (inside === live.length || (late > 40 && inside >= live.length * 0.7) || late > 90) v.wkHome = rt.t;
+    if (inside === live.length) v.wkHome = rt.t;
   }
   if (v.atDock && v.wkHome && raidGone && rt.t - v.backT > 25 &&
       Math.abs(P.x) < v.C.FORT && Math.abs(P.z) < v.C.FORT) done(rt);
