@@ -1644,6 +1644,15 @@ function tottoriFarFires(rt) {
   for (const k of SEATS) ring(k.x, k.z, Math.max(4, Math.min(k.w, k.d)), 3);
   ring(-56, -226, 8, 4);
   ring(-132, -210, 8, 4);
+  // 11/10 布陣図（docs/fujin/tottori.md）：囲みの備ごとに、千人に四つの篝火を布陣図と同じ所へ（秀吉 六千・秀長 四千・円護寺 三千・雁金山 三千の比）。
+  //   軽い兵の塊は近づくと消えるので置かない（kaito AV4）。栗谷は本人の持ち場で本物の組が居るので足さない。上の輪で足りている分は引く。
+  const P = TOTTORI_ATTACK, sn = Math.sin(P.facing), cs = Math.cos(P.facing), have = { honjin: 17, hidenaga: 7, karigane: 3 };
+  for (const s of P.sonae) {
+    if (s.id === 'kuridani') continue;
+    const x = P.honjin.x + s.at.right * cs + s.at.front * sn, z = P.honjin.z - s.at.right * sn + s.at.front * cs;
+    const n = Math.round(s.soldiers / 250) - (have[s.id] || 0);
+    if (n > 0) ring(x, z, s.id === 'honjin' ? 22 : 7 + Math.sqrt(s.soldiers) / 12, n, 1.8);
+  }
   const geo = new THREE.SphereGeometry(0.42, 6, 4), mat = new THREE.MeshBasicMaterial({ color: 0xffa44a, fog: false });
   const mesh = new THREE.InstancedMesh(geo, mat, pts.length), m = new THREE.Matrix4();
   pts.forEach(([x, y, z], i) => { m.makeTranslation(x, y, z); mesh.setMatrixAt(i, m); });
