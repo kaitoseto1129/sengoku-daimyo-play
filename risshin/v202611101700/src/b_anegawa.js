@@ -409,14 +409,40 @@ function anegawaBackwater(rt) {
   const W = rt.world, pos = [], uv = [], idx = [];
   const gc = (x) => x < -60 ? -2 + 7 * Math.max(0, Math.min(1, (x + 120) / 60)) : x < 0 ? 5 - 6 * (x + 60) / 60 : -1 + 5 * Math.min(1, x / 60);
   for (const [x0, x1, off, hw] of [[-52, -20, 30, 2.4], [-13, 26, 31.5, 3.0], [33, 68, 30, 2.5]]) {
-    const n = Math.ceil((x1 - x0) / 1.2), base = pos.length / 3;
+    const n = Math.ceil((x1 - x0) / 1.2), rows = [];
+    let low = Infinity;
     for (let i = 0; i <= n; i++) {
       const t = i / n, x = x0 + (x1 - x0) * t;
       const zc = gc(x) + off + Math.sin(x * 0.13) * 1.6, w = hw * Math.pow(Math.sin(Math.PI * t), 0.6) * (0.8 + 0.2 * Math.sin(x * 0.41)) + 0.05;
-      // 水面は横断の三点の一番高い所の少し上（砂利の凹凸に沈まない）。長さ方向にはゆっくり地面に沿う。
-      const y = Math.max(W.heightAt(x, zc - w), W.heightAt(x, zc), W.heightAt(x, zc + w)) + 0.04;
-      for (const side of [-1, 1]) { pos.push(x, y, zc + side * w); uv.push(t * 6, side < 0 ? 0 : 1); }
-      if (i < n) { const a = base + i * 2; idx.push(a, a + 1, a + 3, a, a + 3, a + 2); }
+      const row = [];
+      for (let j = 0; j <= 4; j++) {
+        const z = zc + (j / 2 - 1) * w, y = W.heightAt(x, z);
+        row.push({ x, y, z, u: t * 6, v: j / 4 }); low = Math.min(low, y);
+      }
+      rows.push(row);
+    }
+    // たまりは一枚の水平な水面。高い岸へ持ち上げず、窪みの底から八センチだけ満たす。
+    // 地面との交線で各三角を切り、乾いた岸の上へ板が張り出さないようにする。生成時だけ計算する。
+    const level = low + 0.08;
+    const fill = (triangle) => {
+      const wet = [];
+      for (let k = 0; k < 3; k++) {
+        const a = triangle[k], b = triangle[(k + 1) % 3];
+        if (a.y <= level) wet.push(a);
+        if ((a.y <= level) !== (b.y <= level)) {
+          const t = (level - a.y) / (b.y - a.y);
+          wet.push({ x: a.x + (b.x - a.x) * t, z: a.z + (b.z - a.z) * t,
+            u: a.u + (b.u - a.u) * t, v: a.v + (b.v - a.v) * t });
+        }
+      }
+      if (wet.length < 3) return;
+      const base = pos.length / 3;
+      for (const p of wet) { pos.push(p.x, level, p.z); uv.push(p.u, p.v); }
+      for (let k = 1; k < wet.length - 1; k++) idx.push(base, base + k, base + k + 1);
+    };
+    for (let i = 0; i < n; i++) for (let j = 0; j < 4; j++) {
+      const a = rows[i][j], b = rows[i][j + 1], c = rows[i + 1][j], d = rows[i + 1][j + 1];
+      fill([a, b, d]); fill([a, d, c]);
     }
   }
   const geo = new THREE.BufferGeometry();
