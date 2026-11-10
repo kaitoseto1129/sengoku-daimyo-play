@@ -39,7 +39,14 @@ export function step(H) {
         g.peaceful = true; g.fire = false;
         g.arriveCount = g.units.length;
         for (const u of g.units) { u.noTarget = true; u.invuln = true; }
-        g.onArrive = (q) => { q.onArrive = null; q.order = 'hold'; q.surrendered = true; for (const u of q.units) if (u.alive) u._crouch = true; };
+        g.onArrive = (q) => {
+          q.onArrive = null; q.order = 'hold'; q.surrendered = true;
+          // 門を抜けてから武器を地面へ置く。座るだけでは槍が手に残る。
+          for (const u of q.units) if (u.alive && !u.gone) {
+            rt.army.dropWeapon(u);
+            u._crouch = true;
+          }
+        };
         C.groups.push(g);
       }
       line(8, () => rt.say('黒田官兵衛', '城の者には手を出すな。殿下は命を助けると仰せじゃ', 3.6));
