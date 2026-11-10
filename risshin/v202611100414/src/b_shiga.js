@@ -1751,28 +1751,8 @@ function dressShigaRoad(rt) {
     const flag = nobori(W, GATE_OUT.x + side * 7, GATE_OUT.z + 5, 'oda', 4);
     flag.scale.set(.65, 1, .65); rt.scene.add(flag);
   }
-  // 道の角と長い直線にも小さな山形を残す。退く間だけ一枚の形で示す。
-  const arrows = [];
-  for (let segment = 0; segment < approach.length - 1; segment++) {
-    const a = approach[segment], b = approach[segment + 1];
-    const length = Math.hypot(b[0] - a[0], b[1] - a[1]);
-    const angle = Math.atan2(b[0] - a[0], b[1] - a[1]), count = Math.max(1, Math.ceil(length / 18));
-    for (let i = 0; i < count; i++) {
-      const t = (i + .5) / count, x = a[0] + (b[0] - a[0]) * t, z = a[1] + (b[1] - a[1]) * t;
-      for (const side of [-1, 1]) for (const [across, along] of [
-        [side * .38, -.28], [0, .3], [0, .16],
-        [side * .38, -.28], [0, .16], [side * .3, -.36],
-      ]) {
-        const px = x + Math.cos(angle) * across + Math.sin(angle) * along;
-        const pz = z - Math.sin(angle) * across + Math.cos(angle) * along;
-        arrows.push(px, W.heightAt(px, pz) + .11, pz);
-      }
-    }
-  }
-  const mark = new THREE.BufferGeometry();
-  mark.setAttribute('position', new THREE.Float32BufferAttribute(arrows, 3));
-  const guide = new THREE.Mesh(mark, new THREE.MeshBasicMaterial({ color: 0xd7bc78, side: THREE.DoubleSide }));
-  guide.visible = false; rt.flags.roadGuide = guide; rt.scene.add(guide);
+  // 退きの行き先は、道沿いの次の角を指す頭上の印だけで示す。
+
 }
 
 // 板葺きの番所・長屋・蔵。形を共用して一度だけまとめ、室内は近づいた時の共通処理。
@@ -3848,7 +3828,6 @@ const shiga = {
     for (const q of F.backs || []) if (!q.gone && (q.g.routed || !q.g.count)) { q.gone = true; q.b.rout({ hideAfter: 1e9 }); }
     // 崩れた隊の印は消す（古い印が「あちらじゃ」の行き先にならないように）
     for (let i = rt.markers.length - 1; i >= 0; i--) { const m = rt.markers[i]; if (m.group && gone(m.group)) rt.unmark(m.id); }
-    if (F.roadGuide) F.roadGuide.visible = !F.ending && rt.player.u.alive && F.step === 2;
     if (F.ending || !rt.player.u.alive) return;
     if (F.step === 2 && F.chase && !gone(F.chase)) {
       const c = F.chase.center();

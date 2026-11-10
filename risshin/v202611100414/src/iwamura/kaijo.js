@@ -117,10 +117,13 @@ export function epilogue(rt) {
     const col = enemyGroup(rt, { faction: 'takeda', flag: 'takeda', name: '城を出る武田の城兵', fixed: true, noGuard: true, anchor: { x: 0, z: -118 }, facing: 0, width: 2, formation: 'column', morale: 100, noRout: true, speed: 1.6 },
       [{ type: 'samurai', n: 3, o: { flag: null } }, { type: 'ashigaru', n: 7, o: { flag: null } }]);
     quiet(col);
-    col.order = 'path'; col.pathIdx = 0; col.dest = null; col.path = [[0, -96], [0, -60], [0, -30]];
+    // 開城の列も使者と同じ九十九折りを通す。切岸へ真っすぐ登らせない。
+    const path = [[0, -96], ...F.restPath];
+    col.roadColumn = true; col.followColumnRoad = true; col.colW = 1;
+    col.order = 'path'; col.pathIdx = 0; col.dest = null; col.path = path;
     col.onArrive = (q) => { q.order = 'hold'; };
     const L = F.keep?.lord;
-    if (L?.alive) { put(L, 0, -108); L.noTarget = true; if (L.group) { quiet(L.group); L.group.order = 'path'; L.group.pathIdx = 0; L.group.dest = null; L.group.path = [[0, -96], [0, -64]]; L.group.speed = 1.4; L.group.onArrive = (q) => { q.order = 'hold'; }; } }
+    if (L?.alive) { put(L, 0, -108); L.noTarget = true; if (L.group) { quiet(L.group); L.group.formation = 'column'; L.group.roadColumn = true; L.group.followColumnRoad = true; L.group.colW = 1; L.group.order = 'path'; L.group.pathIdx = 0; L.group.dest = null; L.group.path = path; L.group.speed = 1.4; L.group.onArrive = (q) => { q.order = 'hold'; }; } }
     rt.say('語り', '使者が戻ると、兵糧の尽きた岩村城は、城の者の命と引き替えに開かれた', 4.4);
   });
   rt.after(9, () => { if (!rt.over) rt.say('河尻秀隆', '先頭が秋山虎繁。後ろの輿が、おつやの方じゃ', 3.6); });

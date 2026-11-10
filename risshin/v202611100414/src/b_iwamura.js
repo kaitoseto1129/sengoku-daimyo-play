@@ -1761,7 +1761,7 @@ html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.iwamura-army #army
     F.kawa = allyGroup(rt, { name: '河尻秀隆の手', anchor: { x: -9, z: FENCE_Z + 8 }, facing: Math.PI, fixed: true, width: 7, aggro: 6, formation: 'yari' },
       battleLook(rt, [{ type: 'ashigaru', n: 16 }, { type: 'gun', n: 4 }, { type: 'samurai', n: 2 }, { type: 'busho', n: 1, o: { name: '河尻秀隆', invuln: true, horo: 0 } }], ODA));
     F.kawaU = F.kawa.units.find((u) => u.name === '河尻秀隆');
-    F.mouri = allyGroup(rt, { name: '毛利河内の手', anchor: { x: 9, z: FENCE_Z + 8 }, facing: Math.PI, fixed: true, width: 7, aggro: 6, formation: 'yari' },
+    F.mouri = allyGroup(rt, { name: '毛利長秀の手', anchor: { x: 9, z: FENCE_Z + 8 }, facing: Math.PI, fixed: true, width: 7, aggro: 6, formation: 'yari' },
       battleLook(rt, [{ type: 'ashigaru', n: 14 }, { type: 'bow', n: 4 }, { type: 'busho', n: 1, o: { name: '毛利長秀', invuln: true } }], ODA));
     F.oda = [F.kawa, F.mouri]; F.front = F.oda.slice();
     // その場の河尻・毛利が列を動かす。折れごとの歩みまで本陣の新しい下知にすると、
@@ -1984,7 +1984,7 @@ html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.iwamura-army #army
     // 11/1 点付け「地面」：柵ぎわの持ち場（25秒の所）の土を一色にしない。踏み跡の土・窪みの泥・小屋と岩の根の草、半分埋めた岩と俵（共通の stage_dress）。
     dressStage(rt, { at: { x: 13, z: -4.5, heading: 1.89 }, huts: 0, fence: false, flag: false, yagura: false, fire: false, clutter: 3, rocks: 10, radius: 55, wet: 0.6, trodden: 0.85, seed: 2011 });
     // 昼の段（見回り・城方の出撃）の後で、日が暮れてから夜の段（iwamura/hiru.js）
-    IW_HIRU.start(rt, { done: () => {
+    IW_HIRU.start(rt, { road: CHASE_PATH, done: () => {
       F.stepT = rt.t; F.quietSince = rt.t; F.raidAt = rt.t + 12;
       rt.banner('その夜', '水晶山の陣。篝火を焚け');
       this.prepare(rt);
@@ -3484,9 +3484,10 @@ iwamura.sides = { a: { name: '', mon: 'oda' }, b: { name: '', mon: 'takeda' } };
 iwamura.foeNames = ['武田', '秋山', '大島', '座光寺'];
 // 秋山・大島・座光寺は開城後に捕らえられる。夜襲隊の名のある将は、この夜に討死した遠山友長・澤中左忠太だけ（討つ目標にはしない）。
 iwamura.famous = [];
-iwamura.date = (rt) => `天正三年十一月十日　冬・夜`;
-iwamura.canSkip = (rt) => (rt.phase === 'brief' && rt.t > 3 ? '下知まで待つ' : '');
-iwamura.skip = (rt) => { if (rt.phase === 'brief') iwamura.prepare(rt); };
+iwamura.date = (rt) => rt.flags.iwKaijo ? '天正三年十一月二十一日　冬・昼' :
+  `天正三年十一月十日　冬・${IW_HIRU.active(rt) ? '昼' : '夜'}`;
+iwamura.canSkip = (rt) => (rt.phase === 'brief' && rt.t > 3 && !IW_HIRU.active(rt) ? '下知まで待つ' : '');
+iwamura.skip = (rt) => { if (rt.phase === 'brief' && !IW_HIRU.active(rt)) iwamura.prepare(rt); };
 iwamura.rts = true;   // 侍大将以上は上空の指揮（rtsCanCommand の身分の縛りは rts.js 側）
 iwamura.history = '天正三年、織田信忠は秋山虎繁らの守る岩村城を囲んだ。『信長公記』巻八によれば、十一月十日の夜、水精山の攻め衆が夜討ちを受け、河尻与兵衛・毛利河内・浅野左近・猿荻甚太郎が退けた。城方は柵を破り、夜討ちの者と合流しようとしたが、信忠が先駆けとなって城へ追い込んだ。勝頼の後詰の報せを受け、信長が京都を発ったのは十四日夜。十日夜の陣に報せが届いた時刻は分からない。後日、秋山・大島・座光寺は降伏の礼に出て捕らえられ、岐阜の長良川で磔にされた。本編は河尻の手が夜討ちを退け、麓を押さえるまでを描く。夜討ち勢の所属、各備の兵数、陣所・道・霧・夕暮れの支度は復元。総勢三万対三千は『信長公記』のこの条に記された人数ではない。';
 

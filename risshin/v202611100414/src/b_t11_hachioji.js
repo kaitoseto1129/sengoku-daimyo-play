@@ -490,6 +490,8 @@ const t11_hachioji = {
   // 11/4 p100：行き先の印は今の目標の金の▼一つだけ（kaito AL・AN・AP12）。奥の軽い乱戦（front_fill）も置かない（AA）
   lethal: { soft: true },   // 命懸けの戦場（11/9 係A：bot が倒れる・止まるので soft）
   noFrontFill: true, kumiLead: false, noGoalCount: true, goalSignNameOnly: true, noLeaderFollow: true,
+  goalSignTriangle: true,   // 行き先は金の▼。共通の既定の矢印へ戻さない。
+  ownEnding: true,   // 終幕の段で落城を見せるため、共通の落城場面を重ねない。
   goalVisibleRows: 5, goalRowsAhead: true,   // 始めから今の五件を並べ、後半も現在の目標と続きの場所・行いを残す
   waitForPortrait: true,   // 顔を撮れるまで影の顔を出さず、本人の顔だけを一度表示する（critic60 五6）。
   spawn: { x: START.x - 4, z: START.z, heading: -Math.PI / 2 },
@@ -561,7 +563,8 @@ const t11_hachioji = {
     const W = rt.world, F = rt.flags;
     F.ek = 0; F.ak = 0; F.ending = false; F.begun = false;
     const castle0 = rt.scene.children.length;
-    F.C = buildCastlePlan(rt, PLAN, { baseHeight: base, edgeW: 3, team: 1, perch: false, interiorGuards: false });
+    // 曲輪の dense:false だけでは共通の暮らしの蔵・番所が足される。館と櫓はこの戦の手置きだけにする。
+    F.C = buildCastlePlan(rt, PLAN, { baseHeight: base, edgeW: 3, team: 1, perch: false, interiorGuards: false, life: false, dense: false });
     bridgeAndSteps(rt);
     flags(rt);
     // 11/4 p100（kaito AA・AF「近づくと消える作り物の乱戦は嫌」）：大手の柵の外の軽い作りの斬り合い（toyoClash）は置かない。見える兵は全部本物
