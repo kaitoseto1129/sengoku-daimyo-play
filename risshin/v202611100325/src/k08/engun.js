@@ -32,6 +32,9 @@ export function start(rt, K) {
   const S = (t, fn) => rt.after(t, () => { if (F.step === 4 && !F.ending) fn(); });
   S(18, () => { sfx('horagai', 0.45); rt.say('足軽', '北に桐の旗！　城の方から加勢が来るぞ！', 3); });
   S(20, () => {
+    // 出撃の時刻までに加勢が崩れていても、迎える段を済ませる。
+    // 生存確認の後に立てると、残兵が零でも④が終わらない。
+    F.engunOn = true;
     if (!alive(F.engun)) return;
     F.engun.noAI = false; F.engun.order = 'path'; F.engun.aggro = 4; F.engun.seekRange = 12;
     // 北の塀へ斜めに寄せず、扉の外で中央へ揃えてから開いた北門を通す。
@@ -39,7 +42,6 @@ export function start(rt, K) {
     F.engun.pathIdx = 0;
     F.engun.onArrive = (g) => { g.order = 'attack'; g.aggro = 20; g.seekRange = 40; };
     for (const u of F.engun.units) u.noTarget = false;
-    F.engunOn = true;
     if (Array.isArray(F.s4) && !F.s4.includes(F.engun)) F.s4.push(F.engun);   // 印と bot の行き先に入れる
   });
   // 加勢が北の口へ着く頃：味方が押される（隊を門の内の半ばまで下げる）
