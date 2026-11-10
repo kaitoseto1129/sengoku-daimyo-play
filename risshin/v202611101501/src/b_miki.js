@@ -3048,6 +3048,10 @@ const miki = {
   // 士気だけを変え、死者・傷・弾・兵糧を戻さない。手柄がなくても任務は進む。
   onKill(rt, v, k) {
     const F = rt.flags;
+    // 詰まらない決まり1：甚太夫が味方や流れ弾に討たれても⑤を果たせなくしない（11/10 bot：285秒に味方が討ち、622秒まで止まって負けた）。
+    if (v === F.jint && !F.jintTaken && !F.ending && !rt.over && rt.player.u.alive && k !== rt.player.u) {
+      F.jintTaken = true; rt.say('使番', '別所甚太夫、討死！　残る別所勢を押し返せ', 4);
+    }
     if (F.ending || rt.over || !rt.player.u.alive || k !== rt.player.u || v.civ || v.isStruct) return;
     if (v === F.jint) F.jintTaken = true;
     const stage = F.step - 1;
@@ -3103,7 +3107,7 @@ const miki = {
       weatherSees(rt.world, rt.player.u.pos, speaker.pos) && !rt.army.terrainBlocks(rt.player.u.pos, speaker.pos) &&
       !rt.army.wallBetween(rt.player.u.pos, -1, speaker.pos)) {
       F.foeSpoken |= speakerBit;
-      rt.say(speaker.name, F.step === 2 ? 'この坂は渡さぬ。城の者を飢えさせるな！'
+      rt.say(speaker.name || '別所の侍', F.step === 2 ? 'この坂は渡さぬ。城の者を飢えさせるな！'
         : '荷を待つ者が城におる。平田の口を押せ！', 4);
     }
     if (F.step === 1) {
@@ -3404,6 +3408,7 @@ const miki = {
     // ⑤は onKill で本人の討ち取りを確かめる。味方のとどめは heroFinishCap で残す。
     // 三太夫・甚太夫の両名を討ってから崩れる。甚太夫だけで士気を落とすと、
     // 生きている三太夫まで逃げ、④も勝利条件も果たせなくなる。
+    if (F.step === 2 && F.jint && !F.jint.alive && !F.jintTaken) F.jintTaken = true;   // 討った者が分からない死も⑤の済みに（詰まらない決まり1）
     const omuraHeadsTaken = F.jintTaken && F.reserve.units.every(u => !u.name || !this.omuraFoe(u) || !u.alive);
     //   逃げて本人から二十五歩より離れた者は、城へ帰った者として数えない（11/9 bot：侍六人が残り、期限まで勝ちにならなかった）
     if (F.step === 2 && omuraHeadsTaken) {

@@ -2730,6 +2730,18 @@ const arioka = {
       F.kanbeAt = kanbe ? kanbe.pos : at;
       evReach(rt, 'kanbe', () => F.kanbeAt, 3.5, ARI_GOALS[4], '小寺官兵衛', () => {
         F.kanbePending = false;
+        // 期限で迎えた時は、二人を本人の前（壁の無い側）へ寄せて対面を見せる。
+        const me2 = rt.player.u.pos;
+        if (kanbe && Math.hypot(kanbe.pos.x - me2.x, kanbe.pos.z - me2.z) > 6) {
+          for (const [g, side] of [[kg, 0], [sg, 1.2]]) for (const v of g.units) {
+            for (const a of [0, Math.PI / 2, -Math.PI / 2, Math.PI]) {
+              const h = (rt.player.yaw || 0) + a, q = { x: me2.x - Math.sin(h) * 2.6 + Math.cos(h) * side, z: me2.z - Math.cos(h) * 2.6 - Math.sin(h) * side };
+              q.y = rt.world.heightAt(q.x, q.z);
+              if (rt.army.wallBetween(me2, -1, q)) continue;
+              v.pos.x = q.x; v.pos.z = q.z; v.pos.y = q.y; g.order = 'hold'; g.anchor = g.dest = { x: q.x, z: q.z }; break;
+            }
+          }
+        }
         rt.award((t) => { t.main = true; t.special = { label: '惣構えに入り、侍町の辻を守った', pts: 20 }; }, '任務達成・侍町の辻を守った');
         rt.award((t) => { t.side.push('牢を出た官兵衛を迎えた'); }, '牢を出た官兵衛を迎えた');
         rt.banner('官兵衛を迎えた', '一年の牢で足は弱ったが、命はある');
@@ -2740,9 +2752,11 @@ const arioka = {
         rt.after(5, () => rt.objDone('main'), true);
         rt.after(8, () => AR_YOIN.start(rt, () => rt.finish({ scriptedEnd: true }, 4)), true);   // 三十秒の余韻（arioka/yoin.js）の後に締める
       // 待ち時間だけでは迎えた事にしない。遠くへ離れた本人にも印を残す。
-      }, { limit: Infinity, canReach: (b, p) => {
+      }, { limit: 75, canReach: (b, p) => {
         // 屋根の上や町屋の壁越しでは、官兵衛と対面した事にしない。
         const u = b.player.u;
+        // 詰まらない決まり1：官兵衛一人の歩みに頼らない。七十五秒で二人が本人の所へ着いた事にする（11/10 bot：十分止まり刻限負け）。
+        if (u.alive && (b.flags._ev_kanbe?.t || 0) > 75) return true;
         return u.alive && kanbe?.alive && !!p && Math.abs(u.pos.y - p.y) <= 3
           && !b.army.wallBetween(u.pos, -1, p);
       } });
@@ -2852,7 +2866,14 @@ const arioka = {
           rt.say('滝川の組頭', '攻めの時が尽きるぞ。組と木戸の内へ押し入れ', 4);
         }
       }
-      if ((gone(F.g1) || F.gateHeldAt != null && rt.t - F.gateHeldAt >= 12) && entered) {
+      // 詰まらない決まり8：期限で負けにせず、四分で番兵を崩し、五分半で木戸の内へ着いた事にして次へ。
+      const late = rt.t - F.stepT;
+      if (late > 240 && !F.g1Broke && !gone(F.g1)) {
+        F.g1Broke = true;
+        for (const q of [F.g1, ...(F.gateInner || [])]) if (q && !gone(q)) { q.routed = true; q.order = 'flee'; q.noRout = false; q.morale = 0; q.fleeDir = { x: 1, z: 0 }; for (const u of q.units) if (u.alive) { u.fleeing = true; u.target = null; } }
+        rt.say('滝川の組頭', '木戸の荒木勢が崩れたぞ！　内へ入れ！', 3.5);
+      }
+      if ((gone(F.g1) || F.gateHeldAt != null && rt.t - F.gateHeldAt >= 12) && (entered || late > 330)) {
         // 木戸を失った番兵は本丸へ退く。残兵を無かった事にはしない。
         if (!gone(F.g1)) { F.g1.noRout = false; F.g1.morale = 0; }
         rt.unmark('g1');
@@ -2861,8 +2882,7 @@ const arioka = {
         // 主任務は木戸の防衛が済んで初めて達成。
         // 15分の段：木戸の内 → 惣構えの通り（arioka/sotoguruwa.js）→ 侍町の辻 → 辻の守り → 焼け跡を改める（arioka/seiatsu.js）→ 官兵衛
         this.deep(rt, 'W', () => this.deep(rt, 'A', () => this.deep(rt, 'C', () => this.deep(rt, 'D', () => this.deep(rt, 'U', () => this.win(rt))))));
-      } else if (rt.t - F.stepT > 240) this.lose(rt, '木戸の先の敵が崩れぬ');
-      else if (rt.t - F.stepT > 150 && !gone(F.g1) && !F.g1Broke) {
+      } else if (rt.t - F.stepT > 150 && !gone(F.g1) && !F.g1Broke) {
         // 二分半押し合えば、内応で口を失った木戸の荒木勢は砦の奥へ崩れる（11/8 bot：数人が残り段が進まず負けた）
         let able = 0;
         for (const u of F.g1.units) if (u.alive && !u.fleeing && !u.woundOut && !u.noTarget) able++;

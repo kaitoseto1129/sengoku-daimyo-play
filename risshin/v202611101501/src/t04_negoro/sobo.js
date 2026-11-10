@@ -56,14 +56,16 @@ export function soboStep(NG) {
       }
       if (el > C.hop && !C.charge) {
         C.hop = el + 20 + Math.random() * 6;
+        let moving = false;
         for (const g of C.gunG) if (alive(g)) {
           g._spot = (g._spot + 1 + (Math.random() * 2 | 0)) % SPOTS.length;
           const q = SPOTS[g._spot];
           // 持ち場へ歩いて移る。要を先に移すと、到着扱いになって隊が走って追うだけになる。
           g.order = 'move'; g.dest = { x: q.x, z: q.z };
           g.onArrive = (gg) => { gg.order = 'hold'; gg.dest = null; };
+          moving = true;
         }
-        if (el < 120) rt.say('足軽', ['鉄砲が動いた！　今度は右の坊舎の縁じゃ！', '石段の上へ移ったぞ！', '塀の向こうから撃っておる！'][C.wave % 3], 2.5);
+        if (moving && el < 120) rt.say('足軽', '鉄砲衆が次の持ち場へ移るぞ！', 2.5);
       }
       // 路地から行人方が斬って出る
       const W = [[12, [-34, 22]], [55, [34, 24]], [100, [-14, 34]]];
