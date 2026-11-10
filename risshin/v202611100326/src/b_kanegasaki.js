@@ -3905,7 +3905,7 @@ const kanegasaki = {
       moveDA(rt, a, -70 - 80 * u, 176 + 80 * u);
       if (t >= 1) a.out = true;
       // 11/5 kanegasaki_re（九5）：軽い作りは本人から九十m より遠い時だけ描く（近くで絵を見せない）
-      a.m.visible = Math.hypot(a.x - p.x, a.z - p.z) > 90;
+      a.m.visible = !a.out && Math.hypot(a.x - p.x, a.z - p.z) > 90;
     }
     // 北の列は南へ、東の列は疋田の道の入口に留まる。殿の実兵の列へ遠景を重ねない。
     for (let i = 0; i < F.host.length; i++) {

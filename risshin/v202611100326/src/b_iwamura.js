@@ -1105,7 +1105,7 @@ const iwamura = {
   avoidAllDestinationNotices: true, // 画面外の口への旗も任務札・台詞・小地図を避ける。
   groundFlagGuides: true, // 実物の幟を囲まず、根元の小さな旗印で示す。
   compactHoldGuide: true, // 持ち場へ着いた後は、画面内へ別の旗を移さない。
-  distanceUnit: 'steps', // 行き先の距離を歩数にそろえる。
+  distanceUnit: 'metres', // 行き先の▼にメートルの距離を残し、「あと」「すぐ近く」を添えない。
   groundLockRing: true, // 狙った相手の朱の輪も坂へ沿わせる。
   compactFieldGuides: true, // 太い人型の枠をやめ、頭の脇の小さな印で相手を示す。
   noUnitContrast: true, // 兵からずれる簡略な人型線を描かず、敵の三角と味方の丸を残す。
@@ -3816,7 +3816,7 @@ iwamura.siegeKit = () => {
 };
 
 // 倒す数（kaito_play O）：「夜討ちを退ける」は、六手の寄せがそれぞれ損を受けて退けば進む（退く物差しは上の siegeRetreatRatio と同じ）
-KILLS.iwamura = { 1: (rt) => {
+KILLS.iwamura = { 3: (rt) => {
   const F = rt.flags;
   if (F.step !== 2 || !F.waves?.length || !F.siege) return null;
   let down = 0, need = 0;
