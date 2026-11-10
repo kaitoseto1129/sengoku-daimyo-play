@@ -733,6 +733,8 @@ const okawachi = {
   quietMiss: true,
   missionPinCaption: '',
   goalSignOnly: true, // 行き先は頭上の金の▼一つだけ（持ち場の旗・輪・枠を重ねない。AV15・BH6）
+  noGroundGuide: true, // 地面の案内は別の描画経路なので止め、行き先の▼だけを残す。
+  meleeGuide: () => false, // 接敵時も足元へ白い矢印を足さず、敵の赤い▼で示す。
   goalSignTriangle: true, // 画面の外でも矢印へ替えず、同じ▼で示す。
   // 九3：味方の名のある将（丹羽・池田・稲葉）の名は六十歩内なら常に出す（金ヶ崎と同じ）。前は十八歩で、馬上の丹羽の横でも名が出なかった。
   nameRange: 60,

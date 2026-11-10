@@ -489,7 +489,7 @@ html:root body #hud#hud#hud.kashii-goals #h-prog#h-prog.goal-mode .pg-goals :is(
       if (live(F.hata)) { F.hata.order = 'attack'; F.hata.anchor = { x: VILLAGE.x, z: VILLAGE.z - 6 }; F.hata.seekRange = 24; F.hata.noRout = true; F.hata.speed = 4; }
       // 団右衛門の命は名のある将として強いが、一人の槍で討てる所まで（総大将の倍掛けが重なって千を超え、二分余り突いても討てなかった。11/7 遊んで）
       // 二巡（11/9）：bot が三百では四分突いても手傷まで届かなかった。百八十に
-      const H = F.hanaU; if (H?.alive) { H.maxHp = Math.min(H.maxHp, 180); H.hp = Math.min(H.hp, H.maxHp); }
+      const H = F.hanaU; if (H?.alive) { H.noTarget = false; H.mustLive = false; H.maxHp = Math.min(H.maxHp, 180); H.hp = Math.min(H.hp, H.maxHp); }
       //   馬上の一撃も、組み合った主人公が三四合は受けられる強さに（十秒で命の四分の三を削られて二度討たれた。11/7 遊んで）
       if (H?.alive) H.dmg = Math.min(H.dmg || 18, 12);
       for (const g of [F.ueda, F.tomo, F.kame]) if (live(g)) { g.order = 'attack'; g.seekRange = 60; g.anchor = { x: VILLAGE.x, z: VILLAGE.z - 4 }; }
@@ -538,6 +538,8 @@ html:root body #hud#hud#hud.kashii-goals #h-prog#h-prog.goal-mode .pg-goals :is(
     F.hata = this.foe(rt, '塙団右衛門の侍衆', { x: HATA.x, z: -220 }, [{ type: 'busho', n: 1, o: { name: '塙団右衛門', flag: 'sashi:字塙団右衛門:#ece6d6:#201f1c', invuln: true, horse: true } }, { type: 'samurai', n: 10 }, { type: 'gun', n: 2 }], { aim: HATA, hold: true, morale: 100 });
     F.hata.seekRange = 0; F.hata.aggro = 0;   // ⑤まで村の北の口から動かない（村の乱戦に先に紛れ込まない）
     F.hanaU = F.hata.units.find((u) => u.name === '塙団右衛門');
+    // 控えの間は討てない将へ注視・攻撃を吸わせない。⑤の斬り込みで狙えるようにする。
+    F.hanaU.noTarget = true; F.hanaU.mustLive = true;
     F.hanaU.onWound = (src) => {
       if (!src?.isPlayer || F.step !== 5 || !F.hanaU.alive) return;
       // 「討ち取ったり」を先に出す（後から出すと、共通の「〇〇が討たれた」の知らせに重ねて消される。五3）

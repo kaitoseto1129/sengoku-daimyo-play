@@ -7,6 +7,7 @@
 // ======================================================================
 import { enemyGroup } from '../bhelp.js';
 import { sfx } from '../audio.js';
+import { siegeFighter } from '../siege_zones.js';
 
 const A = { x: -30, z: -150 };   // 左の森の小道の入り口（FOREST_ROAD の初め）
 const B = { x: 24, z: -142 };    // 右の谷筋（VALLEY_ROAD の初めの手前）
@@ -41,7 +42,7 @@ function band(rt, Y, at, list, name) {
   g.order = 'attack';
   return g;
 }
-const standing = (g) => g.units.filter((u) => u.alive && !u.fleeing).length;
+const standing = (g) => g.units.filter(siegeFighter).length;
 function rout(g) {
   g.fleeDir = { x: Math.sign(g.anchor.x) || -1, z: -0.6 };
   g.noRout = false; g.morale = 0; g.routed = true; g.order = 'flee'; g.focus = null;
