@@ -3,6 +3,7 @@
 import { S } from './settings.js';
 import { fiveGoals } from './goals5.js';
 import { screenWords } from './screen_words.js';
+import { siegePathStrip, hasSiegePath } from './siege_path.js';
 
 const CSS = `
 html:root body #hud #h-prog.goal-mode.goal-mode { padding:9px 14px 10px 12px; background:rgba(14,12,10,.66); border:none; border-radius:6px;
@@ -124,7 +125,9 @@ export function goalsTick(el, rt, stg, always) {
   }
   const army = document.getElementById('armybar');
   if (army && army.parentNode !== box) box.prepend(army);
-  battleProgress(box, rt, f.rows.filter(g => g.done).length, f.rows.length);
+  // 城攻めは区画の帯（山麓✓ › 鹿垣✓ › 七曲り● …・siege_path.js）を達成の棒の代わりに出す
+  if (hasSiegePath(rt)) { if (box._pg) box._pg.style.display = 'none'; siegePathStrip(box, rt, f.rows); }
+  else { if (box._pg) box._pg.style.display = 'flex'; if (box._sp) { box._sp.remove(); box._sp = null; } battleProgress(box, rt, f.rows.filter(g => g.done).length, f.rows.length); }
   const G = el._goals && el._goals.rt === rt ? el._goals : (el._goals = { rt, key: '', clock: '' });
   if (!G.key) {
     box.classList.remove('goals-expanded');

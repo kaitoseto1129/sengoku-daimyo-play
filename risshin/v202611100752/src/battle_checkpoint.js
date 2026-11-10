@@ -218,7 +218,7 @@ export function applyCheckpoint(rt, cp) {
   // 主人公：体力は保存の時（少なくとも四割）。置き場は定義の resumeAt、無ければ前の段の行き先
   const u = rt.player.u;
   u.hp = Math.max((u.maxHp || 100) * 0.4, (u.maxHp || 100) * (cp.hp || 1));
-  const at = rt.def.resumeAt ? rt.def.resumeAt(rt, cp.step) : from;
+  const at = rt.def.resumeAt ? rt.def.resumeAt(rt, cp.step, from) : from;   // 三つ目に既定の置き場（前の段の行き先）を渡す
   if (at && Number.isFinite(at.x) && Number.isFinite(at.z)) {
     const dx = at.x - u.pos.x, dz = at.z - u.pos.z;
     for (const q of rt.army.units) if (q.alive && !q.isPlayer && (q.group?.isPlayerSquad || (rt.tomoUnits || []).includes(q))) {

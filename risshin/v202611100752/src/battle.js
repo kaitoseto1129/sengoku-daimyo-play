@@ -94,6 +94,7 @@ import { allyChargeTick } from './ally_charge.js';
 import { allOutTick } from './all_out.js';
 import { goalFoeTick } from './goal_foe.js';
 import { allyGoalTick } from './ally_goal.js';
+import { siegePathAutoTick } from './siege_path.js';
 import { avHostInit, avHostTick } from './av_host.js';
 import { lordRetinueTick } from './lord_retinue.js';
 import { allyCover } from './ally_cover.js';
@@ -2710,6 +2711,7 @@ export class Battle {
     allyChargeTick(this, dt);   // 本人と一緒に味方が突っ込み、敵の備も迎えに出る（ally_charge.js・11/3 AP）
     allOutTick(this, dt);   // 敵も味方も全力：見える敵へ寄せる・後ろも加わる・本陣を救う・追い討ち・後詰（all_out.js・11/9）
     goalFoeTick(this, dt);   // 目標に書いた敵が行き先へ来ない時は、近い敵の備を寄せる（goal_foe.js・11/5 BQ）
+    siegePathAutoTick(this, dt);   // 城攻めで行き先へ二十五秒近づけないと、使番→大旗→矢印の順に案内を強める（siege_path.js・11/10）
     allyGoalTick(this, dt);   // 本人が目標へ向かうと、近くの味方の備も隊のまま一緒に進む（ally_goal.js・九-4）
     intelTick(this);
     replayTick(this);   // 勝った後の振り返りの地図のため、二秒ごとに両軍の備の位置と人数だけを覚える（replay_map.js）

@@ -640,6 +640,7 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
       // 討死の知らせで target が先に消えても、別に残った攻撃・注視を拾う。
       if (u.target && !u.target.alive) { u.target = null; u.aiT = 0; }
       if (u.atk?.target && !u.atk.target.alive) { u.atk = null; u.aiT = 0; }
+      if (u.swing?.target && !u.swing.target.alive) { u.swing = null; u.aiT = 0; }
       if (u.watch && !u.watch.alive) { u.watch = null; u.aiT = 0; }
     }
     // 掛矢で壊した門や、退いて消えた兵は onKill を通らない。本人の狙いも毎コマ外す。
@@ -834,6 +835,7 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
     for (const u of rt.army.units) if (u.alive) {
       if (u.target === v) { u.target = null; u.aiT = 0; }
       if (u.atk?.target === v) { u.atk = null; u.aiT = 0; }
+      if (u.swing?.target === v) { u.swing = null; u.aiT = 0; }
       if (u.watch === v) { u.watch = null; u.aiT = 0; }
     }
     // 主人公の固定した狙いは兵の target とは別。残すと次の敵にも死者の方を向く。
@@ -887,8 +889,12 @@ t07_ganjaku.force = (rt) => {
     if (!u.alive || u.isStruct || u.civ) continue;
     if (u.team === 0) a++; else if (u.team === 1) b++;
   }
-  return { a: a ? Math.ceil(5000 * a / (a + (rt.flags.ak || 0))) : 0, a0: 5000,
-    b: b ? Math.ceil(3000 * b / (b + (rt.flags.ek || 0))) : 0, b0: 3000 };
+  // 新手も初めの総勢の内。出場によって討死済みの人数まで戻さない。
+  // 段の再開では flags と一緒に戻るため、やり直す前の損害を持ち越さない。
+  const F = rt.flags;
+  F.forceA = Math.min(F.forceA ?? 5000, a ? Math.ceil(5000 * a / (a + (F.ak || 0))) : 0);
+  F.forceB = Math.min(F.forceB ?? 3000, b ? Math.ceil(3000 * b / (b + (F.ek || 0))) : 0);
+  return { a: F.forceA, a0: 5000, b: F.forceB, b0: 3000 };
 };
 // 右上の①〜④（stages.js と同じ字）。段の長さは本丸の斬り合いで延びるので、目標ごとの時切れの ✕ は付けない
 t07_ganjaku.goals5 = () => (STAGES.t07_ganjaku || []).map((s, k) => ({ kind: 'stage', k, text: s[0], sec: 1e6,

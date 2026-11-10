@@ -675,17 +675,19 @@ const t10_oshi = {
   raid(rt) {
     const F = rt.flags;
     if (F.raid >= 3 || F.step !== 3) return;
-    const i = F.raid++, side = i % 2 ? 1 : -1, last = i === 2;
+    const i = F.raid++, last = i === 2;
     F.raidT = rt.t;
     // 11/4 jin：夜討ちは城の口から浅瀬の土手（水を入れる前は乾いた道）を伝って来る。前は沼の深みに出て、兵が首まで沈んで見えた
-    const at = i % 2 ? { x: FORD.x - 6, z: FORD.z - 6 } : { x: (FORD.x + GATE.x) / 2 + side, z: (FORD.z + GATE.z) / 2 };
-    const g = enemyGroup(rt, { faction: 'narita', name: '城の夜討ち', anchor: at, facing: Math.PI * 0.75, fleeDir: { x: -1, z: -1 }, width: 5, noRout: true, formation: 'line', morale: 80,
+    const at = i % 2 ? { x: FORD.x - 6, z: FORD.z - 6 } : { x: (FORD.x + GATE.x) / 2, z: (FORD.z + GATE.z) / 2 };
+    const g = enemyGroup(rt, { faction: 'narita', name: '城の夜討ち', anchor: at, facing: Math.atan2(FORD.x - at.x, FORD.z - at.z), fleeDir: { x: -1, z: -1 }, width: 2, noRout: true, formation: 'column', roadColumn: true, followColumnRoad: true, morale: 80,
       order: 'move', dest: { x: RAIDAT.x, z: RAIDAT.z }, speed: 3.2, aggro: 5, dmgMult: 0.32 },   // 11/8：夜討ちを四度にしたので一度の重さを下げる   // 11/7：浅瀬の口へ（前は区の奥の人夫へ向かった）
     dress([{ type: 'samurai', n: last ? 3 : 1 }, ...(last ? [{ type: 'busho', n: 1, o: { name: '正木丹波守', invuln: true, horse: true, hat: 'kabuto_m' } }] : []), { type: 'ashigaru', n: 5 + Math.min(i, 2) }, { type: last ? 'gun' : 'bow', n: 1 }], HOJO));
     // 生き残る守将は、本人の一撃で討たれる共通処理からも守る。
     for (const u of g.units) if (u.name === '正木丹波守') u.mustLive = true;
     // 11/8 critic60（十5）：真っ直ぐ口へ向かうと沼の深みを胸まで浸かって渡った。浅瀬の土手の筋（城の口→浅瀬の手前→口）を伝わせる
-    g.order = 'path'; g.path = [[FORD.x, FORD.z], [RAIDAT.x, RAIDAT.z]]; g.pathIdx = 0;
+    // 力攻めの柵の木戸は三歩幅。横隊のままでは両端と騎馬が杭に掛かる。
+    g.order = 'path'; g.path = [[at.x, at.z], [FORD.x, FORD.z], [RAIDAT.x, RAIDAT.z]]; g.pathIdx = 0;
+    g.ai = false; g.raidStartT = rt.t;
     g.onArrive = (q) => { q.onArrive = null; q.order = 'attack'; q.seekRange = 12; q.aggro = 12; };
     F.raids.push(g);
     if (i === 1) rt.after(6, () => rt.say('石田三成', '堤は半ばまで出来た。夜明けまでに西の堰まで繋げよ', 3.4));
@@ -964,25 +966,26 @@ const t10_oshi = {
           cur.units.some((u) => u.alive && !u.gone && !u.fleeing && near(u.pos, RAIDAT, 8))) {
         cur.order = 'attack'; cur.seekRange = 12; cur.aggro = 12; cur.onArrive = null;
       }
-      // 整列待ちを解く時も次の道の点へ進む。口へ直行させると浅瀬を外れて沼を横切る。
-      for (const g of F.raids) if (g.order === 'path' && fighting(g) && rt.t - (g._pathT ??= rt.t) > 25) {
-        const at = g.path[g.pathIdx], arrive = g.onArrive;
-        if (!at) continue;
-        g.order = 'move'; g.dest = { x: at[0], z: at[1] };
-        g.onArrive = (q) => {
-          q.pathIdx++;
-          q.onArrive = arrive;
-          q._pathT = rt.t;
-          if (q.pathIdx < q.path.length) q.order = 'path';
-          else if (arrive) arrive(q);
-        };
+      // 道の点で整列待ちが続いても、経路の下知を保って次の点へ進む。
+      // move に替えると到着の六割待ちが残り、さらに道に沿う持ち場も失われる。
+      for (const g of F.raids) if (g.order === 'path' && fighting(g)) {
+        if (g._pathIdx !== g.pathIdx) { g._pathIdx = g.pathIdx; g._pathT = rt.t; }
+        const at = g.path[g.pathIdx];
+        if (rt.t - g._pathT > 25 && (!at || Math.hypot(g.anchor.x - at[0], g.anchor.z - at[1]) < 1.5)) {
+          g._pathT = rt.t;
+          if (at) g.pathIdx++;
+          else if (g.onArrive) { const arrive = g.onArrive; g.onArrive = null; arrive(g); }
+        }
       }
+      // 本人が浅瀬の口を守った時間を数える。遠くで待つだけでは夜討ちを済ませない。
+      if (P.alive && near(P.pos, RAIDAT, 18)) F.raidDefense = (F.raidDefense || 0) + 0.5;
       // 区の足軽は浅瀬の口から離れて追わない（前は夜討ちの残り一人を城の口まで追い、次の夜討ちとそこで斬り合って、主人公の前に敵が来なかった）
       for (const u of F.guard.units) if (u.alive && !u.gone && !near(u.pos, F.guard.anchor, 14)) { u.target = null; u.watch = null; }
-      // 夜討ちが一人二人になったら城へ引き揚げ、次の夜討ちが来る（残り一人を待って一分止まらない）
-      for (const g of F.raids) if (fighting(g) && g.units.filter((u) => u.alive && !u.gone && !u.fleeing).length <= 2 && g.units.length > 4) {
-        g.noRout = false; g.morale = 0; g.order = 'move'; g.dest = { x: GATE.x, z: GATE.z }; g.aggro = 0;
-        for (const u of g.units) if (u.alive && !u.gone) u.fleeing = true;   // 前の手も残さず、討てない正木丹波守も城へ退く
+      // 残り二人、または口を一分守り抜いて寄せが九十秒続いたら城へ退く。
+      // 柵に残った一隊の全滅を待たず、討てない正木丹波守も退ける。
+      for (const g of F.raids) if (fighting(g) && (g.units.filter((u) => u.alive && !u.gone && !u.fleeing).length <= 2 && g.units.length > 4 || rt.t - g.raidStartT > 90 && F.raidDefense >= 60)) {
+        g.noRout = false; g.morale = 0; g.order = 'move'; g.dest = { x: GATE.x, z: GATE.z }; g.aggro = 0; g.onArrive = null;
+        for (const u of g.units) if (u.alive && !u.gone) { u.fleeing = true; u.target = null; }   // 前の手も残さず、討てない正木丹波守も城へ退く
       }
       // 次の夜討ちは、前が崩れて五秒後か、前が粘っても三十秒で浅瀬に寄せる（夜討ちは間を空けず次々と来る）
       // 11/8 15分の構成：夜討ちは四度。間に普請の進む間（十二秒）を置き、段は二分半から三分
