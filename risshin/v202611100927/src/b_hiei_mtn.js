@@ -2242,10 +2242,10 @@ function hieiDefeated(g) {
   let ready = 0;
   for (const u of g.units) if (hieiReady(u)) ready++;
   if (!ready) return true;
-  // 隊長を失い、大半が倒れた守りまで最後の一人を探す条件にしない。
+  // 隊長が討死・重傷で戦列を離れ、大半が倒れた守りまで最後の一人を探す条件にしない。
   // 到着や経過時間では崩さず、共通の敗走処理で実際に退いてから突破とする。
   const head = g._hieiLead || g.units[0], initial = g.initial || g.units.length;
-  if (head && !head.alive && initial - ready >= 2 && ready <= Math.ceil(initial * .2)) {
+  if (head && !hieiReady(head) && initial - ready >= 2 && ready <= Math.ceil(initial * .2)) {
     g.noRout = false;
     g.morale = Math.min(g.morale, 21);
   }

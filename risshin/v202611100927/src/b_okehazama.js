@@ -221,7 +221,7 @@ function okeFoeSigns(rt) {
       let k = 0;
       if (on) {
         for (const u of named) {
-          if (!u.alive || u.dying) continue;
+          if (!ready(u)) continue;
           v.set(u.pos.x, u.pos.y + (u.mounted ? 3.25 : 2.3), u.pos.z).project(rt.camera);
           if (v.z < -1 || v.z > 1 || Math.abs(v.x) > .95 || v.y > .8 || v.y < -1) continue;
           // 専用の名札も永禄三年の通称で出し、長くなる分を重なり除けに含める。
@@ -2400,7 +2400,9 @@ html:root body #hud#hud#hud.oke-goals :is(#armybar, #h-prog, #jk-vit) { z-index:
     const recent = new Map(), hudSay = rt.hud.say, hudBark = rt.hud.bark, hudBanner = rt.hud.banner;
     const repeatOk = (text) => {
       const key = String(text).replace(/^[^「]*「|」$/g, '').replace(/[。！\s]/g, '');
-      if (rt.t - (recent.get(key) ?? -Infinity) < 180) return false;
+      // 帰陣後の三度の勝鬨は、一時の知らせと同じ八秒の間隔で通す。
+      const interval = rt.flags.o15?.yoinT != null && /^(?:えい、えい|おう|おおう)$/.test(key) ? 8 : 180;
+      if (rt.t - (recent.get(key) ?? -Infinity) < interval) return false;
       recent.set(key, rt.t); return true;
     };
     rt.hud.say = function (who, text, dur, ...rest) {
@@ -2644,7 +2646,7 @@ html:root body #hud#hud#hud.oke-goals :is(#armybar, #h-prog, #jk-vit) { z-index:
           const legCut = src === y && hit && (hit.part === 'leg' || hit.part === 'thigh') && src.weapon === 'sword' && hit.res !== 'armor';
           rt.flags.hattoriLegCut = !!legCut;
           // 義元が刀で膝を斬った細部は後世の伝承。戦中は実際の手傷だけを知らせる。
-          localSay(rt, hat, '服部小平太', '膝を斬られた……新介、頼むぞ！', 3);
+          localSay(rt, hat, '服部小平太', legCut ? '膝を斬られた……新介、頼むぞ！' : '手傷を負った……新介、頼むぞ！', 3);
         }
       };
     }

@@ -563,6 +563,7 @@ const k06_sekigahara = {
     g.formation = 'ring'; g.speed = 4.6; g.aggro = 0; g.seekRange = 0;
     g.keepMoveOrder = true; g.arriveNoncombat = true; g.arriveRadius = 5;
     const arrive = (q) => {
+      if (F.jinba) return;
       const u = F.ieyasuU;
       // 旗本だけ先着しても家康を飛ばさない。床几のそばまで歩いてから座る。
       if (u?.alive && !u.gone && !near(u.pos, q.dest, 5)) { q.onArrive = arrive; return; }
@@ -849,7 +850,8 @@ const k06_sekigahara = {
         rt.say('使番', '井伊さま、島津の鉄砲に撃たれ手負い！', 3);
         if (alive(F.ii)) goTo(F.ii, { x: HOLD5.x + 20, z: HOLD5.z - 30 });
       }
-      if (F.shiMet && (receiving || repelled) && (F.shiHeld || 0) >= HOLD_S && near(P, HOLD5, 40)) this.win(rt);
+      // 陣場野への移動中に島津を受け終えても、家康・幕・馬印が着く前に首実検へ進めない。
+      if (F.jinba && F.shiMet && (receiving || repelled) && (F.shiHeld || 0) >= HOLD_S && near(P, HOLD5, 40)) this.win(rt);
     }
   },
 
