@@ -192,6 +192,10 @@ const OTE_IN = 7;   // ROUTE の [113, -9]：枡形を出た所
 const RF = { d: 0, s: 0, x: 0, z: 0 }, RT = { d: 0, s: 0, x: 0, z: 0 };
 function sawayamaWay(army, u, want) {
   const q = u._k07Way || (u._k07Way = { x: 0, z: 0, t: -1, active: false, botRadius: 2 });
+  // 次の曲輪への進軍や曲輪への戻りで行き先が替わったら、前の向きの道を使わない。
+  if (q.wantX !== want.x || q.wantZ !== want.z) {
+    q.wantX = want.x; q.wantZ = want.z; q.t = -1;
+  }
   if (q.t > army.time && q.active && Math.hypot(q.x - u.pos.x, q.z - u.pos.z) > 2.4) return q;
   if (q.t > army.time && !q.active) return want;
   q.t = army.time + 0.3; q.active = false;

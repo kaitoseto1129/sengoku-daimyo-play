@@ -2858,7 +2858,7 @@ const tottori = {
       if (g.order === 'path') {
         const at = Math.min(g.pathIdx, g.path.length - 1), goal = g.path[at];
         let front = false;
-        for (const u of g.units) if (u.alive && !u.fleeing && !u.woundOut && !u.rearWound && !u.noTarget &&
+        for (const u of g.units) if (!outOfFight(u) &&
             Math.hypot(u.pos.x - goal[0], u.pos.z - goal[1]) < 6) { front = true; break; }
         // 先頭が折れに着いたら次へ。後列待ちで長く止めず、壁や坂は飛び越さない。
         if (!front || Math.hypot(g.anchor.x - goal[0], g.anchor.z - goal[1]) >= 3) continue;
@@ -2875,7 +2875,7 @@ const tottori = {
       if (g.order !== 'attack') continue;
       let foe = null, distance = Infinity;
       for (const u of rt.army.units) {
-        if (u.team === g.team || !u.alive || u.fleeing || u.woundOut || u.noTarget || u.campProtected ||
+        if (u.team === g.team || outOfFight(u) || u.campProtected ||
             Math.hypot(u.pos.x - GATE.x, u.pos.z - FENCE_Z) > 24) continue;
         const d = Math.hypot(u.pos.x - g.anchor.x, u.pos.z - g.anchor.z);
         if (d < distance && !rt.army.wallBetween(from, -1, u.pos) && !rt.army.terrainBlocks(from, u.pos)) {
@@ -2885,7 +2885,7 @@ const tottori = {
       g.focus = foe;
       if (foe) {
         g.seekRange = 24; pressing = true;
-        for (const u of g.units) if (u.alive && !u.target) u.aiT = 0;
+        for (const u of g.units) if (!outOfFight(u) && !u.target) u.aiT = 0;
       }
     }
     if (pressing) rt.bark('次の小勢が寄せてくる。味方と槍をそろえよ');

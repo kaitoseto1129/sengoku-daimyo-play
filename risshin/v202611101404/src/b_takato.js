@@ -17,7 +17,6 @@ import { retreatThroughGap, retreatRunFromBlade } from './bot_retreat.js';
 import { enemyGroup } from './bhelp.js';
 import { dressStage } from './stage_dress.js';
 import { goalsTick } from './hud_goals.js';
-import { sightUnit } from './battle_sight.js';
 import { wrap as k15Kakoi } from './takato/kakoi.js';   // 15分の構成：包囲の段
 import { wrap as k15Nobutada } from './takato/nobutada.js';   // 曲輪突破の段
 import { wrap as k15Rakujo } from './takato/rakujo.js';   // 落城の余韻
@@ -42,7 +41,7 @@ Object.assign(takato, {
   quietMiss: true, inouFeel: true, noPlayerFoot: true, noDodgeCard: true,
   // 始まりの札の間に顔を撮れなくても、黒い影を戦の終わりまで残さない。
   waitForPortrait: true,
-  noSiegeCards: true, enemyTriangleSigns: true, nearbyAllySignLimit: 0,
+  noSiegeCards: true, enemyTriangleSigns: false, nearbyAllySignLimit: 0,
   // 通し確認：本丸の密集で赤い印が隣の兵を覆う。全員に残し、大きさだけを抑える。
   foeSignMaxPixels: 28,
   // 11/4 p100（kaito AS・AV15）：行き先は金の▼一つ。ついていく相手の青い▼を重ねない。
@@ -1389,7 +1388,7 @@ function takatoAssaultVoice(rt, text) {
 //   一行の任務札（missionSingleLine）のまま、その後に目標の札を重ねて置き換える（雑賀と同じ作り）。両軍の今の兵の数の棒も常に出す。
 //   見通せる城兵には一人残らず赤い▼。印は使い回し、毎コマ作らない。
 function installTakatoGoals(rt) {
-  const hud = rt.hud, hudProgress = hud.progress, foeMarks = hud.foeMarks, def = rt.def, dispose = rt.dispose;
+  const hud = rt.hud, hudProgress = hud.progress, def = rt.def, dispose = rt.dispose;
   hud.progress = function (battle) {
     const out = hudProgress.apply(this, arguments);
     if (battle === rt && this.prog && !rt.over) {
@@ -1418,42 +1417,8 @@ html:root body #hud#hud#hud.takato-goals #h-prog#h-prog.goal-mode .pg-goals li.n
 html:root body #hud#hud#hud.takato-goals #h-prog#h-prog.goal-mode .pg-goals li.done { color:#cfc9bc !important; }
 html:root body #hud#hud#hud.takato-goals #h-prog#h-prog.goal-mode .pg-goals :is(h3 b, li em) { display:none !important; }`;
   document.head.appendChild(style); hud.root.classList.add('takato-goals');
-  const tris = [], box = document.createElement('div'), v = new THREE.Vector3();
-  box.style.cssText = 'position:absolute;left:0;top:0;width:0;height:0;overflow:visible;pointer-events:none';
-  box.setAttribute('aria-hidden', 'true');
-  hud.root.appendChild(box);
-  hud.foeMarks = function (battle) {
-    const out = foeMarks.call(this, battle);
-    if (battle !== rt) return out;
-    const me = rt.player.u;
-    const on = me.alive && !rt.over && !rt.flags.ending && !rt.choice && !this.introWaiting && !rt.player.camShot && !this.bigmap && !this.root.classList.contains('photo');
-    let n = 0;
-    if (on) for (const u of rt.army.units) {
-      if (!u.alive || u.gone || u.dying || u.woundOut || u.noTarget || u.isStruct || u.civ || u.team === me.team || u._nearSignOn ||
-          u.camHidden) continue;
-      // 近い兵は human の体で描き、元の形（u.mesh）は隠れている。見えるかは camHidden と見通しで決める。
-      if (!(u._skSeenAt > rt.t - .34 && u._skSeenAt <= rt.t)) { u._skSeen = sightUnit(rt, u); u._skSeenAt = rt.t; }
-      if (!u._skSeen) continue;
-      v.set(u.pos.x, u.pos.y + (u.mounted ? 3.2 : 2.25), u.pos.z).project(rt.camera);
-      if (v.z < -1 || v.z > 1 || Math.abs(v.x) > 1 || Math.abs(v.y) > 1) continue;
-      let el = tris[n];
-      if (!el) {
-        el = tris[n] = document.createElement('span');
-        el.textContent = '▼';
-        el.style.cssText = 'position:absolute;left:0;top:0;color:#ff4a2e;font-size:28px;line-height:1;-webkit-text-stroke:1px #2a0d06;text-shadow:0 1px 2px #000;pointer-events:none';
-        box.appendChild(el);
-      }
-      n++;
-      el.hidden = false;
-      el.style.transform = `translate(${((v.x + 1) * innerWidth / 2).toFixed(1)}px,${((1 - v.y) * innerHeight / 2).toFixed(1)}px) translate(-50%,-100%)`;
-    }
-    for (let i = n; i < tris.length; i++) tris[i].hidden = true;
-    return out;
-  };
   rt.dispose = function (...args) {
     if (hud.progress !== hudProgress) hud.progress = hudProgress;
-    if (hud.foeMarks !== foeMarks) hud.foeMarks = foeMarks;
-    box.remove();
     if (hud.prog) hud.prog.classList.remove('goal-mode');
     hud.root.classList.remove('takato-goals'); style.remove(); this.dispose = dispose;
     return dispose ? dispose.apply(this, args) : undefined;
