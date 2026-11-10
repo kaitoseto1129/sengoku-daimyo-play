@@ -784,7 +784,7 @@ html:root body #hud:has(#h-prog[data-battle="t09_yamanaka"]) #center-call .cc { 
     rt.obj('main', '本丸へ上り、松田康長の旗本を討ち取る', 'main');
     const H = KURUWA.hon, N = KURUWA.ni;
     // 二の丸の守り（攻め上る途中で戦う）と、本丸の松田康長の旗本（城将は奥で守られ、前に出ない）
-    F.ni = enemyGroup(rt, { faction: 'hojo', name: '二の丸の守り', anchor: { x: N.x, z: N.z + 8 }, facing: 0, order: 'hold', aggro: 14, width: 12, morale: 90, fleeDir: { x: 0, z: -1 }, dmgMult: 0.55 },
+    F.ni = enemyGroup(rt, { faction: 'hojo', name: '二の丸の守り', anchor: { x: N.x, z: N.z + 8 }, facing: 0, order: 'hold', aggro: 14, width: 12, morale: 90, noRout: true, historicalOrders: true, fleeDir: { x: 0, z: -1 }, dmgMult: 0.55 },
       dress([{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: 14 }, { type: 'gun', n: 5 }], HOJO));
     F.hon = enemyGroup(rt, { faction: 'hojo', name: '松田康長の旗本', anchor: { x: H.x, z: H.z + 4 }, facing: 0, order: 'hold', fixed: true, aggro: 6, width: 12, morale: 100, noRout: true, formation: 'yari', fleeDir: { x: 0, z: -1 }, dmgMult: 0.5, defMult: 1.15 },
       dress([{ type: 'busho', n: 1, o: { name: '松田康長', hat: 'kabuto_m', haori: 0x5a2a1c, horse: true } }, { type: 'samurai', n: 8 }, { type: 'ashigaru', n: 16 + more(rt, 0.4) }, { type: 'gun', n: 6 }], HOJO));
@@ -996,11 +996,19 @@ html:root body #hud:has(#h-prog[data-battle="t09_yamanaka"]) #center-call .cc { 
         rt.say('中村一氏', '本丸へ掛かれ！　松田の旗を倒せ！', 3.5);
         for (const q of F.toyo) if (!gone(q)) { continuePath(q, UP_ROUTE.slice(7)); q.speed = 2.4; q.onArrive = (r) => { r.order = 'attack'; r.seekRange = 40; }; }
       }
-      if (F.ni && !gone(F.ni) && F.ni.count < 6) F.ni.morale = Math.min(F.ni.morale, 20);
       // 11/10 クラウド：二の丸の守りと斬り合い・手当てを繰り返し、本丸の段だけで七分を越えて刻限に掛かった（act 1080秒）。
-      //   三分を過ぎたら二の丸の守りは本丸へ退き、道を空ける
-      if (F.ni && !gone(F.ni) && !F.niGive && rt.t - F.stepT > 180) {
-        F.niGive = true; F.ni.noRout = false; F.ni.morale = Math.min(F.ni.morale, 10);
+      //   六人未満か三分を過ぎたら二の丸の守りは本丸へ退き、道を空ける
+      if (F.ni && !gone(F.ni) && !F.niGive && (F.ni.count < 6 || rt.t - F.stepT > 180)) {
+        F.niGive = true;
+        // 北へ真っすぐ敗走させると二の丸の土塁と本丸の柵に詰まる。
+        // 知らせどおり、北の虎口・土橋・本丸の南口を通って退く。
+        const q = F.ni;
+        q.noRout = true; q.morale = 100; q.fixed = false;
+        q.historicalOrders = true; q.noPursue = true; q.retreatOnly = true;
+        q.formation = 'column'; q.colW = 2; q.march = false;
+        q.order = 'path'; q.speed = 2.8;
+        q.path = UP_ROUTE.slice(5).map((p) => p.slice()); q.pathIdx = 0;
+        q.onArrive = (r) => { for (const u of r.units) if (u.alive && !u.gone) rt.army.despawn(u); };
         rt.say('中村一氏', '二の丸の兵が本丸へ退くぞ！　追って上れ！', 3.5);
       }
       // 旗本が崩れ始めると康郷が脱出する。康長は初めから本人の攻撃で討てる。

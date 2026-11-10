@@ -402,7 +402,9 @@ export function fieldSignsTick(rt, root) {
   // 11/3：稲生・森部・桶狭間も、左上の釦・右上の目標・地図の上の▼は描かない（桶狭間で▼が音・止めるの釦の横と裏に並んだ）
   const signRects = rt.hud?.hudRects ? rt.hud.hudRects() : null;
   // 敵の▼は見通しの届く所まで全員（霧・夜の見通しの上限だけ）
-  const farR = Math.max(170, Math.min(rt.world?.vis ?? 400, 400));
+  // 11/10 関所1 設楽原：百六十m 先の豆粒の兵に▼だけが柵の上へ浮き、体の無い印に見えた。戦が def.foeSignRange で縮められる
+  const farArmyR = Math.max(170, Math.min(rt.world?.vis ?? 400, 400));
+  const farR = rt.def.foeSignRange ?? farArmyR;
   if (!hide) for (const u of rt.army.units) {
     // 討ち取りは本人の最後の頭上で空の▼を閉じる。次の敵へ反応を移さない。
     const defeatUntil = lesson ? u.inouDefeatUntil : ford ? u.moribeDefeatUntil : raid ? u.okeDefeatUntil : 0;
@@ -867,12 +869,14 @@ export function fieldSignsTick(rt, root) {
         n = drawLightEnemySigns(rt, s, A, n, cam, q);
         continue;
       }
-      if (dd < 25 || dd > farR) continue;
+      if (dd < 25 || dd > farArmyR) continue;
       const hw = Math.min(A.hw0 || 10, 30), fx = Math.cos(A.facing || 0), fz = -Math.sin(A.facing || 0);
       const k = Math.max(1, Math.min(3, Math.round(hw / 8)));
       for (let i = 0; i < k; i++) {
         const t = k === 1 ? 0 : (i / (k - 1) - .5) * 1.4 * hw;
         const x = cx + fx * t, z = cz + fz * t, y = (rt.world.heightAt ? rt.world.heightAt(x, z) : A.mesh.position.y) + 3.4;
+        // 11/10 関所1 設楽原：軽い兵は本人の DIST_FAKE_NEAR（150m）の内に描かれない。その所へ▼だけ浮かせない
+        if ((x - me.pos.x) ** 2 + (z - me.pos.z) ** 2 < (DIST_FAKE_NEAR.value + 12) ** 2) continue;
         v.set(x, y, z).applyMatrix4(cam.matrixWorldInverse);
         if (v.z >= 0) continue;
         const size = 22 * -v.z * 2 / (innerHeight * cam.projectionMatrix.elements[5] * .34);

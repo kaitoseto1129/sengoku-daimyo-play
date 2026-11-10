@@ -481,6 +481,18 @@ const t08_nejirozaka = {
     target.action = unit ? '島津忠隣を討ち取れ' : `${target.label}へ向かえ`;
     return target;
   },
+  // 11/10 関所3：持ち場に着くと行き先の▼が消えた（六歩内は隠す共通の決まり）。▼だけは寄せる島津勢の真ん中へ移す。
+  //   味方の備や敵の呼び寄せ（goalTarget を使う ally_goal・goal_foe）は持ち場のままにする
+  goalSignTarget(rt) {
+    const t = this.goalTargetOverride(rt);
+    if (!t || t.unit) return t;
+    const foe = foeNear(rt, t);
+    if (!foe) return t;
+    const s = rt.flags.nejiroSign || (rt.flags.nejiroSign = {});
+    s.x = foe.x; s.z = foe.z; s.unit = foe.unit; s.boss = false;
+    s.label = foe.unit ? '' : foe.moat ? '空堀' : '島津勢'; s.action = foe.moat ? '堀を見張れ' : '島津勢をたおせ';
+    return s;
+  },
   // 猿渡の討死は名のある知らせで伝え、共通の隊崩れの札を重ねない。
   bannerAllowed: (rt, text) => !/隊が崩れた|敵の組頭が討たれた/.test(text),
   // 布陣図の地名（docs/fujin/t08_nejirozaka.md）
@@ -492,6 +504,8 @@ const t08_nejirozaka = {
     seed: 1587,
     time: 'dusk',   // 第一波は暮れ方。破れ口の前に夜へ（15分の構成）
     nightLift: 2.2,
+    // 11/10 関所1：夜の中ほど・終わりで兵が白く光る骨のように浮いた（小牧と同じ）。兵だけの補光を止め、月光と松明で照らす
+    unitNightScale: 0, lowNightExposure: 1.1,
     mist: true,
     paths: [ROAD],
     // 小丸川と坂の下の田は場外側。川筋・畦の寸法は推定で、戦う道を横切らない。
@@ -782,6 +796,10 @@ t08_nejirozaka.botBrain = (b, inp, { goTo, patientStrike }) => {
     const reach = (p.weapon === 'sword' ? 1.9 : 2.8) * 0.85;
     if (d > reach) goTo(p, inp, e.pos.x, e.pos.z, reach); else inp.k.delete('KeyW');
     patientStrike(p, inp, e, d, true);
+    // 11/10 関所（bot が十五分止まる）：ほかの者の手で忠隣が手傷の下限（三割五分）まで削られると、共通の頭は「もう手傷を負わせられない」と突かない。
+    //   忠隣は主人公の一撃で討てる（onWound）ので、下限でも隙があれば突く
+    if (e === T && !inp.leftPressed && T.hp <= T.maxHp * 0.36 && d < reach / 0.85 && p.cd <= 0 && !p.pending && p.sta > p.maxSta * 0.35 &&
+      !(e.swing && !e.swing.done && e.swing.target === u) && (p.weapon === 'sword' || !p.guard)) inp.leftPressed = true;
     return;
   }
   if (F.dp && F.dp.on) { depthBot(b, inp, goTo); return; }
@@ -798,6 +816,31 @@ STAGES.t08_nejirozaka = [[STEP_TEXT[0]], [STEP_TEXT[1], dpAt(6)], [STEP_TEXT[2],
 //   ⑤は主人公の止めだけで済む（忠隣はほかの者の手では討たれない。kaito 三4）。全部済むまで勝ちにしない（三3）
 const won5 = (rt) => rt.tracker?.main === true;
 const curG = (k) => (rt) => (rt.flags.dp?.on && rt.flags.dp.i === k ? rt.flags.dp.cur?.groups || [] : []);
+// 11/10 関所3：持ち場（土橋・破れ口・右の堀）に着くと行き先のピンが消えた（六歩内は隠す共通の決まり）。
+//   着いたら、今の段で寄せる島津の手（無ければ六十歩内の近い敵八人）の真ん中を指す。もう斬り合う所まで来ていれば一番近い敵の頭上、
+//   寄せが来る前の待ちは持ち場の前の空堀（島津が越えてくる所）を指す
+function foeNear(rt, at) {
+  const P = rt.player?.u?.pos;
+  if (!P || Math.hypot(P.x - at.x, P.z - at.z) >= 10) return null;
+  const me = rt.player.u.team;
+  let sx = 0, sz = 0, n = 0, best = null, bd = 60;
+  for (const gr of rt.flags.dp?.on ? rt.flags.dp.cur?.groups || [] : []) for (const o of gr?.units || []) if (o.alive && !o.gone && !o.fleeing) { sx += o.pos.x; sz += o.pos.z; n++; }
+  const near = [];
+  for (const o of rt.army?.units || []) {
+    if (!o.alive || o.gone || o.team === me || o.team > 1 || o.civ || o.isStruct || o.fleeing || o.downed) continue;
+    const d = Math.hypot(o.pos.x - P.x, o.pos.z - P.z);
+    if (d < bd) { bd = d; best = o; }
+    if (d < 60) near.push([d, o]);
+  }
+  if (!n) {
+    near.sort((x, y) => x[0] - y[0]);
+    for (const [, o] of near.slice(0, 8)) { sx += o.pos.x; sz += o.pos.z; n++; }
+  }
+  if (n >= 3 && Math.hypot(sx / n - P.x, sz / n - P.z) > 7) return { x: sx / n, z: sz / n, unit: null };
+  if (best) return { x: best.pos.x, z: best.pos.z, unit: best };
+  // 寄せの合間：持ち場の前の空堀（右の堀は東、ほかは南）
+  return at.x > WALL_X / 2 ? { x: EAST_MOAT.x, z: at.z, unit: null, moat: true } : { x: at.x, z: MOAT.z, unit: null, moat: true };
+}
 t08_nejirozaka.goals5 = () => [
   { kind: 'stage', k: 0, text: STEP_TEXT[0], noun: '土橋の塀', place: (rt) => (rt.flags.dp?.i ?? -1) < 4 ? rt.flags.dp?.cur?.goal || POST : POST, check: (rt) => won5(rt) || (rt.flags.dp?.i ?? -1) >= 5, groups: curG(4) },
   { kind: 'stage', k: 1, text: STEP_TEXT[1], noun: '破れ口', place: () => BREACH, check: (rt) => won5(rt) || (rt.flags.dp?.i ?? -1) >= 7, groups: curG(6) },

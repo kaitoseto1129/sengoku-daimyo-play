@@ -648,9 +648,10 @@ html body #hud.enemy-action-guide:has(#h-prog[data-battle="k07_sawayama"]) #goal
     if (F.tanakaIn || !F.tanaka) return;
     const since = rt.t - (F.tanakaT ?? rt.t);
     if (since < OPEN_CASTLE_WAIT) return;   // 早く着いても開城の話を遮らず、約束の後に乱入を告げる
-    // 石垣の下を通る兵を、本丸へ入った兵として数えない。
+    // 石垣の下を通る兵や、倒れた兵・離脱する兵を、本丸へ乱入した兵として数えない。
     const level = PLAN.kuruwa.find((k) => k.id === 'hon').level;
-    const near = F.tanaka.units.some((u) => u.alive && u.pos.x >= -24 && u.pos.x <= 4 && u.pos.z >= -18 && u.pos.z <= 16 && Math.abs(u.pos.y - level) < 3);
+    const near = F.tanaka.units.some((u) => u.alive && !u.downed && !u.dying && !u.woundOut && !u.gone && !u.fleeing &&
+      u.pos.x >= -24 && u.pos.x <= 4 && u.pos.z >= -18 && u.pos.z <= 16 && Math.abs(u.pos.y - level) < 3);
     if (!near) return;
     F.tanakaIn = true;
     F.tanakaInT = rt.t;
