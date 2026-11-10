@@ -83,14 +83,16 @@ const campRoute = (p, to) => {
   if (Math.abs(p.x - HQ.x) < 8 && p.z > HQ.z - 6 && p.z < HQ.z + 6) return HQ;
   // 後ろの幕に接したまま横へ進むと布の当たりに捕まる。先に北へ離れて角を回る。
   if (p.z <= HQ.z - 6 && p.z > HQ.z - 9 && Math.abs(p.x - HQ.x) < 14) return { x: p.x, z: HQ.z - 11 };
-  if (p.z >= HQ.z + 6 && Math.abs(p.x - MOUTH.x) <= 1.5) return to;
+  // 家康が左右へ寄っていても、口を抜けるまでは中央へ進む。
+  // 外から本人へ斜めに寄せると、六 m の口を外れて南の幕に当たる。
+  if (p.z >= HQ.z + 6 && Math.abs(p.x - MOUTH.x) <= 1.5) return HQ;
   if (p.z < HQ.z + 6.5) {
     // 角の外の道は判定の帯（14 m）より三 m 外。15 では 14 m の際で行き先が着いた扱いの半径に入り、bot が幕の横で止まった（11/9）
     const x = HQ.x + (p.x >= HQ.x ? 17 : -17);
     return Math.abs(p.x - HQ.x) < 14 ? { x, z: p.z } : { x, z: MOUTH.z + 3 };
   }
   if (Math.abs(p.x - MOUTH.x) > 1.5) return { x: MOUTH.x, z: MOUTH.z + 1.5 };
-  return to;
+  return HQ;
 };
 const esc = (t) => String(t ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const OWN = { armor: 0x2a2420, lace: 0xb8342a, flag: 'maru' };   // 主人公の軍（丸の旗・朱の威）

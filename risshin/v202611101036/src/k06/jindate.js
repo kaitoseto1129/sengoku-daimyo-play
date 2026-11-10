@@ -64,7 +64,8 @@ export function tick(rt) {
   if (F.flipT && !st.flip) { st.flip = true; tryDo(() => flip(rt, st, later, routB)); }
   if (F.won && !st.won) {
     st.won = true;
-    tryDo(() => { routB('ukita2', 'konishi2', 'otani2', 'gamou', 'konida'); for (const c of [C.s, C.n, C.o]) c?.rout?.('B', { from: 0 }); M.shima?.rout({ hideAfter: 60 }); });
+    // 島津は総崩れに混ぜない。本物の隊が伊勢路へ抜ける動きに、遠景も引き続き付いて行く。
+    tryDo(() => { routB('ukita2', 'konishi2', 'otani2', 'gamou', 'konida'); for (const c of [C.s, C.n, C.o]) c?.rout?.('B', { from: 0 }); });
   }
   const step = F.step || 0;
   if (step === st.step) return;
