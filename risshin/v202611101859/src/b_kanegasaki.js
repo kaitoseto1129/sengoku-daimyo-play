@@ -4256,7 +4256,8 @@ function kgSignSeen(rt, u) {
   const d = Math.hypot(u.pos.x - a.x, u.pos.z - a.z), steps = Math.max(2, Math.min(128, Math.ceil(d)));
   for (let i = 1; i < steps; i++) {
     const t = i / steps;
-    if (W.heightAt(a.x + (u.pos.x - a.x) * t, a.z + (u.pos.z - a.z) * t) > a.y + (by - a.y) * t - 0.2) return false;
+    // 低画質の斜面は歩行用の補間と高さが違う。実際に描く土で体が隠れるか調べる。
+    if (drawGroundAt(W, a.x + (u.pos.x - a.x) * t, a.z + (u.pos.z - a.z) * t) > a.y + (by - a.y) * t - 0.2) return false;
   }
   // 地形の陰に加え、描画と同じ霧・硝煙・土煙で姿が隠れた兵も透視しない。
   return sightPoint(rt, u.pos, KG_FOE_SIGN_R, true, u.mounted ? 2.2 : 1.2);
