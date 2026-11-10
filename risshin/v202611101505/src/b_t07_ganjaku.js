@@ -162,6 +162,8 @@ const TEXT = ['大手の坂を登り、二の丸の門の前へ出る', '門か�
   '二の丸の曲輪で、火の中の城兵を討ち払う', '本丸へ攻め入り、熊井越中守を討つ'];
 STAGES.t07_ganjaku = TEXT.map((t, k) => (k ? [t, (rt) => (rt.flags.stage || 0) >= k + 1] : [t]));
 const START = { x: -204, z: 150 };   // 麓の大軍の中から坂の下へ歩く（蒲生の本陣の陣幕を横切らない筋。11/8 bot が幕に詰まった）
+const ARRIVAL = { ...SPAWN, label: '大手の坂の下', r: 14 };
+const LOOK_START = { ...SPAWN, up: 3 }, LOOK_GATE = { ...GATE, up: 3 };
 
 const t07_ganjaku = {
   minutes: 15, expectMin: 15,
@@ -169,13 +171,16 @@ const t07_ganjaku = {
   // 布陣図の地名（docs/fujin/t07_ganjaku.md）
   introMapPlaces: [{ x: HON.x, z: HON.z - 14, name: '岩石城' }, { x: GATE.x, z: GATE.z + 12, name: '二の丸の門' }, { x: -214, z: 226, name: '羽柴秀勝の本陣' }],
   spawn: { x: START.x, z: START.z, heading: Math.atan2(GATE.x - START.x, GATE.z - START.z) },
-  camLookAt: (rt, u) => ((rt.flags.stage || 0) <= 1 ? { x: GATE.x, z: GATE.z, up: 3 } : null),   // 坂の下では目線を上げ、上の門と塀を見せる
+  camLookAt: (rt, u) => ((rt.flags.stage || 0) <= 1 ? rt.flags.stage ? LOOK_GATE : LOOK_START : null),   // 着陣では合流する先手、坂では上の門と塀を見る
+  // 着陣中にはまだ任務が無く、共通の案内が行き先を選べない。合流先を初めから示す。
+  missionPin: (rt) => rt.flags.stage ? undefined : ARRIVAL,
+  missionPinFallback: true,
   noReserve: true, noWake: true, noTaishoRaid: true, noDespair: true,
   noCavalryMix: true,   // 坂と狭い虎口を登る隊は定義どおり徒歩。名のある将の馬上指定は残す
   // 行き先は黄色の印一つだけ（ついていく相手の青い印は出さない）。敵は頭上の▼で分かる（kaito AG・AT・AV15）
   noLeaderFollow: true, enemyTriangleSigns: true,
   // 行き先は頭上の金の▼一つ（ピン・旗の輪・矢印を重ねない）。目標は段の四つだけ（「敵を何人討つ」で埋めない。kaito AR1・AW3・BH6）
-  goalSignOnly: true, goalSignOnscreenOnly: true, stageGoalsOnly: true, goalsAllRows: true,
+  goalSignOnly: true, goalSignOnscreenOnly: true, goalSignNoEdge: true, stageGoalsOnly: true, goalsAllRows: true,
   retryGoalCount: (rt) => Math.max(0, (rt.flags.stage || 1) - 1),
   // 保存して開き直した時も、着陣からではなく今の段へ戻す。
   checkpointStep: (rt) => rt.flags.stage || 0,
@@ -251,9 +256,11 @@ const t07_ganjaku = {
     // 蒲生の先手（主人公はこの列と坂を登る）。蒲生家の対い鶴は既存の鶴紋の描画を共用する。
     F.gamo = allyGroup(rt, { name: '蒲生の先手', faction: 'gamo', flag: 'sashi:tsuru:#ece6d6:#201f1c', anchor: { x: SPAWN.x + 6, z: SPAWN.z - 4 }, facing: faceUp, width: 8, aggro: 14, noRout: true, fullStrength: true },
       [{ type: 'samurai', n: 1, o: { name: '蒲生郷成' } }, { type: 'samurai', n: 8 }, { type: 'ashigaru', n: 4, o: { tatake: true } }, { type: 'ashigaru', n: 26 }, { type: 'bow', n: 5 }, { type: 'gun', n: 6 }]);
-    F.gamo2 = allyGroup(rt, { name: '蒲生の二番手', faction: 'gamo', flag: 'sashi:tsuru:#ece6d6:#201f1c', anchor: { x: SPAWN.x - 8, z: SPAWN.z + 8 }, facing: faceUp, width: 8, aggro: 14, noRout: true, fullStrength: true },
+    F.gamo2 = allyGroup(rt, { name: '蒲生の二番手', faction: 'gamo', flag: 'sashi:tsuru:#ece6d6:#201f1c', anchor: { x: START.x + 6, z: START.z - 4 }, facing: faceUp, width: 8, aggro: 14, noRout: true, fullStrength: true },
       [{ type: 'samurai', n: 6 }, { type: 'ashigaru', n: 2, o: { tatake: true } }, { type: 'ashigaru', n: 20 }, { type: 'gun', n: 4 }]);   // 先頭は竹束を抱えて登る（持つ者の後ろには弾が通りにくい。kaito 二3・十3）
     F.allies = [F.gamo, F.gamo2];
+    // 既存の二番手が本人の脇から先手へ合流する。着陣の麓で一人にせず、兵は増やさない。
+    this.march(rt, F.gamo2, [START, { x: SPAWN.x - 8, z: SPAWN.z + 8 }], 14);
     // 搦手（北東の尾根）から寄せる前田勢。本丸の段で搦手の守りを破って本丸へ入る
     F.maeda = allyGroup(rt, { name: '前田勢', faction: 'maeda', flag: 'maeda', anchor: { ...KARA_OUT }, facing: Math.atan2(-KARA_OUT.x, -KARA_OUT.z), width: 8, aggro: 12, noRout: true, fullStrength: true },
       [{ type: 'busho', n: 1, o: { name: '前田利勝', horse: true } }, { type: 'samurai', n: 8 }, { type: 'ashigaru', n: 22 }, { type: 'gun', n: 4 }]);   // 11/9 重さ：始まりの本物の兵 294 を減らすため足軽を少し減らした。利長は馬上で旗本の侍に囲まれる
@@ -267,7 +274,7 @@ const t07_ganjaku = {
       for (const [x, z] of [[-160, 176], [-176, 160], [-182, 184], [-150, 186]]) rt.scene.add(nobori(W, x, z, 'sashi:tsuru:#ece6d6:#201f1c', 7));
     } catch (e) { console.warn(e); }
     const n = Math.min(12, RANKS[rt.G.rank || 0]?.squad || 0);
-    if (n) rt.makeSquad({ x: SPAWN.x - 2, z: SPAWN.z + 3 }, faceUp, [{ kind: 'spear', n }]);
+    if (n) rt.makeSquad({ x: START.x - 2, z: START.z + 3 }, faceUp, [{ kind: 'spear', n }]);
     // 二の丸の門の左右の櫓・岩の上の矢倉・大手の坂の上の西の尾根の物見櫓。坂の下から尾根の上に城の櫓が並んで見える
     { const n0 = rt.scene.children.length;
       try {
@@ -478,6 +485,7 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
       F.allies.forEach((g, i) => { if (!g.routed) this.to(g, i ? this.roadAt(m - i * 10) : { x, z }); });
     };   // 坂で迎え撃つ時も、二番手は先手の後ろに置く（一点に重ねない）
     if (s === 1) {
+      F.walks = [];   // 着陣の合流を終え、坂を登る持ち場へ切り替える。
       F.t0 = rt.t;   // 日が沈むまでの時は、坂へ懸かってから数える
       rt.setPhase('assault');
       rt.obj('s1', '大手の坂を登り、二の丸の門の前へ出る', 'main');
@@ -694,6 +702,7 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
     if (player.lock && !player.lock.alive) { player.lock = null; player.wheelAcc = 0; }
     if (player.aimed && !player.aimed.alive) { player.aimed = null; player.aimT = 0; }
     if (F.ending) return;
+    for (const m of F.walks || []) this.stepWalk(m.g, m.w, rt.t);
     if (!F.stage) { if (chakujin.update(rt, K)) this.go(rt, 1); return; }
     // 刻限と同じ更新で熊井を討った時も、果たした最後の目標を日没の負けで取り消さない。
     if (F.stage === 5 && F.hon.units.some((u) => u.name === '熊井越中守' && !u.alive)) { this.win(rt); return; }
@@ -705,7 +714,6 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
     if (el > T_LIMIT) { this.lose(rt); return; }
     if (F.sw) this.stepWalk(F.sally, F.sw, rt.t);
     if (F.gw) this.stepWalk(F.gateGuard, F.gw, rt.t);
-    for (const m of F.walks || []) this.stepWalk(m.g, m.w, rt.t);
     this.stones(rt, dt);
     const sallyN = this.fighting(F.sally), sally0 = F.sally.units.length;
     if (F.stage === 1) {

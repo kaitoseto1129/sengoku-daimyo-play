@@ -2071,8 +2071,13 @@ const takato_siege = {
       // 別働が先に入っていても、三の丸と二の丸の目標を同じ瞬間に済ませない。
       if (F.pendingNi && F.sanFell && rt.t - F.sanT >= 20) { F.pendingNi = false; this.onZoneFall(rt, 'ni'); }
       if (F.pendingHon && F.niFell) this.honTaken(rt);
-      // 森の家中・各務元正の一番乗り（和樂 web・諸説あり）。大手の奥の門が開いた時に一度だけ。
-      if (!F.kagamiSaid && F.gates.oteInner.opened && !F.sanFell) {
+      // 城兵が退くために門を開けただけでは、一番乗りと知らせない。
+      // 森の先手が奥の門を越し、三の丸へ実際に入った時に一度だけ。
+      if (!F.kagamiSaid && F.gates.oteInner.opened && !F.sanFell &&
+          F.oteSpear.real?.units.some((u) => siegeFighter(u) &&
+            F.C.kuruwa.san.test(u.pos.x, u.pos.z) &&
+            u.pos.x < ROAD_OTE[5][0] &&
+            Math.abs(u.pos.y - rt.world.heightAt(u.pos.x, u.pos.z)) < 3)) {
         F.kagamiSaid = true;
         rt.say('使番', '森殿の家中、各務元正が一番乗りじゃ！　続け！', 4);
       }

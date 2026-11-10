@@ -2770,7 +2770,7 @@ iga.botBrain = (b, inp, { goTo, patientStrike }) => {
     const C = F.dp.cur;
     const needsTreatment = igaNeedsTreatment(b);
     if (F.step === 2.5 && C?.s.kind === 'move' && !needsTreatment && !F.dpBack &&
-        igaFightBot(b, inp, goTo, patientStrike, u.pos, 6)) return;   // 退く段は目の前の敵だけ受け、追い続けて城門の前に残らない（10/28：八分の時間切れ）
+        igaFightBot(b, inp, goTo, patientStrike, u.pos, 6, true)) return;   // 退く段は本人へ迫る敵だけ受ける。近くの別の段の敵を追い、切岸で止まらない。
     // 山上から陣の入口へ直進せず、山道と小屋を回る同じ折れ目をたどる。
     // 退く道は印（C.goal＝道の折れ目）をたどる。陣へ真っすぐ向かうと、土橋の上の崖で止まった（11/8：十分の時間切れ）
     if (C?.s.kind === 'move' && !C.arr && C.goal) {

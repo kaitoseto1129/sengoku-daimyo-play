@@ -510,7 +510,8 @@ const k13_domyoji = {
       // 河内の野は田と畑（初夏の青田）
       if (h < 4 && x < -20) { c.setRGB(c.r * 0.6 + 0.04, c.g * 0.7 + 0.14, c.b * 0.6 + 0.03); return; }
       // 小松山の斜面は土と下草（急な所ほど土の色）
-      if (h > 6 && x > -50 && x < 80) { const k = Math.min(1, (h - 6) / 14); c.setRGB(c.r * (1 - 0.3 * k) + 0.12 * k, c.g * (1 - 0.32 * k) + 0.1 * k, c.b * (1 - 0.3 * k) + 0.06 * k); }
+      //   11/10 関所の写真：霧の中で白っぽいのっぺりした丘に見えた。明るく足すのをやめ、暗い土と下草の緑に寄せる
+      if (h > 6 && x > -50 && x < 80) { const k = Math.min(1, (h - 6) / 14); c.setRGB(c.r * (1 - 0.38 * k) + 0.07 * k, c.g * (1 - 0.34 * k) + 0.07 * k, c.b * (1 - 0.42 * k) + 0.025 * k); }
     },
     // 小松山の左右の裾（道から離れた所）には木を残す
     clear: (x, z) => kofunDist(x, z) > 0 && kofunDist(x, z) < 9 || HOUSES.some(([hx, hz]) => Math.hypot(x - hx, z - hz) < 7) || Math.hypot(x - HACHIMAN.x, z - HACHIMAN.z - 1) < 9 || distToPolyline(x, z, ROUTE) < 9 || (Math.abs(z) < 40 && x > -160 && x < 130 && !(x > -40 && x < 70 && Math.abs(z) > 22)),

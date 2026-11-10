@@ -1297,7 +1297,10 @@ const okehazama = {
         F.gatherStartDistance = Math.max(JOIN_RADIUS + 1, distance);
       }
       // 実際の集合判定をピンにも返し、中心を踏むまで歩かせない。
-      pin.arrived = distance <= JOIN_RADIUS;
+      // 行軍中は実際の合流と同じく、斜面や柵の向こうを到着済みにしない。
+      pin.arrived = distance <= JOIN_RADIUS && (rt.phase !== 'march' ||
+        Math.abs(me.y - rt.world.heightAt(pos.x, pos.z)) < 3 &&
+        !rt.army.wallBetween(me, -1, pos) && !rt.army.terrainBlocks(me, pos));
       pin.arrivalProgress = pin.arrived ? 1 : Math.max(0, Math.min(.98,
         (F.gatherStartDistance - distance) / (F.gatherStartDistance - JOIN_RADIUS)));
       pin.waiting = false;
@@ -3111,7 +3114,9 @@ html:root body #hud#hud#hud.oke-goals :is(#armybar, #h-prog, #jk-vit) { z-index:
     const pins = F.marchPins;
     while (pins && F.marchPinIndex < pins.length - 1) {
       const pin = pins[F.marchPinIndex];
-      if (Math.hypot(pin.x - p.x, pin.z - p.z) > JOIN_RADIUS) break;
+      if (Math.hypot(pin.x - p.x, pin.z - p.z) > JOIN_RADIUS ||
+          Math.abs(p.y - rt.world.heightAt(pin.x, pin.z)) >= 3 ||
+          rt.army.wallBetween(p, -1, pin) || rt.army.terrainBlocks(p, pin)) break;
       F.marchPinIndex++;
     }
     const distance = c ? Math.hypot(c.x - p.x, c.z - p.z) : Infinity;

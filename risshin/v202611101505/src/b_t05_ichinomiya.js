@@ -496,9 +496,9 @@ function lurkTick(rt) {
 function intoOgura(f) {
   const t0 = f.tick;
   f.tick = (rt, C, m, ctx, el) => {
-    // 11/10 クラウド：残兵が城の奥へ退いた後も一人でも生きていると済まず、bot が門の脇の塀で十二分止まった（act 1260秒切り上げ）。
-    //   残兵が退いたか、段が三分半を過ぎたら、門の守りは崩れたとみなして小倉丸へ導く（入城は本人が入るまで待つ）
-    const cleared = t0(rt, C, m, ctx, el) || C.remnantsRetreated || el > 210;
+    // 守兵を崩すか、持ち場に着いてからの残兵の退却命令を待つ。
+    // 経過時間だけでは、戦い続ける守兵を残したまま入城して達成できてしまう。
+    const cleared = t0(rt, C, m, ctx, el) || C.remnantsRetreated;
     // 共通の戦闘処理は敵の中心へ目当てを動かす。付け入りでは門を目指し、城外へ守兵を追わない。
     C.goal = C.at;
     if (!cleared) return false;

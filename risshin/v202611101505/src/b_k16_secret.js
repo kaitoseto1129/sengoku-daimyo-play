@@ -310,6 +310,7 @@ const k16_secret = {
   stageGoalsOnly: true,    // 目標は段の五つだけ（「敵を何人討つ」で埋めない。結果の札にも①〜⑤）
   noGoalCount: true,       // 画面の端の赤い矢印を出さない（五3：印は真上の▼一つ）
   avoidMarkerNotices: true, // 行き先の印も右上の五つの目標と兵数の札を避ける
+  distanceUnit: 'metres',
   // 途中の共通の見出し（「一騎打ち」「敵の隊が崩れた」「敵将が倒れた」）は説明の字なので出さない（五1）。大きく出すのは「家康、討ち取ったり」と負けの見出しだけ
   bannerAllowed: (rt, t) => t !== '一騎打ち' && t !== '敵の隊が崩れた' && t !== '敵将が倒れた' && t !== '敵の大将が討たれた',
   noCouriers: true,
@@ -331,6 +332,8 @@ const k16_secret = {
     // 開戦直後も①の目標は出ている。最初の下知まで行き先の印を消さない。
     if (!F.step) {
       PIN.x = SAKITE.x; PIN.z = SAKITE.z; PIN.label = STEP_PLACE[1];
+      PIN.destinationName = PIN.label;
+      PIN.destinationDistance = Math.ceil(dist(PIN, rt.player.u.pos));
       return PIN;
     }
     const g = F.stepG, P = rt.player.u;
@@ -349,6 +352,9 @@ const k16_secret = {
     p = viaGap(P.pos, p) || p;
     PIN.x = p.x; PIN.z = p.z;
     PIN.label = F.step === 5 ? (inCamp(P.pos) ? '床几の家康' : '陣幕の口') : STEP_PLACE[F.step];
+    // 共通の画面内の▼と画面外のピンは label ではなく、この二つを読む。
+    PIN.destinationName = PIN.label;
+    PIN.destinationDistance = Math.ceil(dist(PIN, P.pos));
     return PIN;
   },
   world: {

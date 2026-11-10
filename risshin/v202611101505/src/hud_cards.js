@@ -247,7 +247,9 @@ export class HudCards {
       const hp = this.headPointerAt, sx = (this.tmpV.x + 1) * innerWidth / 2, sy = (1 - this.tmpV.y) * innerHeight / 2;
       if (hp && performance.now() - hp.t < 150 && Math.abs(sx - hp.x) < 28 && Math.abs(sy - hp.y) < 60) continue;   // 11/8 critic60（五3）：目標の▼と同じ兵に二つ重ねない
       let hit = false;
-      for (let k = 0; k < placed.length && !hit; k += 2) hit = Math.abs(sx - placed[k]) < 18 && Math.abs(sy - placed[k + 1]) < 20;
+      // 近い別の兵まで印を消すと、柵の乱戦で敵味方を見分けられない。密集の間引きは遠景だけにする。
+      const distant = (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2 > 3600;
+      for (let k = 0; distant && k < placed.length && !hit; k += 2) hit = Math.abs(sx - placed[k]) < 18 && Math.abs(sy - placed[k + 1]) < 20;
       for (const r of this.triBlock) if (!hit && sx > r.left - 14 && sx < r.right + 14 && sy > r.top && sy < r.bottom + 28) hit = true;
       if (hit) continue;
       placed.push(sx, sy);
