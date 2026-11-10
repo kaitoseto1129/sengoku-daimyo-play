@@ -229,6 +229,7 @@ const t03_komaki = {
   noHatamotoMass: true,
   frontlineDensity: false,
   alwaysMelee: false,
+  noPursuit: true,   // 対陣の砦・床几・旗本は追撃に出さない。終盤の徳川の出陣は夜明けの段で動かす。
   foeMarks: true,
   enemyTriangleSigns: true,
   keepBattleSigns: true,   // 行き先の案内中も、武将名・両軍の人数と敵の赤い▼を残す。
@@ -264,6 +265,7 @@ const t03_komaki = {
     raggedPineCrowns: true,
     treeTrunkScale: 1.35,
     groundHalf: 220,
+    terrainTriangles: true,   // 土塁・空堀の描画面と杭の接地を同じ三角形で求め、柵を宙に浮かせない。
     height,
     paths: [{ pts: ROAD, w: 3.5 }, { pts: NROAD, w: 3 }],
     longHoro: 'round',   // 野呂助左衛門の母衣は竹籠に布の丸い母衣（背の薄い板やマントにしない）
