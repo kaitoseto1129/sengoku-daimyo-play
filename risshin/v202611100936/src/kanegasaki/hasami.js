@@ -83,12 +83,16 @@ export function tick(rt, dt) {
 }
 
 // 結果の一言：殿の組の出た数と戻った数（撃破数でなく生還を見せる）
-export function headcount(rt) {
+export function headcount(rt, exit) {
   const F = rt.flags;
   let n0 = 0, n1 = 0;
-  for (const g of F.tono || []) {
+  // 最後に残る槍組も殿の人数に含める。生きているだけでは生還にせず、
+  // 三将との合流と同じ退き口の範囲へ着いた者（手負いも含む）を数える。
+  const groups = new Set(F.tono || []);
+  if (F.lastStand?.g) groups.add(F.lastStand.g);
+  for (const g of groups) {
     n0 += g.initial || 0;
-    for (const u of g.units) if (u.alive && !u.gone) n1++;
+    for (const u of g.units) if (u.alive && !u.gone && Math.hypot(u.pos.x - exit.x, u.pos.z - exit.z) < 30) n1++;
   }
   return { n0, n1 };
 }
