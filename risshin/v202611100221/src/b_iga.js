@@ -2739,8 +2739,7 @@ iga.botBrain = (b, inp, { goTo, patientStrike }) => {
     const needsTreatment = igaNeedsTreatment(b);
     if (F.step === 2.5 && C?.s.kind === 'move' && !needsTreatment && !F.dpBack &&
         igaFightBot(b, inp, goTo, patientStrike, u.pos, 6)) return;   // 退く段は目の前の敵だけ受け、追い続けて城門の前に残らない（10/28：八分の時間切れ）
-    // 陣の柵の外（北）からは、柵の口（x −10〜10）を通って入る。柵へ真っすぐ当たり続けない。
-    if (F.step === 2.5 && C?.s.kind === 'move' && u.pos.z < 15 && Math.abs(u.pos.x) > 7) { goTo(p, inp, 0, 6, 1.5); return; }
+    // 山上から陣の入口へ直進せず、山道と小屋を回る同じ折れ目をたどる。
     // 退く道は印（C.goal＝道の折れ目）をたどる。陣へ真っすぐ向かうと、土橋の上の崖で止まった（11/8：十分の時間切れ）
     if (C?.s.kind === 'move' && !C.arr && !needsTreatment && C.goal && C.goal !== C.at) {
       inp.guardHold = false; inp.leftPressed = false; inp.chargeHold = false; inp.runHeld = p.sta > p.maxSta * 0.3;
@@ -2946,6 +2945,8 @@ function igaWallStones(rt, dt) {
       for (const u of A.units) {
         if (!u.alive || u.team !== 0 || u.isStruct || u.fleeing) continue;
         if (Math.hypot(u.pos.x - st.b.x, u.pos.z - st.b.z) > 1.4 || Math.abs(u.pos.y - st.b.y) > 2.5) continue;
+        // 着弾点が近くても、竹束や柵の反対側には石を通さない。
+        if (projectileCover(A, prevX, prevY, prevZ, u.pos.x, u.pos.y + 1, u.pos.z, null).q <= 1) continue;
         if (u === P && Math.random() > 0.5) continue;
         A.damage(u, u === P ? 7 : 14, st.source, { kind: 'blunt', y: u.pos.y + 1.4 });
       }
