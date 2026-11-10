@@ -594,9 +594,15 @@ function trailAhead(rt, path, index) {
 }
 // 庭に入ったら道の終点を追わせず、見えていて歩いて届く守りへ案内する。
 // 塀の外から敵へ直進させない。調べるのは既存の案内と同じ半秒ごと。
+// 庭の上空や屋根を通っただけでは、庭へ入った事にしない。
+function inOnogiGarden(rt) {
+  const p = rt.player.u.pos;
+  return Math.abs(p.x - ONOGI.x) < ONOGI.hw - .8 && Math.abs(p.z - ONOGI.z) < ONOGI.hd - .5 &&
+    Math.abs(p.y - rt.world.heightAt(p.x, p.z)) < 1.8;
+}
 function onogiGuide(rt) {
   const F = rt.flags, p = rt.player.u.pos;
-  F.onoInGarden = Math.abs(p.x - ONOGI.x) < ONOGI.hw - .8 && Math.abs(p.z - ONOGI.z) < ONOGI.hd - .5;
+  F.onoInGarden = inOnogiGarden(rt);
   if (F.onoInGarden) F.onoEntered = true;
   const reliefOnly = F.onoEntered && gone(F.ono) && F.reliefOn && !gone(F.relief);
   if (!F.onoInGarden && !reliefOnly) return false;
@@ -2972,7 +2978,7 @@ const odani = {
   missionPin(rt) {
     const F = rt.flags, p = rt.player.u.pos;
     // 小丸陥落後の下知待ちと、落城後の勝ち鬨にも本丸の印を残す。
-    if (F.ending || rt.over || !rt.player.u.alive) return null;
+    if (F.ending && !F.fallen || rt.over || !rt.player.u.alive) return null;
     // 道の角は共通の印へ直接渡る。別の札を作る経路だけで指定すると、六メートル手前で消える。
     const pin = F.odaniPin || (F.odaniPin = { always: true, silent: true, hideDistance: 0 });
     pin.unit = null; pin.enemy = pin.defend = pin.waiting = pin.arrived = pin.follow = pin.gate = pin.route = false;
@@ -4711,8 +4717,7 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
     const F = rt.flags;
     if (F.onoDone) return;
     // 塀の外の斜面では達成させない。庭を通った後は道の援兵を追ってもよい。
-    const pp = rt.player.u.pos;
-    if (Math.abs(pp.x - ONOGI.x) < ONOGI.hw - .8 && Math.abs(pp.z - ONOGI.z) < ONOGI.hd - .5) F.onoEntered = true;
+    if (inOnogiGarden(rt)) F.onoEntered = true;
     if (!F.onoEntered) return;
     F.onoDone = true;
     F.guideReturning = false;

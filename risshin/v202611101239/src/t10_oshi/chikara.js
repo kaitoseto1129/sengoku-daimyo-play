@@ -175,7 +175,7 @@ export function tick(rt, dt, C) {
       // 土手の先手が何人も撃ち倒される（一つの城の口に寄るだけで、これだけ倒れる）
       let n = 0;
       for (const u of K.ally.units) if (u.alive && !u.gone && !u.name && n < 4 && C.near(u.pos, K.saku, 20)) { u.invuln = false; u.hp = 0; rt.army.kill(u, null); n++; }
-      rt.say('石田勢の足軽', '塀の上から一斉に撃ってくる！　土手の上では隠れる所が無い！', 3.2);
+      rt.say('石田勢の足軽', '塀の上から一斉に撃ってくる！　土手の両脇の竹束へ下がれ！', 3.2);
     }
     // 深手の本人を一斉射撃の台詞の四秒間、柵の際で待たせない。
     if (K.volley && (P.hp < P.maxHp * 0.4 || rt.t - K.volley > 4)) retreat(rt, C);

@@ -34,7 +34,10 @@ export function tick(rt) {
   const F = rt.flags, v = F.o15, C = v.C;
   if (v.iiDone || rt.over || F.ending) return;
   const g = v.iiG, lead = g?.units.find((u) => u.name === '井伊直盛') || v.iiAdd?.units.find((u) => u.type === 'samurai');
-  const left = (g ? g.units.filter(ready).length : 0) + (v.iiAdd ? v.iiAdd.units.filter(ready).length : 0), t = rt.t - v.iiT;
+  let left = 0;
+  if (g) for (const u of g.units) if (ready(u)) left++;
+  if (v.iiAdd) for (const u of v.iiAdd.units) if (ready(u)) left++;
+  const t = rt.t - v.iiT;
   // 既に直盛が討たれている時も、名のない手勢が残る間は備えを破った扱いにしない。
   if (left <= 4 && t > 30 || t > 100) {
     v.iiDone = true; v.ph = null;
@@ -61,10 +64,15 @@ export function tick(rt) {
 export function target(rt) {
   const v = rt.flags.o15, P = rt.player.u.pos;
   let best = null, bd = Infinity;
-  for (const u of [...(v.iiG?.units || []), ...(v.iiAdd?.units || [])]) {
-    if (!ready(u)) continue;
-    const d = (u.pos.x - P.x) ** 2 + (u.pos.z - P.z) ** 2;
-    if (d < bd) { bd = d; best = u; }
+  // 元の備えと後続を順に調べ、毎回の結合配列を作らない。
+  for (let i = 0; i < 2; i++) {
+    const g = i === 0 ? v.iiG : v.iiAdd;
+    if (!g) continue;
+    for (const u of g.units) {
+      if (!ready(u)) continue;
+      const d = (u.pos.x - P.x) ** 2 + (u.pos.z - P.z) ** 2;
+      if (d < bd) { bd = d; best = u; }
+    }
   }
   return best;
 }
