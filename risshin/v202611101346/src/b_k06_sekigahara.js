@@ -245,6 +245,9 @@ const k06_sekigahara = {
   noGoalFoe: true,
   hideArmyPeek: true,
   missionSingleLine: true,
+  // 関ヶ原でほめられた目標の並びを保つ。十件を一度に広げず、今の段から五件ずつ送る。
+  goalsAllRows: true,
+  goalsVisibleRows: 5,
   battleDialogue: true,   // 抜け駆けの咎め・寝返り・退き口の知らせを、音を消していても読める
   // 自害は台本の使番が知らせる。倒す処理から共通の「討ち取ったり」を重ねない。
   // 生前の吉継の名と、ほかの将の討取りはそのまま出す。

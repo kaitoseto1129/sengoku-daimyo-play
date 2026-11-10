@@ -395,12 +395,12 @@ Object.assign(echizen, {
     } else if (!zone.test(me.x, me.z)) {
       // 奥の郭へも山道をたどる。木戸内の制圧後に中心へ直進させると、
       // 塀がなくても急斜面へ迷い込み、味方から離れてしまう。
-      pos = zone === F.SZ.byId.kannon || zone === F.SZ.byId.kinome_sou
-        ? F.echizenCourtPoint() : rt.world.def.runnerWay(rt.army, rt.player.u, zone.pos);
+      pos = F.echizenCourtPoint();
       q.r = q.hide = .5; q.route = true;
     } else {
-      // 味方の列が目指す郭の中を、集合・守備とも同じ固定のピンで示す。
-      pos = zone.pos;
+      // 自動操作と同じ集合・守備の点を示す。人数がそろった後は
+      // 今の場所で守り、遠い郭の中心へ走って保持を途切れさせない。
+      pos = F.echizenCourtPoint();
       q.r = q.hide = 8;
       q.waiting = q.defend = stage === 0 || stage === 5;
     }
@@ -1234,13 +1234,7 @@ function passCampScenery(rt) {
     place(core, pole, 0x5c503a, x, .85, 3, .045, 1.9, .045);
     place(detail, box, 0x776c51, x, 1, 2.96, .018, 1.12, .012);
   }
-  // 字や断定できない家紋を描かず、風下へ折れた生成りの小旗を一本。
-  place(core, pole, 0x706047, -2.8, 1.7, 2, .036, 3.7, .036);
-  place(core, box, 0x706047, -2.42, 3.25, 2, .85, .035, .035);
-  const flag = new THREE.PlaneGeometry(.72, 1.5, 4, 5), fp = flag.attributes.position;
-  for (let i = 0; i < fp.count; i++) fp.setZ(i, .1 * Math.sin(fp.getY(i) * 6) + .12 * fp.getX(i));
-  flag.computeVertexNormals();
-  place(core, flag, 0xbdb59a, -2.42, 2.5, 2, 1, 1, 1);
+  // 勢力の分からない無地の飾り旗は置かず、軍勢の家紋の旗だけを残す。
   // 竹束の予備。竹の節・切り口・二段の縄は近い時だけ描く。
   for (let b = 0; b < 2; b++) {
     const bx = 2.5 + b * .75;
@@ -1276,7 +1270,7 @@ function passCampScenery(rt) {
     W.viewCull([mesh], 0, far, false); rt.scene.add(mesh); meshes.push(mesh);
     for (const g of parts) g.dispose();
   }
-  for (const g of [box, pole, ring, cloth, flag]) g.dispose();
+  for (const g of [box, pole, ring, cloth]) g.dispose();
   // 雨除けの釜から細く流れる炊煙。全地点で一束、各三粒だけ。
   // 時刻は描く時に渡し、毎コマの作り直しや粒ごとの計算はしない。
   const canvas = document.createElement('canvas'); canvas.width = canvas.height = 32;
@@ -1646,9 +1640,10 @@ echizen.setup = function (rt) {
   rt.obj = function (id, text, ...args) {
     if (id === 'main' && text === '本道を登れ。観音丸の木戸を破り、味方と中の敵を討て')
       text = '進み太鼓と法螺貝。竹束と木戸へ進み、味方と中の敵を討て';
-    if (id === 'main' && (text === '木戸が開いた。味方と入り、観音丸の守りを崩せ' ||
-        text === '木戸を通れ。味方と木戸内の守りを崩せ'))
+    if (id === 'main' && text === '木戸が開いた。味方と入り、観音丸の守りを崩せ')
       text = '観音丸の郭へ入り、味方と守兵を討て';
+    if (id === 'main' && text === '木戸を通れ。味方と木戸内の守りを崩せ')
+      text = '木ノ芽峠城の木戸内へ入り、味方と守兵を討て';
     // 11/5 fix61（kaito 三1）：任務の字に「崩す」を使わない。場所と行いで言う
     if (typeof text === 'string') text = text.replace(/崩せ/g, '討て').replace(/崩す/g, '討つ').replace(/門の外の守りの小勢/g, '木戸前に打って出た一揆勢');
     return objective.call(this, id, text, ...args);
