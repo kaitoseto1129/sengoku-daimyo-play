@@ -2875,14 +2875,14 @@ const arioka = {
           rt.say('滝川の組頭', '攻めの時が尽きるぞ。組と木戸の内へ押し入れ', 4);
         }
       }
-      // 詰まらない決まり8：期限で負けにせず、四分で番兵を崩し、五分半で木戸の内へ着いた事にして次へ。
+      // 詰まらない決まり8：四分で番兵は退くが、本人が木戸の内へ入るまで②を終えない。
       const late = rt.t - F.stepT;
       if (late > 240 && !F.g1Broke && !gone(F.g1)) {
         F.g1Broke = true;
         for (const q of [F.g1, ...(F.gateInner || [])]) if (q && !gone(q)) { q.routed = true; q.order = 'flee'; q.noRout = false; q.morale = 0; q.fleeDir = { x: 1, z: 0 }; for (const u of q.units) if (u.alive) { u.fleeing = true; u.target = null; } }
         rt.say('滝川の組頭', '木戸の荒木勢が崩れたぞ！　内へ入れ！', 3.5);
       }
-      if ((gone(F.g1) || F.gateHeldAt != null && rt.t - F.gateHeldAt >= 12) && (entered || late > 330)) {
+      if ((gone(F.g1) || F.gateHeldAt != null && rt.t - F.gateHeldAt >= 12) && entered) {
         // 木戸を失った番兵は本丸へ退く。残兵を無かった事にはしない。
         if (!gone(F.g1)) { F.g1.noRout = false; F.g1.morale = 0; }
         rt.unmark('g1');

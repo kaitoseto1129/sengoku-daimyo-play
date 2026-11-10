@@ -1104,9 +1104,11 @@ function mikataGoals(rt, dt) {
     const holdPost = G.i !== 3 && F.dpOn && F.dp?.cur?.s?.kind === 'hold' ? F.dp.cur : null;
     const post = holdPost?.at || (G.i === 2 ? HIRATE_POST : G.i === 3 ? (F.mkFlank ? FLANK_POST : PIKE_POST) : G.i === 4 ? HIRA_LAST : HONJIN);
     // 赤備えの段は赤備えの兵が本当に十四 m 内へ来て打ち合っている間だけ数える
-    const holdContact = () => F.dp?.cur?.s?.kind === 'hold' && (F.dp.cur.metEnemy || !!F.dp.cur.groups?.some((g) => !g.routed && g.units.some((q) => mikataFoeOk(q, u.team) && Math.hypot(q.pos.x - p.x, q.pos.z - p.z) < 22)));
-    const foe = G.i === 2 ? mikataNearestFoe(rt) : null;
-    const contact = G.i === 2 ? !!(foe && Math.hypot(foe.pos.x - p.x, foe.pos.z - p.z) < 22) || holdPost && holdContact() : G.i === 3 ? !!F.aka?.units?.some((q) => mikataFoeOk(q, u.team) && Math.hypot(q.pos.x - p.x, q.pos.z - p.z) < 14)
+    const holdContact = () => F.dp?.cur?.s?.kind === 'hold' && (F.dp.cur.metEnemy || !!F.dp.cur.groups?.some((g) => !g.routed && g.units.some((q) => mikataFoeOk(q, u.team) &&
+      Math.hypot(q.pos.x - post.x, q.pos.z - post.z) < F.dp.cur.botRadius + 8 && Math.hypot(q.pos.x - p.x, q.pos.z - p.z) < 22)));
+    // 後詰の段では、その段の寄せ手だけを見る。前の先手や別の備の残兵で務めを果たした事にしない。
+    const foe = G.i === 2 && !holdPost ? mikataNearestFoe(rt) : null;
+    const contact = G.i === 2 ? holdPost ? holdContact() : !!(foe && Math.hypot(foe.pos.x - p.x, foe.pos.z - p.z) < 22) : G.i === 3 ? !!F.aka?.units?.some((q) => mikataFoeOk(q, u.team) && Math.hypot(q.pos.x - p.x, q.pos.z - p.z) < 14)
       : holdContact();
     const inPost = near(post, holdPost ? holdPost.botRadius : G.i === 2 ? 18 : G.i === 3 ? 40 : 28);
     if ((G.i === 2 && !holdPost || G.i === 3) && inPost && contact) G.contact = true;

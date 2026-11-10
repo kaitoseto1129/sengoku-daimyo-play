@@ -68,6 +68,6 @@ export function tick(rt, dt) {
   if (lord?.alive) { lord.invuln = false; rt.army.kill(lord, null); }
   g.noRout = false; g.morale = 0; g.routed = true; g.order = 'retreat'; g.dest = { x: 500, z: c.BZ }; g.fleeDir = { x: 1, z: 0 };
   for (const u of g.units) if (u.alive) u.fleeing = true;
-  rt.banner('土屋昌次、討死', '破れ目を取り返した');
+  if (!lord?.shPlayerKill) rt.banner('土屋昌次、討死', '破れ目を取り返した');
   if (S.there) rt.award((t) => { t.side.push('総懸かりの破れ目で土屋昌次の隊を討ち、鉄砲組を守った'); }, '鉄砲組を守った', S.IN);
 }

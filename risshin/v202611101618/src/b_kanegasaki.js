@@ -2379,7 +2379,9 @@ function kgContactTick(rt, dt) {
       // 一の備と狭路は、この段で歩いて来た補充の後続も追手として数える。
       // 最初の組が退いた後、後続と戦い続けても未接触のまま期限切れにしない。
       // 川の砦だけは、目標に書いた騎馬が橋を渡る条件を保つ。
-      const currentWave = wave?.includes(u.group) || line !== 1 && F.dpOn && F.dp?.cur?.groups?.includes(u.group);
+      // 狭路の一覧には側道の浅井勢も入る。浅井だけが届いても「朝倉の後続」を受けたことにしない。
+      const currentWave = u.group?.faction === 'asakura' &&
+        (wave?.includes(u.group) || line !== 1 && F.dpOn && F.dp?.cur?.groups?.includes(u.group));
       if (currentWave && (line !== 1 || (u.group.kgWaveRoot || u.group) === F.w2?.[0] && u.mounted && u.pos.z >= 22)) targetContact = true;
     }
     F.engaged = n;
