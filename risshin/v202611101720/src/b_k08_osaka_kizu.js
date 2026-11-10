@@ -721,9 +721,11 @@ const k08_osaka_kizu = {
     }
     // 舟手の鉄砲は川から砦の内の明石の兵を撃つ（舟の上の兵は共通の頭では的を選ばず撃たなかった。今福と同じく一人ずつ狙う。七〜十一秒に一発）
     if (F.step >= 2 && F.step <= 4) for (const g of F.fune) for (const u of g.units) {
-      if (!u.alive || (u.k08Shot = (u.k08Shot ?? 1 + Math.random() * 6) - dt) > 0) continue;
+      // 舟上でも、負傷して戦列を離れた者や倒れた者は撃たない。
+      if (g.routed || !u.alive || u.gone || u.fleeing || u.dying || u.woundOut || u.rearWound || u.downed || u.evacuatedWound) continue;
+      if ((u.k08Shot = (u.k08Shot ?? 1 + Math.random() * 6) - dt) > 0) continue;
       u.k08Shot = 7 + Math.random() * 4;
-      const t = rt.army.nearestEnemy(u, 60, (o) => !o.isStruct && !o.fleeing && !o.noTarget && !o.invuln);
+      const t = rt.army.nearestEnemy(u, 60, (o) => !o.isStruct && fightable(o) && !o.group?.routed);
       if (t) { u.heading = Math.atan2(t.pos.x - u.pos.x, t.pos.z - u.pos.z); u.mesh.rotation.y = u.heading; rt.army.fireGun(u, t); }
     }
     if (F.step === 1) {

@@ -234,6 +234,7 @@ const t01_yamazaki = {
   fearKind: { kind: 'river_crossing', note: '雨の湿地で川を渡り、敵の横を突く', w: { losses: 1.2, flank: 1.4 }, line: '川を背にしては退けぬぞ！' },
   goalsAllRows: true,         // 最初から目標の並びと達成印を出す（critic60 九1・十1）
   goalsVisibleRows: 5,        // 七段の順は保ち、携帯には今の五つを出す（三 目標）。
+  goalCountLabel: '退けた兵 ', // 討死だけでなく敗走も数える。何人中何人かを示す。
   hideGuideSteps: true,
   noCouriers: true,
   noTaisho: true,
@@ -718,7 +719,7 @@ const t01_yamazaki = {
 // 目標の並び（goals5.js の def.goals5）：5つの場所と行い。「敵を何人討つ」は入れない。崩す備は倒した数を出す
 const at = (n) => (rt) => (rt.flags.stage ?? 0) > n;
 t01_yamazaki.goals5 = () => TEXT.slice(1).map((text, i) => {
-  const k = i + 1, gs = [null, null, 'w1', 'saiGs', 'cntGs', 'atsGs', 'gobo', null][k];
+  const k = i + 1, gs = [null, null, 'w1', 'saiGs', 'cntGs', 'atsGs', 'gobo', 'rearGs'][k];
   return { kind: 'stage', k: i, text, noun: NOUN[k], check: at(k), ...(gs ? { groups: (rt) => [].concat(rt.flags[gs] || [], k === 2 ? [rt.flags.iseW, rt.flags.namikawa].filter(Boolean) : []) } : {}) };
 });
 STAGES.t01_yamazaki = TEXT.slice(1).map((t, i) => (i ? [t, (rt) => (rt.flags.stage ?? 0) >= i + 1] : [t]));

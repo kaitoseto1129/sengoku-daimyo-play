@@ -698,7 +698,8 @@ function honjinCross(x, z, tx, tz) {
 }
 // 途中で次の角へ切り替えると、幕や手盾を斜めに横切って止まる。
 // 各区間が通る角だけを結び、口の中央を経由する。道と計算用の入れ物は使い回す。
-const HONJIN_WAY = [[2, -128], [34, -128], [2, -100], [34, -100], [18, -110], [18, -103], [18, -100]];
+// 幕と手盾の間へ入り込んだ兵も、狭間を横に進んで口へ抜けられるようにする。
+const HONJIN_WAY = [[2, -128], [34, -128], [2, -100], [34, -100], [18, -110], [18, -105.8], [18, -103], [18, -100]];
 const HONJIN_LINK = HONJIN_WAY.map(([x, z]) => HONJIN_WAY.map(([tx, tz]) =>
   honjinCross(x, z, tx, tz) ? Infinity : Math.hypot(tx - x, tz - z)));
 const honjinDist = new Float64Array(HONJIN_WAY.length), honjinSeen = new Uint8Array(HONJIN_WAY.length);

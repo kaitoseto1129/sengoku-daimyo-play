@@ -20,7 +20,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { rippleWater } from './world_water.js';
 import { liteMat } from './world_vegetation_materials.js';
-import { nobori, hut, tawara, campfire, makeSimpleBatch, finalizeSimpleBatch, castleMat, kabukimon, solidSeg, solidCircle, hashigo } from './props.js';
+import { nobori, hut, tawara, campfire, makeSimpleBatch, finalizeSimpleBatch, pushSimpleBatch, castleMat, kabukimon, solidSeg, solidCircle, hashigo } from './props.js';
 import { Garan } from './temple1571.js';
 import { facePanels } from './naka.js';
 import { flagTexture } from './textures.js';
@@ -2210,10 +2210,12 @@ function nodaWallLine(rt, pts, o = {}) {
       prev = q;
     }
     const geo = mergeGeometries(parts); for (const g of parts) g.dispose();
-    const m = new THREE.Mesh(geo, mat); m.castShadow = m.receiveShadow = true;
-    owned.push(geo); return m;
+    // 11/10 重さ：区画ごとに一つずつ描かず、この線の柵を一つの束へ積む（壊れ・傾き・隠すは区画ごとのまま）
+    owned.push(geo); return pushSimpleBatch(TB, geo, mat);
   };
+  const TB = makeSimpleBatch();
   const walls = wallLine(rt, pts, { ...o, mesh });
+  finalizeSimpleBatch(rt, TB);
   // 深み・砦の外の柵も含め、描いた木柵をすべて視点の障害物へ登録する。
   // 堤の二枚だけでは、浅瀬の横の柵へ視点が入り込んでしまう。
   const cameraWalls = rt.flags.cameraWalls || (rt.flags.cameraWalls = []);
