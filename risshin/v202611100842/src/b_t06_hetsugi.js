@@ -771,7 +771,7 @@ const t06_hetsugi = {
         keep(g, { x: p.x + dx, z: p.z + dz }, 14, 16);
       }
       for (const [g, b, dx, dz] of F.followFoe) {
-        if (!live(g) || !b || b.routedL) continue;
+        if (!live(g) || !b || b.routedL || g.bankHold) continue;
         const p = lightPos(b);
         keep(g, { x: p.x + dx, z: p.z + dz }, 4, 6);
       }
@@ -791,8 +791,9 @@ const t06_hetsugi = {
       for (const g of rt.army.groups) if (g.team === 1 && g.count && !g.feignSoft) { g.feignSoft = true; g.feignDmg = g.dmgMult ?? 1; g.dmgMult = Math.min(g.feignDmg, 0.45); }
       // 替わった先手の兵は待たずに四国の衆と本人へ槍を入れる（退くふりの前は本当に当たる。九2）
       if (!F.feigned) for (const g of rt.army.groups) if (g.team === 1 && g.count && g.order === 'hold' && g.kind !== 'main' && !g.gunLine) { g.order = 'attack'; g.seekRange = 26; g.aggro = 12; }
-      // 本人が先手と当たるか先手の持ち場を押さえてから退く。先手の本物が味方に討ち尽くされた時と、二分押した時も退く（11/10：本人が槍を入れる相手がいないまま②で止まった）
-      if (!F.feigned && el > 60 && (tsuigeki.pressed(rt, K) || !(F.ijBands || []).some(live) || el > 120)) this.feign(rt);
+      // 本人が先手と当たるか、味方が崩した先手の持ち場を押さえてから退く。
+      // 敵が残らない時も pressed の滞在判定で進め、遠くで待つだけの自動達成はしない。
+      if (!F.feigned && el > 60 && tsuigeki.pressed(rt, K)) this.feign(rt);
       if (F.feigned) tsuigeki.update(rt, K);
       if (F.feigned && !F.haltT && tsuigeki.ready(rt, K)) this.halt(rt);
       if (F.haltT && rt.t - F.haltT > 6.5) this.toStep(rt, 3);

@@ -1463,7 +1463,7 @@ function nfTick(rt, dt) {
       nfRout(rt, g, true);
       N.done[0] = true; N.step = 2; N.at = rt.t; N.near = false;
       rt.say('組頭', '真田信綱・昌輝、討死！　大宮前は守れた！', 3);
-      rt.banner('真田信綱・昌輝、討死', '大宮前の柵を守った');
+      if (!g.units.some((u) => u.shPlayerKill)) rt.banner('真田信綱・昌輝、討死', '大宮前の柵を守った');
       // 戦況の変わり目：口の無い所の柵へ土屋昌次が取り付く（shitaragahara/breach.js）
       ST_BREACH.start(rt, stCtx(rt));
       // 第三波の始まり：同じ時に柳田前へ原昌胤も寄せる（二つの区画を走る）
@@ -1583,7 +1583,7 @@ function nfTick(rt, dt) {
     const R = F.rear, baba = R.units.find((u) => u.name === '馬場信春');
     if (baba && !baba.alive && !N.babaDead) {
       N.babaDead = true; R.noRout = false; R.morale = 10;
-      rt.banner('馬場信春、討死', '退き口の殿が崩れた');
+      if (!baba.shPlayerKill) rt.banner('馬場信春、討死', '退き口の殿が崩れた');
     }
     if (baba?.alive) baba.invuln = false;
     // 11/6 fixc0504（三2・遊びの長さ）：殿は段丘の坂の下（退き口から四十メートルほど）で組と槍を合わせる。
@@ -1604,7 +1604,10 @@ function nfTick(rt, dt) {
     // 渡河後に遠くで待って戻っただけでは、馬場を討死にしない。
     if (nearRear && N.babaFight > 0) N.babaStay = (N.babaStay || 0) + dt;
     const babaCap = N.babaStay > 150;
-    if (!N.babaDead && baba?.alive && (nfRearReady(rt) <= Math.ceil(N.babaN0 * 0.6) || N.babaFight > 60 || babaCap)) rt.army.kill(baba, null);
+    const rearLeft = nfRearReady(rt);
+    // 渡河時に殿が一、二人まで減っていても、端数の切り上げだけで馬場を討死にしない。
+    const rearWeakened = rearLeft < N.babaN0 && rearLeft <= Math.ceil(N.babaN0 * 0.6);
+    if (!N.babaDead && baba?.alive && (rearWeakened || N.babaFight > 60 || babaCap)) rt.army.kill(baba, null);
     if (R.order !== 'hold' || R.anchor.x !== NF_REAR.x) { R.order = 'hold'; R.path = null; R.dest = null; R.anchor.x = NF_REAR.x; R.anchor.z = NF_REAR.z; R.focus = null; }
     // 味方だけが殿を討っても、本人が退き口へ来るまでは最後の目標を果たさない。
     // 馬場本人が生きている間は、残兵が二人でも討死と勝利を先取りしない。
@@ -3713,6 +3716,7 @@ const shitaragahara = {
 
   onRout(rt, g) {},
   onKill(rt, v, k) {
+    if (v.type === 'busho' && v.team === 1) v.shPlayerKill = !!k?.isPlayer;
     ST_MEISHO.onKill(rt, v, { groundFlag: shGroundFlag });   // 名のある将の討死：大旗が倒れ気が崩れる（shitaragahara/meisho.js）
     // 両軍の今の数の棒（九3）：討たれた本物の兵の数から史実の規模へ
     if (v.team === 1) rt.flags.ek = (rt.flags.ek || 0) + 1; else rt.flags.ak = (rt.flags.ak || 0) + 1;

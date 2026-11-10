@@ -17,13 +17,13 @@ export function start(rt, ctx) {
   const F = rt.flags, gz = ctx.SB.gates[0] + 4.5;
   const I = F.shIntro = {
     s: 0, at: rt.t, ctx,
-    POST: { x: ctx.SB.x0 - 2 * ctx.SB.gap - 8, z: gz + 26 },     // 鉄砲組の後ろ（柵の内の道）
+    POST: { x: ctx.SB.x0 - 2 * ctx.SB.gap - 8, z: gz + 10 },     // 鉄砲組の後ろ（柵の内の道）
     OUT: { x: ctx.SB.x0 + 16, z: gz },                           // 一の柵の外、連吾川の手前
     BACK: { x: ctx.SB.x0 - ctx.SB.gap - 3, z: gz },              // 柵の内の持ち場
   };
-  // 柵の内の奥（持ち場の二十メートル後ろ）から歩いて始める
+  // 鉄砲組と槍組のすぐ後ろから始める。遠い空き地へ本人だけを離さない。
   const P = rt.player.u;
-  P.pos.x = I.POST.x - 30; P.pos.z = I.POST.z + 34;
+  P.pos.x = I.POST.x - 8; P.pos.z = I.POST.z + 4;
   P.pos.y = rt.world.heightAt(P.pos.x, P.pos.z);
   for (const q of rt.squadGroups || []) {
     for (const u of q.units) { u.pos.x = P.pos.x - 3 + Math.random() * 2; u.pos.z = P.pos.z + 3 + Math.random() * 4; u.pos.y = rt.world.heightAt(u.pos.x, u.pos.z); }

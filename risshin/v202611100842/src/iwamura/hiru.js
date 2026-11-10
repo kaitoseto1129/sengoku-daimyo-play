@@ -101,12 +101,19 @@ function sally(rt, H, n) {
   //   傷は付くが、深手（命の四割）になると討たれる前に城へ退く（開城の礼に出る三将の一人なので、ここでは死なせない）。
   if (n === 3) {
     const lead = g.units.find((u) => u.name === '大島杢之助');
+    // 定期の見張りの間に致命傷を受けても、後日の捕縛と食い違う討死にしない。
+    // 味方の攻撃も傷として通し、共通の手傷の入口から同じ山道へ退かせる。
+    const withdraw = () => {
+      if (!lead || !lead.alive || lead.noTarget || rt.over || rt.flags.ending) return;
+      retreatRoad(g, H.ctx.retreat || H.ctx.road, lead);
+      lead.noTarget = true; lead.fleeing = true; lead.target = null; lead.atk = null; lead.swing = null; lead.aiT = 0;
+      rt.say('物見', '杢之助が深手を負うて、城へ退くぞ！', 3);
+    };
+    if (lead) { lead.invuln = true; lead.allyOk = true; lead.mustLive = true; lead.onWound = withdraw; }
     const watch = () => {
-      if (!lead || !lead.alive || rt.over || rt.flags.ending) return;
+      if (!lead || !lead.alive || lead.noTarget || rt.over || rt.flags.ending) return;
       if (lead.hp <= lead.maxHp * 0.4) {
-        retreatRoad(g, H.ctx.retreat || H.ctx.road, lead);
-        lead.invuln = true; lead.noTarget = true; lead.fleeing = true; lead.target = null; lead.atk = null; lead.aiT = 0;
-        rt.say('物見', '杢之助が深手を負うて、城へ退くぞ！', 3);
+        withdraw();
         return;
       }
       rt.after(0.3, watch, true);
