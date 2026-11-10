@@ -68,7 +68,12 @@ export function install(rt, ctx) {
       if (R) for (const u of R.units) if (ready(u)) rl++;
       // 11/9 三巡（織田G）：取り返しの手は半ばを討たれたら舟へ逃げる。川の中に残る鉄砲一人を待って、刻限まで止まっていた（bot）。
       if (R && !R.tsRouted && rl && rl <= Math.ceil(R.units.length / 2)) {
-        R.tsRouted = true; R.noRout = false; R.order = 'retreat'; R.morale = 0; R.fleeDir = { x: -1, z: 0.2 }; R.fleeSet = true;
+        // 残兵を数から外すだけでは退かない。来た浅瀬へ戻し、残る杭列を横切らせない。
+        R.tsRouted = true; R.noRout = true; R.focus = null; R.retreatOnly = true;
+        R.holdFire = true; R.fire = false; R.fixed = false;
+        R.order = 'path'; R.formation = 'column'; R.colW = 2;
+        R.path = [[-8, 76], [-28, 76], [-40, DIKE.z + 8]]; R.pathIdx = 0;
+        R.onArrive = (q) => { q.order = 'hold'; q.facing = Math.PI / 2; };
         rt.say('見張り', '取り返しの手が崩れた！　舟へ逃げていくぞ！', 3);
       }
       // 渡河中の取り返しも数える。遠いだけで「払った」とせず、討つか退くまで続ける。

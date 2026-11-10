@@ -55,7 +55,7 @@ export function tickNight(rt, K) {
     F.scoutDone = rt.t;
     // 討ち漏らした一人が小牧山へ走る
     const last = F.tScout.units.find((u) => u.alive && !u.gone);
-    if (last) { F.tScout.order = 'retreat'; F.tScout.dest = { x: 60, z: 130 }; F.tScout.speed = 5; F.tScout.aggro = 0; F.tScout.seekRange = 0; }
+    if (last) { F.tScout.order = 'retreat'; F.tScout.dest = { x: K.HONJIN.x, z: 140 }; F.tScout.speed = 5; F.tScout.aggro = 0; F.tScout.seekRange = 0; }
     rt.say('足軽', last ? '物見が逃げた……小牧山の方へ！' : '徳川の物見を討ち取ったぞ！', 2.6);
     rt.after(3, () => rt.say('森長可', '構わぬ。夜が明ける前に川を越えるぞ', 2.8));
   }
