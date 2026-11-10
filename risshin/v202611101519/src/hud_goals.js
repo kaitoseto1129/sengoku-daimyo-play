@@ -159,7 +159,9 @@ export function goalsTick(el, rt, stg, always) {
   const now = f.now >= 0 ? f.now : f.rows.findIndex(g => !g.done && !g.fail);
   // 六段以上の戦でも、今の目標を含む五件までを順番どおりに残す。
   const firstRow = rt.def.goalsVisibleRows ? Math.min(now, Math.max(0, f.rows.length - visibleRows)) : rt.def.goalsAllRows ? 0 : rt.def.goalRowsAhead ? Math.min(now, Math.max(0, f.rows.length - visibleRows)) : Math.max(0, now - visibleRows + 1);
-  const key = now + '@' + f.rows.map((g, i) => (g.done ? '1' : g.fail ? 'x' : i === now ? 'n' : '0') + goalWords(g.text) + (g.count ? g.count.join('/') : '') + (g.left != null ? 't' : '')).join('|');
+  // 携帯の横向きへ変えた時も折り返しを作り直す。目標の字だけを比べると、前の <wbr> が残って一行に収まらない。
+  const compactRows = innerHeight <= 500;
+  const key = now + ':' + compactRows + '@' + f.rows.map((g, i) => (g.done ? '1' : g.fail ? 'x' : i === now ? 'n' : '0') + goalWords(g.text) + (g.count ? g.count.join('/') : '') + (g.left != null ? 't' : '')).join('|');
   // 残り時間は今の目標の行だけ。秒が変わる時だけ書き、並びは作り直さない
   const tm = box.querySelector('li.now .tm');
   if (tm) {
@@ -178,7 +180,7 @@ export function goalsTick(el, rt, stg, always) {
     if (g.done && before[i] && before[i][0] !== '1' && !still) li.classList.add('pop');
     li.innerHTML = '<i aria-hidden="true"></i><span></span>';
     // 携帯の背の低い画面では、今の段の他は一行に詰める（CSS の @media と同じ境目）。<wbr> は nowrap でも折れるので入れない（11/10 関ヶ原 874×402）
-    const oneRow = i !== now && visibleRows > 1 && innerHeight <= 500;
+    const oneRow = i !== now && visibleRows > 1 && compactRows;
     li.lastChild.innerHTML = (oneRow ? esc : phraseBreaks)(`${i + 1}　${goalWords(g.text)}`);
     const countText = g.count ? (rt.def.goalCountLabel
       ? `${rt.def.goalCountLabel}${g.count[0]}人／${g.count[1]}人`

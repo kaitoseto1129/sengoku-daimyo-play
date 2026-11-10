@@ -4228,11 +4228,21 @@ function kgSignDrawn(u) {
   for (let p = u.mesh.parent; p; p = p.parent) if (p.visible === false) return false;
   // 詳細な人を休ませても、表示中の軽い胴があれば敵の印を残す。
   // 人の控えが存在するだけで戻らない（dropHuman・支度の先読みで起きる）。
-  if (u.human?.root?.visible && u.human.root.parent) return true;
+  if (kgPartDrawn(u.human?.root, u.mesh)) return true;
   // 全身の準備がまだ無い兵は、旗の親だけ見えていても表示済みにしない。
   // 軽い兵への切替中も、代わりの胴が実際に戻ってから印を出す。
   if (u.vatOn || u.efuda || u.imp) return true;
-  return !!(u.body?.visible && u.body.parent);
+  return kgPartDrawn(u.body, u.mesh);
+}
+// 体そのものだけでなく、兵につながる途中の部品も表示中か確かめる。
+// 非表示の控えや、場から外した体の親が残っていても印を浮かせない。
+function kgPartDrawn(part, mesh) {
+  if (!part || part.visible === false) return false;
+  for (let p = part.parent; p; p = p.parent) {
+    if (p.visible === false) return false;
+    if (p === mesh) return true;
+  }
+  return false;
 }
 // 頭上だけが斜面や柵を越えても印を浮かせない。体の見通しを地面と壁で確かめる。
 function kgSignSeen(rt, u) {
