@@ -146,11 +146,13 @@ const CAMP_HOUSE_PATHS = CAMP_HOUSES.map(([x, z, , d]) =>
     const lane = i === 0 ? 35 : 72;
     return [[i === 0 ? 15 : 0, lane], [x, lane], [x, z + d / 2 + 1.5]];
   }));
+// 城口の寄せも、昼の往復・追撃と同じ九十九折りを登る。
+const CHASE_PATH = [[0, FENCE_Z + 3], ...switchback([0, FENCE_Z], [0, FOOT.z], 3, 20)];
 const RAID_PATHS = [
   [[0, -24], [0, FENCE_Z + 3]],
   // critic60：北の脇口から柵の内の連絡道を通って陣の奥へ入り、小屋の間で斬り合っていた（二1・二3）。北の手も柵の外を回って柵の口へ寄せる。
   [[66, -26], [40, -22], [14, -14], [0, FENCE_Z + 3]],
-  [[0, FOOT.z], [20, -62], [0, -36], [0, FENCE_Z + 3]],
+  CHASE_PATH.slice().reverse(),
   [[-8, -24], [0, -18], [0, FENCE_Z + 3]],
   [[8, -30], [0, -24], [0, FENCE_Z + 3]],
   [[0, -36], [0, FENCE_Z + 3]],
@@ -170,7 +172,6 @@ const RETURN_PATHS = RAID_PATHS.map((path, i) => {
   return back;
 });
 // 追撃も地形をならした九十九折りを通る。兵と自動操作で同じ道を使う。
-const CHASE_PATH = [[0, FENCE_Z + 3], ...switchback([0, FENCE_Z], [0, FOOT.z], 3, 20)];
 const CHASE_EAST_PATH = [...MOUTH_BACK, ...CHASE_PATH.slice(1)];
 // 敗走兵も麓から城の道へ戻す。直進する退路は九十九折りの切岸を横切り、山腹で立ち往生していた。
 const FLEE_FRONT = [[0, FENCE_Z + 4], ...CHASE_PATH.slice(2), ...IWA_ROAD];
@@ -2007,9 +2008,11 @@ html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.iwamura-army #army
       Math.hypot(p.x - POSTS[0].x, p.z - POSTS[0].z) ? 1 : 0;
     F.fireMarkers = [{ id: 'p0' }, { id: 'p1' }];
     rt.unmark('kawa');
-    rt.obj('main', fireTask(rt), 'main', true);
-    rt.objProgress('main', fireProgress(F));
-    rt.say('河尻秀隆', `まず${POST_NAMES[F.firePost]}へ。火を焚け`, 3);
+    guideRaidMouth(rt);
+    rt.obj('main', F.raidReturning ? watchTask(F) : fireTask(rt), 'main', true);
+    rt.objProgress('main', F.raidReturning ? watchProgress(rt) : fireProgress(F));
+    rt.say('河尻秀隆', F.raidReturning ? '組と口を通り、柵の内へ戻れ。戻ったら篝火を焚け' :
+      `まず${POST_NAMES[F.firePost]}へ。火を焚け`, 3);
     // critic60：組頭が三秒・五秒で二つとも焚き、①が自分の手を待たずに済んでいた（三2・十一1）。火は自分で焚く。
     POSTS.forEach((q, i) => {
       // 任務札で指定した次の火だけに名を出し、行き先を一つにする。
@@ -2071,6 +2074,8 @@ html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.iwamura-army #army
       if (F.ending || F.step !== 2) return;
       const g = F.waves[i]; g.iwSent = true; g.iwSentAt = rt.t; F.sentWaves.push(g);
       if (!g.count || g.routed) return;
+      g.iwChaseCheck = { x: g.anchor.x, z: g.anchor.z, t: rt.t };
+      g.iwChaseFrom = { x: 0, y: 0, z: 0 }; g.iwChaseTo = { x: 0, y: 0, z: 0 };
       // 出現位置だけを固定する。行軍中は道幅に合わせて後列の持ち場を詰める。
       g.fixed = false; g.fire = true; g.followColumnRoad = true;
       // 中央は柵の口、東は脇の口まで寄せる。柵の外で止めない。
@@ -2376,6 +2381,9 @@ html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.iwamura-army #army
           // 先頭が倒れた後も、生きて歩ける兵を前へ詰める。
           // 空いた持ち場を残すと、列が折れ点へ届かず山道で止まる。
           packChaseFront(g);
+          // 後列待ちや切岸の裏への立て直しで、夜討ちの列を止め続けない。
+          // 追撃と同じく、先頭が付く時だけ要を道沿いに少しずつ進める。
+          advanceChaseFront(rt, g, 0.5);
           const q = g.path[Math.min(g.pathIdx, g.path.length - 1)];
           const front = g.units.some((u) => chaseReady(u) && Math.hypot(u.pos.x - q[0], u.pos.z - q[1]) < 5);
           if (front && Math.hypot(g.anchor.x - q[0], g.anchor.z - q[1]) < 1.5) {
@@ -2590,7 +2598,9 @@ html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.iwamura-army #army
         F.atRaidMouth ? `${cue}。柵の内で槍をそろえよ` :
         F.raidCrossing ? '連絡道へ。柵の内を回れ' : '口へ。柵の内の道を通れ');
       // 後送・深手の離脱も損害に含める。転倒は起きて戦えるため残す。
-      // 損害で退く。時間を過ぎただけの無傷の寄せは退かせない。
+      // 実際に戦って口を守った後は、山道に残った一手だけで夜を終わらせない。
+      if (!F.atRaidMouth || F.breached || F.raidReturning) F.raidHoldSince = null;
+      else if (F.raidHoldSince == null) F.raidHoldSince = rt.t;
       if (F.iwFought && F.raidContact && inside === 0 && !F.front.every(gone)) {
         for (const g of F.waves) if (g.iwSent && !g.iwWithdraw && !gone(g)) {
           let fighting = 0, breached = false;
@@ -2599,7 +2609,9 @@ html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.iwamura-army #army
           // 自分か配下が二人を倒した列は、損害条件を満たせば早く退く。
           // 無傷の敵の自動退却にはせず、本人の押し返しを追撃につなぐ。
           const hold = (g.iwOwnKills || 0) >= 2 ? 20 : 30;
-          if (breached || fighting > g.iwInitial * siegeRetreatRatio(F.siege, leaderLost) || rt.t - (g.iwSentAt || F.stepT) < hold) continue;
+          const elapsed = rt.t - (g.iwSentAt ?? F.stepT);
+          const heldOut = elapsed >= 180 && F.raidHoldSince != null && rt.t - F.raidHoldSince >= 30;
+          if (breached || (!heldOut && fighting > g.iwInitial * siegeRetreatRatio(F.siege, leaderLost)) || elapsed < hold) continue;
           if ((g.iwOwnKills || 0) >= 2) F.playerOpened = true;
           this.withdrawWave(rt, g);
         }

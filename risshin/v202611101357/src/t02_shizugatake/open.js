@@ -9,7 +9,7 @@ import { clash } from '../b_sekigahara.js';
 
 function say(rt, who, s, t, sec = 3) {
   const phase = rt.flags.phase;
-  rt.after(t, () => { if (!rt.flags.ending && rt.flags.phase === phase) rt.say(who, s, sec); });
+  rt.after(t, () => { if (!rt.over && !rt.flags.ending && rt.flags.phase === phase) rt.say(who, s, sec); });
 }
 
 // 余呉湖のまわりの砦の備（軽い作り）。砦の場所は戦の定義から
@@ -47,8 +47,8 @@ export function tickOpen(rt, dt, ctx) {
   if (!F.sawForts && Math.hypot(P.x - ctx.LOOK.x, P.z - ctx.LOOK.z) < 12) {
     F.sawForts = true; F.sawT = rt.t;
     rt.say('物見', '湖の北、行市山に佐久間玄蕃、別所山・茂山に前田の梅鉢', 3.2);
-    rt.after(3.6, () => rt.say('物見', 'こなた南は大岩山に中川殿、岩崎山に高山殿。湖を挟んで砦が睨み合うておりまする', 3.6));
-    rt.after(8, () => rt.say('桑山重晴', '大岩山は湖の向こうに突き出ておる。破られれば、ここが矢面じゃ', 3.2));
+    say(rt, '物見', 'こなた南は大岩山に中川殿、岩崎山に高山殿。湖を挟んで砦が睨み合うておりまする', 3.6, 3.6);
+    say(rt, '桑山重晴', '大岩山は湖の向こうに突き出ておる。破られれば、ここが矢面じゃ', 8, 3.2);
     rt.award((t) => t.side.push('東の物見で砦の並びを見届けた'), '砦の並びを見届けた');
   }
   // 砦の並びを見届けてから佐久間が動く。未到着を時間だけで達成扱いにしない。

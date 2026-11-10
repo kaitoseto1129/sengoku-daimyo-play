@@ -3160,7 +3160,8 @@ const tonezaka = {
     // 目の前の持ち場替えはその場で知らせ、前の任務を運ぶ使番も取り消す。
     rt.obj('main', TONE_LINE[6], 'main', true);
     toneDestinationGuide(rt, INNER);
-    rt.marker('inner', () => !F.innerWaiting && !F.guideJoin && near(rt.player.u.pos, INNER, 12) ? null : toneGuidePosition(rt),
+    // 到着しても寄せ手との戦いは続く。守り通して win で外すまで、持ち場の印を残す。
+    rt.marker('inner', () => INNER,
       () => F.innerWaiting ? F.innerAlly ? '守り場で合流する勝家の兵' : '守り場で勝家の兵を待つ所' : F.guideJoin ? F.guideBend ? '勝家の手へ合流する道' : '合流する勝家の手' : F.guideBend ? '奥の道へ続く曲がり' : '奥の道の守り場', { h: 0.35 });
     rt.zone('inner', INNER.x, INNER.z, 12);
     townMarch(F, true);
