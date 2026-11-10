@@ -4952,17 +4952,24 @@ const mitsukuri = {
         }
       }
     }
-    // 三の郭も、本人と先手が庭で押し続けた時だけ残兵を崩す。
+    // 三の郭も、本人が庭で押し続けた時だけ残兵を崩す。
     // 柵際の残兵一人を追えず刻限まで止まる事を防ぎ、郭外で待つだけでは進めない。
     if (F.step === 2 && !F.sanFell && F.SZ) {
       const z = F.SZ.byId.san;
       const present = zoneGroundFighter(rt, pu) && z.test(pu.pos.x, pu.pos.z);
-      F.sanPressT = present && z.friends >= z.need ? (F.sanPressT || 0) + dt : 0;
-      if (F.sanPressT >= 120 && z.enemies > 0 && rt.t >= (F.sanRoutAt || 0)) {
+      F.sanAttackT = present ? (F.sanAttackT || 0) + dt : 0;
+      // 二の丸と同じく、後続が石段で止まっても本人の郭内での戦いを数える。
+      // 郭外で待つだけでは、残兵の退却も制圧も進まない。
+      if (present && F.sanAttackT >= 120 && z.enemies > 0 && rt.t >= (F.sanRoutAt || 0)) {
         F.sanRoutAt = rt.t + 4;
         for (const u of rt.army.units) if (u.team === 1 && u.group && zoneGroundFighter(rt, u) && z.test(u.pos.x, u.pos.z)) {
           u.group.noRout = false; u.group.morale = 0;
         }
+      }
+      F.sanEmptyT = present && z.enemies === 0 ? (F.sanEmptyT || 0) + dt : 0;
+      if (F.sanEmptyT >= z._mkHold && z.owner !== 'friend') {
+        z.owner = 'friend'; z.state = 'friend'; z.fallen = true; z.holdT = 0;
+        this.onZoneFall(rt, 'san');
       }
     }
     // 11/6 fix61（史実）：丹羽長秀は箕作で討たれていない（前の流しで「丹羽長秀、討死」「東の仕寄り、崩れたぞ」と出た）。東の手の将は不死身、手も崩れない

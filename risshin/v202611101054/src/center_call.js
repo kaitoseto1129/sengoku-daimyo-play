@@ -16,6 +16,15 @@ function css() {
 #center-call .cc { font-family:var(--display, serif); font-weight:800; font-size:max(18px, calc(clamp(22px, 4.4vw, 44px) * var(--text-scale, 1))); letter-spacing:.12em; color:#fff; -webkit-text-stroke:1px rgba(30,6,4,.9); paint-order:stroke fill; text-shadow:0 2px 12px rgba(0,0,0,.85); padding:2px 16px; max-width:64vw; text-align:center; animation:cc-in 2.1s ease-out forwards; }
 #center-call .cc { background:rgba(18,22,28,.94); border-radius:4px; animation-duration:5s; }
 #center-call .cc.blue { color:#e6f2ff; background:rgba(12,39,69,.96); border:1px solid #79b9eb; text-shadow:0 2px 4px #061322; animation:cc-in 5s ease-out forwards, cc-blue .9s ease-out 1; }
+/* 田野の五目標は右上に常時ある。知らせは左の細い欄へ置き、目標と重ねない。 */
+@media (max-height:500px) {
+ html:root body #hud:has(#h-prog[data-battle="tano"]) #center-call {
+  left:calc(8px + env(safe-area-inset-left, 0px)); right:auto; top:calc(56px + env(safe-area-inset-top, 0px)); width:30vw;
+ }
+ html:root body #hud:has(#h-prog[data-battle="tano"]) #center-call .cc {
+  box-sizing:border-box; max-width:100%; padding:4px 8px; font-size:max(15px,calc(15px * var(--text-scale,1))); letter-spacing:0; animation:none;
+ }
+}
 @keyframes cc-in { 0% { opacity:0; transform:scale(1.15); } 12% { opacity:1; transform:none; } 72% { opacity:1; } 100% { opacity:0; } }
 @keyframes cc-blue { 0% { filter:brightness(1.8) drop-shadow(0 0 18px #4aa8ff); } 100% { filter:none; } }
 body.rm #center-call .cc, html.rm #center-call .cc { animation:none; }
@@ -30,6 +39,8 @@ body:has(#center-call .cc) #goal-sign .gs-tag { opacity:0; transition:opacity .2
 export function centerCall(rt, text, blue = false) {
   const hud = document.getElementById('hud');
   if (!hud || !text || !rt || rt.def?.town || rt.def?.dojo || rt.over) return false;
+  // 任務の全文は右上の五行にある。切り詰めた同じ任務を中央へ重ねない。
+  if (rt.def?.key === 'tano' && (blue || box?.isConnected && box.children.length)) return false;
   const t = rt.t ?? 0, last = SEEN.get(text);
   if (last != null && t >= last && t - last < 8) return false;   // 同じ文は八秒に一度
   if (!box || !box.isConnected) { css(); box = document.createElement('div'); box.id = 'center-call'; box.setAttribute('aria-live', 'polite'); hud.appendChild(box); }

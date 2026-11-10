@@ -420,7 +420,7 @@ function sendColumn(rt, at, phase) {
   // 屋敷では後詰も西の口から北脇へ入る。三十四歩後ろの柵外に残さない。
   roadOrder(F.kawa, at.x - (phase === 'tano' ? 6 : phase === 'approach' ? 20 : narrow ? 38 : 34), at.z, 'yari');
 }
-const fighting = (g) => g && !g.routed && g.units.some((u) => u.alive && !u.fleeing && !u.woundOut && !u.noTarget);
+const fighting = (g) => g && !g.routed && g.units.some(tanoFighter);
 
 // 下知の切り替わりで一度だけ鳴らす。札の「敵を退けよ」を退却と取り違えない。
 // 合成済みの合図と声を使い回し、音の出どころを実際の組に合わせる。
@@ -2089,7 +2089,7 @@ const tano = {
     C.enemyCount = 0; C.enemyDistance = Infinity;
     for (const g of C.s.phase === 'tano' ? F.defenders : C.groups) {
       for (const u of g.units) {
-        if (!u.alive || u.fleeing || u.woundOut || u.noTarget) continue;
+        if (!tanoFighter(u) || g.routed) continue;
         C.enemyCount++;
         const d = Math.hypot(u.pos.x - p.x, u.pos.z - p.z);
         if (d < C.enemyDistance) { C.enemyDistance = d; C.enemyUnit = u; }
@@ -2103,10 +2103,18 @@ const tano = {
     if (C.enemyCount) { C.goal.x = C.enemyAt.x; C.goal.z = C.enemyAt.z; }
     else { C.goal.x = passed ? p.x : C.at.x; C.goal.z = passed ? p.z : C.at.z; }
     const ready = C.s.phase !== 'narrow' || F.volley || F.narrowPush || !fighting(F.tgun) || !fighting(F.defenders[2]);
-    // 射撃後と屋敷の奥で、固定の寄せ口から離れた守兵にも先手が道を歩いて寄せる。
+    // 射撃後は崖道の守兵も待機を解く。行軍中は道順を保ち、到着してから打ちかかる。
+    // noAI のまま持ち場を守らせると、押し合いで離れた最後の侍へ双方が寄らなかった。
+    if (C.s.phase === 'narrow' && ready) {
+      for (const g of C.groups) if (fighting(g) && g.order === 'hold') {
+        g.noAI = false; g.guardOn = false; g.frontlineMobilize = true;
+        g.order = 'attack'; g.seekRange = 18; g.aggro = 18;
+      }
+    }
+    // どの持ち場でも、固定の寄せ口から離れた守兵へ先手が道を歩いて寄せる。
     // 本人が離れていても進めるが、次の持ち場の敵は追わない。
     // 四秒に一度だけ調べ、行軍中と打ち合い中は下知を上書きしない。
-    if ((C.s.phase === 'narrow' || C.s.phase === 'tano') && ready && !clear && rt.t >= (C.spearAt || 0)) {
+    if (C.s.kind !== 'move' && ready && !clear && rt.t >= (C.spearAt || 0)) {
       C.spearAt = rt.t + 4;
       for (const g of F.oda) {
         if (g !== F.front && g !== F.kawa) continue;
@@ -2118,9 +2126,8 @@ const tano = {
         for (const u of g.units) {
           if (!u.alive || u.fleeing || u.woundOut || u.noTarget) continue;
           if (u.atk || u.swing && !u.swing.done) { touching = true; break; }
-          for (const e of C.s.phase === 'tano' ? rt.army.units : F.defenders[2].units) {
-            if (e.team !== 1 || !(C.s.phase === 'tano' ? F.defenders : C.groups).includes(e.group)) continue;
-            if (!e.alive || e.fleeing || e.woundOut || e.noTarget) continue;
+          for (const eg of C.s.phase === 'tano' ? F.defenders : C.groups) for (const e of eg.units) {
+            if (eg.routed || !tanoFighter(e)) continue;
             const d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
             // 八歩では槍が届かない。実際の間合いへ入るまで寄せ直す。
             if (d <= Math.max(u.reach || 0, e.reach || 0) + 0.3 &&
