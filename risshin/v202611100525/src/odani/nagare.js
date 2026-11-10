@@ -13,8 +13,9 @@ function reinforce(rt, ctx) {
   if (!(F.step === 2 || F.step === 3) || (F.rfN || 0) >= RF_MAX || rt.t - (F.rfT ?? -99) < RF_GAP) return;
   let mine = 0, all = 0;
   for (const u of rt.army.units) if (u.alive && !u.gone && !u.isStruct) { all++; if (u.team === 0 && !u.isPlayer && !u.woundOut && !u.fleeing && (F.oda || []).includes(u.group)) mine++; }
-  // 信長の供九人と新手二十一人は後から来る。その席も先に残す。
-  const reserved = (F.nobuG ? 0 : 9) + (F.umaG ? 0 : 21);
+  // 信長の供九人・新手二十一人と、お市一行六人は後から来る。その席も先に残す。
+  // 一行が退場した後は席を戻す。登場の済んだ印は退場後も残る。
+  const reserved = (F.nobuG ? 0 : 9) + (F.umaG ? 0 : 21) + (F.ichiOut ? 0 : 6);
   if (mine >= RF_LOW || all + RF_SIZE + reserved > CAP) return;
   F.rfN = (F.rfN || 0) + 1; F.rfT = rt.t;
   const name = ['蜂須賀の手', '前野の手', '羽柴の新手', '羽柴の新手'][F.rfN - 1];

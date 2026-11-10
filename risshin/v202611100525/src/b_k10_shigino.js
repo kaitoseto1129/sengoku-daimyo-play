@@ -757,7 +757,16 @@ STAGES[ID] = [['一の柵・二の柵の鉄砲衆を討つ'], ['三の柵の井�
 KILLS[ID] = (rt) => {
   const F = rt.flags;
   if (F.ending) return null;
-  if (F.step === 1) return cut(F.w1S, sumN(F.g1, F.g2), F.w1S - Math.round(F.w1S * 0.6));
+  if (F.step === 1) {
+    // 各柵で六割ずつ。片方の余分な戦果で、もう片方も済んだ表示にしない。
+    let down = 0, need = 0;
+    for (const [i, g] of [F.g1, F.g2].entries()) {
+      const n = Math.round(F.w1N[i] * 0.6);
+      need += n;
+      down += Math.min(n, Math.max(0, F.w1N[i] - aliveN(g)));
+    }
+    return [down, need];
+  }
   if (F.step === 4 && !F.back4) return cut(F.w4N, sumN(F.wata, F.kimu), F.w4N - Math.round(F.w4N * 0.6));
   // 今福救援へ移った後は、済んだ竹田隊の討伐数を目標に重ねない。
   if (F.step === 5 && !F.riverAid) return cut(F.w5N, aliveN(F.take), F.w5N - Math.round(F.w5N * 0.6));
