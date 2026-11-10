@@ -5222,7 +5222,8 @@ const inabayama = {
       dress([{ type: 'busho', n: 1, o: { name: '木下藤吉郎', invuln: true } }, { type: 'ashigaru', n: 9 }, { type: 'gun', n: 2 }], ODA));
     F.kinoU = F.kino.units[0];
     // 11/6 fix61（時代考証）：「藤吉郎」と名を大書した幟は当時の旗印に無い作り物だった。組の目印は字の無い黄の幟（名は頭上の名札）。
-    customFlag('inabaGuide', () => {}, '#d5b44e');
+    // 案内旗は幟用の布へ染める。指物用だけを染めると、幟は白い無地のまま残る。
+    customFlag('inabaGuide', () => {}, '#d5b44e', true);
     const guideFlag = nobori(W, 0, 0, 'inabaGuide', 5.5);
     guideFlag.position.set(-0.7, 0, -0.35); guideFlag.scale.set(1.5, 1, 1.5);
     F.kinoU.mesh.add(guideFlag);

@@ -885,6 +885,10 @@ const t06_hetsugi = {
     const F = rt.flags;
     // 岸へ早く着いても、殿に残った十河の最期の知らせを飛ばさない。
     if (F.ending || !F.sogoDead) return;
+    // 元親の退路を守る任務は、本人だけが西の岸へ着いても果たした事にしない。
+    // 退き口の味方と同じ岸の判定で、元親の生存と渡河を確かめる。
+    const moto = F.motoU;
+    if (!moto?.alive || moto.gone || moto.dying || !(moto.pos.z > 26)) return;
     F.ending = true;
     rt.objDone('main');
     rt.tracker.main = true;

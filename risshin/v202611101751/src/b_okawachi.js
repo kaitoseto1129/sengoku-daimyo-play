@@ -4577,7 +4577,8 @@ function okReserveWatch(g) {
   turn(g);
 }
 function sendSortie(rt, g, to) {
-  if (!g || gone(g)) return;
+  // 八秒後の出撃命令が届く前に崩れた組は、帰城を取り消して攻め直させない。
+  if (!g || sortieBroken(g) || g._okReturning) return;
   rt.flags.gates.karamete._openNow(false);
   g._sortieSent = true; g._okReturning = false; g.calm = false; g.noPursue = false; g.order = 'path'; g.formation = 'column';
   // 長い二列の尾を曲輪の奥へ残さず、味方の退きと同じ三列・歩幅で坂を通る。

@@ -195,6 +195,10 @@ const k10_shigino = {
   goalSignTriangle: true,
   goalSignUnitNoLabel: true,
   goalSignTarget(rt) { return this.missionPin(rt); },
+  // 戦闘中も場所の名は残し、距離だけを隠す。南岸へ移る間は距離を示す。
+  goalSignDistance(rt, target, distance) {
+    return rt.flags.step === 3 || rt.flags.riverAid && distance > 14 ? distance : 0;
+  },
   // 行き先のピン：段ごとに一つ（字は出さない）。場所は段ごとに決まっている（AW3）
   missionPin(rt) {
     const F = rt.flags;
@@ -261,12 +265,10 @@ html:root body #hud#hud#hud.shigino-goals #h-prog#h-prog.goal-mode .pg-goals h3 
  html:root body #hud#hud#hud.shigino-goals #h-prog#h-prog.goal-mode .pg-goals li,
  html:root body #hud#hud#hud.shigino-goals #h-prog#h-prog.goal-mode .pg-goals li.now { line-height:1.15; }
  html:root body #hud#hud#hud.shigino-goals #h-prog#h-prog.goal-mode .pg-goals ul { gap:1px; }
-}
-html:root body #hud#hud#hud.shigino-goals.shigino-combat #goal-sign .gs-tag > span { display:none !important; }`;
+}`;
     document.head.appendChild(st);
     const hudProgress = hud.progress;
     hud.progress = function (battle) {
-      if (battle === rt) hud.root.classList.toggle('shigino-combat', rt.flags.step !== 3 && (!rt.flags.riverAid || dist(rt.player.u.pos, RIVER) <= 14));
       const out = hudProgress.call(this, battle);
       if (battle === rt && this.prog && !rt.over) goalsTick(this.prog, rt);
       return out;
@@ -275,7 +277,7 @@ html:root body #hud#hud#hud.shigino-goals.shigino-combat #goal-sign .gs-tag > sp
     rt.dispose = function () {
       hud.progress = hudProgress;
       if (hud.prog) hud.prog.classList.remove('goal-mode');
-      hud.root.classList.remove('shigino-goals', 'shigino-combat'); st.remove();
+      hud.root.classList.remove('shigino-goals'); st.remove();
       return dispose.call(this);
     };
   },

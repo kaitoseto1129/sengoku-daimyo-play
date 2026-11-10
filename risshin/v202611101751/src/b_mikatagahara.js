@@ -21,7 +21,7 @@ import { plumeTuftGeo, plumeTuftMat } from './world_grass.js';
 import { goten } from './castle_parts.js';
 import { tabaGeo } from './taketaba.js';
 import { timeslipField } from './timeslip_field.js';
-import { sightUnit, sightPoint } from './battle_sight.js';
+import { sightPoint } from './battle_sight.js';
 import { leafTex } from './nature.js';
 import { rockShape, rockTuftShape } from './rock_shape.js';
 import { flagTexture, drawMon, sharedFlagResources } from './textures.js';
@@ -1206,43 +1206,13 @@ function mikataBoard(rt) {
     }
     return out;
   };
-  const foeMarks = hud.foeMarks, tris = [], box = document.createElement('div'), v = new THREE.Vector3();
-  box.style.cssText = 'position:absolute;left:0;top:0;width:0;height:0;overflow:visible;pointer-events:none';
-  box.setAttribute('aria-hidden', 'true');
-  hud.root.appendChild(box);
-  hud.foeMarks = function (battle) {
-    const out = foeMarks.call(this, battle);
-    if (battle !== rt) return out;
-    const me = rt.player.u;
-    const on = me.alive && !rt.over && !rt.flags.ending && !rt.choice && !this.introWaiting && !rt.player.camShot && !this.bigmap && !this.root.classList.contains('photo');
-    let n = 0;
-    if (on) for (const u of rt.army.units) {
-      if (!u.alive || u.gone || u.dying || u.woundOut || u.rearWound || u.downed || u.noTarget || u.isStruct || u.civ || u.team === me.team || u.team > 1 || u._nearSignOn ||
-          u.mesh?.visible === false || u.camHidden) continue;
-      // 四十歩内の実兵に印を付ける。遠景の地平線に印だけを並べない。
-      v.set(u.pos.x, u.pos.y + (u.mounted ? 3.2 : 2.25), u.pos.z).project(rt.camera);
-      if (v.z < -1 || v.z > 1 || Math.abs(v.x) > 1 || Math.abs(v.y) > 1) continue;
-      if (!mikataEnemySignVisible(rt, u)) continue;
-      if (!(u._mkSeenAt > rt.t - .34 && u._mkSeenAt <= rt.t)) { u._mkSeen = sightUnit(rt, u); u._mkSeenAt = rt.t; }
-      if (!u._mkSeen) continue;
-      let el = tris[n];
-      if (!el) {
-        el = tris[n] = document.createElement('span');
-        el.textContent = '▼';
-        el.style.cssText = 'position:absolute;left:0;top:0;color:#ff4a2e;font-size:18px;line-height:1;-webkit-text-stroke:1px #2a0d06;text-shadow:0 1px 2px #000;pointer-events:none';
-        box.appendChild(el);
-      }
-      n++;
-      el.hidden = false;
-      el.style.transform = `translate(${((v.x + 1) * innerWidth / 2).toFixed(1)}px,${((1 - v.y) * innerHeight / 2).toFixed(1)}px) translate(-50%,-100%)`;
-    }
-    for (let i = n; i < tris.length; i++) tris[i].hidden = true;
-    return out;
-  };
+  // 敵印は共通の一人一つに任せる。補助印を重ねると、共通側で
+  // 重なりや札の上を避けた敵にも別の▼を描き、味方の頭上まで赤い塊になった。
+  // 胴の見通しと四十歩の制限は enemySignVisible で共通側にも渡す。
   const dispose = rt.dispose;
   rt.dispose = function (...args) {
-    hud.progress = progress; hud.foeMarks = foeMarks;
-    board.remove(); box.remove(); style.remove();
+    hud.progress = progress;
+    board.remove(); style.remove();
     return dispose.apply(this, args);
   };
 }
