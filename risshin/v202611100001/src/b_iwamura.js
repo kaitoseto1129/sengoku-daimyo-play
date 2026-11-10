@@ -1913,6 +1913,8 @@ html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.iwamura-army #army
     for (const g of [...F.rearGroups, F.footSally]) g.noFrontline = true;
     F.forceA0 = F.fieldAllies.reduce((n, g) => n + g.units.length, 0);
     F.forceB0 = F.rearGroups.reduce((n, g) => n + g.units.length, 0);
+    // 昼の出撃を追加しても、討死一人あたりの換算を変えて残兵を増やさない。
+    F.forceBScale0 = F.forceB0;
     const hosts = rosterBuild(rt, JIN);
     F.castleDA = hosts[1].ni;
     // 戦う人数と下知を変えず、寄せ手と守り手の背後へ薄い控えの列をつなぐ。
@@ -2981,8 +2983,9 @@ html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.iwamura-army #army
     for (let i = 0; i < F.torches.length; i++) {
       const { u, fire } = F.torches[i];
       // 夜討ちは火を消して忍び寄る。柵に取り付いてから陣小屋へ火を掛ける松明を灯す（11/6 専門家の目）。
-      if (!u.iwTorchLit && u.alive && Math.abs(u.pos.z - FENCE_Z) < 26) u.iwTorchLit = true;
-      const held = u.alive && !u.woundOut, live = held && !!u.iwTorchLit;
+      const nightRaid = !IW_HIRU.active(rt) && F.step >= 2;
+      if (nightRaid && !u.iwTorchLit && u.alive && Math.abs(u.pos.z - FENCE_Z) < 26) u.iwTorchLit = true;
+      const held = u.alive && !u.woundOut, live = nightRaid && held && !!u.iwTorchLit;
       fire.lit = live; fire.flame.visible = fire.inner.visible = fire.glow.visible = live;
       const x = u.pos.x + Math.cos(u.heading) * 0.4, z = u.pos.z - Math.sin(u.heading) * 0.4;
       fire.x = x; fire.z = z; fire.base = u.pos.y + 1.95; fire.ly = 2.1;
@@ -3468,7 +3471,8 @@ iwamura.force = (rt) => {
   // 11/6（十二1）：数は史実の規模（織田 約三万・城方 約三千）。描く兵の損の割合で減らし、山道の夜討ち勢を討ち尽くすと
   //   信長公記の「千百余」に届く。織田の損は史料に無いので小さく（描く兵一人で十人）。
   const A0 = F.forceA0 || 1, B0 = F.forceB0 || 1;
-  return { a: 30000 - Math.max(0, A0 - a) * 10, a0: 30000, b: 3000 - Math.round(Math.max(0, B0 - b) * 1100 / B0), b0: 3000 };
+  const scaleB = F.forceBScale0 || B0;
+  return { a: Math.max(0, 30000 - Math.max(0, A0 - a) * 10), a0: 30000, b: Math.max(0, 3000 - Math.round(Math.max(0, B0 - b) * 1100 / scaleB)), b0: 3000 };
 };
 // 戦の中の人数の札は紋と数だけ（軍の名の字は出さない。kaito 10/23）。開戦の札の名は introSides、台詞の敵味方は foeNames で分ける。
 iwamura.sides = { a: { name: '', mon: 'oda' }, b: { name: '', mon: 'takeda' } };

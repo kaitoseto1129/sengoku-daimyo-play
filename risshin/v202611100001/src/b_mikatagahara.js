@@ -2479,7 +2479,7 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
     F.ieyasuG = ie;
     const sg = F.shingariG;
     sg.order = 'path'; sg.path = [[10, 60], [14, 104]]; sg.pathIdx = 0;
-    sg.onArrive = (q) => { q.order = 'hold'; q.facing = Math.PI; };
+    sg.onArrive = (q) => { q.order = 'hold'; q.retreatOnly = false; q.facing = Math.PI; };
     if (F.aka && !gone(F.aka)) { F.aka.order = 'hold'; F.aka.noRout = false; }
     if (F.w1 && !gone(F.w1)) { F.w1.order = 'hold'; }
     // 東の酒井の備も、崖の東を通って浜松へ退く。
@@ -3058,7 +3058,8 @@ function withstand(o) {
       if (guard?.count && !guard.routed) {
         guard.anchor.x = C.at.x + 6; guard.anchor.z = C.at.z;
         guard.order = 'hold'; guard.facing = Math.PI; guard.formation = 'yari';
-        guard.aggro = 10; guard.retreatOnly = true;
+        // 殿は持ち場で追手と戦う。退く専用のままでは共通の敵探しが止まる。
+        guard.aggro = 10; guard.retreatOnly = false;
       }
       C.coverGroups = [rt.flags.teppo, rt.flags.campA.guard, rt.flags.campA.general?.group]
         .filter((g) => g && g.count && !g.routed);
