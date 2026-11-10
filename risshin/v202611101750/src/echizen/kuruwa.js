@@ -230,20 +230,31 @@ function cut(rt, ctx) {
 //   前田・佐々・不破の手と、本人のそばの組の者も一緒に並べる。ctx：{ below（この南北より南なら送る）, at（本人を置く点）, ahead（手を置く南北）}
 export function roadCut(rt, ctx) {
   const F = rt.flags;
-  if (F.echRoadCut || !F.kannonFell || F.souFell || F.ending || rt.over) return;
-  if (F.echKannonFellT == null) F.echKannonFellT = rt.t;
-  if (rt.t - F.echKannonFellT < 20) return;
+  if (!F.kannonFell || F.echAdv || F.ending || rt.over) return;
   const P = rt.player.u;
-  if (!P.alive || P.pos.z > ctx.below) { F.echRoadCut = true; return; }
-  F.echRoadCut = true;
-  const W = rt.world;
+  if (F.echRoadCut) {
+    // 11/10 正式の流し：主郭の段なのに、本人が九十九折りを下って殿の一揆勢と斬り合い、刻限が切れた（三度）。
+    //   峠の城の段の間に折れ道の下へ三十秒いれば、また暗転して木戸の前へ戻す
+    if (!P.alive || P.pos.z > ctx.below) { F.echBelowT = null; return; }
+    F.echBelowT ??= rt.t;
+    if (rt.t - F.echBelowT < 30) return;
+    F.echBelowT = null;
+  } else {
+    if (F.souFell) return;
+    if (F.echKannonFellT == null) F.echKannonFellT = rt.t;
+    if (rt.t - F.echKannonFellT < 20) return;
+    if (!P.alive || P.pos.z > ctx.below) { F.echRoadCut = true; return; }
+    F.echRoadCut = true;
+  }
+  const W = rt.world, first = !F.echRoadCutDone;
+  F.echRoadCutDone = true;
   const put = (u, x, z) => { u.pos.x = x; u.pos.z = z; u.pos.y = W.heightAt(x, z); u.vel && (u.vel.x = u.vel.z = 0); u.target = null; };
   k15Fade(rt, () => {
     const ox = P.pos.x, oz = P.pos.z, f = ctx.at;
     put(P, f.x, f.z);
     if (P.maxHp) P.hp = Math.max(P.hp, P.maxHp * 0.85);
     for (const q of rt.squadGroups || []) for (const u of q.units) if (!q.routed && u.alive && !u.fleeing && !u.woundOut && !u.rearWound && Math.hypot(u.pos.x - ox, u.pos.z - oz) < 40) put(u, f.x - 3 + Math.random() * 6, f.z - 4 - Math.random() * 5);
-    const G = F.echGoryu;
+    const G = first ? F.echGoryu : null;   // 二度目からは本人と組だけ戻す（前田らの手は郭の中に残す）
     for (const g of G?.groups || []) {
       if (!g.count || g.routed) continue;
       const dx = g.units[0] ? (g.units[0].pos.x > 0 ? 3 : -3) : 0;
@@ -253,7 +264,7 @@ export function roadCut(rt, ctx) {
     }
     // 送った先より下（折れ道）に残る本道の小勢は、追い越された事にして谷へ散らす。
     //   残すと bot も人も折れ道を引き返して二百秒斬り合っていた（11/10 クラウドの流し）
-    for (const b of F.roadGuards || []) {
+    for (const b of first ? F.roadGuards || [] : []) {
       const g = b?.real;
       if (!g?.count || g.routed || g === F.echTail) continue;
       const c = g.center();
@@ -262,6 +273,6 @@ export function roadCut(rt, ctx) {
       for (const u of g.units) if (u.alive) { u.fleeing = true; u.target = null; u.atk = null; u.aiT = 0; }
     }
     F.statusAt = 0;
-  }, '尾根道を上り詰めた', '木ノ芽峠城の木戸の前');
-  rt.after(1.5, () => { if (!F.ending && !rt.over) rt.say('前田利家', '木戸はすぐそこじゃ。打ち破って中へ押し入れ！', 3.4); });
+  }, first ? '尾根道を上り詰めた' : '', first ? '木ノ芽峠城の木戸の前' : '');
+  if (first) rt.after(1.5, () => { if (!F.ending && !rt.over) rt.say('前田利家', '木戸はすぐそこじゃ。打ち破って中へ押し入れ！', 3.4); });
 }
