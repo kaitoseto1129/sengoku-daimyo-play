@@ -4021,7 +4021,7 @@ body:has(#hud.tennoji-tasks) #tc .tb[data-b=guard] .name {
       }
       // 必要人数と同じ追撃隊だけを数え、砦の守備隊で集合を満たさない。
       for (const g of F.fighters) if (g === F.ake || F.relief.includes(g)) for (const u of g.units) {
-        if (u.alive && !u.fleeing && !u.woundOut && Math.hypot(u.pos.x - F.kz.x, u.pos.z - F.kz.z) < 30) near++;
+        if (u.alive && !u.dying && !u.fleeing && !u.woundOut && Math.hypot(u.pos.x - F.kz.x, u.pos.z - F.kz.z) < 30) near++;
       }
       const d = Math.hypot(p.x - F.kz.x, p.z - F.kz.z);
       // 道中を自分で歩いて来た場合にも、城戸口の手前で印を出す。
@@ -4054,7 +4054,7 @@ body:has(#hud.tennoji-tasks) #tc .tb[data-b=guard] .name {
       let available = 0;
       // 砦に残した守備隊は、城戸口へ集まる人数に含めない。
       for (const g of F.fighters) if (g === F.ake || F.relief.includes(g))
-        for (const mate of g.units) if (mate.alive && !mate.fleeing && !mate.woundOut) available++;
+        for (const mate of g.units) if (mate.alive && !mate.dying && !mate.fleeing && !mate.woundOut) available++;
       if (!available) return this.fail(rt, '追撃の列が崩れた。城戸口から味方と退け');
       const need = Math.min(6, available);
       const canSecure = !u.dying && !u.woundOut && !u.fleeing;

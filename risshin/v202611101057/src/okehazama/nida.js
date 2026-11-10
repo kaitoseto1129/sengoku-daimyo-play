@@ -40,7 +40,15 @@ export function start(rt, def, C) {
   if (H && !H.routed) { H.order = 'attack'; H.seekRange = 30; H.aggro = 14; H.focus = null; H.anchor = C.fieldPoint(-4, -84); }
   rt.after(1, () => rt.say('組頭 源八', '松井の先手は破った！　麓の陣へ突っ込め。雨宿りの今川勢は槍も揃えておらぬ！', 3.8));
   rt.after(5.5, () => rt.say('今川の足軽', 'な、何じゃ、どこの勢じゃ！　織田か！？', 2.8));
-  rt.after(9, () => rt.say('足軽', '小荷駄の者が俵を捨てて逃げてゆくぞ！', 2.8));
+  rt.after(9, () => {
+    if (rt.over || F.ending || v.nidaDone) return;
+    const g = v.nidaGs[0];
+    if (!live(g)) return;
+    // 知らせだけ先に出さず、小荷駄の生存兵を実際に山の奥へ退かせる。
+    g.focus = null; g.order = 'retreat'; g.noRout = false; g.morale = 0;
+    g.fleeSet = true; g.fleeDir = C.fieldVector(0.4, -1);
+    rt.say('足軽', '小荷駄の者が俵を捨てて逃げてゆくぞ！', 2.8);
+  });
   // 服部・毛利ら馬廻が前へ
   rt.after(18, () => {
     if (v.nidaDone) return;

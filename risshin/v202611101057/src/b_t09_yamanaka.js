@@ -601,7 +601,16 @@ const t09_yamanaka = {
       onOut: (r) => this.sally(r), onBack: (r) => this.sallyBack(r), onTsukeiri: (r) => this.openGate(r, true) });
     rt.marker('ote', { x: M[1].far.x, z: M[1].far.z }, '馬出し', { h: 3 });
     // 寄せ手は馬出しの左右の口の前へ（大手を攻める）
-    const go = (g, P) => { if (gone(g)) return; g.formation = 'column'; g.colW = 2; g.order = 'move'; g.dest = { x: P.x, z: P.z }; g.speed = 3; g.onArrive = (q) => { q.order = 'attack'; q.seekRange = 24; q.anchor = { x: P.x, z: P.z }; }; };
+    const go = (g, P) => {
+      if (gone(g)) return;
+      // 本人が先に渡っても、後続の畝と対岸の口を飛ばさない。渡る間は一列を保つ。
+      const crossing = g.order === 'path' && g.path?.slice(g.pathIdx || 0).some((p) => p[1] >= SHOJI.z0 - 1);
+      g.formation = 'column'; g.colW = crossing ? 1 : 2;
+      if (crossing) continuePath(g, [[P.x, P.z]]);
+      else { g.order = 'move'; g.dest = { x: P.x, z: P.z }; }
+      g.speed = 3;
+      g.onArrive = (q) => { q.colW = 2; q.order = 'attack'; q.seekRange = 24; q.anchor = { x: P.x, z: P.z }; };
+    };
     go(F.ichi, M[1].far); go(F.naka, M[0].far); go(F.yama, { x: M[1].far.x + 4, z: M[1].far.z + 8 });go(F.hori, { x: SP.x + 34, z: SP.z + 26 });
     rt.after(8, () => { if (F.step === 3) rt.say('渡辺勘兵衛', '一番乗りは、この勘兵衛がもらう！', 3.5); });
   },
@@ -613,7 +622,11 @@ const t09_yamanaka = {
     rt.marker('uma', centerOf(F.uma), '馬出しの北条の隊', { red: true, group: F.uma });
     rt.say(F.ichiShot || F.ichiLost ? '一柳直盛' : '一柳直末', '横から来たぞ！　槍を揃えて受け止めよ！', 3.5);
     // 馬出しへ寄る下知を打ち切る。到着処理が残ると、迎撃中も行軍用の持ち場補正が働く。
-    for (const g of F.toyo) if (!gone(g)) { g.onArrive = null; g.order = 'attack'; g.seekRange = 34; }
+    for (const g of F.toyo) if (!gone(g)) {
+      // まだ畝を渡る隊には、堀の中から敵へ斜めに走る下知を出さない。
+      if (g.order === 'path' && g.path?.slice(g.pathIdx || 0).some((p) => p[1] >= SHOJI.z0 - 1)) continue;
+      g.onArrive = null; g.order = 'attack'; g.seekRange = 34;
+    }
   },
   sallyBack(rt) {
     const F = rt.flags;
@@ -627,7 +640,7 @@ const t09_yamanaka = {
     const A = SP.at, M = A.mouths[1];
     const pts = [M.lane, M.outer, M.inner, A.uma, A.bridgeOut, A.bridgeIn, A.gateOut].map((p) => [p.x, p.z]);
     F.oteRoute = [...pts, [A.gate.x, A.gate.z], [A.plaza.x, A.plaza.z]]; F.oteSign = 0;
-    for (const g of F.toyo) if (!gone(g)) { g.order = 'path'; g.path = pts.map((p) => p.slice()); g.pathIdx = 0; g.speed = 2.8; g.onArrive = (q) => { q.order = 'assault'; q.assault = () => { const s = F.K.gate && F.K.gate.struct; return s && s.alive && !s.opened ? s : A.plaza; }; }; }
+    for (const g of F.toyo) if (!gone(g)) { continuePath(g, pts); g.speed = 2.8; g.onArrive = (q) => { q.colW = 2; q.order = 'assault'; q.assault = () => { const s = F.K.gate && F.K.gate.struct; return s && s.alive && !s.opened ? s : A.plaza; }; }; }
   },
   openGate(rt, tsuke) {
     const F = rt.flags;
