@@ -2737,9 +2737,10 @@ const iga = {
     if (F.step === 1) {
       if (F.bucketOn && F.doused < 3) {
         let crew = F.bucketCrew || F.ram;
-        // 全滅や道の詰まりを、無人の消火で済ませない。本陣の控えが歩いて引き継ぐ。
-        if ((gone(crew) || F.bucketStallT >= 26) && crew !== F.honjin.guard && !gone(F.honjin.guard)) {
-          crew = F.bucketCrew = F.honjin.guard;
+        // 本陣の控えまで倒れた時は、配置済みの夜番が歩いて引き継ぐ。
+        const backup = !gone(F.honjin.guard) ? F.honjin.guard : F.nightWatch;
+        if ((gone(crew) || F.bucketStallT >= 26) && backup && crew !== backup && !gone(backup)) {
+          crew = F.bucketCrew = backup;
           F.bucketIndex = -1; F.bucketT = 0; F.bucketStallT = 0;
           rt.say('丹羽の組頭', '本陣の控えは燃える軒へ回れ。消火の組を助けよ', 4);
         }
@@ -2792,7 +2793,7 @@ const iga = {
       // 組頭が消火の場所を知らせる。離れた場所の火を味方の台詞だけで消さない。
       const w = rt.t - F.stepT, foes = L.length >= 3 && L.every(gone);
       // 消火役が下知前に倒れても、生きた本陣の控えが次の更新で引き継ぐ。
-      if (!F.bucketOn && w > 4 && (!gone(F.ram) || !gone(F.honjin.guard))) { F.bucketOn = true; F.bucketIndex = -1; F.bucketT = 0; F.bucketStallT = 0; }
+      if (!F.bucketOn && w > 4 && (!gone(F.ram) || !gone(F.honjin.guard) || F.nightWatch && !gone(F.nightWatch))) { F.bucketOn = true; F.bucketIndex = -1; F.bucketT = 0; F.bucketStallT = 0; }
       if (F.doused < 3 && w > 55 && !F.nudge && !igaNeedsTreatment(rt)) {
         F.nudge = true;
         if (igaNeedsDousing(rt) && !F.douseHelp) rt.say('丹羽の組頭', '燃える軒へ走れ。桶の水を掛けよ', 4);   // 釦の操作の説明を台詞に入れない（五1）

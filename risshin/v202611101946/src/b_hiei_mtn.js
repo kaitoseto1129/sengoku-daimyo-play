@@ -2566,6 +2566,9 @@ const hiei_mtn = {
   goalsVisibleRows: 5, // 西塔・横川を含む七目標も、画面には今の五件まで。
   goalRowsAhead: true, // 最初から五件を並べ、後半は今の目標と続きが見えるようにする。
   armySignals: false, // 合図は各段の下知で出す。任務の文からは推測しない。
+  // 関所4（11/10）：横川の終わりに「柴田勝家の手、追撃」「佐久間信盛の手、追撃」と出たが、柴田・佐久間は遠景の軽い隊で誰も追っていない。
+  //   焼き討ちは掃討で、追撃の段は無い（hiei_spec）。共通の備の追撃を止める。
+  noPursuit: true,
   // 11/6 fixc1721（kaito 九1・十1）：右上は目標①〜⑤を最初から全部並べ、済んだ物に印。途中で言い替えない。
   //   場所の名と行いだけ（三1）。数を討つ・深手の目標は置かない。並びは信長公記の順（坂本の火→本坂→文殊楼→根本中堂）。
   goals5: (rt) => {
@@ -2657,7 +2660,8 @@ const hiei_mtn = {
     if (SAKA.active(rt)) {
       const S = F.hieiSaka, u = S.k === 2 && S.g?.units.find(hieiReady);
       q.unit = u || null; q.enemy = !!u; q.waiting = false; q.arrived = false; q.route = false;
-      const at = u ? u.pos : S.k === 0 ? S.at : { x: 176, z: 6 };
+      // 関所3（11/10）：打って出る前後の待ちに本人の足元（176, 6）を指し、行き先のピンが見えなかった。湖岸の辻を指し続ける。
+      const at = u ? u.pos : S.at;
       q.x = at.x; q.z = at.z; q.r = q.hide = u ? 2 : 4;
       q.always = !u;
       return q;

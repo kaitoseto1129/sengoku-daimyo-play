@@ -1019,10 +1019,14 @@ t11_hachioji.botBrain = (b, inp, { goTo, patientStrike }) => {
     //   bot は受けの待ちのまま一太刀も振らず刻限まで止まった（足跡 |Ns- が十分あまり続き、中山の命 60 のまま）。
     //   振りかぶりも振りも無いまま一・二秒たったら、こちらから斬り込む
     b.t11NakaT = b.t;
+    const kd = b.t11Kd ||= { lp: 0, sw: 0, last: null, res: '' };
+    if (u.swing && u.swing !== kd.last) { kd.last = u.swing; kd.sw++; }
+    if (u.swing?.res) kd.res = u.swing.res;
     const busy = (n.atk && n.atk.target === u && !n.atk.bow) || (n.swing && !n.swing.done);
     const w = b.t11Wait ||= { t: b.t };
     if (busy || d > 1.85) w.t = b.t;
     else if (b.t - w.t > 1.2 && !inp.leftPressed && (p.cd || 0) <= 0 && !p.pending && p.sta > p.maxSta * 0.3) { inp.leftPressed = true; w.t = b.t; }
+    if (inp.leftPressed) kd.lp++;
     return;
   }
   if (F.dp && F.dp.on) { depthBot(b, inp, goTo); return; }
@@ -1032,7 +1036,7 @@ t11_hachioji.botBrain = (b, inp, { goTo, patientStrike }) => {
 
 // 足跡の控え（倒れず止まった時の読み直し）：段・段の場・退避・手当ての残り・近い敵（距離・種・残りの命）
 t11_hachioji.botDbg = (b) => { const F = b.flags, u = b.player.u, C = F.dp?.on && F.dp.cur, e = b.army.nearestEnemy(u, 40, (o) => !o.noTarget);
-  return `i${F.dp?.i ?? ''}${C?.at ? `@${Math.round(C.at.x)},${Math.round(C.at.z)}` : ''}${b.botSurviving ? 'S' : ''}${b.botSurviveUntil > b.t ? 'R' : ''}tr${b.player.treatmentLeft ?? ''}${e ? `e${Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z).toFixed(0)}${e.type[0]}${Math.round(e.hp)}${b.army.wallBetween(u.pos, -1, e.pos) ? 'W' : ''}` : ''}${F.dp?.i === IX.naka && F.naka ? `|N${Math.hypot(F.naka.pos.x - u.pos.x, F.naka.pos.z - u.pos.z).toFixed(1)}${b.player.weapon?.[0] || ''}${u.swing?.res || '-'}g${F.naka.guard ? 1 : 0}${F.naka.guarding > 0 ? 'G' : ''}c${(F.naka.cd || 0).toFixed(1)}${F.naka.target === u ? 'T' : ''}${F.naka.atk ? 'A' : ''}${b.player.guard ? 'pg' : ''}${(b.player.cd || 0) > 0 ? 'pc' : ''}${b.player.lock === F.naka ? 'L' : ''}st${Math.round(b.player.sta)}${b.t - (b.t11NakaT ?? -99) < 1 ? 'B' : ''}${b.player.dodgeT > 0 ? 'D' : ''}${b.player.pending ? 'P' : ''}` : ''}`; };
+  return `i${F.dp?.i ?? ''}${C?.at ? `@${Math.round(C.at.x)},${Math.round(C.at.z)}` : ''}${b.botSurviving ? 'S' : ''}${b.botSurviveUntil > b.t ? 'R' : ''}tr${b.player.treatmentLeft ?? ''}${e ? `e${Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z).toFixed(0)}${e.type[0]}${Math.round(e.hp)}${b.army.wallBetween(u.pos, -1, e.pos) ? 'W' : ''}` : ''}${F.dp?.i === IX.naka && F.naka ? `|N${Math.hypot(F.naka.pos.x - u.pos.x, F.naka.pos.z - u.pos.z).toFixed(1)}${b.player.weapon?.[0] || ''}${u.swing?.res || '-'}g${F.naka.guard ? 1 : 0}${F.naka.guarding > 0 ? 'G' : ''}c${(F.naka.cd || 0).toFixed(1)}${F.naka.target === u ? 'T' : ''}${F.naka.atk ? 'A' : ''}${b.player.guard ? 'pg' : ''}${(b.player.cd || 0) > 0 ? 'pc' : ''}${b.player.lock === F.naka ? 'L' : ''}st${Math.round(b.player.sta)}${b.t - (b.t11NakaT ?? -99) < 1 ? 'B' : ''}${b.player.dodgeT > 0 ? 'D' : ''}${b.player.pending ? 'P' : ''}k${b.t11Kd ? `${b.t11Kd.lp}/${b.t11Kd.sw}${b.t11Kd.res}` : ''}lw${b.flags.dp?.cur?.lastWords ? 1 : 0}` : ''}`; };
 
 // 段（右上の一行。stages.js の表に、この戦の分を足す）
 const dpAt = (k) => (rt) => (rt.flags.dp?.i ?? -1) >= k || (rt.flags.dp && !rt.flags.dp.on && rt.flags.begun);

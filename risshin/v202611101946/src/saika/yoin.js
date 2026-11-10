@@ -9,6 +9,6 @@ export const YOIN_SEC = 30;
 
 export function install(rt) {
   rt.after(16, () => { sfx('horagai', 0.5); rt.say('組頭', '引き上げの法螺じゃ。……向こう岸の鉄砲が、黙った', 4); });
-  rt.after(21, () => rt.say('堀秀政', '一度も岸を越えられなんだ。雑賀の鉄砲、忘れはせぬ', 4));
+  rt.after(21, () => rt.say('堀秀政', '高岸の柵は越えられなんだ。雑賀の鉄砲、忘れはせぬ', 4));
   rt.after(26, () => sfx('kane', 0.3));
 }

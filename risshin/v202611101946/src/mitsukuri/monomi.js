@@ -54,7 +54,7 @@ export function start(rt, ctx, done) {
         // 未到着のまま次へ飛ばさず、残兵を実際に退かせてから合流する。
         const retreat = s.kind === 'move' ? C.arr && el - C.arrT >= 60 : el >= 90;
         if (retreat) for (const g of C.groups) {
-          if (g.routed || g.count <= 2) continue;
+          if (g.routed) continue;
           g.noRout = false;
           g.morale = 0;
           g.routed = true;
