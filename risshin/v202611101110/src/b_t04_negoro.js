@@ -973,10 +973,13 @@ const t04_negoro = {
       tick(rt, C, m, ctx, el, dt) {
         const F = rt.flags, s = F.gate, pu = rt.player.u;
         if (s.alive) {
-          // 丸太の組が尽きたら、後ろから新しい丸太の組が来る
-          if ((F.ram.stopped || !F.ramG.count) && (C.reram || 0) < 3) {
+          // 生存数に残る重傷者・後送兵は担げない。一時的な転倒は交代の理由にしない。
+          const carriers = F.ramG.units.reduce((n, u) => n + (remaining(u) && !u.rearWound ? 1 : 0), 0);
+          if ((F.ram.stopped || !F.ramG.count || F.ramG.routed || carriers < 2) && (C.reram || 0) < 3) {
             C.reram = (C.reram || 0) + 1;
-            F.ramG = self.ramGroup(rt, P(0, -34)); F.ramZ = null;
+            F.ram.mesh.visible = false;
+            flee(F.ramG);
+            F.ramG = self.ramGroup(rt, P(0, -34)); F.ramZ = null; F.ramWait = 0;
             F.ram = makeRam(rt, { group: F.ramG, gate: { struct: s, get breached() { return !s.alive; } }, kind: '丸太' });
             self.sendRam(rt);
             rt.say('組頭', '新しい丸太を運べ！　門は目の前じゃ！', 3);

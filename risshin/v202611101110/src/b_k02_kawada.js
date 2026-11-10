@@ -443,20 +443,22 @@ const k02_kawada = {
       // ② 北の筋を渡り、柵の内の木造長政の旗本を追い払う。木造は侍の旗本に囲まれて動かない（BK5）。旗本が崩れると岐阜へ退く（翌日の岐阜城に居た）
       mine(DP.fight({ at: GUARD, title: '河田の渡し', sub: '北の岸に木造長政の鉄砲', obj: '北の筋を渡り、柵の内の木造長政の旗本を追い払え', max: 200, noRefill: true,
         onEnd: (rt2) => { rt2.flags.gumasaDown = true; },
-        say: [['木造長政', '渡らせるな。浅瀬に入った所を撃て！'], ['大塚権太夫', '一柳監物が家来、大塚権太夫。一番に上がるぞ！']],
+        say: [['木造長政', '渡らせるな。浅瀬に入った所を撃て！']],
         // 始めから北岸に構えていた組をそのまま段の敵にする（目の前に湧かせない）
         foes: (rt2) => { const C = rt2.flags.dp.cur; for (const g of [F.northGun, F.northGuard]) if (g && g.count) { if (g === F.northGun) g.order = 'hold'; g.dmgMult = g._k02fire ? 0.7 : 0.3; C.groups.push(g); C.nTot = (C.nTot || 0) + g.count; } return []; },
         // 時刻だけで名のある敵の討ち取りを告げず、既にいる旗本と戦う。
         // 柵の前へ新しい槍組を突然出さない。
-        later: [{ t: 22, say: ['大塚権太夫', '柵の口へ続け！　旗本を押し返すぞ！'], foes: () => [] }],
+        later: [{ t: 4, say: ['大塚権太夫', '一柳監物が家来、大塚権太夫。一番に上がるぞ！'], foes: () => [] },
+          { t: 22, say: ['大塚権太夫', '柵の口へ続け！　旗本を押し返すぞ！'], foes: () => [] }],
         reward: '河田の渡しを渡った' }), 45, insideNorthGuard, 'northBroke'),
       DP.rest({ dur: 5, heal: 0.9, fn: (rt2) => rt2.world.setTime('day') }),
       // ③ 北岸を下流の米野村へ。昼、百々綱家の隊と組み合う。飯沼長資が大塚権太夫を討って出て、ここで討ち死にする（討ったのは池田長吉とも）
       yoneno(DP.fight({ at: YONENO, title: '米野', sub: '百々綱家の隊が村の前に構える', obj: '北岸を西へ進み、米野村の百々綱家の隊を追い払え', max: 240, noRefill: true,   // 百々が退いた後に「新手の百々綱家の旗本」を湧かせない（11/6）
-        say: [['百々綱家', '木造殿は退いたか。米野で食い止める！'], ['浅野幸長', '川は越えた。米野を抜けば岐阜じゃ']],
+        say: [['百々綱家', '木造殿は退いたか。米野で食い止める！']],
         foes: () => [keep('米野の鉄砲組', { x: YONENO.x + 14, z: YONENO.z + 6 }, [{ type: 'samurai', n: 2 }, { type: 'gun', n: 12 }, { type: 'ashigaru', n: 10 }], { morale: 96 }),
           keep('百々綱家の旗本', YONENO, [{ type: 'busho', n: 1, o: { name: '百々綱家', hat: 'kabuto_m', horse: true, invuln: true } }, { type: 'samurai', n: 12 }, { type: 'gun', n: 3 }], { width: 7, morale: 100 })],
-        later: [{ t: 45, say: ['飯沼長資', '飯沼勘平長資、生年二十一。米野は通さぬ！'], foes: (rt2) => { rt2.flags.iinumaOut = rt2.t; return [keep('飯沼長資の手', iinumaFrom(rt2), [{ type: 'samurai', n: 1, o: { name: '飯沼長資', hat: 'kabuto_m', horse: true, invuln: true } }, { type: 'samurai', n: 5 }, { type: 'ashigaru', n: 8 }], { morale: 100 })]; } }],
+        later: [{ t: 4, say: ['浅野幸長', '川は越えた。米野を抜けば岐阜じゃ'], foes: () => [] },
+          { t: 45, say: ['飯沼長資', '飯沼勘平長資、生年二十一。米野は通さぬ！'], foes: (rt2) => { rt2.flags.iinumaOut = rt2.t; return [keep('飯沼長資の手', iinumaFrom(rt2), [{ type: 'samurai', n: 1, o: { name: '飯沼長資', hat: 'kabuto_m', horse: true, invuln: true } }, { type: 'samurai', n: 5 }, { type: 'ashigaru', n: 8 }], { morale: 100 })]; } }],
         reward: '米野で百々綱家の隊を追い払った' })),
       DP.rest({ dur: 5, heal: 0.9, fn: (rt2) => rt2.world.setTime('afternoon') }),   // 新加納の砦は昼過ぎ〜夕方に済んだ
       // ④ 北の新加納の砦。殿がよく防ぐが数で破る。秀信は岐阜城へ退く

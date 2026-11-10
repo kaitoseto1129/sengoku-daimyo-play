@@ -166,12 +166,15 @@ export function goalsTick(el, rt, stg, always) {
     if (g.done && before[i] && before[i][0] !== '1' && !still) li.classList.add('pop');
     li.innerHTML = '<i aria-hidden="true"></i><span></span>';
     li.lastChild.innerHTML = phraseBreaks(`${i + 1}　${goalWords(g.text)}`);
+    const countText = g.count ? (rt.def.goalCountLabel
+      ? `${rt.def.goalCountLabel}${g.count[0]}人／${g.count[1]}人`
+      : `${g.count[1]}分の${g.count[0]}`) : '';
     if (g.count && !g.done) {   // 敵の隊は赤い字・倒した数が一人ごとに上がる（kaito 11/3 AV16）
-      const em = document.createElement('em'); em.textContent = `（${g.count[1]}分の${g.count[0]}）`;   /* 決めた総数と討った数を並べる（11/9 四回目・16） */ em.style.cssText = 'color:#ff6a58;font-weight:800';
+      const em = document.createElement('em'); em.textContent = `（${countText}）`; em.style.cssText = 'color:#ff6a58;font-weight:800';
       // 数は目標の字の後ろへ続けて置く（横の別の列に置くと、844×390 で目標の字が四行に押し込まれ「討／つ」と語の途中で折れた・11/8 天王寺の通し）
       const sp = li.lastChild; sp.style.color = '#ff8a78'; sp.appendChild(em);
     }
-    li.setAttribute('aria-label', (i === now ? '今：' : g.done ? '達成：' : g.fail ? '失敗：' : '目標：') + goalWords(g.text) + (g.count ? ` ${g.count[1]}分の${g.count[0]}` : ''));
+    li.setAttribute('aria-label', (i === now ? '今：' : g.done ? '達成：' : g.fail ? '失敗：' : '目標：') + goalWords(g.text) + (countText ? ` ${countText}` : ''));
     // 残り時間の字は出さない（画面の字は名前・人数・目標・命だけ）
     ul.appendChild(li);
   });
