@@ -211,6 +211,7 @@ const t03_komaki = {
   compactIntro: true,
   introText: () => '楽田の秀吉の本陣と、小牧山の家康の陣。両軍は砦を並べて睨み合う。',
   stageGoalsOnly: true,
+  goalsVisibleRows: 5,   // 七段の順を保ち、今の目標から五件を並べる（九1）。共通の既定は一件だけ。
   hideGuideSteps: true,
   hideMissionDots: true,
   goalSignNoLabel: true,   // ▼の上に「印へ進め」などの字を出さない（三の1・五の1）
