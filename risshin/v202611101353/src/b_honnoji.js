@@ -2615,7 +2615,7 @@ const honnoji = {
       // 段の名前だけで済ませず、それぞれの持ち場で実際に守った時間も照らす。
       // 終了段や再開時にも、まだ守っていない目標へ達成印を付けない。
       check: (q) => k === 4 ? honnoWon(q)
-        : honnoPast(q, after) && (k === 0 ? !!q.flags.gMain && (q.flags.gateHold || 0) >= 8
+        : honnoPast(q, after) && (k === 0 ? !!q.flags.gMain && q.flags.gateEngaged === true && (q.flags.gateHold || 0) >= 8
           : k === 1 ? (q.flags.hondoHold || 0) >= 8
           : k === 2 ? (q.flags.lastHold || 0) >= 10
           : q.flags.nEngaged === true && (q.flags.nHold || 0) >= HOLD_NEED) })),
@@ -5391,7 +5391,7 @@ function honnoTick(def, rt, dt) {
     if ((F.gMain && Math.hypot(p.x - PT.gateIn.x, p.z - PT.gateIn.z) < 8) || F.gateOccupied >= 6 || t > 40) def.p3(rt);
   } else if (F.hp === 3) {
     const g = F.gMain;
-    if (p.x < GATES.main.x && Math.hypot(p.x - PT.gateIn.x, p.z - PT.gateIn.z) <= 7 &&
+    if (F.gateEngaged && p.x < GATES.main.x && Math.hypot(p.x - PT.gateIn.x, p.z - PT.gateIn.z) <= 7 &&
         Math.abs(p.y - rt.world.heightAt(PT.gateIn.x, PT.gateIn.z)) < 3 &&
         !rt.army.wallBetween(p, -1, PT.gateIn)) F.gateHold = (F.gateHold || 0) + dt;
     // 波と波の間も、門前に十人ほどの敵がいる厚さを保つ（減れば門の外から次の寄せ手が詰める）
@@ -5399,6 +5399,8 @@ function honnoTick(def, rt, dt) {
       F.topScan = 1;
       let near = 0;
       rt.army.forNear(p.x, p.z, 25, (o) => { if (o.alive && o.team === 1 && !o.isStruct && !o.fleeing && Math.hypot(o.pos.x - p.x, o.pos.z - p.z) <= 25) near++; });
+      // 門を閉めて待つだけの時間で①を果たさない。寄せ手が来てから本人の守備を数える。
+      if (near > 0) F.gateEngaged = true;
       if (near < 10 && rt.t >= (F.topAt || 0) && (F.topN || 0) < 10) {
         F.topAt = rt.t + 6; F.topN = (F.topN || 0) + 1;
         akechi(rt, '門へ詰める明智勢', IN.main, [uS(1), uA(5)], g && g.alive ? { gate: F.gMain } : {});

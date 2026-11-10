@@ -10,13 +10,15 @@ export function start(rt, def, C, then) {
   if (v.yoinT) return;
   v.yoinT = rt.t;
   // 共通の目標完了処理を待たせ、首実検と勝鬨の余韻が済んでから締める。
-  if (!rt.over) rt._closing = { at: rt.t + 29, info: { scriptedEnd: true }, delay: 6 };
+  if (!rt.over) rt._closing = { at: rt.t + 32, info: { scriptedEnd: true }, delay: 6 };
   // 本体の仲間の話と首実検の下知（九・五秒から五秒間）を最後まで見せ、掛け声と応答も重ねない。
   const toki = (t, s) => rt.after(t, () => { rt.army.playFar?.('toki', rt.player.u.pos, 1.4); sfx('taiko', 1); rt.say('組頭 源八（げんぱち）', s, 1.3); });
   toki(15, 'えい、えい！');
   rt.after(16.4, () => rt.say('織田の兵', 'おう！', 1.3));
   toki(18, 'えい、えい！');
   rt.after(19.4, () => rt.say('織田の兵', 'おおう！', 1.6));
-  rt.after(21.5, () => rt.say('足軽', '斎藤勢は墨俣の方へ逃げてゆく……墨俣は川の中洲じゃ。あそこに砦があれば美濃は目の前ぞ', 4));
-  rt.after(28, () => { if (!rt.over) { rt._closing = null; then(); } });
+  toki(21.5, 'えい、えい！');
+  rt.after(22.9, () => rt.say('織田の兵', 'おおう！', 1.6));
+  rt.after(25, () => rt.say('足軽', '斎藤勢は墨俣の方へ逃げてゆく……墨俣は川の中洲じゃ。あそこに砦があれば美濃は目の前ぞ', 4));
+  rt.after(31, () => { if (!rt.over) { rt._closing = null; then(); } });
 }

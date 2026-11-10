@@ -2208,6 +2208,7 @@ const tennoji = {
   // 稲生の型。任務は一行、持ち場と残敵はピン一本で示す。
   minutes: 7,
   missionSingleLine: true, hideMissionDots: true,
+  goalsAllRows: true, // 一行の案内を保ちつつ、固定の五目標を始めから全部並べる。
   enemyTriangleSigns: true, nearbyAllySignLimit: 0,
   noDodgeCard: true, noPlayerFoot: true, quietMiss: true, inouFeel: true,
   // 10/31：共通の物見・大寄せが、この戦の三方の一斉の寄せ（籠城）と救援の突入に重なって門が二十秒で落ち、
@@ -4254,7 +4255,7 @@ html:root body #hud#hud#hud.tennoji-goals #h-prog#h-prog.goal-mode {
  left:auto !important; right:calc(12px + env(safe-area-inset-right, 0px)) !important; transform:none !important;
  width:auto !important; min-width:0 !important; max-width:min(400px, 44vw) !important; box-sizing:border-box;
  padding:8px 12px 9px 10px !important; background:rgba(14,12,10,.7) !important; border:none !important; border-radius:6px !important; }
-html:root body #hud#hud#hud.tennoji-goals #h-prog#h-prog.goal-mode .pg-goals li { white-space:normal !important; align-items:flex-start; color:#e6dfd2 !important; }
+html:root body #hud#hud#hud.tennoji-goals #h-prog#h-prog.goal-mode .pg-goals :is(li, li.now) { white-space:normal !important; align-items:flex-start; color:#e6dfd2 !important; font-size:max(15px, calc(15px * var(--text-scale, 1))) !important; line-height:1.3 !important; margin:0 !important; padding:0 !important; }
 html:root body #hud#hud#hud.tennoji-goals #h-prog#h-prog.goal-mode .pg-goals li i { margin-top:3px; }
 html:root body #hud#hud#hud.tennoji-goals #h-prog#h-prog.goal-mode .pg-goals li span { color:inherit !important; background:none !important; }
 html:root body #hud#hud#hud.tennoji-goals #h-prog#h-prog.goal-mode .pg-goals li.now { color:#fff !important; }
