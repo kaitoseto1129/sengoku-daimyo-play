@@ -2550,6 +2550,8 @@ const hiei_mtn = {
     return from;
   },
   stageGoalsOnly: true, // 勝利の星も、戦場と同じ場所・行いの五つだけ。
+  victoryTitle: '比叡山 制圧',
+  victoryCaption: '山門 壊滅',
   goalsAllRows: true, // 共通の目標札にも五つを最初から並べる。
   goalsVisibleRows: 5, // 西塔・横川を含む七目標も、画面には今の五件まで。
   goalRowsAhead: true, // 最初から五件を並べ、後半は今の目標と続きが見えるようにする。

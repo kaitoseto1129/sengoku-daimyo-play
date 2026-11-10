@@ -1946,6 +1946,12 @@ const tottori = {
   },
   travelGuideLabel(rt) {
     const F = rt.flags;
+    // 物見・荷駄・使者の段では、古い舟焼きの持ち場へ誘わない。
+    if (F.k15on) {
+      const marker = rt.markers?.find((m) => m.id === 'k15');
+      const label = typeof marker?.label === 'function' ? marker.label() : marker?.label;
+      return marker?.pos() && label ? label : '';
+    }
     if (F.step === 0) return '川岸の組へ';
     if (F.step === 1) {
       if (bankNeedsReturn(rt)) return '岸の道へ';
@@ -1999,6 +2005,7 @@ const tottori = {
   actionGuideTarget: () => null,
   guideMarker(rt) {
     const F = rt.flags;
+    if (F.k15on) return rt.markers?.some((m) => m.id === 'k15' && m.pos()) ? 'k15' : null;
     if (F.step === 0) return 'hide';
     if (F.step === 1) {
       if (bankNeedsReturn(rt)) return 'bank-road';

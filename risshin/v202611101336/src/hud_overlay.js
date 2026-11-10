@@ -813,6 +813,7 @@ export class HudOverlay {
       Number(!!this.prog && !this.prog.hidden) - Number(!$('boss').hidden) -
       Number(!$('target').hidden && !$('target').classList.contains('notice-muted')));
     for (const u of this.ovCand) {
+      const guardNamed = u === protectedAlly && !!u.name && !this.root.classList.contains('guard-guide');
       if (rescueTarget(rt) || protectedAlly?.alive && u !== focus && !(u === protectedAlly && u.name && !this.root.classList.contains('guard-guide'))) continue;
       // 開幕は目的地の輪と短い札にまとめ、離れた顔や青旗を重ねない。
       if (this.openingActive) continue;
@@ -822,9 +823,9 @@ export class HudOverlay {
       if (u === talkPerson && !S.reduceGuidance && !guidanceEnded(rt)) continue;
       // 普段の合戦では対象一人の囲みだけを残す。人数や戦い方は変えない。
       //   武将と名のある侍の名は、普段の合戦でも出す（kaito 10/23「武将の名前が出ていない」）。
-      if (quietBattle && u !== focus && !(this.pinOnly && u.name && !u.isSub && (u.type === 'busho' || u.type === 'samurai'))) continue;
+      if (quietBattle && u !== focus && !guardNamed && !(this.pinOnly && u.name && !u.isSub && (u.type === 'busho' || u.type === 'samurai'))) continue;
       // 小さな形だけを両軍六人まで。近い味方だけで敵の印を使い切らない。
-      if (u !== focus && (u.team === P.u.team ? allySigns : enemySigns) >= 6) continue;
+      if (u !== focus && !guardNamed && (u.team === P.u.team ? allySigns : enemySigns) >= 6) continue;
       // 守る相手は下で大きな盾だけを示し、ほかの印や名を重ねない。
       // 11/8 critic60 本能寺：守る相手の盾の札が出ていない時は、名のある守る相手の名札を消さない（上様の名が一度も出なかった）
       const guardShown = this.root.classList.contains('guard-guide');
@@ -833,7 +834,7 @@ export class HudOverlay {
       if (u.offscreen || !u.alive || u.isPlayer || u.noTarget || u.civ || u.isStruct || u.type === 'dummy' || u.type === 'porter' || u.invuln && !u.name) continue;
       const d = Math.hypot(u.pos.x - cam.x, u.pos.z - cam.z);
       const knownGeneral = !!u.name && !u.isSub && u.type === 'busho';
-      if (d > (u === focus && objectiveEnemies?.includes(u) ? 56 : knownGeneral ? Math.max(48, rt.def.nameRange || 0) : 26) || !u.mesh.visible) continue;
+      if (d > (u === focus && objectiveEnemies?.includes(u) ? 56 : knownGeneral || guardNamed ? Math.max(48, rt.def.nameRange || 0) : 26) || !u.mesh.visible) continue;
       // 要る時だけ出す：敵は戦っている相手・狙っている相手、味方は傷ついた者（Alt で組を全部）
       // 敵の棒は、狙っている相手・自分に打ちかかる相手・すぐそばで打たれた相手だけ（遠くの斬り合いの棒が横一列に並ばないように）
       const fighting = P.lock === u || P.aimed === u || (u.target && u.target.isPlayer && d < 10) || (u.lastHitT < 3 && d < 7);
@@ -852,6 +853,8 @@ export class HudOverlay {
       // 武将と名のある侍は、敵も味方も頭上に名だけを小さく（旗の印は出さない。kaito 10/23 稲生 5）。
       if (this.pinOnly && u.name && !u.isSub && (u.type === 'busho' || u.type === 'samurai') && d < 40 && !u.fleeing) named = true;
       if (knownGeneral && rt.def.nameRange && d < rt.def.nameRange && !u.fleeing) named = true;
+      // 信長は弓から槍へ持ち替えると兵種も変わる。守る相手の名は得物や携帯の省略で消さない。
+      if (guardNamed && !u.fleeing) named = true;
       // 町では頭の上に役目の字（捕り方・役人など）を出さない。姿で分かる。武将の名だけ残す（kaito 10/23「字は使わない」）
       if (rt.def.town && u.type !== 'busho') named = false;
       const crest = !this.pinOnly && !quietBattle && u.team === 0 && knownGeneral && d >= 22 && d < 48;

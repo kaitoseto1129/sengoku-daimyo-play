@@ -80,6 +80,11 @@ const FORD_W = { x: FORD.x - 7, z: 0 };       // 神川の西の岸（追い討�
 //   真田の小隊の動き：HARASS（撃って足を止める）→RETREAT（寄られたら次の所へ）→LURE（追えば追える間合い）→AMBUSH（狭い道の左右から）→DISENGAGE（林・城へ去る）
 //   詰まり対策：真田の全滅を進む条件にしない／着いた所＋時間で次へ／追わなくても話は進む／門は時間＋寄せで進む（落ちない）。
 const NIDA = { x: 88, z: -8 };                 // 城下の東の道に止めた荷駄（本隊の兵糧と玉薬）
+const TOWN_EXIT = { x: 72, z: -14 };          // 町屋を抜けて荷駄・神川へ出る道
+const INNER_N = { x: -8, z: -48 }, INNER_E = { x: 4, z: -48 };
+const INNER_S = { x: 4, z: -20 }, INNER_GATE = { x: 16, z: -20 };
+const INNER_MOUTH = { x: 16, z: GATE.z };
+const GATE_EXIT = { x: GATE.x + 7, z: GATE.z };
 const LURE = [{ x: 72, z: -70 }, { x: 63, z: -80 }, { x: 55, z: -92 }, { x: 47, z: -103 }, { x: 46, z: -117 }];   // 誘いの退き道（田の畦→林の間の細い道）
 const TRAP = { x: 47, z: -103 };               // 林と林の間で道が狭まる所（左右に伏兵）
 const OUT = { x: 66, z: -72 };                 // 囲みを抜けて戻る田
@@ -259,8 +264,20 @@ const k05_ueda = {
     else if (F.step === 5) p = NIDA;
     else if (F.step === 6) p = FORD_W;
     else if (F.step === 7) p = MARCH;
+    // 門内へ誘われた本人にも、土塀の開口から出る退路を示す。
+    // 自動操作だけが家並みを避け、人には壁の向こうを指す案内にしない。
+    const me = rt.player?.u.pos;
+    let route = false;
+    if (me && F.step >= 3 && F.step !== 4 && me.x < GATE.x + 4 && me.z > -60 && me.z < 0) {
+      route = true;
+      if (me.x < 1 && (me.x < -2 || me.z < -42)) p = me.z > -45 ? INNER_N : INNER_E;
+      else if (me.x < 12) p = me.z < -23 ? INNER_S : INNER_GATE;
+      else p = Math.abs(me.z - GATE.z) > 3.5 ? INNER_MOUTH : GATE_EXIT;
+    } else if (me && (F.step === 5 || F.step === 6) && me.x < 68 && dist(me, p) > 20) {
+      p = TOWN_EXIT; route = true;
+    }
     PIN.x = p.x; PIN.z = p.z; PIN.r = F.step === 2 ? 10 : 9;
-    PIN.label = F.step === 4 && !F.atFront && !F.throughTown ? '町屋の小路' : PIN_NAMES[F.step || 1];
+    PIN.label = route ? (p === TOWN_EXIT ? '城下の東の道' : '大手門') : F.step === 4 && !F.atFront && !F.throughTown ? '町屋の小路' : PIN_NAMES[F.step || 1];
     return PIN;
   },
   talk: {
@@ -917,8 +934,6 @@ const k05_ueda = {
       const s = (x - LANE_A.x) * ux + (z - LANE_A.z) * uz, side = (x - LANE_A.x) * uz - (z - LANE_A.z) * ux;
       if (s < dist(LANE_A, LANE_B) - 2) t = Math.abs(side) > 3 ? { x: LANE_A.x + ux * (Math.max(0, s) + 4), z: LANE_A.z + uz * (Math.max(0, s) + 4) } : LANE_B;
     }
-    // ⑤：門の前から荷駄へは、小路を通らず町屋の間の道（72,-14）を通って東へ
-    if (F.step === 5 && u.pos.x < 68 && dist(u.pos, NIDA) > 20) t = { x: 72, z: -14 };
     // 何かに当たって四秒動けない時は、行き先と直角に三秒よける
     const B = F._bs || (F._bs = { x: u.pos.x, z: u.pos.z, t: b.t, until: 0, sgn: 1 });
     if (b.t > B.until) {

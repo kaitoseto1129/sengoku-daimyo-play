@@ -461,11 +461,13 @@ const t08_nejirozaka = {
     const F = rt.flags, i = F.dp?.i ?? 0;
     if (rt.over || F.ending || F.retreating) return null;
     const unit = i === 7 && F.tadaU?.alive ? F.tadaU : null;
+    // 忠隣を先に討っても寄せ手との戦いは続く。印を砦の内へ戻さない。
     const at = unit ? unit.pos : i < 2 ? { x: 34, z: -6 }
+      : i === 7 ? { x: BREACH.x, z: 30 }
       : i === 8 || i === 9 ? shuryoku.EAST : i === 5 || i === 6 ? BREACH : POST;
     const target = F.nejiroTarget || (F.nejiroTarget = {});
     target.x = at.x; target.z = at.z; target.unit = unit; target.boss = !!unit;
-    target.label = unit ? '' : i < 2 || i === 8 || i === 9 ? '右の堀' : i === 5 || i === 6 ? '破れ口' : '土橋の塀';
+    target.label = unit ? '' : i === 7 ? '土橋の前の坂' : i < 2 || i === 8 || i === 9 ? '右の堀' : i === 5 || i === 6 ? '破れ口' : '土橋の塀';
     target.action = unit ? '島津忠隣を討ち取れ' : `${target.label}へ向かえ`;
     return target;
   },
