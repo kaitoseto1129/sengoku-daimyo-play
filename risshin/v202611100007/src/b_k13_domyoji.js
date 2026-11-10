@@ -145,6 +145,8 @@ const keep = (name, at, list, o = {}) => ({ name, from: { x: at.x + (o.dx || 0),
 function checkedStep(step) {
   step.idleAdvance = false;
   if (step.kind !== 'fight' && step.kind !== 'hold') return step;
+  // 共通の四分・七分の救済でも未達成の目標を飛ばさない。
+  step.noHardCap = true;
   if (step.kind === 'hold') {
     const start = step.start;
     step.start = (rt, C, m, ctx) => {
@@ -569,9 +571,28 @@ const k13_domyoji = {
   datePushed(rt) {
     const F = rt.flags, g = F.katakura;
     // 待ち伏せの予約後に終戦した場合、追撃停止を移動の下知で上書きしない。
-    if (F.ending) return;
-    rt.army.play('volley', { x: HONDA.x - 20, z: HONDA.z + 22 }, 1.6);
+    if (F.ending || rt.over || F.dp?.i !== 5) return;
     if (!g || !g.count) return;
+    const sanada = F.dp.cur.groups.find((q) => q.name === '真田信繁の手');
+    if (!sanada || sanada.routed) return;
+    const active = (u) => u.alive && !u.fleeing && !u.gone && !u.woundOut &&
+      !u.rearWound && !u.downed && !u.noTarget;
+    if (!sanada._dmAmbush) {
+      sanada._dmAmbush = true;
+      sanada.ambush = true; sanada.order = 'hold'; sanada.seekRange = 0;
+      const c = sanada.center(); sanada.anchor = { x: c.x, z: c.z };
+      for (const u of sanada.units) if (active(u) && !u.mounted) {
+        u._crouch = true; u.target = null; u.moveTo = null;
+      }
+    }
+    // 台詞から一定時間で押し戻さず、生きた鉄砲兵へ伊達勢が寄るまで伏せて待つ。
+    const gunner = sanada.units.find((u) => active(u) && u.weapon === 'gun' &&
+      g.units.some((v) => active(v) && Math.hypot(u.pos.x - v.pos.x, u.pos.z - v.pos.z) <= 42));
+    if (!gunner) { rt.after(1, () => this.datePushed(rt)); return; }
+    sanada.ambush = false; sanada.order = 'attack'; sanada.seekRange = 55;
+    sanada.anchor = { x: HONDA.x, z: HONDA.z };
+    for (const u of sanada.units) u._crouch = false;
+    rt.army.play('volley', gunner.pos, 1.6);
     g.order = 'move'; g.dest = { x: HONDA.x + 22, z: HONDA.z - 6 }; F.pushedUntil = rt.t + 12;
     rt.after(12, () => { if (g.count && !F.ending) { g.order = 'attack'; g.seekRange = 40; g.anchor = { x: HONDA.x + 4, z: HONDA.z - 4 }; rt.say('片倉重綱', '退くな！　列を立て直して撃ち返せ！', 3); } });
   },
@@ -595,10 +616,10 @@ const k13_domyoji = {
     // 生き残った豊臣勢は台詞だけでなく大坂側へ退く。朝から戦った徳川勢も追撃を止める。
     for (const g of rt.army.groups) {
       if (!g.count || g.routed) continue;
-      g.calm = false; g.focus = null;
+      g.calm = false; g.focus = null; g.onArrive = null;
       if (g.team === 1) {
         g.order = 'retreat'; g.dest = { x: -240, z: 40 }; g.speed = 4.2; g.aggro = 0;
-      } else if (g.team === 0 && !g.isPlayerSquad) {
+      } else if (g.team === 0) {
         g.order = 'hold'; const c = g.center(); g.anchor = { x: c.x, z: c.z }; g.seekRange = 0;
       }
     }

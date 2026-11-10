@@ -65,6 +65,8 @@ const polar = (a, r) => ({ x: C.x + Math.sin(a) * r * sq(a), z: C.z + Math.cos(a
 const angOf = (x, z) => Math.atan2(x - C.x, z - C.z);
 const rOf = (x, z) => Math.pow(Math.abs(x - C.x) ** PW + Math.abs(z - C.z) ** PW, 1 / PW);
 const gone = (g) => !g || g.count === 0 || g.routed;
+// 櫓の狙撃も一斉射も、退走・戦闘不能・戦場を離れた者には撃たせない。
+const canShoot = (u) => u.alive && u.type === 'gun' && !u.gone && !u.fleeing && !u.woundOut && !u.group?.routed;
 // 退きの下知では古い狙いも解く。移動だけ替えると、狙った敵へ寄り直して陣へ戻れない。
 function withdraw(g, dest) {
   g.fixed = false; g.focus = null; g.keepMoveOrder = true; g.aggro = 3;
@@ -773,10 +775,10 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
     // 撃ち手がいなければ傷を出さない（撃ち手なしでは竹束の当たりも調べられない）。
     let shooter = null;
     for (const g of [F.wallG, ...F.perch]) {
-      shooter = g.units.find((u) => u.alive && u.type === 'gun' && !u.fleeing && !u.woundOut);
+      shooter = g.units.find(canShoot);
       if (shooter) break;
     }
-    if (!shooter) shooter = F.towerU.find((u) => u.alive && u.type === 'gun' && !u.fleeing && !u.woundOut);
+    if (!shooter) shooter = F.towerU.find(canShoot);
     if (!shooter) return;
     F.shot++;
     sfx('volley', 0.9);
@@ -941,7 +943,7 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
       const rp = rOf(PU.pos.x, PU.pos.z), ap = Math.abs(angOf(PU.pos.x, PU.pos.z));
       if (rp < 64 && ap < SPAN + 0.1) {   // 狙い撃つのは柵と堀の前まで（篠山の麓の殿は打って出た兵と戦う場）
         F.snipeT = ((rp < 55 ? 0.85 : 1.4) + Math.random() * 0.5) * (PU.hp < PU.maxHp * 0.35 ? 2.2 : 1);   // 深手の時は間を空け、退く間を残す（十一1）
-        const ready = F.towerU.filter((u) => u.alive && u.type === 'gun' && rt.t - (u.snipeAt || -9) > 2.6 && Math.hypot(u.pos.x - PU.pos.x, u.pos.z - PU.pos.z) < 75);
+        const ready = F.towerU.filter((u) => canShoot(u) && rt.t - (u.snipeAt ?? -9) > 2.6 && Math.hypot(u.pos.x - PU.pos.x, u.pos.z - PU.pos.z) < 75);
         ready.sort((a, b) => Math.hypot(a.pos.x - PU.pos.x, a.pos.z - PU.pos.z) - Math.hypot(b.pos.x - PU.pos.x, b.pos.z - PU.pos.z));
         const u = ready[Math.floor(Math.random() * Math.min(8, ready.length))];
         if (u) { u.snipeAt = rt.t; u.heading = Math.atan2(PU.pos.x - u.pos.x, PU.pos.z - u.pos.z); rt.army.fireGun(u, PU); }
