@@ -44,7 +44,7 @@ export function startNight(rt, K) {
   say(rt, '森長可', '声を立てるな。馬の口を縛れ', 2, 2.8);
   say(rt, '使番', '孫七郎様の本隊、堀様の隊も続いて出られました', 24, 3);
 }
-export function tickNight(rt, K) {
+export function tickNight(rt, K, dt) {
   const F = rt.flags, P = rt.player.u.pos, el = rt.t - F.st0;
   // 道の半ばで徳川の物見と出会う（斥候戦）
   if (!F.scoutT && (Math.hypot(P.x - FORD.x, P.z - FORD.z) < 40 || el > 60)) {
@@ -69,18 +69,30 @@ export function tickNight(rt, K) {
     F.tAmb = enemyGroup(rt, { faction: 'tokugawa', name: '徳川の伏せ鉄砲', anchor: { x: FORD.x + 12, z: FORD.z + 16 }, facing: Math.PI, width: 5, formation: 'line', morale: 70, dmgMult: 0.3,
       order: 'attack', seekRange: 30, aggro: 20, speed: 3.6 }, K.dressT([{ type: 'gun', n: 4 }, { type: 'ashigaru', n: 3 }]));
     K.pushWave(F.tAmb);
+    F.ambushN = K.resistingN(F.tAmb);
+    // 渡しの北で止まった列を、実際に撃ってきた川向こうへ押し渡らせる。
+    // 主人公だけが伏兵を追い、森・池田の兵が岸で待ち続ける形にしない。
+    for (const g of [F.moriG, F.ikedaG]) if (K.live(g)) {
+      g.order = 'move'; g.seekRange = 24;
+      g.dest = { x: FORD.x + (g === F.ikedaG ? -4 : 8), z: FORD.z + 12 };
+      g.onArrive = (q) => { q.order = 'attack'; };
+    }
     rt.army.play('volley', { x: FORD.x + 12, z: FORD.z + 16 }, 0.9);
     rt.say('森長可', '川向こうの藪から撃って来た！　押し渡って突け！', 2.8);
     say(rt, '池田恒興', '池田の列は上の浅瀬を渡る。森殿、下を頼む', 30, 3);
     say(rt, '使番', '孫七郎様の本隊、無事に川を越えられました', 44, 3);
     say(rt, '森長可', '列を詰めよ。夜が明けるまでに一里は進むぞ', 56, 3);
   }
-  if (F.ambush && Math.hypot(P.x - FORD.x, P.z - FORD.z) < 20 && rt.t - F.ambush > 25 && K.resistingN(F.tAmb) <= 1 && el > 140) {
-    // 払った伏せ鉄砲の残兵を夜明けの列へ追わせない。物見と同じく小牧山へ退かせる。
-    if (K.live(F.tAmb)) {
-      F.tAmb.order = 'retreat'; F.tAmb.dest = { x: K.HONJIN.x, z: 140 };
-      F.tAmb.aggro = 0; F.tAmb.seekRange = 0;
-    }
+  if (F.ambush && Math.hypot(P.x - FORD.x, P.z - FORD.z) < 36) F.fordPress = (F.fordPress || 0) + dt;
+  // 伏兵七人の最後の一、二人が藪や川岸に残っても、列を止め続けない。
+  // 渡しで交戦を続け、四分の一以上を崩した後の二分を、斥候戦の上限とする。
+  const ambushOff = F.ambush && (K.resistingN(F.tAmb) <= 1 ||
+    (rt.t - F.ambush > 120 && F.fordPress >= 30 && K.resistingN(F.tAmb) <= F.ambushN * 0.75));
+  if (ambushOff && K.live(F.tAmb) && F.tAmb.order !== 'retreat' && F.tAmb.order !== 'flee') {
+    F.tAmb.order = 'retreat'; F.tAmb.dest = { x: K.HONJIN.x, z: 140 };
+    F.tAmb.aggro = 0; F.tAmb.seekRange = 0;
+  }
+  if (F.ambush && Math.hypot(P.x - FORD.x, P.z - FORD.z) < 20 && rt.t - F.ambush > 25 && ambushOff && el > 140) {
     rt.award((t) => t.side.push('夜の道で徳川の物見を払い、五条川の渡しに着いた'), '五条川の渡しに着いた');
     K.next();
   }

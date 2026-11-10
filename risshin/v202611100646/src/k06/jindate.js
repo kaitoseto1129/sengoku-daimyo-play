@@ -15,6 +15,9 @@ import { isTouch } from '../touch.js';
 import { clash } from '../b_sekigahara.js';
 import { depthOrder, depthRout, depthShock } from '../army_depth.js';
 
+// 本物の兵・遠景・使番の知らせで同じ時刻を使う。下山の完了（三十六秒）より前に大谷を崩さない。
+export const TURN = Object.freeze({ aim: 12, support: 36, collapse: 60, spread: 65 });
+
 const E = -Math.PI / 2;   // 東軍は西（-x）を向く
 const TK = 0x24221f, WS = 0x2c2a2a;
 const KOBA_FLAG = 'sashi:kobayakawa:#ece6d6:#16140f';   // 小早川の旗（b_k06 の KOBA と同じ）
@@ -111,17 +114,17 @@ function flip(rt, st, later, routB) {
   for (const g of [M.koba, M.koba2]) if (g?.army) g.army.team = 0;
   M.koba?.moveTo(P.MATSUO.x + 10, P.MATSUO.z - 110, 14, { charge: true });
   M.koba2?.moveTo(P.MATSUO.x - 20, P.MATSUO.z - 90, 16, { charge: true });
-  later(12, () => {
+  later(TURN.aim, () => {
     M.koba?.moveTo(P.HIRA.x - 10, P.HIRA.z + 40, 22, { charge: true });
     M.koba2?.moveTo(P.OTANI.x + 60, P.OTANI.z + 50, 24, { charge: true });
     C.o?.shake?.('B', 30);
   });
-  later(14, () => {
+  later(TURN.support, () => {
     for (const g of [M.waki, M.akaza, M.ogawa, M.kutsuki]) if (g?.army) g.army.team = 0;
     M.waki?.moveTo(P.HIRA.x + 30, P.HIRA.z + 20, 20, { charge: true }); C.o?.push?.('A', 0.6);
     M.akaza?.moveTo(P.HIRA.x - 20, P.HIRA.z + 34, 22, { charge: true }); M.ogawa?.moveTo(P.HIRA.x, P.HIRA.z + 30, 21, { charge: true }); M.kutsuki?.moveTo(P.HIRA.x + 46, P.HIRA.z + 26, 23, { charge: true });
   });
   // 大谷の陣が崩れ、宇喜多・小西も崩れる（西軍右翼の総崩れ）
-  later(26, () => { C.o?.rout?.('B', { from: 1, minFight: 1 }); routB('otani2'); });
-  later(31, () => { C.s?.rout?.('B', { from: 1, minFight: 1 }); routB('ukita2', 'konishi2'); });
+  later(TURN.collapse, () => { C.o?.rout?.('B', { from: 1, minFight: 1 }); routB('otani2'); });
+  later(TURN.spread, () => { C.s?.rout?.('B', { from: 1, minFight: 1 }); routB('ukita2', 'konishi2'); });
 }

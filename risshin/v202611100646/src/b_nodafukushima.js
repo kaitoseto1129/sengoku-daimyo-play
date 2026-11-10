@@ -2705,7 +2705,7 @@ const nodafukushima = {
     if (rt.flags.recoveryShown || rt.flags.holdRest || rt.flags.assaultResting) return '味方の後ろへ下がれ';
     if (rt.flags.step >= 3) return '追わず、堤で迎えよ';
     if (rt.flags.step === 2) return '味方と浅瀬で迎えよ';
-    return '味方と敵へ すすめ';
+    return '味方と敵へ進め';
   },
   coverGuidePlace: true, // 竹束や柵の陰を、味方の旗への帰還と取り違えさせない。
   coverGuideLabel: '竹束の陰へ',
@@ -2865,6 +2865,10 @@ const nodafukushima = {
   nearAllyFadeImportant: true, // 開始時に近い将の馬も同じ扱いにする。
   guideMarker(rt) {
     const F = rt.flags;
+    // 追加した局面でも、済んだ下知や消した退き口の印へ戻さない。
+    if (F.nodaEguchi && !F.nodaEguchi.done) return 'nodaEguchi';
+    if (F.nodaTeppo && !F.nodaTeppo.done) return 'nodaTaba';
+    if (F.nodaSuiro && !F.nodaSuiro.done && !F.step) return 'nodaMi';
     if (F.recoveryShown && F.recoveryFound) return 'recover';
     // 堤に着いたら道案内を畳み、寄せてくる方へ目を向けられるようにする。
     if (F.step === 2 && (F.assaultResting || rt.player.u.mobbed || rt.t < (F.assaultSafeUntil || 0))) return null;

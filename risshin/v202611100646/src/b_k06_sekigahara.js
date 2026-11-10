@@ -550,16 +550,19 @@ const k06_sekigahara = {
     F.flipT = rt.t;
     sfx('horagai', 1);
     rt.army.play('eshout', { x: MATSUO.x, z: MATSUO.z - 60 }, 2.5);
-    rt.say('使番', '松尾山の旗が動いた！　小早川が大谷の陣へかかる！', 3.5);
-    rt.banner('小早川秀秋　寝返り');   // 11/8 critic60（二4・九2）：笹尾山にいても戦の見せ場が分かるように
+    rt.say('使番', '松尾山の旗が動いた！　小早川が山を下りて来る！', 3.5);
+    rt.after(jindate.TURN.aim, () => {
+      rt.say('使番', '小早川が大谷の陣へ向かった！', 3.5);
+      rt.banner('小早川秀秋　寝返り');
+    });   // 11/8 critic60（二4・九2）：笹尾山にいても戦の見せ場が分かるように
     rt.after(4, () => rt.say('小早川秀秋', '……狙うは大谷刑部の陣じゃ。山を下れ！', 3.5));
     turnover(rt, F.kobaE);
     for (const g of [F.mitsu2, F.akashi, F.konishi, F.otani, F.hideG]) if (alive(g)) g.morale -= 12;
     room(rt, 18);
     F.kobaG = ally(rt, '小早川秀秋の兵', MATSUO, [{ type: 'busho', n: 1, o: { name: '小早川秀秋', invuln: true, horse: true } }, { type: 'busho', n: 1, o: { name: '平岡頼勝', horse: true } }, { type: 'gun', n: 2 }, { type: 'ashigaru', n: 6 }], KOBA, { facing: -Math.PI * 0.8, aggro: 40, seekRange: 60 });
     goAttack(F.kobaG, HIRA);
-    rt.after(9, () => rt.say('大谷吉継', '金吾め、やはり裏切ったか……。備えはしてある。押し返せ！', 4));
-    rt.after(14, () => {
+    rt.after(jindate.TURN.aim + 3, () => rt.say('大谷吉継', '金吾め、やはり裏切ったか……。備えはしてある。押し返せ！', 4));
+    rt.after(jindate.TURN.support, () => {
       F.wakiT = rt.t;
       rt.say('使番', '脇坂・朽木・小川・赤座も寝返った！', 3);
       turnover(rt, F.wakiE);
@@ -568,9 +571,7 @@ const k06_sekigahara = {
       goAttack(F.wakiG, HIRA);
       if (alive(F.otani)) F.otani.morale -= 30;
     });
-    rt.after(26, () => {
-      rt.say('使番', '大谷刑部殿、陣中にて自害！　平塚・戸田も討ち死に！', 4);
-      rt.banner('大谷吉継　自害');
+    rt.after(jindate.TURN.collapse, () => {
       // 討死の知らせと実際の最期を揃える。無敵を外すだけでは二人とも敗走してしまう。
       for (const u of F.otani?.units || []) if (u.alive && !u.gone && u.type === 'busho') {
         u.invuln = false; u.hp = 0; rt.army.kill(u, null);
@@ -580,7 +581,9 @@ const k06_sekigahara = {
         F.otaniU.invuln = false; F.otaniU.hp = 0;
         rt.army.kill(F.otaniU, null);   // 自害した吉継も陣の内で倒れる
       }
-      rt.after(5, () => {
+      rt.say('使番', '大谷刑部殿、陣中にて自害！　平塚・戸田も討ち死に！', 4);
+      rt.banner('大谷吉継　自害');
+      rt.after(jindate.TURN.spread - jindate.TURN.collapse, () => {
         for (const g of [F.akashi, F.ukita2, F.ukita3, F.ukita4, F.hideG]) rout(g);
         rt.say('宇喜多秀家', '金吾めっ……！　刺し違えてくれる！', 3);
         rt.after(3, () => { rt.say(F.akashiU?.alive ? '明石全登' : '宇喜多の近習', '殿、なりませぬ！　ここは落ちのびられませ！', 3); if (F.hide?.leader?.alive) rt.army.despawn(F.hide.leader); rout(F.hide); });
