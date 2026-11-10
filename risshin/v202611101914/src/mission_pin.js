@@ -190,7 +190,9 @@ export function updateMissionPin(rt) {
 }
 function drawMissionPin(rt) {
   // 行動の札と矢印が指す本人へ統一し、別の案内を重ねない。
-  if (rt.def.goalSignNavigation && rt.hud.goalSignVisible || rt.hud.actionGuideUnit && !(rt.hud.actionGuideUnit.team !== rt.player.u.team && (target(rt)?.route || target(rt)?.always))) {
+  // 淀の野の常時表示は、味方への行動案内が選ばれた時も残す。
+  const actionDestination = rt.hud.actionGuideUnit ? target(rt) : null;
+  if (rt.def.goalSignNavigation && rt.hud.goalSignVisible || rt.hud.actionGuideUnit && !actionDestination?.always && !(rt.hud.actionGuideUnit.team !== rt.player.u.team && actionDestination?.route)) {
     rt.hud.missionPinLabelShown = false;
     rt.hud.missionEnemyShown = false;
     rt.hud.missionPinOutside = false;

@@ -1179,6 +1179,14 @@ html:root body #hud#hud#hud.sanada-goals .sanada-progress { margin:4px 0 0; font
   collapse(rt) {
     const F = rt.flags;
     F.step = 6; F.retreatOrder = true;
+    // 打って出の退却予約だけに頼らず、攻撃中止でも破城隊の
+    // 古い柵への攻撃を解き、途中から再開した時も陣へ戻す。
+    F.breaking = false;
+    rt.unmark('fence');
+    for (const g of F.rams || []) if (!gone(g)) {
+      g.assault = null; g.fire = false;
+      withdraw(g, { x: RETREAT.x + 12, z: RETREAT.z + 14 });
+    }
     rt.say('使番', '攻撃中止！　大御所様の下知、力攻めはやめよ、寄せ手は引き揚げよ！', 4);
     rt.after(4.4, () => rt.say('山崎長徳', '攻撃中止だ！　負傷者を運べ！', 3));
     for (const g of F.surge || []) if (!gone(g)) withdraw(g, { x: g.anchor.x, z: RETREAT.z + 20 });

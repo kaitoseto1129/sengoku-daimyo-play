@@ -322,12 +322,18 @@ const PEOPLE_PATHS = [
 const peopleRoute = (pts) => pts.map(([x, z]) => ({ x, z }));
 const WALK_ROADS = [[[-146, 0], ...ROAD_KARAMETE], ...TAKATO_PLAN.paths.filter((p) => p.kind !== 'nishi' && p.kind !== 'yodou').map((p) => p.pts), ...PEOPLE_PATHS];
 // 台地の外の崖と谷の斜面に、高遠の実測の尾根と沢の凹凸を足す（国土地理院）。曲輪・堀・道から離れた所だけ。
+const WALK_BOX = WALK_ROADS.map((pts) => ({ x0: Math.min(...pts.map((p) => p[0])), x1: Math.max(...pts.map((p) => p[0])), z0: Math.min(...pts.map((p) => p[1])), z1: Math.max(...pts.map((p) => p[1])) }));
 function demAway(x, z) {
   let out = Infinity;
   for (const k of CLEAR_BOUNDS) out = Math.min(out, Math.max(k.x0 - x, x - k.x1, k.z0 - z, z - k.z1, 0));
   let t = Math.max(0, Math.min(1, (out - 20) / 14));
   if (t <= 0) return 0;
-  for (const pts of WALK_ROADS) t = Math.min(t, Math.max(0, Math.min(1, (distToPolyline(x, z, pts) - 10) / 10)));
+  // 道の囲み（WALK_BOX）から二十メートル以上離れた道は、t を下げないので測らない（答えは前と同じ）。
+  for (let i = 0; i < WALK_ROADS.length; i++) {
+    const q = WALK_BOX[i];
+    if (q.x0 - x >= 20 || x - q.x1 >= 20 || q.z0 - z >= 20 || z - q.z1 >= 20) continue;
+    t = Math.min(t, Math.max(0, Math.min(1, (distToPolyline(x, z, WALK_ROADS[i]) - 10) / 10)));
+  }
   return t;
 }
 function rawHeight(x, z) {
@@ -1495,6 +1501,8 @@ const takato_siege = {
     // 信忠は西の搦手から塀際へ進む。taisho.js の adopt() は invuln 持ちの味方の総大将に
     // 深手（討たれない）の退きを与えるので、ここで立てておく（kaito 10/1。滝川一益の手と同じ作り）
     if (F.nobutada.taishoU) F.nobutada.taishoU.invuln = true;
+    // 11/10 関所の4：森長可・河尻秀隆も高遠では討たれていない（河尻は同じ年の六月に甲斐で死ぬ）。「河尻秀隆、討死」が二度出ていたので、深手の退きにとどめる
+    for (const b of [F.oteSpear, F.reserve]) if (b?.taishoU) b.taishoU.invuln = true;
     // 寄せ手は数で勝る。三分で総崩れして戦が終わらないよう、大手の先手と後詰は崩れずに戦い続ける（高遠は城方の全滅で終わった）
     // 11/5：信忠の旗本と搦手の槍も崩れない（総大将の旗本が弓だけで総崩れするのは史実と逆。kaito 一2）。
     for (const b of [F.oteSpear, F.reserve, F.karameteSpear, F.nobutada]) if (b?.real) b.real.noRout = true;
