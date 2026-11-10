@@ -450,7 +450,7 @@ const k14_yao_wakae = {
       for (const g of [F.mine, F.kibaG]) if (canMarch(g)) { g.order = 'move'; g.dest = NAITO_GO; g.speed = 6.2; g.noRun = false; g.focus = null; }
       for (const g of [F.sakiG, F.iharaG]) if (canMarch(g)) { g.onArrive = null; g.order = 'attack'; g.seekRange = 70; g.aggro = 14; }
       F.naitoG.order = 'attack'; F.naitoG.seekRange = 60;
-      if (F.choSide.order === 'flee') { /* 横の備は崩れて退いた */ } else if (live(F.choSide)) { F.choSide.order = 'move'; F.choSide.dest = { ...CHO_A }; }
+      if (canMarch(F.choSide)) { F.choSide.order = 'move'; F.choSide.dest = { ...CHO_A }; }
     } else if (n === 3) {
       rt.say('井伊直孝', '内藤は崩れた。北の田の山口を討て！', 2.8);
       F.yamaG.order = 'attack'; F.yamaG.seekRange = 60;
@@ -465,8 +465,8 @@ const k14_yao_wakae = {
       F.kimuraU.hp = Math.min(F.kimuraU.hp, F.kimuraU.maxHp);
       // 木村の本隊は若江の堤の上で迎え撃つ（野の中へ出て行かない。十1「堤に立つ」）
       F.kimuraG.order = 'hold'; F.kimuraG.seekRange = 6; F.kimuraG.aggro = 4;
-      // 庵原の隊が一度押し返され、直孝が本陣から重ねて下知する（史実では二度目の押し。直孝は本陣の旗本に囲まれたまま。一2）
-      rt.after(6.4, () => rt.say('井伊直孝', '庵原が押し返されたか。退くな、もう一押しじゃ！', 3));
+      // 直孝は本陣から重ねて下知する。隊の後退を確かめていないので、庵原が押し返されたと断定しない。
+      rt.after(6.4, () => rt.say('井伊直孝', '堤の木村の本隊へ、もう一押しじゃ！', 3));
       // 井伊の手の安藤重勝が木村の首を狙って寄る（史実で首を取った者）
       if (canMarch(F.andoG)) { F.andoG.onArrive = null; F.andoG.order = 'attack'; F.andoG.seekRange = 50; F.andoG.focus = F.kimuraU; }
       // 先手と庵原の隊も堤の木村の本隊へ寄せる（主人公一人で堤へ行かせない）
@@ -477,13 +477,18 @@ const k14_yao_wakae = {
   // 長宗我部の伏兵：堤に伏せた兵が、藤堂の先手が寄るのを待って一斉に立つ
   yaoAmbush(rt) {
     const F = rt.flags;
-    if (F.ending) return;
-    rt.army.play('toki', YAO_FRONT, 1.5);
-    F.choA.order = 'attack'; F.choA.seekRange = 40;
-    F.choA.ambush = false;
-    for (const u of F.choA.units) u._crouch = false;
-    for (const g of [F.takanoriG, F.kuwanaG]) { g.order = 'attack'; g.seekRange = 40; }
-    rt.after(1.5, () => rt.say('使番', '八尾の長宗我部、堤に槍を伏せて待っておった！', 2.8));
+    if (F.ending || rt.over || rt.ended) return;
+    // 予約より先に退く下知が届いていたら、伏兵も藤堂勢も再突撃させない。
+    if (canMarch(F.choA) && F.choA.ambush) {
+      rt.army.play('toki', YAO_FRONT, 1.5);
+      F.choA.order = 'attack'; F.choA.seekRange = 40;
+      F.choA.ambush = false;
+      for (const u of F.choA.units) u._crouch = false;
+      rt.after(1.5, () => {
+        if (!F.ending && !rt.over && !rt.ended) rt.say('使番', '八尾の長宗我部、堤に槍を伏せて待っておった！', 2.8);
+      });
+    }
+    for (const g of [F.takanoriG, F.kuwanaG]) if (canMarch(g)) { g.order = 'attack'; g.seekRange = 40; }
   },
 
   // 名のある将の討死（筋書きどおり）

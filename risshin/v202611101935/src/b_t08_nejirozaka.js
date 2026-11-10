@@ -848,8 +848,10 @@ function foeNear(rt, at) {
   }
   if (n >= 3 && Math.hypot(sx / n - P.x, sz / n - P.z) > 7) return { x: sx / n, z: sz / n, unit: null };
   if (best) return { x: best.pos.x, z: best.pos.z, unit: best };
-  // 寄せの合間：持ち場の前の空堀（右の堀は東、ほかは南）
-  return at.x > WALL_X / 2 ? { x: EAST_MOAT.x, z: at.z, unit: null, moat: true } : { x: at.x, z: MOAT.z, unit: null, moat: true };
+  // 寄せの合間は塀の内から堀を見張る。堀の底へ案内すると、右の堀では
+  // 板塀の外かつ守備範囲の外へ出てしまう。正面も土橋の守備範囲内に留める。
+  return at.x > WALL_X / 2 ? { x: WALL_X - 2, z: at.z, unit: null, moat: true }
+    : { x: at.x, z: MOAT.z - MOAT.hw - 1, unit: null, moat: true };
 }
 t08_nejirozaka.goals5 = () => [
   { kind: 'stage', k: 0, text: STEP_TEXT[0], noun: '土橋の塀', place: (rt) => (rt.flags.dp?.i ?? -1) < 4 ? rt.flags.dp?.cur?.goal || POST : POST, check: (rt) => won5(rt) || (rt.flags.dp?.i ?? -1) >= 5, groups: curG(4) },
