@@ -41,6 +41,19 @@ export function install(rt, ctx) {
   return {
     update(dt) {
       if (F.ending || rt.over || !rt.player.u.alive || F.step !== 4) return;
+      // 味方だけが殿を払った時は、待っていた本人の手柄にしない。
+      // 短い斬り込みも拾うため、半秒の見回りより先に参加を記録する。
+      const u = rt.player.u;
+      if (!cut && !F.kidoCut && tail && !F.oiTailHelp && !u.fleeing && !u.woundOut && (u.atk || u.guard || u.swing)) {
+        for (const enemy of tail.units) {
+          if (!enemy.alive || enemy.fleeing || enemy.woundOut ||
+              Math.hypot(enemy.pos.x - u.pos.x, enemy.pos.z - u.pos.z) > 7 ||
+              Math.abs((enemy.pos.y || 0) - (u.pos.y || 0)) > 3 ||
+              rt.army.wallBetween?.(u.pos, -1, enemy.pos, false)) continue;
+          F.oiTailHelp = true;
+          break;
+        }
+      }
       if ((tick -= dt) > 0) return;
       tick = 0.5;
       if (cut) return;
@@ -50,7 +63,8 @@ export function install(rt, ctx) {
       const tailDone = tail && spent(tail);
       if (tailDone && !F.oiTailSaid) {
         F.oiTailSaid = true;
-        rt.award((t) => t.side.push('追撃の道を塞いだ殿の門徒を払った'), '道を塞いだ殿を払った');
+        if (F.oiTailHelp)
+          rt.award((t) => t.side.push('追撃の道を塞いだ殿の門徒を払った'), '道を塞いだ殿を払った');
         rt.say('足軽', '殿が崩れた！　城戸口まで駆けろ！', 3);
         // 殿を払った後も本人と味方は既存の行軍で城戸口へ進む。
         // 追撃の完了は到着と城戸口での参戦で決め、座標は移し替えない。

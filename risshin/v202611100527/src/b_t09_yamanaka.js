@@ -443,7 +443,12 @@ const t09_yamanaka = {
       const dx = D.x - x, dz = D.z - z, d = Math.hypot(dx, dz) || 1;
       return { s, x: x + dx / d * 3, z: z + dz / d * 3, dx, dz };
     });
+    const approachEast = { x: -6, z: 176 }, approachWest = { x: -32, z: 176 };
     const fence = (u) => {
+      // 柵を目指して斜めに進むと、東の畝堀へ落ちる。先手も本人と同じ土橋へ揃える。
+      // 東岸では先に街道を北上し、堀の中では近い岸へ戻ってから渡る。
+      if (u.pos.x > -30 && Math.abs(u.pos.z - 176) > 3)
+        return u.pos.x > -19.5 ? approachEast : approachWest;
       let best = null, bd = Infinity, mouth = null, md = Infinity;
       for (const m of mouths) {
         const s = m.s, d = Math.hypot(m.x - u.pos.x, m.z - u.pos.z);

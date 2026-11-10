@@ -1074,25 +1074,7 @@ function takatoCastleMud(rt) {
 // 残雪は既存の地面の色分けに任せる。大きな半球を潰して重ねると、
 // 端が地形から浮き、溶け残りでなく厚い白い板になる。
 
-// 大手の前の空堀に溜まった雪解け水。低い目線でも堀と読めるよう、空を映す淡い水面の帯を底へ一枚ずつ（形二つ・材質一つ、準備時だけ）。
-function takatoMoatWater(rt) {
-  // 灰青の板に見せない：澄んだ雪解け水に空と岸を映す、暗く滑らかな水面（10/29 20:40 採点「堀の水面」）。
-  const mat = new THREE.MeshStandardMaterial({ color: 0x2c3632, roughness: .08, metalness: .1, envMapIntensity: 1.4 });
-  for (const [z0, z1] of [[13.5, 35.5], [-62, -13.5]]) {
-    const n = Math.ceil((z1 - z0) / 1.5), pos = [], idx = [];
-    for (let i = 0; i <= n; i++) {
-      const z = z0 + (z1 - z0) * i / n;
-      // 11/6 空堀は水を溜めない堀。底の窪みに雪解けの泥水が踝ほど残るだけにする（胸まで浸かる水堀に見えていた）。
-      const y = Math.min(rt.world.heightAt(83.2, z), rt.world.heightAt(85, z), rt.world.heightAt(86.8, z)) + .22;
-      pos.push(82.6, y, z, 87.4, y, z);
-      if (i) idx.push(2 * i - 2, 2 * i, 2 * i - 1, 2 * i - 1, 2 * i, 2 * i + 1);
-    }
-    const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
-    const m = new THREE.Mesh(g, mat); m.receiveShadow = true; m.matrixAutoUpdate = false;
-    rt.scene.add(m);
-  }
-}
+// 空堀の底は地形の泥で表す。連続した水面を重ねると川や水堀に見えるため置かない。
 
 // 大手の空堀の向こう岸（切岸、x 78〜84.6）を、灰の滑らかな板でなく、枯れ草の株・掘れた土の筋・半ば埋まった石の斜面に（10/30 採点「切岸が灰の板一面」）。
 // 地形の上に同じ形の皮を一枚かぶせ、凹凸は外へだけ出す。縁は地面の下へ潜らせて浮かせない。草の株と石は一つの形を使い回す。準備の時だけ。
@@ -1507,7 +1489,6 @@ takato.setup = function (rt) {
   takatoCastleMud(rt);
   takatoNinomaruHouses(rt);
   TK_POOL.rt = rt; TK_POOL.s = takatoSmokePool(rt);
-  takatoMoatWater(rt);
   takatoCutSkin(rt);
   takatoWallStep(rt);
   takatoGateBrawl(rt);

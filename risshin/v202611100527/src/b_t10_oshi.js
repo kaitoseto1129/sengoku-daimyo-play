@@ -838,8 +838,9 @@ const t10_oshi = {
     if (F.ending || rt.over || !rt.player.u.alive) return null;
     for (const st of [chikara, kobuneSt, kaijo]) { const q = st.pin(rt, C); if (q !== undefined) return q; }
     if (F.step <= 3) return { x: RAIDAT.x, z: RAIDAT.z, r: 10, label: '浅瀬の口' };
-    if (F.step === 4) return F.weirOpen ? null : { x: WEIR.x, z: WEIR.z, r: 4, label: '堤の西の堰' };
-    if (F.step === 6) return F.broken ? { x: MARU.x, z: MARU.z, r: 14, label: '丸墓山' } : null;
+    // 水が入る間と決壊前の知らせの間も、段が替わるまで行き先を保つ。
+    if (F.step === 4) return { x: WEIR.x, z: WEIR.z, r: 4, label: '堤の西の堰' };
+    if (F.step === 6) return { x: MARU.x, z: MARU.z, r: 14, label: '丸墓山' };
     if (F.step <= 8) return { x: FRONT.x, z: FRONT.z, r: 6, label: '佐間口の門前' };
     return { x: REAR.x, z: REAR.z, r: 5, label: '佐間口の門前' };
   },

@@ -51,4 +51,4 @@ export function install(rt, ctx) {
   // 可成・青地も lastStand の doom に任せ、敵のいない所では倒さない。
 }
 // 右上の一行：信治が討たれた後は「可成の退き口を守れ」
-export function late(rt) { const F = rt.flags; return !!F.shigaNehari && F.step === 1.5 && rt.t - F.shigaNehari.t0 >= NOBU_AT; }
+export function late(rt) { const F = rt.flags; return !!F.shigaNehari && F.step === 1.5 && !!F.nobuDead; }

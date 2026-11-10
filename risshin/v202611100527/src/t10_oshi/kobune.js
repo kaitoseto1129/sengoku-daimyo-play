@@ -150,7 +150,7 @@ export function tick(rt, dt, C) {
 export function pin(rt) {
   const F = rt.flags, K = F.kob;
   if (!K || F.step !== 5) return undefined;
-  if (K.end) return null;
+  // 引き揚げの知らせから大雨の段へ替わる間も、岸の印を消さない。
   const g = K.groups.find((q) => q.units.some((u) => u.alive && !u.gone && !u.fleeing));
   if (g) return { x: g.S.land.x, z: g.S.land.z, r: 6, label: '堤の内の岸' };
   const B = K.boats.find((q) => !q.landed);

@@ -4178,6 +4178,7 @@ body:has(#hud.tennoji-tasks) #tc .tb[data-b=guard] .name {
     if (F.step === 2.5 && v.group === F.ringA && Math.hypot(v.pos.x - T_GATE.x, v.pos.z - T_GATE.z) < 24) F.gateHelp = true;
     if (F.step === 3 && F.last.includes(v.group)) F.sortieHelp = true;
     if (F.step === 4 && F.kidoG.includes(v.group)) F.kidoHelp = true;
+    if (F.step === 4 && v.group === F.oiTail) F.oiTailHelp = true;
   },
   // 隊の崩れは共通の使番に任せ、同じ知らせを重ねない。
 };

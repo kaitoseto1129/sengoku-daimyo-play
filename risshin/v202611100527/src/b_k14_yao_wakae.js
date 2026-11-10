@@ -89,6 +89,14 @@ const aliveN = (g) => (g ? g.units.reduce((n, u) => n + (standing(u) ? 1 : 0), 0
 // 横の備の討取りで伏せ槍の分を埋めない。両隊それぞれ六割を退ける。
 const yaoLeft = (g) => Math.max(0, aliveN(g) - Math.floor(g.units.length * KEEP));
 const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
+// 共通の被弾処理は invuln の武将も本人の攻撃で討つか、手傷で退かせる。
+// 本陣の総大将と、まだ出番でない木村は持ち場を守り、出番で保護を外す。
+const holdStoryPost = () => {};
+function storyGuard(u, guarded) {
+  if (!u) return;
+  u.invuln = guarded;
+  u.onWound = guarded ? holdStoryPost : null;
+}
 
 // ---- 地形：平らな河内の田。二本の川の堤だけが高い。国土地理院の起伏は丸めて薄く ----
 // 旧大和川の分かれは天井川：細い流れの両岸に、田より背丈ほど高い堤（八3）
@@ -295,6 +303,7 @@ const k14_yao_wakae = {
     F.kimuraG = enemyGroup(rt, { ...kimO, name: '木村重成の本隊', fixed: true, stay: true, anchor: { ...WAKAE }, width: 8, aggro: 4, seekRange: 6, order: 'hold' },
       dress([named('木村重成', 'busho', { invuln: true, keep: true }), { type: 'samurai', n: 7 }, { type: 'ashigaru', n: 6, o: { flagScale: 1 } }, { type: 'gun', n: 4 }], KIMURA));
     F.kimuraU = F.kimuraG.units.find((u) => u.name === '木村重成');
+    storyGuard(F.kimuraU, true);
     F.yamaG = enemyGroup(rt, { ...kimO, name: '山口弘定の隊', anchor: { ...YAMA }, width: 10, aggro: 12, seekRange: 24, order: 'hold' },
       dress([named('山口弘定'), { type: 'samurai', n: 3 }, { type: 'ashigaru', n: 10, o: { flagScale: 1 } }, { type: 'gun', n: 5 }], KIMURA));
     F.naitoG = enemyGroup(rt, { ...kimO, name: '内藤長秋の隊', anchor: { ...NAITO }, width: 10, aggro: 12, seekRange: 24, order: 'hold' },
@@ -324,7 +333,7 @@ const k14_yao_wakae = {
       dress([named('長宗我部盛親', 'busho', { invuln: true, horse: false }), { type: 'samurai', n: 11 }, { type: 'gun', n: 2 }], CHOSO));
     F.choU = F.choG.units.find((u) => u.name === '長宗我部盛親');
     // 総大将は陣幕の内の床几に腰を下ろし、動かない（一2・十三4）
-    for (const [u, at] of [[F.iiU, II_HQ], [F.choU, YAO], [F.todoG.units.find((q) => q.name === '藤堂高虎'), TODO_HQ]]) if (u) { u.pos.x = at.x; u.pos.z = at.z; u._crouch = true; u._nest = true; }
+    for (const [u, at] of [[F.iiU, II_HQ], [F.choU, YAO], [F.todoG.units.find((q) => q.name === '藤堂高虎'), TODO_HQ]]) if (u) { storyGuard(u, true); u.pos.x = at.x; u.pos.z = at.z; u._crouch = true; u._nest = true; }
     for (const g of [F.iiG, F.todoG, F.choG]) g.noFrontline = true;
 
     W.setTime('morning');
@@ -397,7 +406,7 @@ const k14_yao_wakae = {
     } else if (n === 4) {
       rt.say('井伊直孝', '両翼が崩れた。堤の木村の本隊へかかれ！', 2.8);
       rt.after(3, () => rt.say('木村重成', '長門守重成これにあり。両将軍の首を取らずに、どこへ退けようか！', 3));
-      F.kimuraU.invuln = dist(rt.player.u.pos, F.kimuraU.pos) > 25;
+      storyGuard(F.kimuraU, dist(rt.player.u.pos, F.kimuraU.pos) > 25);
       F.kimuraU.maxHp = F.kimuraU.hp = 110;
       // 木村の本隊は若江の堤の上で迎え撃つ（野の中へ出て行かない。十1「堤に立つ」）
       F.kimuraG.order = 'hold'; F.kimuraG.seekRange = 6; F.kimuraG.aggro = 4;
@@ -558,7 +567,7 @@ const k14_yao_wakae = {
     }
     if (F.step === 4) {
       // 木村は主人公が堤へ来てから戦う。刻限だけで安藤の討取りを起こさない。
-      if (F.kimuraU?.alive) F.kimuraU.invuln = !F.stepNear && dist(P.pos, F.kimuraU.pos) > 25;
+      if (F.kimuraU?.alive) storyGuard(F.kimuraU, !F.stepNear && dist(P.pos, F.kimuraU.pos) > 25);
       if (!F.kimuraDone && F.kimuraU && !F.kimuraU.alive) this.kimuraEnd(rt, F.kimuraByMe);
       return;
     }

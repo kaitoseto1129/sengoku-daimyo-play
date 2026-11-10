@@ -97,7 +97,10 @@ export const foeKnot = (n = 9, kit = TOKU) => dressT([{ type: 'ashigaru', n: Mat
   { type: 'gun', n: Math.max(1, Math.floor(n * 0.15)) }, { type: 'samurai', n: Math.max(1, n - Math.ceil(n * 0.5) - Math.floor(n * 0.2) - Math.max(1, Math.floor(n * 0.15))) }], kit);
 export const live = (g) => g && g.units.some((u) => u.alive && !u.gone);
 export const aliveN = (g) => (g ? g.units.reduce((n, u) => n + (u.alive && !u.gone ? 1 : 0), 0) : 0);
-const drivenOffGroup = (g, total) => !live(g) || g.routed || g.order === 'retreat' || aliveN(g) <= total * 0.35;
+// 生存者と抵抗する兵を分ける。逃げた兵や深手で戦を離れた兵を追って、田や渡しで詰まらない。
+export const resistingN = (g) => (!g || g.routed || g.order === 'retreat' || g.order === 'flee' ? 0 :
+  g.units.reduce((n, u) => n + (u.alive && !u.gone && !u.fleeing && !u.woundOut ? 1 : 0), 0));
+const drivenOffGroup = (g, total) => !g || g.routed || g.order === 'retreat' || g.order === 'flee' || resistingN(g) <= total * 0.35;
 function retreatGunLine(g, total) {
   if (!live(g) || g.order === 'retreat' || !drivenOffGroup(g, total)) return;
   g.order = 'retreat'; g.dest = { x: g.center().x, z: ZS + 20 };
@@ -292,7 +295,7 @@ const t03_komaki = {
 
   // 段の中身（t03_komaki/*.js）へ渡す道具
   ctx(rt) {
-    return { RAKUDA, RK, HONJIN, FORT, GATE, FIELD, MORIJIN, COUNCIL, farArmy, campGuard, fl, dressT, live, aliveN,
+    return { RAKUDA, RK, HONJIN, FORT, GATE, FIELD, MORIJIN, COUNCIL, farArmy, campGuard, fl, dressT, live, aliveN, resistingN,
       pushWave: (g) => rt.flags.waves.push(g), next: () => this.stage(rt, rt.flags.stage + 1), win: () => this.win(rt) };
   },
 
@@ -447,9 +450,9 @@ const t03_komaki = {
         const tg = [P, ...(F.sortie?.units || [])].filter((u) => u.alive && !u.gone);
         let shot = 0;
         for (const g of [F.guns, F.guns2]) {
-          if (!live(g) || g.routed || g.order === 'retreat') continue;
+          if (!resistingN(g)) continue;
           for (const u of g.units) {
-            if (u.type !== 'gun' || !u.alive || u.gone || u.fleeing || u.sidearm || u.atk || u.swing || u.reload || u.cd > 0 || u.stagger > 0) continue;
+            if (u.type !== 'gun' || !u.alive || u.gone || u.fleeing || u.woundOut || u.noTarget || u.sidearm || u.atk || u.swing || u.reload || u.cd > 0 || u.stagger > 0) continue;
             const t = tg.reduce((b, q) => (!b || dist(q.pos, u.pos) < dist(b.pos, u.pos) ? q : b), null);
             if (!t || dist(t.pos, u.pos) > 55 || dist(t.pos, u.pos) < 4) continue;
             u.heading = Math.atan2(t.pos.x - u.pos.x, t.pos.z - u.pos.z);
@@ -523,7 +526,7 @@ const t03_komaki = {
       if (g) t = g.center();
     } else if (F.stage === 6) {
       // 渡しで待ち続けず、健在な物見と伏せ鉄砲を実際に払いに行く。
-      const g = [F.tScout, F.tAmb].find((q) => live(q) && !q.routed && q.order !== 'retreat' && aliveN(q) > 1);
+      const g = [F.tScout, F.tAmb].find((q) => resistingN(q) > 1);
       if (g) t = g.center();
     }
     // 楽田城の中から外へは大手門を通る

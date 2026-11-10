@@ -51,7 +51,7 @@ export function tickNight(rt, K) {
     K.pushWave(F.tScout);
     rt.say('森長可', '物見じゃ……！　一人も帰すな！', 2.6);
   }
-  if (F.scoutT && !F.scoutDone && (K.aliveN(F.tScout) <= 1 || rt.t - F.scoutT > 60)) {
+  if (F.scoutT && !F.scoutDone && (K.resistingN(F.tScout) <= 1 || rt.t - F.scoutT > 60)) {
     F.scoutDone = rt.t;
     // 討ち漏らした一人が小牧山へ走る
     const last = F.tScout.units.find((u) => u.alive && !u.gone);
@@ -71,7 +71,7 @@ export function tickNight(rt, K) {
     say(rt, '使番', '孫七郎様の本隊、無事に川を越えられました', 44, 3);
     say(rt, '森長可', '列を詰めよ。夜が明けるまでに一里は進むぞ', 56, 3);
   }
-  if (F.ambush && Math.hypot(P.x - FORD.x, P.z - FORD.z) < 20 && rt.t - F.ambush > 25 && (!K.live(F.tAmb) || F.tAmb.routed || K.aliveN(F.tAmb) <= 1) && el > 140) {
+  if (F.ambush && Math.hypot(P.x - FORD.x, P.z - FORD.z) < 20 && rt.t - F.ambush > 25 && K.resistingN(F.tAmb) <= 1 && el > 140) {
     // 払った伏せ鉄砲の残兵を夜明けの列へ追わせない。物見と同じく小牧山へ退かせる。
     if (K.live(F.tAmb)) {
       F.tAmb.order = 'retreat'; F.tAmb.dest = { x: K.HONJIN.x, z: 140 };

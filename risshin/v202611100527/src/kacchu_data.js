@@ -8,6 +8,12 @@ import { ROSTER, HOUSE, nameHash, rosterKacchu } from "./bushou_roster.js";
 import { REQUIRED_KACCHU, REQUIRED_ALIAS } from "./kacchu_required.js";
 export const KACCHU = {};
 for (const [name, bowl, crest, armor, lace, doStyle, haori, menpo, mon, ref] of [
+  // 杭瀬川（慶長五年）：本人所用は未確認。兵庫県立歴史博物館の当世具足解説を型とする縹威・紺羽織の伝統色の復元案。https://rekihaku.pref.hyogo.lg.jp/digital_museum/bugu-kacchuu/kc_touseigusoku/
+  ["中村一栄", "suji", "none", 0x1c1a1a, 0x3c5a8a, "okegawa", 0x232c40, 0, "none", ""],
+  // 杭瀬川（慶長五年）：本人所用は未確認。彦根城博物館の桃山期頭形兜・桶側胴を型とする緋威・白羽織の伝統色の復元案（朱漆・大天衝は借りない）。https://hikone-castle-museum.jp/cms/wp-content/uploads/2016/07/40c5390fa0ad5e4dc200fe80826a40c2.pdf
+  ["野一色頼母", "zunari", "none", 0x1c1a1a, 0x9a2e20, "okegawa", 0xd8d0bc, 0, "none", ""],
+  // 杭瀬川（慶長五年）：本人所用は未確認。米子市指定文化財「桃形兜」（桃山末～江戸初期）の鉢を型とし、浅葱威・紫羽織・桶側胴を補う伝統色の復元案。https://www.city.yonago.lg.jp/32764.htm
+  ["蒲生備中", "momonari", "none", 0x1c1a1a, 0x4a7a86, "okegawa", 0x5a3a6a, 0, "none", ""],
   // 稲生の参戦者。所用具足・立物・個人紋は未確認。筋兜と毛引威の復元で補う。
   // 佐久間大学は信盛と、佐々孫介は成政と、黒田半平は官兵衛と取り違えない。
   ["佐久間大学", "suji", "none", 0x22241e, 0x4a7a86, "kebiki", 0, 0, "none", ""],
@@ -15,6 +21,14 @@ for (const [name, bowl, crest, armor, lace, doStyle, haori, menpo, mon, ref] of 
   ["黒田半平", "suji", "none", 0x22241e, 0x9a2e20, "kebiki", 0, 0, "none", ""],
   ["林美作守", "suji", "none", 0x834031, 0x8b503b, "kebiki", 0, 0, "none", ""],
   ["宮井勘兵衛", "suji", "none", 0x88432f, 0x2e3a52, "kebiki", 0, 0, "none", ""],
+  // 織田造酒丞：弘治二年の所用品は未確認。京博「紺糸威胴丸」の筋兜・毛引威を型に、浅葱の伝統色による復元案。https://www.kyohaku.go.jp/jp/collection/meihin/kin/item07/
+  ["織田造酒丞", "suji", "none", 0x22241e, 0x78b4b2, "kebiki", 0, 0, "none", ""],
+  // 口中杉若：弘治二年の所用品は未確認。京博「紺糸威胴丸」を型に、溜塗と白糸の伝統色による復元案。後の杉左衛門の姿は遡らせない。https://www.kyohaku.go.jp/jp/collection/meihin/kin/item07/
+  ["口中杉若", "suji", "none", 0x6a3c24, 0xd8d0bc, "kebiki", 0, 0, "none", ""],
+  // 津々木蔵人：弘治二年の所用品は未確認。京博「紺糸威胴丸」を型に、藤色の伝統色による復元案。控えの配置は戦の演出。https://www.kyohaku.go.jp/jp/collection/meihin/kin/item07/
+  ["津々木蔵人", "suji", "none", 0x22241e, 0xb09ac8, "kebiki", 0, 0, "none", ""],
+  // 織田勝左衛門：弘治二年の所用品は未確認。京博「紺糸威胴丸」を型に、縹の伝統色による復元案。注記に出る旗本で、人物は増やさない。https://www.kyohaku.go.jp/jp/collection/meihin/kin/item07/
+  ["織田勝左衛門", "suji", "none", 0x22241e, 0x5682cc, "kebiki", 0, 0, "none", ""],
   // 建勲神社伝来の伝信長所用・紺糸威胴丸を参考にした復元案。刀根坂での着用は未確認。
   // 京都国立博物館「紺糸威胴丸 兜・大袖付」：https://www.kyohaku.go.jp/jp/collection/meihin/kin/item07/
   // 伝来の兜の鍬形と、黒漆地に金の織田木瓜を置いた前立を組み合わせる。長島当日の着用は未確認。
@@ -306,6 +320,14 @@ for (const [name, bowl, crest, armor, lace, doStyle, haori, menpo, mon, ref] of 
   ["菅沼定盈", "momonari", "kuwa_wide", 0x24221f, 0x413e32, "okegawa", 0x302b32, 0x24221f, "tokugawa", ""],
   ["奥平貞能", "momonari", "horn", 0x24221f, 0x2e3a52, "okegawa", 0, 0, "tokugawa", ""],
   ["内藤家長", "momonari", "cross", 0x24221f, 0x2e3a52, "sugake", 0, 0x24221f, "tokugawa", ""],
+  // 宇和島市蔵・土居家伝来の桃山〜江戸初期「黒糸威二枚胴具足」を型の手本に、慶長五年の内藤元長を黒漆・紫威・生成り陣羽織で復元（本人所用未確認）：https://www.city.uwajima.ehime.jp/site/sizen-bunka/61gusoku.html
+  ["内藤元長", "momonari", "none", 0x1c1a1a, 0x703d78, "sugake", 0xcfc8b4, 0, "none", ""],
+  // 宇和島市蔵・土居家伝来の桃山〜江戸初期「黒糸威二枚胴具足」を型の手本に、慶長五年の松平近正を黒漆・萌黄威・生成り陣羽織で復元（本人所用未確認）：https://www.city.uwajima.ehime.jp/site/sizen-bunka/61gusoku.html
+  ["松平近正", "momonari", "none", 0x1c1a1a, 0x6a7a2c, "sugake", 0xcfc8b4, 0, "none", ""],
+  // 宇和島市蔵・土居家伝来の桃山〜江戸初期「黒糸威二枚胴具足」を型の手本に、慶長五年の上林竹庵を黒漆・朽葉威・生成り陣羽織で復元（本人所用未確認）：https://www.city.uwajima.ehime.jp/site/sizen-bunka/61gusoku.html
+  ["上林竹庵", "momonari", "none", 0x1c1a1a, 0xa88a3a, "sugake", 0xcfc8b4, 0, "none", ""],
+  // 宇和島市蔵・土居家伝来の桃山〜江戸初期「黒糸威二枚胴具足」を型の手本に、慶長五年の深尾清十郎を黒漆・浅葱威・生成り陣羽織で復元（本人所用未確認）：https://www.city.uwajima.ehime.jp/site/sizen-bunka/61gusoku.html
+  ["深尾清十郎", "momonari", "none", 0x1c1a1a, 0x4a7a86, "sugake", 0xcfc8b4, 0, "none", ""],
   ["大須賀康高", "momonari", "shida", 0x24221f, 0x2e3a52, "sugake", 0, 0x24221f, "tokugawa", ""],
   ["阿部正勝", "momonari", "bellflower", 0x24221f, 0x2e3a52, "sugake", 0, 0x24221f, "tokugawa", ""],
   ["植村家存", "eboshi", "kuwa", 0x1c1a1a, 0x2e3a52, "kebiki", 0, 0x1c1a1a, "tokugawa", ""],
@@ -315,6 +337,9 @@ for (const [name, bowl, crest, armor, lace, doStyle, haori, menpo, mon, ref] of 
   // https://www.library-archives.pref.fukui.lg.jp/fukui/07/kenshi/T2/T2-4-01-05-04-03.htm
   // 本人の具足は未確認。筋兜・黒漆の胴丸を復元案とし、立物・陣羽織・家紋は足さない。
   ["阿波賀三郎", "suji", "none", 0x1c1a1a, 0x6a2a5a, "kebiki", 0, 0, "none", ""],
+  // 出所：京都国立博物館「紺糸威胴丸 兜・大袖付」（室町・十六世紀、建勲神社蔵） https://www.kyohaku.go.jp/jp/collection/meihin/kin/item07/
+  // 天正三年の西光寺真敬。本人所用の具足・肖像は未確認。筋兜・黒漆胴丸を型の手本に、伝統色の水浅葱の毛引威で復元する案。立物・陣羽織・面頬・家紋は補わず、写真番号も空欄。
+  ["西光寺真敬", "suji", "none", 0x1c1a1a, 0x80aba9, "kebiki", 0, 0, "none", ""],
   ["杉浦玄任", "suji", "cross", 0x2a2420, 0x3c5a8a, "sugake", 0x3a2a1a, 0, "none", ""],
   ["下間仲之", "eboshi", "moon", 0x1c1a1a, 0x66513b, "kebiki", 0x2e3a42, 0x1c1a1a, "none", ""],
   ["土橋守重", "suji", "moon", 0x151312, 0x3a3a3a, "okegawa", 0xcfc8b4, 0x151312, "none", ""],
@@ -451,6 +476,8 @@ for (const [name, bowl, crest, armor, lace, doStyle, haori, menpo, mon, ref] of 
   ["蜂須賀家政", "momonari", "horn", 0x1c1a1a, 0xd8d0bc, "sugake", 0, 0x1c1a1a, "toyotomi", ""],
   // 本人所用は未確認。宇和島市の桃山〜江戸初期の具足を型の手本とする復元案（docs/generals_look_1108/明石全登.md）。
   ["明石全登", "momonari", "none", 0x1c1a1a, 0xd8d0bc, "sugake", 0, 0x1c1a1a, "none", ""],
+  // 出所：宇和島市「黒糸威二枚胴具足」（https://www.city.uwajima.ehime.jp/site/sizen-bunka/61gusoku.html）。慶長十九年の型の手本で本人所用は未確認、紅梅の威は伝統の色の復元案（docs/generals_look_1108/明石全延.md）。
+  ["明石全延", "momonari", "none", 0x1c1a1a, 0xa85a5a, "sugake", 0, 0, "none", ""],
   ["黒田如水", "zunari", "moon", 0x1c1a1a, 0xd8d0bc, "okegawa", 0, 0x1c1a1a, "kuroda", ""],
   ["鍋島勝茂", "momonari", "sun", 0x1c1a1a, 0x66513b, "okegawa", 0xab784b, 0, "none", ""],
   ["真田幸村", "suji", "kuwa", 0x8e1f16, 0xb8342a, "okegawa", 0, 0, "sanada", ""],
@@ -466,6 +493,14 @@ for (const [name, bowl, crest, armor, lace, doStyle, haori, menpo, mon, ref] of 
   ["田中吉政", "namban", "kuwa_wide", 0x29251f, 0x413e32, "kebiki", 0x302b32, 0, "tokugawa", ""],
   ["浅野長政", "namban", "horn", 0x29251f, 0x413e32, "okegawa", 0x302b32, 0x29251f, "tokugawa", ""],
   ["浅野長晟", "momonari", "none", 0x1c1a1a, 0x6a4026, "okegawa", 0, 0, "asano", ""],
+  // 樫井・1615年。所用品は未確認。東京国立博物館の桃山期黒糸威二枚胴具足を時代の手本に、頭形・縹威・紺羽織の伝統色の復元案：https://online.bunka.go.jp/heritages/detail/132537
+  ["亀田高綱", "zunari", "none", 0x1c1a1a, 0x3c5a8a, "okegawa", 0x232c40, 0, "none", ""],
+  // 上田流和風堂「武具」①④の伝樫井所用・風折烏帽子形兜付仏胴と緋地陣羽織を既存形で近似。紺威は復元案：https://www.ueda-soukoryu.com/武具/
+  ["上田宗箇", "eboshi", "none", 0x1c1a1a, 0x232c40, "hotoke", 0x9a2e20, 0x3a2a20, "none", ""],
+  // 樫井・1615年。所用品は未確認。東京国立博物館の桃山期黒糸威二枚胴具足を時代の手本に、桃形・萌黄威・生成羽織の伝統色の復元案：https://online.bunka.go.jp/heritages/detail/132537
+  ["浅野知近", "momonari", "none", 0x1c1a1a, 0x6a7a2c, "okegawa", 0xcfc8b4, 0, "none", ""],
+  // 樫井・1615年。所用品は未確認。東京国立博物館の桃山期黒糸威二枚胴具足を時代の手本に、筋兜・紫威・緋羽織の伝統色の復元案：https://online.bunka.go.jp/heritages/detail/132537
+  ["岡部則綱", "suji", "none", 0x1c1a1a, 0x703d78, "okegawa", 0x9a2e20, 0, "none", ""],
   ["仙石秀久", "sengoku_kasa", "sengoku_shida", 0x1c1a1a, 0x232c40, "kebiki", 0, 0x1c1a1a, "eiraku", "https://museum.umic.jp/hakubutsukan/collection/item/0009-2.html"],
   ["可児才蔵", "namban", "bellflower", 0x29251f, 0x413e32, "sugake", 0x302b32, 0x29251f, "tokugawa", ""],
   ["平野長泰", "zunari", "kuwa", 0x24221f, 0xb0a890, "sugake", 0, 0, "tokugawa", ""],
@@ -502,6 +537,21 @@ for (const [name, bowl, crest, armor, lace, doStyle, haori, menpo, mon, ref] of 
   ["後藤又兵衛", "zunari", "moon", 0x2a2624, 0xa88a3a, "okegawa", 0x2a2a2a, 0x2a2624, "toyotomi", ""],
   // 毛利勝永：伝所用の白糸威水牛形兜を既存の水牛脇立で略復元。錣と伝来品の注意は必須表で重ねる（docs/generals_look_1108/毛利勝永.md）。
   ["毛利勝永", "momonari", "bull", 0x1c1a1a, 0x2e3a52, "sugake", 0x9a2418, 0x1c1a1a, "none", ""],
+  // 鴫野（慶長十九年・1614）の不足七将。本人所用は未確認。桃山〜江戸初期の型と伝統色による復元案。
+  // 須田長義：宇和島市蔵・土居家伝来「黒糸威二枚胴具足」を型の手本にした復元案（https://www.city.uwajima.ehime.jp/site/sizen-bunka/61gusoku.html）。紺の威・縹の陣羽織は伝統色の補完。
+  ["須田長義", "momonari", "none", 0x1c1a1a, 0x232c40, "sugake", 0x3c5a8a, 0, "none", ""],
+  // 安田能元：宇和島市蔵・土居家伝来「黒糸威二枚胴具足」を型の手本にした復元案（https://www.city.uwajima.ehime.jp/site/sizen-bunka/61gusoku.html）。縹の威・縹の陣羽織は伝統色の補完。
+  ["安田能元", "momonari", "none", 0x1c1a1a, 0x3c5a8a, "sugake", 0x3c5a8a, 0, "none", ""],
+  // 水原親憲：宇和島市蔵・土居家伝来「黒糸威二枚胴具足」を型の手本にした復元案（https://www.city.uwajima.ehime.jp/site/sizen-bunka/61gusoku.html）。萌黄の威・縹の陣羽織は伝統色の補完。
+  ["水原親憲", "momonari", "none", 0x1c1a1a, 0x6a7a2c, "sugake", 0x3c5a8a, 0, "none", ""],
+  // 井上頼次：宇和島市蔵・土居家伝来「黒糸威二枚胴具足」を型の手本にした復元案（https://www.city.uwajima.ehime.jp/site/sizen-bunka/61gusoku.html）。紫の威・萌黄の陣羽織は伝統色の補完。
+  ["井上頼次", "momonari", "none", 0x1c1a1a, 0x5a3a6a, "sugake", 0x6a7a2c, 0, "none", ""],
+  // 渡辺糺：宇和島市蔵・土居家伝来「黒糸威二枚胴具足」を型の手本にした復元案（https://www.city.uwajima.ehime.jp/site/sizen-bunka/61gusoku.html）。緋の威・縹の陣羽織は伝統色の補完。
+  ["渡辺糺", "momonari", "none", 0x1c1a1a, 0x9a2e20, "sugake", 0x3c5a8a, 0, "none", ""],
+  // 穴澤盛秀：宇和島市蔵・土居家伝来「黒糸威二枚胴具足」を型の手本にした復元案（https://www.city.uwajima.ehime.jp/site/sizen-bunka/61gusoku.html）。朽葉の威・緋の陣羽織は伝統色の補完。
+  ["穴澤盛秀", "momonari", "none", 0x1c1a1a, 0x8a6a3a, "sugake", 0x9a2e20, 0, "none", ""],
+  // 竹田永翁：宇和島市蔵・土居家伝来「黒糸威二枚胴具足」を型の手本にした復元案（https://www.city.uwajima.ehime.jp/site/sizen-bunka/61gusoku.html）。白の威・紺の陣羽織は伝統色の補完。
+  ["竹田永翁", "momonari", "none", 0x1c1a1a, 0xd8d0bc, "sugake", 0x232c40, 0, "none", ""],
   // 木村宗明：重成の一族。頭形兜に小鍬形、木村家の萌黄糸を桶側胴に（復元案）
   ["木村宗明", "zunari", "kuwa", 0x2a2420, 0x5a7a3a, "okegawa", 0, 0x2a2420, "toyotomi", ""],
   // 真田大助（幸昌）：十五歳。赤備えの朱漆の頭形兜に大鍬形と六文銭、白糸の毛引威。父の鹿角・陣羽織は付けない（復元案）
@@ -574,6 +624,8 @@ for (const [name, bowl, crest, armor, lace, doStyle, haori, menpo, mon, ref] of 
   // 有岡の岸の砦の将。立物の裏付けは未確認なので、無立物の復元案とする。
   ["渡辺勘大夫", "zunari", "none", 0x2a2420, 0x5a4630, "kebiki", 0x5a5a5a, 0x2a2420, "none", ""],
   ["百地丹波", "zunari", "cross", 0x2a2622, 0x3a3a3a, "kebiki", 0x8a6a2a, 0x2a2622, "none", ""],
+  // 天正九年の百田藤兵衛。所用具足は未確認。京博紹介の室町末の筋兜・黒漆毛引威を型とし、萌黄糸と紫の陣羽織は伝統色の復元案。出所：https://www.kyohaku.go.jp/jp/collection/meihin/kin/item07/ （人物と補完範囲：docs/generals_look_1108/百田藤兵衛.md）。
+  ["百田藤兵衛", "suji", "none", 0x1c1a1a, 0x9ca86a, "kebiki", 0x703d78, 0, "none", ""],
   ["滝野吉政", "zunari", "shida", 0x2a2622, 0x4a3a2a, "okegawa", 0x5a5a5a, 0x2a2622, "none", ""],
   // 鳥取の守将。月・桔梗の立物は未確認。具足の色と羽織は復元案。
   ["奈佐日本之介", "zunari", "none", 0x24221f, 0x8a6a2a, "okegawa", 0x1f2a44, 0, "none", ""],
@@ -679,9 +731,27 @@ for (const [name, bowl, crest, armor, lace, doStyle, haori, menpo, mon, ref] of 
   ["浅野幸長", "suji", "none", 0x1c1a1a, 0x8a4a6a, "okegawa", 0, 0, "asano", ""],
   ["淡輪重政", "suji", "none", 0x1c1a1a, 0x4a3a2a, "kebiki", 0, 0, "none", ""],
   ["百々綱家", "suji", "none", 0x1c1a1a, 0x6a6a3a, "kebiki", 0, 0, "none", ""],
+  // 河田・米野（慶長五年）。宇和島市蔵・土居家伝来の桃山～江戸初期の二枚胴具足を型の手本に、浅葱威・紺の陣羽織とした伝統色の復元案。本人所用品は未確認：https://www.city.uwajima.ehime.jp/site/sizen-bunka/61gusoku.html
+  ["池田長吉", "momonari", "none", 0x1c1a1a, 0x4a7a86, "sugake", 0x232c40, 0, "ageha", ""],
+  // 河田・米野（慶長五年）。宇和島市蔵・土居家伝来の桃山～江戸初期の二枚胴具足を型の手本に、朽葉威・紫の陣羽織とした伝統色の復元案。本人所用品・個人紋は未確認：https://www.city.uwajima.ehime.jp/site/sizen-bunka/61gusoku.html
+  ["木造長政", "momonari", "none", 0x1c1a1a, 0x8a6a3a, "sugake", 0x703d78, 0, "none", ""],
+  // 米野（慶長五年）。宇和島市蔵・土居家伝来の桃山～江戸初期の二枚胴具足を型の手本に、緋威・生成の陣羽織とした伝統色の復元案。本人所用品・個人紋は未確認：https://www.city.uwajima.ehime.jp/site/sizen-bunka/61gusoku.html
+  ["飯沼長資", "momonari", "none", 0x1c1a1a, 0x9a2e20, "sugake", 0xd8d0bc, 0, "none", ""],
   ["石田正澄", "suji", "none", 0x1c1a1a, 0x2a5a5a, "okegawa", 0, 0, "ishida", ""],
   ["石田正継", "suji", "none", 0x1c1a1a, 0x7a5a7a, "kebiki", 0, 0, "ishida", ""],
   ["蜂須賀至鎮", "suji", "none", 0x1c1a1a, 0x9a4a3a, "okegawa", 0, 0, "hachisuka", ""],
+  // 第二次上田（慶長五年）の刈田の将。宇和島市の桃山期・二枚胴を型に、朽葉の威・萌黄の羽織で補う伝統色の復元案（所用品未確認）：https://www.city.uwajima.ehime.jp/site/sizen-bunka/61gusoku.html
+  ["牧野康成", "momonari", "none", 0x1c1a1a, 0xa88a3a, "sugake", 0x769442, 0, "kashiwa", ""],
+  // 井伊美術館「菱綴佛胴具足（伝・森忠政所用）」の頭形・仏胴を略す。紫の威は伝統色の復元案、上田での着用は未確認：https://www.ii-museum.jp/複製-蜂須賀正勝
+  ["森忠政", "zunari", "none", 0x1c1a1a, 0x785482, "hotoke", 0, 0, "tsuru", ""],
+  // 奥平家昌所用は未確認。父・信昌の品は移さず、宇和島市の桃山期・二枚胴と白糸・縹の羽織による伝統色の復元案：https://www.city.uwajima.ehime.jp/site/sizen-bunka/61gusoku.html
+  ["奥平家昌", "momonari", "none", 0x1c1a1a, 0xd8d0bc, "sugake", 0x4a7a9a, 0, "okudaira", ""],
+  // 本多康重の成人時の所用品は未確認。宇和島市の桃山期・二枚胴に縹の威・生成りの羽織を合わせる伝統色の復元案（童具足は使わない）：https://www.city.uwajima.ehime.jp/site/sizen-bunka/61gusoku.html
+  ["本多康重", "momonari", "none", 0x1c1a1a, 0x4a7a9a, "sugake", 0xd8d0bc, 0, "honda", ""],
+  // 菅沼忠政所用・個人紋は未確認。宇和島市の桃山期・二枚胴を型に、萌黄の威・紫の羽織で補う伝統色の復元案：https://www.city.uwajima.ehime.jp/site/sizen-bunka/61gusoku.html
+  ["菅沼忠政", "momonari", "none", 0x1c1a1a, 0x769442, "sugake", 0x785482, 0, "none", ""],
+  // 戸田一西所用・個人紋は未確認。宇和島市の桃山期・二枚胴を型に、緋の威・朽葉の羽織で補う伝統色の復元案：https://www.city.uwajima.ehime.jp/site/sizen-bunka/61gusoku.html
+  ["戸田一西", "momonari", "none", 0x1c1a1a, 0xb8342a, "sugake", 0xa88a3a, 0, "none", ""],
   ["木下雅楽助", "eboshi", "kuwa_wide", 0x24221f, 0x66513b, "sugake", 0xcfc8b4, 0x24221f, "none", ""],
   ["中川金右衛門", "eboshi", "horn", 0x24221f, 0x3c5a8a, "sugake", 0x4a3a22, 0, "none", ""],
   ["山田新右衛門", "eboshi", "cross", 0x24221f, 0x66513b, "kebiki", 0xcfc8b4, 0x24221f, "none", ""],
@@ -703,12 +773,18 @@ for (const [name, bowl, crest, armor, lace, doStyle, haori, menpo, mon, ref] of 
   ["原彦二郎", "momonari", "none", 0x1c1a1a, 0xd8d0bc, "sugake", 0, 0x1c1a1a, "none", ""],
   ["高橋虎松", "namban", "shida", 0x1c1a1a, 0x66513b, "kebiki", 0x4a5a22, 0x1c1a1a, "none", ""],
   ["菅屋角蔵", "namban", "bellflower", 0x1c1a1a, 0x66513b, "kebiki", 0x7a1a12, 0x1c1a1a, "none", ""],
+  // 出所：兵庫県立歴史博物館「甲冑の種類と変遷・当世具足」https://rekihaku.pref.hyogo.lg.jp/digital_museum/bugu-kacchuu/kc_touseigusoku/ 。所用品は未確認、天正十年の筋兜・溜色の胴・白糸威は伝統の色の復元案。本能寺では小袖指定を優先（個人資料に範囲）。
+  ["矢代勝介", "suji", "none", 0x5e4a2c, 0xd8d0bc, "kebiki", 0, 0, "none", ""],
   ["松平忠明", "momonari", "kuwa", 0x29251f, 0x2e3a52, "kebiki", 0, 0, "none", ""],
   ["片倉重長", "momonari", "moon", 0x29251f, 0x3c5a8a, "okegawa", 0, 0x29251f, "none", ""],
   // 三木の出撃将。所用具足・立物・個人紋は未確認。共通の筋兜・桶側胴で復元。
   ["別所甚太夫", "suji", "none", 0x29251f, 0xd8d0bc, "okegawa", 0xcfc8b4, 0x29251f, "none", ""],
   ["別所三太夫", "momonari", "none", 0x29251f, 0x6a6a6a, "okegawa", 0, 0x29251f, "none", ""],
   ["山崎長徳", "momonari", "kuwa_wide", 0x29251f, 0x2e3a52, "okegawa", 0, 0x29251f, "none", ""],
+  // 加賀本多博物館蔵・政重所用の黒糸威頭形兜・黒糸威両引合胴（西岡甲房の修復記録：https://armor-braid.sakura.ne.jp/prof.html）。慶長十九年の着用は未確認。黒漆・桶側の近似・紫の羽織は復元案。
+  ["本多政重", "zunari", "none", 0x1c1a1a, 0x1c1a1a, "okegawa", 0x8a4282, 0, "honda", ""],
+  // 宇和島市蔵・土居家伝来の桃山～江戸初期「黒糸威二枚胴具足」（https://www.city.uwajima.ehime.jp/site/sizen-bunka/61gusoku.html）の型。遠雄の所用品は未確認。慶長十九年の黒漆・縹糸威は伝統の色の復元案。
+  ["伊木遠雄", "momonari", "none", 0x1c1a1a, 0x467f9c, "sugake", 0, 0, "none", ""],
   ["寺沢広高", "eboshi", "horn", 0x29251f, 0x2e3a52, "sugake", 0, 0x29251f, "none", ""],
   ["平岡頼勝", "suji", "cross", 0x29251f, 0x2a2a2a, "sugake", 0x2e3a42, 0, "none", ""],
   // 所用の立物・旗印・馬印は未確認。具足の色と作りは復元、立物と個人の紋は無印に留める。
@@ -736,6 +812,8 @@ for (const [name, bowl, crest, armor, lace, doStyle, haori, menpo, mon, ref] of 
   ["毛利河内", "zunari", "none", 0x24221f, 0x6a2a5a, "sugake", 0x7a1a12, 0x24221f, "none", ""],
   ["浅野左近", "suji", "none", 0x24221f, 0xa88a3a, "okegawa", 0x8a6a2a, 0, "none", ""],
   ["猿荻甚太郎", "zunari", "none", 0x2a2420, 0xb0a890, "sugake", 0x4a3a22, 0, "none", ""],
+  // 岩村（天正三年）。京都国立博物館「紺糸威胴丸 兜・大袖付」の黒漆・筋兜・毛引威を手本に、萌黄の威・藤の陣羽織は伝統色の復元案（本人所用・立物・紋は未確認）：https://www.kyohaku.go.jp/jp/collection/meihin/kin/item07/
+  ["大島杢之助", "suji", "none", 0x1c1a1a, 0x6a7a2c, "kebiki", 0x7a6a9a, 0, "none", ""],
   ["土屋昌次", "zunari", "bellflower", 0x3a2622, 0x9a2e20, "kebiki", 0x3a2622, 0, "takeda", ""],
   // 箕作を攻める浅井新八。長政と同一視せず、個人紋・立物・羽織は未確認として補う。
   ["浅井新八", "zunari", "none", 0x24221f, 0x3c5a8a, "kebiki", 0, 0, "none", ""],
@@ -744,11 +822,23 @@ for (const [name, bowl, crest, armor, lace, doStyle, haori, menpo, mon, ref] of 
   ["松平元康", "suji", "none", 0xb08a3a, 0x8a6a2a, "okegawa", 0, 0, "tokugawa", ""],
   ["宮部継潤", "zunari", "none", 0x2a2420, 0x3c5a8a, "okegawa", 0x8a6a2a, 0, "none", ""],
   ["朽木元綱", "momonari", "none", 0x1c1a1a, 0x5a2a1c, "okegawa", 0, 0, "none", ""],
+  // 佐和山・慶長五年。出所：埼玉県立歴史と民俗の博物館「縹糸威最上胴丸具足」。本人所用は未確認、黒漆・紺威・錆朱の陣羽織は伝統色の復元案（docs/generals_look_1108/赤座直保.md）。
+  ["赤座直保", "suji", "none", 0x1c1a1a, 0x232c40, "sugake", 0x7a1a12, 0, "none", ""],
+  // 佐和山・慶長五年。出所：埼玉県立歴史と民俗の博物館「縹糸威最上胴丸具足」。本人所用は未確認、黒漆・紺威・老竹色の陣羽織は伝統色の復元案（docs/generals_look_1108/小川祐忠.md）。
+  ["小川祐忠", "suji", "none", 0x1c1a1a, 0x232c40, "sugake", 0x969a6c, 0, "none", ""],
+  // 佐和山・慶長五年。出所：埼玉県立歴史と民俗の博物館「縹糸威最上胴丸具足」。本人所用は未確認、黒漆・縹威・錆朱の陣羽織は伝統色の復元案（docs/generals_look_1108/長谷川守知.md）。
+  ["長谷川守知", "suji", "none", 0x1c1a1a, 0x3c5a8a, "sugake", 0x7a1a12, 0, "none", ""],
+  // 佐和山・慶長五年。出所：埼玉県立歴史と民俗の博物館「縹糸威最上胴丸具足」。本人所用は未確認、黒漆・紺威・紫の陣羽織は伝統色の復元案（docs/generals_look_1108/宇多頼忠.md）。
+  ["宇多頼忠", "suji", "none", 0x1c1a1a, 0x232c40, "sugake", 0x7a5a86, 0, "none", ""],
+  // 佐和山・慶長五年。出所：埼玉県立歴史と民俗の博物館「縹糸威最上胴丸具足」。本人所用は未確認、黒漆・縹威・老竹色の陣羽織は伝統色の復元案（docs/generals_look_1108/石田朝成.md）。
+  ["石田朝成", "suji", "none", 0x1c1a1a, 0x3c5a8a, "sugake", 0x969a6c, 0, "none", ""],
   ["斎藤義龍", "momonari", "none", 0x22241e, 0x4a3a5a, "kebiki", 0x2a2a3a, 0x22241e, "saito", ""],
   ["松平忠輝", "suji", "none", 0x1c1a1a, 0xb0a890, "kebiki", 0xcfc8b4, 0x1c1a1a, "tokugawa", ""],
 ]) {
   KACCHU[name] = { bowl, crest, armor, helm: armor, lace, odo: lace, doStyle, haori, menpo, menpoStyle: "hanbo", mon, ref, hat: "kabuto", hatFix: 1, lac: armor === 0xa52b1c || armor === 0x8e1f16 ? "shu" : "kuro", fuki: "kuro" };
 }
+// 宗箇の仏胴は既存の平滑な胴を使う。銀の月輪・羽織の立浪文・風折の細部は新造しない（出所と省略：docs/generals_look_1108/上田宗箇.md）。
+KACCHU["上田宗箇"].plateDo = "hotoke";
 // 武将の名簿（bushou_roster.js）にいて、上の表に無い人：名簿の値か家の色の範囲から一人ずつ組む（復元案。立物は鍬形の類だけ）。
 for (const name of Object.keys(ROSTER)) {
   if (KACCHU[name]) continue;
