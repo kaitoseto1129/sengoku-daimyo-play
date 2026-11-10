@@ -2,6 +2,26 @@
 // いったん下で固める。讃岐から回った黒田・蜂須賀家政の手が上って来て、もう一度上へ押し上げる（段の長さは出来事で決める）。
 import { enemyGroup, allyGroup } from '../bhelp.js';
 
+// 水を断たれた城兵への退却命令。士気を下げるだけでは、組頭が生きている隊は退かない。
+// 敗走の処理に渡し、塀の脇へ直進せず搦手の門から城の奥へ戻す。
+export function withdraw(g) {
+  if (!g?.count || g.routed) return;
+  const c = g.center();
+  g.noRout = false; g.noAI = true; g.focus = null; g.morale = 0;
+  g.routed = true; g.order = 'flee'; g.dest = null;
+  g.fleeDir = { x: 0, z: 1 }; g.fleeSet = true;
+  g.fleePath = [];
+  if (c.z < 68) g.fleePath.push([-58, 68]);
+  if (c.z < 81) g.fleePath.push([-40, 79], [-16, 81]);
+  if (c.z < 93) g.fleePath.push([-16, 94]);
+  // 本丸の北の口まで。南の塀には出口がなく、城外へ一直線に逃がすと壁に詰まる。
+  g.fleePath.push([-16, 106], [-16, 110], [-16, 114]);
+  for (const u of g.units) if (u.alive) {
+    u.fleePathIdx = 0; u.routIn = 0.3; u.aiT = 0;
+    u.target = null; u.atk = null; u.swing = null; u.bind = null; u.charging = false;
+  }
+}
+
 export function oshiStep(NG) {
   const { CHOSO, GOALS, MID, LOW, UP, GATE } = NG;
   const foe = (rt, name, at, list) => enemyGroup(rt, { faction: 'oda', flag: 'chosokabe', fixed: true, name, anchor: at, facing: Math.PI, order: 'attack', seekRange: 24, aggro: 10, width: 5, morale: 70, dmgMult: 0.1 },
@@ -25,7 +45,8 @@ export function oshiStep(NG) {
       if (C.ph < 3 && (g === rt.flags.kanbei || g === rt.flags.iemasa)) { g.order = 'hold'; return; }
       g.anchor = { x: at.x + (i % 2 ? 5 : -5), z: at.z - 4 - (i % 3) * 2 };
       g.seekRange = 20;
-      g.keepMoveOrder = C.ph === 2;
+      // 退く時だけでなく再進撃でも、後ろの目付へ付いて戻らず山道の下知を保つ。
+      g.keepMoveOrder = true;
       g.order = C.ph === 2 ? 'retreat' : 'attack';
       g.dest = C.ph === 2 ? g.anchor : null;
     });
@@ -38,7 +59,7 @@ export function oshiStep(NG) {
       C.at = C.goal = LOW; C.groups = []; C.ph = 0; C.botRadius = 14; C.inT = 0; C.orders = new Map();
       rt.obj('dp', GOALS[4], 'main');
       // 湧き水を取り返しに来た組の残りは、水脈を断たれて門へ退く（段の替わり目に敵が重ならない）
-      for (const g of rt.army.groups) if (g.team === 1 && g.count && g !== rt.flags.emura && !(rt.flags.cGuns || []).includes(g)) { g.noRout = false; g.morale = 0; g.anchor = { x: -16, z: 96 }; g.order = 'move'; }
+      for (const g of rt.army.groups) if (g.team === 1 && g.count && g !== rt.flags.emura && !(rt.flags.cGuns || []).includes(g)) withdraw(g);
       // 秀長の手の後続が谷から上がって来て、山道の下を固める（押し戻される時に本人だけにしない）
       const aid = allyGroup(rt, { name: '秀長の手の後続', flag: 'toyotomi', anchor: { x: LOW.x - 4, z: LOW.z - 10 }, facing: 0, noRout: true, aggro: 12, morale: 95, dmgMult: 0.7, fullStrength: true },
         [{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: 18 }]);
@@ -65,7 +86,7 @@ export function oshiStep(NG) {
       if (C.ph === 2 && el > 62) {
         C.ph = 3;
         // 退く組は下で守り、加勢だけが先に上る。
-        for (const g of C.orders.keys()) if (g.count) { g.order = 'hold'; g.keepMoveOrder = false; g.dest = null; }
+        for (const g of C.orders.keys()) if (g.count) { g.order = 'hold'; g.keepMoveOrder = true; g.dest = null; }
         for (const g of [rt.flags.kanbei, rt.flags.iemasa]) if (g && g.count) { g.order = 'attack'; g.seekRange = 30; g.anchor = { x: MID.x, z: MID.z }; }
         rt.say('黒田官兵衛', '黒田・蜂須賀の手、上るぞ！　狭い道は横から崩せ！', 3.5);
         rt.after(4, () => rt.say('足軽', '加勢じゃ！　もう一度、上へ！', 2.5));
@@ -83,9 +104,7 @@ export function oshiStep(NG) {
       // 本人が山道へ来ていない時は、残兵が退いても次へ進めない。
       if (C.ph >= 5 && el > 230 && !C.withdrawn) {
         C.withdrawn = true;
-        for (const g of C.groups) if (g?.count) {
-          g.noRout = false; g.morale = 0; g.order = 'retreat'; g.dest = GATE;
-        }
+        for (const g of C.groups) withdraw(g);
       }
       // 共通の戦闘段を使わない山道でも、来た人数と退けた人数を渡す。
       // まだ来ていない新手は数に含めず、目標の達成は山道への到着で判定する。
@@ -96,7 +115,7 @@ export function oshiStep(NG) {
     },
     end(rt, C) {
       for (const [g, orders] of C.orders) { Object.assign(g, orders); g.dest = null; }
-      for (const g of C.groups) if (g) { g.noRout = false; g.morale = 0; }
+      for (const g of C.groups) withdraw(g);
       rt.flags.step = 5;
       rt.objDone('dp');
       rt.award((t) => t.side.push('狭い山道で押し戻され、また押し上げた'), '山道を押し返した');
