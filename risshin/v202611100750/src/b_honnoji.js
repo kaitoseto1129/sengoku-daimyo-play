@@ -4743,7 +4743,7 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
   escape(rt) {
     const F = rt.flags;
     if (F.step >= 5) return;
-    F.step = 5; F.stepT = rt.t;
+    F.step = 5; F.stepT = rt.t; F.tadaFallen = false;
     rt.setPhase('escape');
     for (const g of rt.squadGroups) g.order = 'follow';
     rt.unzone('ng'); rt.unmark('ng');
@@ -4762,7 +4762,7 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
     rt.after(4.8, () => { const u = F.tadaU; if (u?.alive) { u.invuln = false; rt.army.despawn(u); } });
     rt.after(8.5, () => { if (F.step === 5 && !F.ending && !rt.over) honnoSay(rt, '御所の組頭', '門は持たぬ。残る者が口を支える。北へ退け！', 3.5); });
     rt.after(16.5, () => { if (F.step === 5 && !F.ending && !rt.over) honnoSay(rt, '御所の組頭', '長益様は北の口から落ちられた。そなたも続け！', 3.2); });
-    rt.after(12, () => { if (F.step === 5 && !F.ending && !rt.over) honnoSay(rt, '', '――信忠は御所の奥で自害した。二十六の若さであった', 4); });
+    rt.after(12, () => { if (F.step === 5 && !F.ending && !rt.over) { F.tadaFallen = true; honnoSay(rt, '', '――信忠は御所の奥で自害した。二十六の若さであった', 4); } });
 
     rt.obj('main', '明智の兵を抜け、京の外れの木戸まで逃げよ', 'main', true);
     rt.marker('out', OUT, '京の外れ', { h: 2 });
@@ -4803,7 +4803,8 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
   // 京の外れの木戸を抜けた。追手は木戸の内で足を止め、町の一軒（使者の家）へ（kaito 11/1 ④）
   toShisha(rt) {
     const F = rt.flags;
-    if (F.step >= 6) return;
+    // 木戸へ早着しても、信忠の最期の知らせを飛ばして使者の場面へ進めない。
+    if (F.step !== 5 || !F.tadaFallen || F.ending || rt.over || !rt.player.u.alive) return;
     F.step = 6; F.stepT = rt.t;
     rt.setPhase('shisha');
     rt.unmark('out'); rt.unmark('north'); rt.unmark('chase'); rt.unzone('out');

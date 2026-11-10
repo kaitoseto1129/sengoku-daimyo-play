@@ -3,7 +3,7 @@
 // 岸の物見（monomi.js）の後、細い堤 → 堤の砦 → 舟着場（水路）→ 寺内の在所 → 囲みを閉じる → 最後の突破 → 堤の上の終わり。
 // 段は共通の b_depth.js（fight・hold・move・rest）に、長島の決まりを足して使う：
 //   ・制圧は全滅でなく、寄せた数の七割が崩れるか、門徒頭が倒れるか、刻限で進む（残兵は奥へ退く）
-//   ・特定の NPC・舟の到着・本人の一太刀に頼らない（どの段にも刻限）
+//   ・特定の NPC・舟の到着・本人の一太刀に頼らない（残兵を探し続けない刻限）
 //   ・非戦の民（war_people の群れ）は狙いの外。武器を持つ門徒だけが敵
 // 座標は b_nagashima.js の地形（堤 x=-46、堤の砦 -50,-58、西の分流 x≈-64、願証寺 -44,-82、南の川 z≈-134）に合わせる。
 // ======================================================================
@@ -40,23 +40,28 @@ function fighters(C) {
   for (const g of C.groups) if (!g.routed) for (const u of g.units) if (u.alive && !u.fleeing && !u.woundOut && !u.downed) n++;
   return n;
 }
-// 制圧の段：寄せた数の ratio が崩れたら、残りは奥へ退く。cap 秒で必ず済む
+// 制圧の段：本人が持ち場へ進み、寄せた数の ratio が崩れたら残りは奥へ退く。
 function take(o) {
-  const st = fight(o);
+  const st = fight({ ...o, noRefill: true });
   const tick = st.tick;
-  st.limit = o.cap || 170;
+  st.idleAdvance = false; st.noHardCap = true; st.limit = Infinity;
   st.tick = (rt, C, m, ctx, el, dt) => {
-    if (tick(rt, C, m, ctx, el, dt)) return true;
+    const cleared = tick(rt, C, m, ctx, el, dt);
+    const u = rt.player.u;
+    const present = u.alive && u.hp > 0 && !u.downed && !u.dying && !u.gone && !u.woundOut && !u.rearWound && !u.fleeing &&
+      Math.hypot(u.pos.x - C.at.x, u.pos.z - C.at.z) < 14;
+    C.takeT = (C.takeT || 0) + (present ? dt : 0);
+    // 味方だけで敵を退けても、本人が来ないまま制圧にはしない。
+    if (!present || C.takeT < 3) return false;
     if (C.later.length) return false;
+    if (cleared) return true;
     const tot = C.nTot || 0;
     if (tot && (tot - fighters(C)) / tot >= (o.ratio ?? 0.7)) return true;
     if (o.leader && C.groups.some((g) => g.leader && !g.leader.alive) && (tot - fighters(C)) / tot >= 0.4) return true;
-    if (el > (o.cap || 170)) { C.timeout = (tot - fighters(C)) / Math.max(1, tot) < 0.4; return true; }
+    // 刻限は残兵を探し続けないための救い。四割を崩すまでは制圧扱いにしない。
+    if (el > (o.cap || 170) && tot && fighters(C) <= tot * 0.6) return true;
     return false;
   };
-  // 時間切れでも、四割を崩していれば済みとする（fight の end は六割で見る）
-  const end = st.end;
-  st.end = (rt, C, m, ctx) => { if (C.timeout && (C.nTot || 0) && fighters(C) <= C.nTot * 0.6) C.timeout = false; end(rt, C, m, ctx); };
   return st;
 }
 // 旗を立てる：本人が印の内に三秒、近くに武器を持つ敵がいない。
@@ -72,7 +77,7 @@ function plant(o) {
     },
     tick(rt, C, m, ctx, el, dt) {
       const u = rt.player.u, p = u.pos;
-      const near = u.alive && !u.downed && Math.hypot(p.x - o.at.x, p.z - o.at.z) < 4.5;
+      const near = u.alive && u.hp > 0 && !u.downed && !u.dying && !u.gone && !u.woundOut && !u.rearWound && !u.fleeing && Math.hypot(p.x - o.at.x, p.z - o.at.z) < 4.5;
       let calm = near;
       if (calm) for (const q of rt.army.units) if (q.team !== u.team && q.alive && !q.fleeing && !q.noTarget && !q.isStruct && !q.civ &&
         (q.pos.x - p.x) ** 2 + (q.pos.z - p.z) ** 2 < 36) { calm = false; break; }
@@ -91,7 +96,7 @@ function tag(st, k, cp, pin) {
     const tick = st.tick;
     st.tick = (rt, C, m, ctx, el, dt) => {
       const u = rt.player.u;
-      const ready = u.alive && u.hp > 0 && !u.downed && !u.woundOut && !u.fleeing;
+      const ready = u.alive && u.hp > 0 && !u.downed && !u.dying && !u.gone && !u.woundOut && !u.rearWound && !u.fleeing;
       if (st.kind === 'move') return ready && tick(rt, C, m, ctx, el, dt);
       const before = C.inT;
       const done = tick(rt, C, m, ctx, el, dt);
@@ -99,7 +104,8 @@ function tag(st, k, cp, pin) {
       C.inT = before + (ready && Math.hypot(u.pos.x - C.at.x, u.pos.z - C.at.z) < C.botRadius ? dt : 0);
       const duration = st.max - 35;
       // 寄せの上限後は残兵を退かせる。本人が守らないまま成功にはしない。
-      return C.inT >= duration && !C.waves.length && (done || el >= Math.max(duration + 60, 200));
+      return ready && C.inT >= duration && !C.waves.length && (done ||
+        el >= Math.max(duration + 60, 200) && C.nTot > 0 && fighters(C) <= C.nTot * 0.6);
     };
   }
   if (pin) st.pin = pin;

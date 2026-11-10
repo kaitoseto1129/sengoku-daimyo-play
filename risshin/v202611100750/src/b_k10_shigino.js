@@ -485,10 +485,10 @@ html:root body #hud#hud#hud.shigino-goals.shigino-combat #goal-sign .gs-tag > sp
     let shots = 0;
     // 堤の左右に開いた水原の鉄砲が、一人ずつ本物の筒で放つ（火と煙は筒先から）
     const foes = [];
-    for (const g of [F.wata, F.kimu]) for (const u of g?.units || []) if (u.alive && !u.gone && !u.noTarget && u.pos.x > MIZU.x - 64 && u.pos.x < MIZU.x + 6) foes.push(u);
+    for (const g of [F.wata, F.kimu]) for (const u of g?.units || []) if (fighting(u) && !u.noTarget && u.pos.x > MIZU.x - 64 && u.pos.x < MIZU.x + 6) foes.push(u);
     let k = 0;
     for (const g of [F.mzN, F.mzS]) for (const u of g.units) {
-      if (!u.alive || u.gone || u.fleeing || u.woundOut || u.rearWound || u.sidearm || u.type !== 'gun' || !foes.length) continue;
+      if (!fighting(u) || u.sidearm || u.type !== 'gun' || !foes.length) continue;
       // 移動中の筒を一斉射に数えず、堤の左右へ開いた射列から放つ。
       const shoulder = g === F.mzN ? -9 : 9;
       if (Math.abs(u.pos.x - (MIZU.x + 2)) > 12 || Math.abs(u.pos.z - shoulder) > 5) continue;
@@ -544,14 +544,14 @@ html:root body #hud#hud#hud.shigino-goals.shigino-combat #goal-sign .gs-tag > sp
     // 空の対岸に架空の発砲数は足さず、何もしないままの達成にも変えない。
     // 救援の終了判定と同じく、手傷で離脱した者や倒れる途中の者は戦力に数えない。
     // 全員が手傷だと live は真のままになり、撃てる相手もいないので合図しても終われなかった。
-    const targets = F.riverFoe.units.filter((u) => u.alive && !u.gone && !u.fleeing && !u.woundOut && !u.rearWound && !u.dying);
+    const targets = F.riverFoe.units.filter(fighting);
     if (!targets.length) { F.riverSecured = true; return true; }
     if (rt.t < (F.riverNext || 0)) return true;
     // 倒れる途中や手傷で狙えない者へ全員が撃ち続けると、残る寄せ手への実射が止まる。
     const aimable = targets.filter((u) => !u.noTarget);
     let shots = 0, attempted = false;
     for (const g of [F.mzN, F.mzS]) for (const u of g.units) {
-      if (!u.alive || u.gone || u.fleeing || u.woundOut || u.rearWound || u.sidearm || u.type !== 'gun' || dist(u.pos, RIVER) > 18 || !aimable.length) continue;
+      if (!fighting(u) || u.sidearm || u.type !== 'gun' || dist(u.pos, RIVER) > 18 || !aimable.length) continue;
       const target = aimable[shots % aimable.length];
       u.heading = Math.atan2(target.pos.x - u.pos.x, target.pos.z - u.pos.z); u.reload = 0;
       attempted = true;
@@ -730,7 +730,7 @@ html:root body #hud#hud#hud.shigino-goals.shigino-combat #goal-sign .gs-tag > sp
     }
     // 井上は味方に討たれないための保護付きだが、本人の一撃は通る。
     // 保護だけで除くと、周りの兵を討った後に足元で待ち続けてしまう。
-    const ok = (o) => o.alive && !o.gone && !o.fleeing && (!o.invuln || F.step === 2 && o === F.inoU) && !o.noTarget && Math.abs(o.pos.y - u.pos.y) < 3;
+    const ok = (o) => fighting(o) && (!o.invuln || F.step === 2 && o === F.inoU) && !o.noTarget && Math.abs(o.pos.y - u.pos.y) < 3;
     const inoue = F.step === 2 && F.inoU && ok(F.inoU) ? F.inoU : null;
     const e = F.step === 3 ? null : inoue || b.army.nearestEnemy(u, 9, ok);
     if (e) {
