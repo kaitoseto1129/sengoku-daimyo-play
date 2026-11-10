@@ -2829,7 +2829,7 @@ function echizenAdvance(rt) {
     up('柴田勝家の手', 3, [{ type: 'busho', n: 1, o: { name: '柴田勝家', invuln: true, horse: true } }, { type: 'samurai', n: 6 }]),
     // 11/6 fix4_echizen（一2）：名のある将は徒で足軽三人に混ぜず、馬上で侍の旗本に囲む
     // 前田・佐々・不破は尾根道で先に合流している（echizen/goryu.js）。その手を峠道の殿へ回す
-    ...(F.echGoryu ? F.echGoryu.groups.filter((g) => g.count).map((g, i) => {
+    ...(F.echGoryu ? F.echGoryu.groups.filter((g) => g.count && !g.routed && g.order !== 'flee').map((g, i) => {
       const x = [-3, -8, 8][i] || 0;
       g.order = 'path'; g.formation = 'column'; g.colW = 2; g.pathIdx = 0; g.dest = null; g.assault = null;
       g.path = [[EXIT_KANNON[0] + x, EXIT_KANNON[1]], [TAIL_FRONT.x + x, TAIL_FRONT.z]];
