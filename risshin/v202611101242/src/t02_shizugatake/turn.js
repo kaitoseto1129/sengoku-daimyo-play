@@ -16,7 +16,7 @@ export function returnTurn(rt, ctx) {
   const F = rt.flags, W = rt.world;
   // 北国街道を下る羽柴の大軍（大垣から駆け戻った本隊。軽い作り）
   try {
-    const A = (x, z, seed, count) => W.addDistantArmy({ x, z, w: 14, d: 22, count, facing: Math.PI * 0.86, armor: 0x24201c, flagTex: flagTexture('toyotomi'), mon: 'toyotomi', seed, team: 0, kind: 'mixed', host: false, farFill: true });
+    const A = (x, z, seed, count) => W.addDistantArmy({ x, z, w: 14, d: 22, count, facing: Math.PI * 0.86, armor: 0x24201c, flagTex: flagTexture('kiri53'), mon: 'kiri53', seed, team: 0, kind: 'mixed', host: false, farFill: true });
     F.retG = [A(206, 156, 15841, 320), A(178, 70, 15842, 300), A(150, -10, 15843, 280)];
     rt.after(2, () => { try { F.retG[0]?.moveTo(214, 214, 80); F.retG[1]?.moveTo(204, 150, 90); F.retG[2]?.moveTo(176, 66, 90); } catch (e) { /* 遠景 */ } });
   } catch (e) { F.retG = []; }

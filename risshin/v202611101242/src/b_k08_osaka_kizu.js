@@ -721,8 +721,12 @@ const k08_osaka_kizu = {
       // 別手が砦の背に着くか、四十秒経てば民家に火
       if (!F.burned && (rt.t - F.tS > 40 || near(F.east.center(), { x: 44, z: -82 }, 14))) this.burn(rt);
       const st = F.gate;
-      if (!st || !st.alive || st.hp <= 0) { if (F.gateJoined) this.stage3(rt); return; }
-      rt.objProgress('main', `${Math.round(100 - (100 * st.hp) / st.maxHp)}／100`);
+      if (!st || !st.alive || st.hp <= 0) {
+        // 味方が先に破った時も破壊済みの数を出し、本人が門へ来るまでは②で待つ。
+        rt.objProgress('main', '100／100');
+        if (F.gateJoined) this.stage3(rt);
+        return;
+      }
       // 寄せた味方が門を打つ（門の前に味方が多いほど早い。主人公がそばで打てばさらに早い）
       let n = 0;
       for (const u of F.saki.units) if (u.alive && Math.hypot(u.pos.x - GATE.x, u.pos.z - GATE.z) < 16) n++;
@@ -730,6 +734,7 @@ const k08_osaka_kizu = {
       if (alive(F.wallG) && F.wallG.count > 6) n = Math.floor(n * 0.6);
       if (F.burned) n += 6;   // 背の火で守りが浮き足立ち、閂を守る手が減る（門の前に主人公を一分半も立たせない）
       if (n) { st.hp -= dt * 0.9 * Math.min(n, 14); if (st.hp <= 0) { st.hp = 0; st.alive = false; rt.army.structFall(st); this.onStructDestroyed(rt, st); } }
+      rt.objProgress('main', `${Math.round(100 - (100 * st.hp) / st.maxHp)}／100`);
     } else if (F.step === 3) {
       const left = sum(F.s3, true), elapsed = rt.t - F.tS;
       if (!F.okuOn && (left <= F.gN * 0.5 || (F.insideJoined && insideFort(P) && elapsed > 90))) {

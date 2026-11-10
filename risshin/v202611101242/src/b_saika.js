@@ -2077,7 +2077,8 @@ const saika = {
       }
       // 物見直後の六秒と、払い終えて下知を待つ三秒は敵の印が無い。
       // 別の竹束へ戻さず、物見の持ち場を示し続ける。
-      at = target || (rt.phase === 'mono' ? F.monoLook : F.tsutsumiG.center()); r = 6;
+      // 堤を守った後の和議待ちも、退く敵隊の中心へ追わせず占拠した堤を示す。
+      at = target || (rt.phase === 'mono' ? F.monoLook : F.tsutsumiAt); r = 6;
     } else if (F.ending) {
       const m = rt.markers.find((m) => m.id === 'goal');
       at = m ? typeof m.pos === 'function' ? m.pos() : m.pos : REAR;
