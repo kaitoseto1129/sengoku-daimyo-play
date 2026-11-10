@@ -94,6 +94,7 @@ const STEP_TEXT = ['',
   '上田攻めを止め、神川の岸に兵をまとめよ',
   '神川を渡り、中山道を西へ急げ'];
 const LAST = STEP_TEXT.length - 1;
+const PIN_NAMES = ['', '北の田', '北の林', '北の田', '大手門の前', '城下の東の荷駄', '神川の岸', '中山道'];
 // 段ごとの刻限（秒）：これを過ぎたら、遊び手が何をしていても出来事で次へ進む（bot・人の詰まり止め。札には出さない）
 const STEP_MAX = [0, 150, 130, 140, 260, 220, 200, 1e9];
 
@@ -203,7 +204,7 @@ const dress = (look) => (list) => list.map((s) => ({ ...s, o: { ...look, ...(s.o
 const saD = dress(SA), tkD = dress({ flag: 'tokugawa' }), hoD = dress({ flag: 'honda' }), okD = dress({ flag: 'okubo' }), skD = dress({ flag: 'sakakibara' }), maD = dress({ flag: 'kashiwa' });
 const uS = (n) => ({ type: 'samurai', n }), uA = (n) => ({ type: 'ashigaru', n }), uG = (n) => ({ type: 'gun', n }), uB = (n) => ({ type: 'bow', n });
 const bu = (name, o = {}) => ({ type: 'busho', n: 1, o: { name, invuln: true, horse: true, ...o } });
-const PIN = { x: 0, z: 0, r: 8, hide: 6, always: true, silent: true, enemy: false, unit: null, follow: false, fire: false, gate: false, defend: false, waiting: false, arrived: false, area: false, route: false };
+const PIN = { x: 0, z: 0, r: 8, hide: 6, hideDistance: 0, always: true, silent: true, enemy: false, unit: null, follow: false, fire: false, gate: false, defend: false, waiting: false, arrived: false, area: false, route: false };
 
 const k05_ueda = {
   resumeSteps: 7,   // 戦の途中の保存（battle_checkpoint.js）：段の始まりを toStep(①〜7) を順に流して作り直す
@@ -220,6 +221,9 @@ const k05_ueda = {
   noFrontFill: true,       // 見せかけの軍勢を重ねない（AA・AF・AP9・AQ6）。見える兵は全部本物
   noDistantBattle: true,
   noLeaderFollow: true,    // 行き先の印は段ごとの一つだけ
+  goalSignOnly: true,     // 近くの敵の案内で持ち場の印を消さず、到着後も段が済むまで残す。
+  goalSignTriangle: true,
+  keepBattleSigns: true,  // 行き先の印を出している間も、両軍の数と武将名を残す。
   compactIntro: true,
   introText: () => '小さな上田城の前に、徳川秀忠の三万八千。城から出る真田を退け、関ヶ原へ急げ。',
   stageGoalsOnly: true,    // 右上は五つの段だけ（「敵を何人討つ」で埋めない。三の1）
@@ -256,6 +260,7 @@ const k05_ueda = {
     else if (F.step === 6) p = FORD_W;
     else if (F.step === 7) p = MARCH;
     PIN.x = p.x; PIN.z = p.z; PIN.r = F.step === 2 ? 10 : 9;
+    PIN.label = F.step === 4 && !F.atFront && !F.throughTown ? '町屋の小路' : PIN_NAMES[F.step || 1];
     return PIN;
   },
   talk: {

@@ -15,7 +15,7 @@ const ready = (u) => u?.alive && !u.gone && !u.dying && !u.downed && !u.rearWoun
 export function install(rt, ctx) {
   const F = rt.flags, S = F.hieiSaka = { k: 0, t0: rt.t, done: false, at: MI };
   const live = () => !S.done && !F.ending && !rt.over && !F.step;
-  rt.marker('hieiMi', MI, '湖岸の辻');
+  rt.marker('hieiMi', MI, '湖岸の辻', { guideAlways: true, guidePriority: 250 });
   rt.after(6, () => live() && rt.say('明智光秀', '攻め上る前に、湖岸の辻から山を見よ。三塔十六谷、堂の数は数え切れぬ', 4.2));
   rt.after(24, () => live() && rt.say('足軽', '坂本の里の者が、荷を担いで山へ逃げて行くぞ', 3));
   rt.after(82, () => live() && rt.say('佐久間信盛', '山の衆は浅井・朝倉を匿うた。殿のお怒りは解けぬ', 3.6));
@@ -23,7 +23,7 @@ export function install(rt, ctx) {
   function seen(arrived) {
     if (S.k !== 0) return;
     S.k = 1;
-    rt.unmark('hieiMi');
+    // 僧兵が打って出るまでの八秒も、湖岸の行き先を残す。
     if (arrived) {
       rt.award((t) => { t.side.push('坂本の湖岸から比叡の三塔を見届けた'); t.special = { label: '山の伽藍を見届けた', pts: 8 }; }, '比叡の三塔を見届けた', MI);
       // 山を見上げる向きは本人に任せ、到着しても視点を勝手に動かさない。
@@ -37,7 +37,8 @@ export function install(rt, ctx) {
     if (!g || !g.count) { S.k = 3; S.backT = rt.t; return; }
     S.g = g; S.k = 2; S.gT = rt.t;
     g.order = 'move'; g.dest = { x: MI.x + 2, z: MI.z }; g.onArrive = (q) => { q.order = 'attack'; q.seekRange = 40; };
-    rt.marker('hieiSally', () => { const u = g.units.find(ready); return u ? { x: u.pos.x, z: u.pos.z } : null; }, '里坊の僧兵', { red: true, group: g });
+    rt.marker('hieiSally', () => { const u = g.units.find(ready); return u ? { x: u.pos.x, z: u.pos.z } : null; }, '里坊の僧兵', { red: true, group: g, guideAlways: true, guidePriority: 250 });
+    rt.unmark('hieiMi');
     try { sfx('bellRapid', 0.4); } catch (e) { /* 音が無くても進む */ }
     rt.army.play('eshout', { x: 196, z: -4 }, 1.3);
     rt.say('足軽', '湖の側の里坊から僧兵が打って出たぞ！　薙刀じゃ！', 3);
@@ -49,8 +50,10 @@ export function install(rt, ctx) {
     if (S.k === 0 && Math.hypot(p.x - MI.x, p.z - MI.z) < 6) seen(true);
     if (S.k === 2) {
       const fighting = S.g.units.some(ready);
-      if (rt.t - S.gT > 10 && (!fighting || S.g.routed)) {
+      if (!fighting || S.g.routed) {
         S.k = 3; S.backT = rt.t;
+        // 退いた敵の印に頼らず、次の下知まで坂本の通りを示す。
+        rt.marker('hieiMi', MI, '坂本の通り', { guideAlways: true, guidePriority: 250 });
         rt.unmark('hieiSally');
         if (!S.g.routed) { S.g.noRout = false; S.g.morale = 0; S.g.order = 'retreat'; }
         rt.say('明智光秀', '退けたな。坂本に火を掛ける。法螺を待て', 3.4);

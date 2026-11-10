@@ -11,7 +11,6 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { paintGeo, hipGeo, solidSeg, solidRect, solidCircle, tsuiji, kabukimon, yagura, umatsunagi, makeKitBatch, finalizeKitBatch, dorui, ishigaki, makeSimpleBatch, finalizeSimpleBatch } from './props.js';
 import { wallLine } from './bhelp.js';
-import { kitReplace, kitDobeiSeg } from './cgt_castle.js';
 import { whenCgt, cgtMat } from './cgt.js';
 import { S as SETTINGS } from './settings.js';
 import { Garan, makeTempleFire } from './temple1571.js';
@@ -486,17 +485,9 @@ export function buildTera(rt) {
   const { x0, x1, z0, z1 } = TERA;
   const sides = { n: [[x0, z0], [x1, z0]], s: [[x0, z1], [x1, z1]], w: [[x0, z0], [x0, z1]], e: [[x1, z0], [x1, z1]] };
   T.walls = [];
-  // 笠は瓦葺き（発掘で変の焼け瓦の層。docs/battle_refs/honnoji.md）。表門の前後の部品の土塀と同じ葺き方にそろえる
-  // 築地の見た目は買った城の部品の土塀（土壁の仕上げ）に替える。当たり・壊れる・火は手作りの形のまま
-  // 部品の土塀は面が多い（6m で約七千）。表門の前後だけに絞り、舞台の部品の予算（櫓・家と分け合う）を食い尽くさない
-  let kitLen = 0;
-  const tsuijiKit = (world, seg, o) => {
-    const r = tsuiji(world, seg, o), [sx, sz, ex, ez] = seg, L = Math.hypot(ex - sx, ez - sz);
-    if (Math.hypot((sx + ex) / 2 - GATES.main.x, (sz + ez) / 2 - GATES.main.z) > 36 || kitLen + L > 72) return r;
-    kitLen += L;
-    kitReplace(r, 'tsuchi', (p) => kitDobeiSeg(p, { ax: sx, az: sz, bx: ex, bz: ez, h: o.h || 2.6, yAt: (t) => world.heightAt(sx + (ex - sx) * t, sz + (ez - sz) * t) }));
-    return r;
-  };
+  // 笠は瓦葺き（発掘の焼け瓦の層。docs/battle_refs/honnoji.md）。
+  // 門前も同じ厚い築地で継ぐ。城の狭間付き部品への部分的な差し替えは、
+  // 仕上げと断面を途中で変え、元の壁も隠す。寺の塀は四方とも一つの作りにする。
   for (const [k, [[ax, az], [bx, bz]]] of Object.entries(sides)) {
     const gs = Object.values(GATES).filter((g) => g.side === k).map((g) => (k === 'n' || k === 's' ? [g.x - g.w / 2, g.x + g.w / 2] : [g.z - g.w / 2, g.z + g.w / 2])).sort((a, b) => a[0] - b[0]);
     const along = k === 'n' || k === 's';
@@ -508,13 +499,13 @@ export function buildTera(rt) {
     for (const [p0, p1] of pts) {
       if (p1 - p0 < 0.5) continue;
       const P = along ? [[p0, az], [p1, az]] : [[ax, p0], [ax, p1]];
-      T.walls.push(...wallLine(rt, P, { team: 0, hp: 1e9, name: '築地塀', segLen: 6, mesh: tsuijiKit, meshOpt: { batch: kb, kawara: true } }));
+      T.walls.push(...wallLine(rt, P, { team: 0, hp: 1e9, name: '築地塀', segLen: 6, mesh: tsuiji, meshOpt: { batch: kb, kawara: true } }));
     }
   }
   // 内の区切りの塀（推定）：天文法華の乱の後、寺は要害を兼ねた。西の区画（講堂・馬舎）と東の伽藍を塀で分け、口は一つ。
   // 門の幅と塀の開口をそろえる。十八歩空けると、十歩の門の両脇に四歩ずつ穴が残る。
   for (const P of [[[INNER_WALL.x, TERA.z0], [INNER_WALL.x, INNER_WALL.gate - INNER_WALL.width / 2]], [[INNER_WALL.x, INNER_WALL.gate + INNER_WALL.width / 2], [INNER_WALL.x, TERA.z1]]]) {
-    T.walls.push(...wallLine(rt, P, { team: 0, hp: 1e9, name: '内の塀', segLen: 6, mesh: tsuijiKit, meshOpt: { batch: kb, h: 2.2, kawara: true } }));
+    T.walls.push(...wallLine(rt, P, { team: 0, hp: 1e9, name: '内の塀', segLen: 6, mesh: tsuiji, meshOpt: { batch: kb, h: 2.2, kawara: true } }));
   }
   for (const s of T.walls) { s.noTarget = true; s.wall = true; s.h = 2.6; }
   finalizeKitBatch(rt, kb);

@@ -2704,15 +2704,16 @@ const iga = {
           : !supported ? '木戸を破る味方のそばで守れ'
           : friends <= foes ? '土橋の味方と敵を押し返せ'
           : F.bridgeHeld ? '土橋を保ち、退く下知を待て' : '土橋で木戸を破る味方を守れ';
-        rt.objProgress('main', F.bridgeHeld ? '退き道は保った。土橋を離れるな'
+        rt.objProgress('main', F.bridgeHeld && nearBridge ? '退き道は保った。土橋を離れるな'
           : supported && nearBridge && friends > foes ? `味方を守った時間 ${Math.min(20, Math.floor(F.bridgeT))}／20秒`
           : text);
       }
       if (!F.ram.count && !F.ramLost) { F.ramLost = true; rt.say('丹羽の組頭', '木戸の組が崩れた！　その方は土橋を保ち、味方が退く道を空けよ', 4); }
       if (F.sally && F.sally.count < 4 && !gone(F.sally)) { F.sally.noRout = false; F.sally.morale = Math.min(F.sally.morale, 20); }
-      // 本人が土橋へ着き、守備を始めてから押し返される。麓で待った時間だけで登る目標を済ませない。
-      if (F.bridgeStarted != null && (elapsed >= 45 ||
-          elapsed >= (F.bridgeHeld ? 26 : 34) && gone(F.sally) && friends > 0 && atBridge)) this.midB(rt);
+      // 土橋へ一度触れて麓へ戻っただけでは、土橋を守る目標を済ませない。
+      // 残敵が道に詰まった時の四十五秒の見切りも、本人が持ち場にいる時だけ使う。
+      if (F.bridgeStarted != null && atBridge && (elapsed >= 45 ||
+          elapsed >= (F.bridgeHeld ? 26 : 34) && gone(F.sally) && friends > 0)) this.midB(rt);
       // 道に迷っても未到着の土橋を済ませない。折れ目の案内を更新し、実際の到着を待つ。
       else if (F.bridgeStarted == null && rt.t - F.stepT > 210 && !F.bridgeDelayed) {
         F.bridgeDelayed = true; F.bridgeGuideAt = 0;

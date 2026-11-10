@@ -9,6 +9,7 @@ import { markedEnemy } from './mission_pin.js';
 import { enemyKnown } from './battle_intel.js';
 import { reduceMotion } from './settings.js';
 import { VIEW, safeInsets } from './viewport.js';
+import { ARMY_P, ARMY_REAL_P, ARMY_REAL_R, DIST_FAKE_NEAR } from './world_army_shader.js';
 
 const CAP = 360, BARS = 12, NAMES = 12, GLOW = 8, HOT = 16;
 // 武将の名は戦場の名のある武将全員に常に出す（kaito 11/1）。遠くても読める所まで。
@@ -19,6 +20,16 @@ const BAR_FOE = new THREE.Color(0xe8452c), BAR_ALLY = new THREE.Color(0xe8c25a),
 const STATE = new WeakMap();
 const dummy = new THREE.Object3D(), v = new THREE.Vector3(), headPos = new THREE.Vector3();
 const signAt = new THREE.Vector3();
+// 体を描かない距離では印も出さない。地形の見通しだけでは、描画側で消した兵を拾ってしまう。
+function lightEnemyBodyVisible(A, p, i) {
+  const U = A.U || {}, info = A.body.geometry.attributes.aInfo;
+  const seed = info ? info.getX(i) : 1;
+  const cameraD = Math.hypot(p.x - ARMY_P.value.x, p.z - ARMY_P.value.y);
+  const nearD = Math.min(cameraD, Math.hypot(p.x - ARMY_REAL_P.value.x, p.z - ARMY_REAL_P.value.y));
+  if (cameraD < (U.uNear?.value || 0) || nearD < (U.uRealNear || ARMY_REAL_R).value - 5 * seed ||
+      nearD < (U.uFakeNear || DIST_FAKE_NEAR).value + 30 * seed) return false;
+  return !(U.uUnavailable?.value > .5 && Math.max(Math.abs(p.x), Math.abs(p.z)) < (U.uMoveLim?.value ?? 176) + 40);
+}
 // 近い軽い兵の所属印。人の形や実兵の人数を増やさず、既存の印の束を使う。
 function drawLightEnemySigns(rt, s, A, n, cam, q) {
   const body = A.body, me = rt.player.u;
@@ -34,12 +45,15 @@ function drawLightEnemySigns(rt, s, A, n, cam, q) {
     if (Math.abs(matrices[j]) + Math.abs(matrices[j + 1]) + Math.abs(matrices[j + 2]) < 0.001) continue;
     signAt.set(matrices[j + 12] + A.off.x, matrices[j + 13] + A.off.y, matrices[j + 14] + A.off.z).applyMatrix4(A.mesh.matrixWorld);
     if ((signAt.x - me.pos.x) ** 2 + (signAt.z - me.pos.z) ** 2 > range * range) continue;
+    if (!lightEnemyBodyVisible(A, signAt, i)) continue;
+    // 軽い兵も描く時に現在地の地面へ据え直す。移動前の高さで切岸の裏を透視しない。
+    signAt.y = rt.world.heightAt(signAt.x, signAt.z);
     // 山城では頭上だけでなく、実際の兵の足場から胴への見通しを確かめる。
     if (rt.def.lightEnemySignVisible && !(seenAt[i] > rt.t - .34 && seenAt[i] <= rt.t)) {
       seenAt[i] = rt.t;
       seen[i] = rt.def.lightEnemySignVisible(rt, signAt) ? 1 : 0;
     }
-    signAt.y = rt.world.heightAt(signAt.x, signAt.z) + (A.kinds?.[i] === 5 ? 3.2 : 2.25);
+    signAt.y += A.kinds?.[i] === 5 ? 3.2 : 2.25;
     v.copy(signAt).applyMatrix4(cam.matrixWorldInverse);
     if (v.z >= 0) continue;
     if (!(seenAt[i] > rt.t - .34 && seenAt[i] <= rt.t)) {

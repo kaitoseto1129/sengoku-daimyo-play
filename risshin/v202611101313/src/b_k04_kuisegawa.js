@@ -568,7 +568,7 @@ const k04_kuisegawa = {
       if (dist(this.defensePoint(rt), P.pos) < 18 && rt.player.lastHit?.blocked && rt.player.lastHit.t >= F.stepT && rt.t - rt.player.lastHit.t <= 0.5) F.defended = true;
       if (F.defended && F.nearT > 130 && el > 130) this.closeRing(rt);   // 渡河・防戦・退却を合わせ四分以上遊ぶ
     // 川幅は中心線から両側十二。水中の x=52 で渡り終えた扱いにしない。
-    } else if (F.step === 4 && PL.x > 60) this.toStep(rt, 5);
+    } else if (F.step === 4 && PL.x > 60 && this.returnedMen(rt, false) > 0) this.toStep(rt, 5);
     else if (F.step === 5 && dist(P.pos, ARIMA) < 14 && this.returnedMen(rt) > 0) this.win(rt);
     // 退く段：西軍は川まで追うが渡らない（史実：有馬の隊が岸で受け、西軍は大垣へ引いた）。近い追手は人の走りより少し遅い
     if (F.step >= 4) {
@@ -606,12 +606,13 @@ const k04_kuisegawa = {
   },
 
   // 生き残っていても川の向こうに残った兵は、生還した人数に含めない。
-  returnedMen(rt) {
+  returnedMen(rt, atCamp = true) {
     let n = 0;
     const mine = rt.flags.mine?.units || [], squad = rt.squad || [];
     // 陣の二十m内には川の縁も入る。主人公と同じく赤坂の岸へ渡り切った兵だけを数える。
-    for (const u of mine) if (canReturn(u) && !u.downed && L(u.pos).x > 60 && dist(u.pos, ARIMA) < 20) n++;
-    for (const u of squad) if (!mine.includes(u) && canReturn(u) && !u.downed && L(u.pos).x > 60 && dist(u.pos, ARIMA) < 20) n++;
+    // 渡河の達成では岸への到着、最後の達成では有馬の陣への合流を確かめる。
+    for (const u of mine) if (canReturn(u) && !u.downed && L(u.pos).x > 60 && (!atCamp || dist(u.pos, ARIMA) < 20)) n++;
+    for (const u of squad) if (!mine.includes(u) && canReturn(u) && !u.downed && L(u.pos).x > 60 && (!atCamp || dist(u.pos, ARIMA) < 20)) n++;
     return n;
   },
 

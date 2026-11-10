@@ -4532,7 +4532,8 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
       let n = 0;
       for (const u of rt.army.units) {
         if (n >= 2) break;
-        if (!u.alive || u.team !== 1 || u.name || u.type === 'busho' || u.fleeing || u.woundOut || u.noTarget || u.group?.routed ||
+        // 倒れる途中や後送中の兵で二人分を使い切らず、実際に戦える敵を向ける。
+        if (!moribeRemainFoe(u) || u.invuln || u.team !== 1 || u.name || u.type === 'busho' || u.group?.routed ||
           u.target === rt.player.u || Math.hypot(u.pos.x - p.x, u.pos.z - p.z) > 12) continue;
         u.target = rt.player.u; u.watch = null; n++;
       }
