@@ -574,11 +574,11 @@ const t10_oshi = {
         { id: 'satake', layer: 'ichi', wing: 'left', men: 6000, taisho: '佐竹義宣', flag: 'satake', bind: (rt) => rt.flags.satake, hold: true },
         { id: 'nagatsuka', layer: 'ichi', wing: 'right', men: 3000, taisho: '長束正家', at: { x: 40, z: -150 }, hold: true },
         { id: 'otani', layer: 'ni', wing: 'center', men: 1500, taisho: '大谷吉継', flag: 'otani', bind: (rt) => rt.flags.otani, hold: true },
-        { id: 'honjin', layer: 'hatamoto', wing: 'center', men: 11000, taisho: '石田三成', bind: (rt) => rt.flags.mitsunari, hold: true },
+        { id: 'honjin', layer: 'hatamoto', wing: 'center', men: 12000, taisho: '石田三成', bind: (rt) => rt.flags.mitsunari, hold: true },
       ] },
     B: { name: '成田', facing: Math.PI * 0.25, honjin: { x: CASTLE.x, z: CASTLE.z }, mpu: 8, formation: '方円', terrain: 'castle', flag: 'narita', armor: 0x2c2620, openAt: 9999, attrition: 0,
       sonae: [
-        { id: 'hon', layer: 'hatamoto', wing: 'center', men: 3116, taisho: '成田長親', bind: (rt) => rt.flags.narita, hold: true },
+        { id: 'hon', layer: 'hatamoto', wing: 'center', men: 2600, taisho: '成田長親', bind: (rt) => rt.flags.narita, hold: true },
       ] },
     honjinView: { A: false, B: false },   // 陣幕と本丸は戦のファイルが作る
   },

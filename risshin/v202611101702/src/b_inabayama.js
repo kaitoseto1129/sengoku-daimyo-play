@@ -2258,6 +2258,11 @@ function inabaRootFooting(W, x, z, rx, rz) {
   }
   return true;
 }
+// 通し確認の宙へ垂れる幹を防ぐ。根元の周囲も描く地面に支えられた株だけ残す。
+function inabaTreeFooting(W, x, z) {
+  return inabaTreeDensity(x, z) > 0 && inabaRockFooting(W, x, z)
+    && Math.abs(W.heightAt(x, z) - drawGroundAt(W, x, z)) < 0.4;
+}
 function buildKaraRoadWorks(rt) {
   const W = rt.world;
   const ground = (x, z) => drawGroundAt(W, x, z);
@@ -4851,6 +4856,8 @@ const inabayama = {
     streams: [{ pts: NAGARA, w: NAGARA_WIDTH, depth: 3.2, soundHeight: true }],
     slopeForest: 0.85,   // 林床と露岩を残す。0.65 では山肌が淡い崖の色の上に樹冠の斑を貼った絵に見えた（11/2 c_tree_1102c）。手本の金華山は麓から頂まで濃い森。
     trees: 700,
+    treeFooting: inabaTreeFooting,
+    logFooting: inabaRootFooting,
     // 岐阜市の調査では、戦国期以前から江戸期まで稲葉山はアカマツ主体。
     // https://www.city.gifu.lg.jp/_res/projects/default_project/_page_/001/005/558/seibi3.4s.pdf
     // 高画質だけ杉主体の既定配分を改める。累積の境界なので松は約七割、細かな割合は推定。

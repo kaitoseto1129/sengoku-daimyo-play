@@ -177,6 +177,11 @@ export class WorldVegetation {
       }
       this.slopeTreeCount = n;
     }
+    // 寄せて足した木・竹・指定の林も、最後に同じ足場で確かめる。
+    // 最初の一本の密度だけでは、隣の株が切岸へはみ出す。
+    if (this.def.treeFooting) for (const kind of Object.keys(trees)) {
+      trees[kind] = trees[kind].filter(([x, , z]) => this.def.treeFooting(this, x, z));
+    }
     const winter = !!(this.def.winter || this.def.snow);
     const autumn = !!this.def.autumn && !winter;
     // 山麓の色づきは戦ごとの推定値。形と材質は共用する。
@@ -1247,6 +1252,8 @@ export class WorldVegetation {
         const hx = Math.cos(yaw) * len / 2, hz = -Math.sin(yaw) * len / 2;
         const y0 = this.heightAt(x - hx, z - hz), y1 = this.heightAt(x + hx, z + hz);
         if (Math.abs(y1 - y0) > len * 0.6) continue;   // 崖の縁には置かない
+        // 両端が同じ高さでも、谷や切岸をまたぐ丸太は宙に浮く。
+        if (this.def.logFooting && !this.def.logFooting(this, x - hx, z - hz, x + hx, z + hz)) continue;
         dummy.position.set(x, (y0 + y1) / 2 + 0.12 * s, z);
         dummy.rotation.set(0, yaw, Math.atan2(y1 - y0, len), 'YZX');
         dummy.scale.set(len, s, s);

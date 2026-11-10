@@ -2865,7 +2865,6 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
         (Math.hypot(p.x - RETREAT_ROAD[F.retreatIdx][0], p.z - RETREAT_ROAD[F.retreatIdx][1]) < 6 ||
           (p.x > -16 && p.z > RETREAT_ROAD[F.retreatIdx][1] + 4))) F.retreatIdx++;
       F.retreatPoint.x = RETREAT_ROAD[F.retreatIdx][0]; F.retreatPoint.z = RETREAT_ROAD[F.retreatIdx][1];
-      const d = Math.hypot(p.x - HAMA.x, p.z - HAMA.z);
       for (const q of F.chase || []) if (q.count < 3 && !gone(q)) q.morale = Math.min(q.morale, 20);
       const left = Math.ceil(Math.hypot(p.x - F.retreatPoint.x, p.z - F.retreatPoint.z));
       if (!F.ieFar) rt.objProgress('main', `${RETREAT_LABELS[F.retreatIdx]} ${left}m`);
@@ -2873,10 +2872,13 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
       // 南へ回り込んだだけでは生還にしない。土塁の内側の広場へ入った姿を確かめる。
       const chief = F.campA.general, ieIn = !!chief?.alive && Math.abs(chief.pos.x - HAMA.x) < 22 &&
         chief.pos.z > HAMA.z - 10 && chief.pos.z < HAMA.z + 22;
-      // 門で待つ。道で詰まった時は現在地から退路を引き直し、姿が門を通るまで生還扱いにしない。
-      if (d < 8 && p.z > HAMA.z - 8 && !ieIn) { rt.objProgress('main', '門で上様を待て'); F.gateWait = (F.gateWait || 0) + dt; } else F.gateWait = 0;
+      // 門を通って広場の奥へ進んでも帰着を認める。門前の八歩だけに限ると、
+      // 城内で上様を待った本人が戻らない限り終わらず、退路の引き直しも止まる。
+      const playerIn = Math.abs(p.x - HAMA.x) < 22 && p.z > HAMA.z - 8 && p.z < HAMA.z + 22;
+      // 城内で待つ。道で詰まった時は現在地から退路を引き直し、姿が門を通るまで生還扱いにしない。
+      if (playerIn && !ieIn) { rt.objProgress('main', '門で上様を待て'); F.gateWait = (F.gateWait || 0) + dt; } else F.gateWait = 0;
       if (F.gateWait > 45 && chief?.alive) { F.gateWait = 0; F.ieRoadSet = false; }
-      if (d < 8 && p.z > HAMA.z - 8 && ieIn) {
+      if (playerIn && ieIn) {
         F.ieSafe = true;
         for (const q of F.chase || []) if (!gone(q)) { q.order = 'hold'; q.seekRange = 0; q.aggro = 0; }
         this.win(rt);

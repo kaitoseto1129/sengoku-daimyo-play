@@ -2916,7 +2916,11 @@ const moribe = {
   // 頭上だけ見える霧の向こうや、描いていない兵に所属印を浮かべない。
   // 人物名と同じ胴・足場の見通しを使い、近くの敵も人数では間引かない。
   enemySignVisible(rt, u) {
-    return u.moribeDefeatUntil > rt.t && u._moribeSignY != null || sightScreenUnit(rt, u);
+    return u.moribeDefeatUntil > rt.t && u._moribeSignY != null || inouSignVisible(rt, u);
+  },
+  // 遠い霧の中の将へ名前だけを残さず、胴を見分けられる頭上印とそろえる。
+  hideNameTag(u, rt) {
+    return u.team !== rt.player.u.team && !inouSignVisible(rt, u);
   },
   autoTargetCamera: true, // 稲生と同じく、近い敵への一撃は本人へ向き直る。
   steadyMeleeCamera: true, // 密集しても自分の立ち位置を画面内で保つ。
