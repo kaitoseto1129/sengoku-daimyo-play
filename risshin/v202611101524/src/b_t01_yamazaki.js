@@ -246,6 +246,8 @@ const t01_yamazaki = {
   frontlineDensity: false,    // 小勢を足さない（本物の兵の枠を段の備に残す）
   alwaysMelee: false,
   foeMarks: true,
+  // 討てない光秀と旗本も敵の所属印は出す。共通処理は noTarget の兵の▼を既定で省く。
+  foeMarkVisible: (_rt, u) => u.team === 1 && !!u.group?.honjin,
   nearbyAllySignLimit: 0,     // 共通の近距離の丸印も出さない（critic60 五2）。
   nameRange: 90,              // 名のある将の名は遠くからも出す（既定の十八では斎藤・津田・御牧の名が一度も見えなかった。kaito 五2・九3）
   nameTagLimit: 12,           // 既存の十二枚を使い、並河・松田などの名を近い一、二人だけの枠で消さない。

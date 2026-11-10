@@ -37,7 +37,7 @@ export function depthSetup(rt, plan) {
   //   両軍の描く備の名目の兵数を足し、予算に収まる一人あたりの数で割る。三万の本陣と二千の備が 15:1 に見える。書かない戦は今のまま。
   if (plan.byMen) {
     let tot = 0;
-    for (const D of [V.A, V.B]) if (D) for (const s of D.sonae) if (s.o.show !== false && !s.o.bind) tot += Math.max(0, s.men);
+    for (const D of [V.A, V.B]) if (D) for (const s of D.sonae) if (s.o.show !== false && (!s.o.bind || tailOn(V, s))) tot += Math.max(0, s.men) * (s.o.bind ? TAIL_SHARE : 1);
     V.menK = tot > 0 ? Math.min(1 / 40, BUDGET * 0.92 / tot) : 0;
   }
   try {
@@ -52,7 +52,8 @@ function buildSide(rt, V, D) {
   // 前の層から先に数を配る（予算が尽きたら後ろは旗だけ）
   const order = D.sonae.slice().sort((a, b) => layerRank(a) - layerRank(b));
   for (const s of order) {
-    if (s.o.show === false || s.o.bind) continue;
+    if (s.o.show === false) continue;
+    if (s.o.bind) { if (tailOn(V, s)) buildTail(rt, V, D, s); continue; }
     const want = V.menK ? Math.max(12, Math.min(480, Math.round(s.men * V.menK))) : Math.min(160, s.show.mid + s.show.far >> (s.layer === 'konida' ? 2 : 0));
     const n = Math.min(want, V.left);
     const kind = s.layer === 'honjin' ? 'honjin' : s.layer === 'hatamoto' || s.roles.騎馬 > s.men * 0.3 ? 'cavalry' : 'mixed';
@@ -103,6 +104,45 @@ function buildSide(rt, V, D) {
     V.couriers.push({ D, g, c: null });
   }
 }
+// 本物の隊に結んだ備の後ろの列（kaito 11/9「布陣図どおりの兵数」）：本物の兵は数十人でも、八千の備なら後ろに軽い兵の列を付ける。
+//   plan.bindTail（か備の tail: true）の戦だけ。列は本物の隊の真ん中から軍の後ろへ下がった所に付いて歩き、
+//   本人から 60m 内・隊が崩れた・居ない間は描かない（板の兵を近くに見せない決まり）。考え・勝ち負けには入らない。
+const TAIL_SHARE = 0.7;   // 名目の兵のうち、後ろの列に回す割合（残りは本物の兵が受け持つ）
+const tailOn = (V, s) => s.o.tail ?? !!V.plan.bindTail;
+function buildTail(rt, V, D, s) {
+  const W = rt.world;
+  const want = V.menK ? Math.max(12, Math.min(420, Math.round(s.men * TAIL_SHARE * V.menK))) : Math.min(120, s.show.mid + s.show.far >> 1);
+  const n = Math.min(want, V.left);
+  if (n < 12) return;
+  V.left -= n;
+  const wide = Math.max(10, Math.min(90, Math.sqrt(n) * 3.2)), deep = Math.max(6, wide * 0.35);
+  const g = W.addDistantArmy({ x: s.x, z: s.z, w: wide, d: deep, count: n, facing: D.facing, armor: s.armor ?? D.P.armor, flag: s.flag || D.P.flag, team: D.team,
+    kind: 'mixed', seed: 7300 + D.team * 97 + s.i * 7, host: false, farFill: true, flagRate: D.P.flagRate ?? 0.18 });
+  if (!g) return;
+  if (g.army) g.army.noWake = true;
+  g.visible = false;
+  V.tails ||= [];
+  V.tails.push({ s, g, face: D.facing, back: 10 + deep * 0.5 + (s.o.tailBack || 0), wide, lx: null, lz: null });
+}
+function tailTick(rt, V) {
+  const p = rt.player?.u?.pos, W = rt.world;
+  for (const v of V.tails) {
+    const s = v.s, g = v.g;
+    const bx = s.x - Math.sin(v.face) * v.back, bz = s.z - Math.cos(v.face) * v.back;
+    const off = s.state === ST.AWAY || s.state === ST.ROUTING || s.gone || W.waterDepthAt?.(bx, bz) > 0.25;
+    const near = p && Math.hypot(p.x - bx, p.z - bz) < 60 + v.wide * 0.5;
+    const show = !off && !near;
+    if (show !== g.visible) {
+      g.visible = show;
+      if (show) { g.reform?.(); g.moveTo?.(bx, bz, 0.1); v.lx = bx; v.lz = bz; }
+      continue;
+    }
+    if (show && Math.hypot(bx - v.lx, bz - v.lz) > 3) {
+      g.moveTo?.(bx, bz, Math.max(0.5, Math.hypot(bx - v.lx, bz - v.lz) / 1.6));
+      v.lx = bx; v.lz = bz;
+    }
+  }
+}
 const layerRank = (s) => ({ sakite: 0, ichi: 1, ni: 2, yobi: 3, hatamoto: 4, honjin: 5, gozume: 6, konida: 7 })[s.layer] ?? 8;
 
 function makeDust(rt, V, s) {
@@ -127,6 +167,7 @@ export function depthViewTick(rt, dt) {
   if (tb) honjinSense(rt, V.B);
   dustTick(rt, V, dt);
   if (!ta && !tb) return;
+  if (V.tails) tailTick(rt, V);
   const W = rt.world, L = {};
   for (const [s, v] of V.vis) {
     const g = v.g, st = s.state;

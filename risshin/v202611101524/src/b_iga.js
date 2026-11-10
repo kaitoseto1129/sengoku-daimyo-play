@@ -2573,6 +2573,8 @@ const iga = {
         for (const u of g.units) u.noTarget = false;
         igaAdvance(g, g.igaHome);
         g.guard = true; g.guardLeash = 10; g.guardSight = 25;
+        // 11/10：igaAdvance は AI を切って間合い十四歩の「攻め」になる。十七〜十九歩先の寄せ手を見ながら二十秒立ち尽くしたので、道の上の寄せ手へは二十二歩から斬りかかる。
+        g.aggro = 22;
       }
     }
     if (F.step === 1) {
@@ -3410,7 +3412,8 @@ function igaMove(o) {
       while (C.roadIndex < C.roadPath.length) {
         const corner = C.roadPath[C.roadIndex];
         // 半秒ごとの更新で角を少し越しても通過とする。真上の別の段は通過に数えない。
-        if (Math.hypot(p.x - corner.x, p.z - corner.z) > 1.4 ||
+        // 11/10：角の外れの切岸で一・四歩の手前（-23,-7）から寄れず、帰陣の段を十分止めた。段の間は九歩あるので二・二歩で通過とする。
+        if (Math.hypot(p.x - corner.x, p.z - corner.z) > 2.2 ||
             Math.abs(p.y - rt.world.heightAt(corner.x, corner.z)) >= 2) break;
         C.roadIndex++;
       }

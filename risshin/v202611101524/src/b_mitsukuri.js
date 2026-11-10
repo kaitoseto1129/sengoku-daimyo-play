@@ -4551,6 +4551,10 @@ const mitsukuri = {
     if (rt.over || F.ending) return;
     if (F.SZ?.byId[id]?.owner === 'enemy') {
       F[id + 'Fell'] = false;
+      // 奪還は新しい攻めとして数える。前に取った時の時間で残兵を即座に崩さない。
+      F[id + 'AttackT'] = 0;
+      F[id + 'EmptyT'] = 0;
+      if (id !== 'san') F[id + 'PressT'] = 0;
       F.honWait = false; F.honWaitWay = null;
       if (id === 'san' && F.step === 2.5) {
         // 火入れより奪還を先にする。灯す組も郭を取り戻す下知に戻す。
@@ -4966,7 +4970,8 @@ const mitsukuri = {
     }
     // 三の郭も、本人が庭で押し続けた時だけ残兵を崩す。
     // 柵際の残兵一人を追えず刻限まで止まる事を防ぎ、郭外で待つだけでは進めない。
-    if (F.step === 2 && !F.sanFell && F.SZ) {
+    // 火入れ・付け入り・本丸攻めの途中で失った三の郭も、同じ条件で奪還できる。
+    if (F.step >= 2 && F.step < 4.5 && !F.ending && !F.sanFell && F.SZ) {
       const z = F.SZ.byId.san;
       const present = zoneGroundFighter(rt, pu) && z.test(pu.pos.x, pu.pos.z);
       F.sanAttackT = present ? (F.sanAttackT || 0) + dt : 0;

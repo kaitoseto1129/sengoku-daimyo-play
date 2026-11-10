@@ -2453,6 +2453,10 @@ function installNodaWater(rt) {
       // 薄い水際で奥行きだけを塞ぐと、後から描く葦や水面が角形に欠ける。
       st.mesh.material.depthWrite = false;
       const compile = st.mesh.material.onBeforeCompile;
+      // 共通の川と別の描き方として覚える。同じ流れの材質を使い回しても、
+      // この戦の岸の透けと濁り色を抜いた描画へ戻さない。
+      const programKey = st.mesh.material.customProgramCacheKey();
+      st.mesh.material.customProgramCacheKey = () => `${programKey}|noda-stream-bank`;
       st.mesh.material.onBeforeCompile = function (shader, renderer) {
         compile.call(this, shader, renderer);
         shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
