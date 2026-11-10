@@ -3964,7 +3964,8 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
           D.rotation.set(0, head, 0);
         }
       }
-      line.add(hulls, huts, roofs, masts, flags); shipSeaHaze(line); rt.scene.add(line);
+      // 沖の大船も小早と同じ船団に属し、大将船が崩れた後は木津浦へ退く。
+      line.add(hulls, huts, roofs, masts, flags); shipSeaHaze(line); F.distantFleet.add(line);
     }
     // 石山と堺を数百メートルの中に並べた箱の町は外す。
     // 古い河道・町の位置を確定できる資料が揃うまで、縮めた代用品で補わない。

@@ -89,8 +89,14 @@ export function tick(rt) {
     else if (rt.t - last.t >= 24) {
       r.noAI = false; r.focus = null; r.order = 'path'; r.pathIdx = 0; r.speed = 3;
       r.path = [];
-      if (c.z > 44) r.path.push([-60, 44]);
-      if (c.z > 24) r.path.push([-C.FORT - 12, 24]);
+      // 代わりの射手が柵内で止まった時も、最初の下知と同じ南門から出す。
+      // 西の横へ直進させると、壊れていない西柵に向かい続けて挟撃が終わらない。
+      if (Math.abs(c.x) < C.FORT + 2 && c.z > -C.FORT - 2 && c.z < 24) {
+        r.path.push([0, c.z], [0, 24], [-13, 26.5], [-36, 44], [-60, 44], [-C.FORT - 12, 24]);
+      } else {
+        if (c.z > 44) r.path.push([-60, 44]);
+        if (c.z > 24) r.path.push([-C.FORT - 12, 24]);
+      }
       r.path.push([-C.FORT - 12, 10]);
       // 元の到着処理が実際の到着を知らせる。討たれた伏兵を復活させない。
       last.t = rt.t;

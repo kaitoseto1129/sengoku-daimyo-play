@@ -146,7 +146,7 @@ function holdGuard(C, name, at, facing) {
 }
 const waitForGuard = () => {};
 // 後方へ離脱した負傷兵は、生きていても守りの戦力に数えない。
-const guardStrength = (g) => g.units.reduce((n, u) => n + (u.alive && !u.fleeing && !u.woundOut && !u.noTarget ? 1 : 0), 0);
+const guardStrength = (g) => g.units.reduce((n, u) => n + (u.alive && !u.fleeing && !u.woundOut && !u.rearWound && !u.downed && !u.dying && !u.noTarget ? 1 : 0), 0);
 
 // ①が済むと、池田輝政は本陣を中洲の小屋場島へ移す（旗立ての松。南の筋は河田の浅瀬を歩いて渡る）
 function moveHonjin(rt) {
@@ -287,12 +287,14 @@ function fort(step) {
 //   段が始まると味方は隊のまま一斉に段の場所へ押し出す（本人が先に一人で走らない）。本人が遠い間は斬り合いを浅くし（傷を与える力を下げ）、
 //   本人の居ない所で味方だけが敵を崩し切らない。本人が着けば本気でかかる
 const PACE_NEAR = 55;
-function paceFriends(rt) {
+function paceFriends(rt, dt) {
   const F = rt.flags, C = F.dp && F.dp.on ? F.dp.cur : null;
-  if (!C || !C.at || C.s.kind !== 'fight' || (rt._k02pace = (rt._k02pace || 0) - 1) > 0) return;
-  rt._k02pace = 20;   // 一秒ごと（0.05 秒の刻み）
+  if (!C || !C.at || C.s.kind !== 'fight' || (rt._k02pace = (rt._k02pace || 0) - dt) > 0) return;
+  rt._k02pace = 1;
   const p = rt.player.u.pos, near = Math.hypot(C.at.x - p.x, C.at.z - p.z) < PACE_NEAR;
-  for (const g of [F.mine, F.nagayoshi, F.asano, F.hitotsu]) {
+  const friends = [F.mine, F.nagayoshi, F.asano, F.hitotsu];
+  for (let k = 0; k < friends.length; k++) {
+    const g = friends[k];
     if (!g || !g.count || g.routed) continue;
     g.dmgMult = near ? 1.1 : 0.3;
     if (g === F.hitotsu && F.iinumaOut && !F.otsukaDone) continue;   // 大塚と飯沼の一騎打ちの間は otsukaTick が動かす
@@ -300,10 +302,16 @@ function paceFriends(rt) {
     const gc = g.center(), lag = Math.hypot(gc.x - p.x, gc.z - p.z) > 22 && Math.hypot(C.at.x - p.x, C.at.z - p.z) < Math.hypot(C.at.x - gc.x, C.at.z - gc.z);
     if (g._k02sp == null) g._k02sp = g.speed || 2.2;
     g.speed = lag ? Math.max(g._k02sp, 5.2) : g._k02sp;
-    if (g.order !== 'attack' || !g.anchor || Math.hypot(g.anchor.x - C.at.x, g.anchor.z - C.at.z) > 4) { g.order = 'attack'; g.seekRange = Math.max(g.seekRange || 0, 40); g.anchor = { x: C.at.x, z: C.at.z }; }
+    // 段の始めに分けた四つの持ち場を保つ。同じ一点へ戻すと、
+    // 柵の口と木戸の内で百人余りが重なり、主人公の斬り込む道も塞ぐ。
+    const x = C.at.x + (k - 1.5) * 6, z = C.at.z + (k % 2) * 5;
+    if (g.order !== 'attack' || !g.anchor || Math.hypot(g.anchor.x - x, g.anchor.z - z) > 1) {
+      g.order = 'attack'; g.seekRange = Math.max(g.seekRange || 0, 40);
+      if (!g.anchor) g.anchor = { x, z }; else { g.anchor.x = x; g.anchor.z = z; }
+    }
   }
   // 本人が味方の備から三十歩より先へ一人で出ている間は、敵の当たりを浅くする（味方が追いつくまでの間に囲まれて即座に倒れない）
-  const alone = ![F.mine, F.nagayoshi, F.asano, F.hitotsu].some((g) => g && g.count && Math.hypot(g.center().x - p.x, g.center().z - p.z) < 30);
+  const alone = !friends.some((g) => g && g.count && Math.hypot(g.center().x - p.x, g.center().z - p.z) < 30);
   for (const g of C.groups) if (g && g.count && !g._k02fire) g.dmgMult = near && !alone ? 0.3 : 0.15;
   // 本人が遠い間は、段の後から来る敵（later）も出さない（本人の見ない所で一騎打ちや新手を済ませない）
   if (!near && C.later) { const el = rt.t - C.t0; for (const w of C.later) w.t = Math.max(w.t, el + 15); }
@@ -577,7 +585,7 @@ const k02_kawada = {
       holdGuard(C, '新加納の殿', { x: SHINKANO.x, z: SHINKANO.z - 5 }, 0);
     }
     if (C && F.dp.i >= 2 && F.dp.i <= 4) otsukaTick(rt, C);
-    paceFriends(rt);
+    paceFriends(rt, dt);
     guideTick(rt);
     // 河田の手が北岸へ渡ったら、東の浅瀬の山内の手も北岸を米野へ寄せる（自分だけが目標へ向かわない。AQ7）
     if (F.east && F.dp && F.dp.i >= 4 && !F.eastGo) { F.eastGo = true; F.east.anchor = { x: YONENO.x + 34, z: YONENO.z + 4 }; }

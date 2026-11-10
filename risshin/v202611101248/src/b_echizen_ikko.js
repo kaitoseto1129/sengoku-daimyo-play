@@ -2463,6 +2463,9 @@ const echizen_ikko = {
     const way = templeWay(rt.army, rt.player.u, goal);
     const route = Math.hypot(way.x - goal.x, way.z - goal.z) > .5;
     pin.x = way.x; pin.z = way.z;
+    // 堂内の床・戸口・石段で選んだ高さも保つ。平面だけ渡すと別の足場へ印が落ちる。
+    // 高さのない参道へ戻る時は、使い回した前の堂の高さを残さない。
+    pin.y = way.y;
     // 敵の頭上の▼とは別に、場所名と距離の行き先を保つ。
     // 敵用の印へ渡すと、見通しの判定で消え、場所名も「ねらい」に替わっていた。
     pin.unit = null;
@@ -3067,6 +3070,10 @@ const echizen_ikko = {
     // 横長の携帯では、矢の警告を右の任務札と中央の照準から離す。
     const rainLayout = document.createElement('style');
     rainLayout.textContent = `
+      /* 人数の欄だけでは残数の棒が隠れたまま。大滝寺でも両軍の棒を一本につなぐ。 */
+      html:root body #hud#hud#hud[data-echizen-ikko].battle-order #h-prog#h-prog #armybar#armybar .gauge.one {
+        display:block !important; grid-column:1 / -1; width:100%;
+      }
       /* 構える釦は右下へ固定し、右上の任務と中央の敵を隠さない。 */
       @media (max-height:500px) {
         html.touch body #hud[data-echizen-ikko] #wait-guard {

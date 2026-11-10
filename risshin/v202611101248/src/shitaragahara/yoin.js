@@ -33,7 +33,7 @@ export function install(rt) {
       try { sfx('sig_eiei', v); } catch (e) { /* なし */ }
     });
   }
-  rt.after(22.5, () => { if (!rt.over) rt.banner('長篠・設楽原の戦い', '織田・徳川軍勝利'); });
+  rt.after(22.5, () => { if (!rt.over) rt.banner('設楽原の決戦', '織田・徳川軍勝利'); });
   rt.after(26.5, () => { if (!rt.over) say('組頭', '……あれが天下の騎馬武者か。もう、あの旗が寄せて来ることはない', 3.8); });
   rt.after(31, () => { if (!rt.over) try { sfx('farHorn', 0.5); } catch (e) { /* なし */ } });
 }

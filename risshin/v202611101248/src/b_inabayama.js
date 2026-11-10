@@ -1220,12 +1220,12 @@ function saitoNobori(W, x, z, h) {
 }
 
 function nearGuard(rt, group, visibleOnly = false) {
-  if (group.hidden || group.noAI || group.routed) return null;
+  if (!group || group.hidden || group.noAI || group.routed || group.sent === false) return null;
   const p = rt.player.u.pos;
   let target = null, nearest = Infinity;
   for (const u of group.units) {
     if (!u.alive || u.hp <= 0 || u.dying || u.gone || u.fleeing || u.noTarget || u.woundOut
-      || u.evacuatedWound || u.rearWound || u.downed || u.mesh?.visible === false) continue;
+      || u.evacuatedWound || u.rearWound || u.downed || u.isStruct || u.civ || u.mesh?.visible === false) continue;
     // 任務の組は保ち、敵印だけは壁の裏・画面外の兵へ出さない。
     if (visibleOnly && (u.offscreen || !sightScreenUnit(rt, u))) continue;
     const d = Math.hypot(u.pos.x - p.x, u.pos.z - p.z) + Math.abs(u.pos.y - p.y) * 4;
