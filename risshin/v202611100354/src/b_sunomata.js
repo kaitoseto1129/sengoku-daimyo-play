@@ -382,7 +382,7 @@ function sunoPostPoint(rt) {
 // 一番近い残りの敵（控えで動かない組・退く者は数えない）。半秒ごとに選び直し、毎コマ全員を見ない。
 function sunoNearestFoe(rt) {
   const F = rt.flags, me = rt.player.u;
-  const ok = (u) => u?.alive && !u.gone && !u.dying && !u.fleeing && !u.woundOut && !u.noTarget && !u.isStruct &&
+  const ok = (u) => u?.alive && !(u.hp <= 0) && !u.gone && !u.dying && !u.fleeing && !u.woundOut && !u.noTarget && !u.isStruct &&
     u.team !== me.team && u.group && !u.group.routed && !u.group.noAI;
   if (rt.t < (F.sunoFoeAt || 0) && (F.sunoFoe === null || ok(F.sunoFoe))) return F.sunoFoe;
   F.sunoFoeAt = rt.t + .5;
@@ -3186,6 +3186,7 @@ function sunoCivilianClearing(x, z) {
 
 const sunomata = {
   jinkei: SUNOMATA_JIN,
+  forceBarAlways: true, // 共通の人数の棒は明示しないと隠れる。寄せ手の退却も常に数へ示す。
   // ---- 稲生の型（inou-standard）：右上は任務の一行・行き先はピン一本・敵は頭上の▼・大将は印 ----
   // 材木・手当て・人足を迎える寄り道と、その字の札は出さない。三度の寄せを柵の内で受ければ勝ち。
   missionSingleLine: true,
@@ -3224,7 +3225,7 @@ const sunomata = {
   // 最後の寄せの大将は、柵外に残っていても討ち取りの行き先にする。
   commanderTarget(rt) {
     const F = rt.flags, u = F.yoseBoss;
-    if (F.wave !== 3 || F.won || F.ending || rt.over || !u?.alive || u.gone || u.fleeing || u.dying || u.woundOut) return null;
+    if (F.wave !== 3 || F.won || F.ending || rt.over || !u?.alive || u.hp <= 0 || u.gone || u.fleeing || u.dying || u.woundOut || u.noTarget) return null;
     return u;
   },
   missionSignTarget(rt) { return sunomata.commanderTarget(rt) || (sunomata.missionOf(rt) === 1 ? sunoNearestFoe(rt) : null); },
@@ -5340,7 +5341,7 @@ const sunomata = {
       if (F.reinforceCalled && !F.reinforceArrived && reserve && !reserve.routed) {
         let ready = 0, arrived = 0;
         for (const u of reserve.units) {
-          if (!u.alive || u.dying || u.gone || u.fleeing || u.woundOut || u.noTarget) continue;
+          if (!u.alive || u.hp <= 0 || u.dying || u.gone || u.fleeing || u.woundOut || u.noTarget) continue;
           ready++;
           if (Math.hypot(u.pos.x + FORT + 12, u.pos.z - 10) < 10) arrived++;
         }
@@ -5478,7 +5479,7 @@ const sunomata = {
     // 伏兵が出るのは三の手の時だけ（伝承の筋：最後の寄せを外と内で挟む）。砦の区域の呼び出しで二の手の間に出さない
     if (F.reinforceArrived || F.won || F.ending || rt.over || F.wave !== 3) return;
     const ready = (g) => g && !g.routed && g.units.some((u) =>
-      u.alive && !u.dying && !u.gone && !u.fleeing && !u.woundOut && !u.noTarget);
+      u.alive && !(u.hp <= 0) && !u.dying && !u.gone && !u.fleeing && !u.woundOut && !u.noTarget);
     if (F.reinforceCalled && ready(F.reinforceReserve)) return;
     let r = F.reinforceReserve;
     const relief = !ready(r);

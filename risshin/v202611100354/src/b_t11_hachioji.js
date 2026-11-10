@@ -667,7 +667,7 @@ const t11_hachioji = {
         reward: '小宮曲輪を落とした' }),
       // ⑤ 頂の本丸：利家は中山勘解由（家範）に命を助けると伝えたが、家範は断って討死。大石信濃守（照基）は城代の横地監物を城から落とし、
       //   自分は打って出て討死。横地は西の詰の城の方へ落ちる（update の yokochi）
-      DP.fight({ at: HON, title: '本丸', sub: '深沢山の頂', obj: '本丸で、中山勘解由を討て', max: 90, noRefill: true,
+      kuruwaFight({ at: HON, title: '本丸', sub: '深沢山の頂', obj: '本丸で、中山勘解由を討て', max: 90, noRefill: true,
         say: [['大石信濃守', '監物殿は西へ落ちられよ。ここは我らが防ぐ！', 3.6]],
         foes: () => [keep('中山勘解由の旗本', HON, [{ type: 'samurai', n: 6 }, { type: 'ashigaru', n: 14 }, { type: 'gun', n: 5 }, { type: 'bow', n: 3 }], { morale: 100, seek: 30 }),
           keep('大石信濃守の手', HON, [{ type: 'busho', n: 1, o: { name: '大石信濃守', hat: 'kabuto_m', horse: false } }, { type: 'samurai', n: 3 }, { type: 'ashigaru', n: 10 }, { type: 'gun', n: 3 }], { dx: -12, dz: -8, morale: 95, seek: 24 })],

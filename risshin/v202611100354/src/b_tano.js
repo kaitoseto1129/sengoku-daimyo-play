@@ -2026,6 +2026,8 @@ const tano = {
           // 11/3 bot：打ちかかる号令の後も、持ち場（anchor）に付く者が谷道で二十秒立ったままだった。持ち場を先手の前へ移す。
           const fc = fighting(F.front) ? F.front.center(F.front._centerProbe) : null;
           if (fc) { g.anchor = { x: Math.max(4, fc.x + 4), z: fc.z }; }
+          // 先手が寄るまでは待機し、迎撃の下知で通常の索敵も戻す。
+          g.noAI = false; g.guardOn = false;
           g.path = null; g.onArrive = null; g.order = 'attack'; g.focus = null; g.frontlineMobilize = true; g.formation = 'yari';
           g.seekRange = 18; g.aggro = 18;
         }

@@ -2599,7 +2599,12 @@ function mkSiegeHeat(rt) {
 function mkGoTsume(rt, target) {
   const F = rt.flags;
   if (rt.t < (F.goTsumeAt || 0)) return;
-  F.goTsumeAt = rt.t + 25; F.goTsumeUntil = rt.t + 75; F.goTsume = (F.goTsume || 0) + 1;
+  F.goTsumeAt = rt.t + 25;
+  // 後詰も実兵の上限に含める。既存の兵が残る間は麓で待たせる。
+  let soldiers = 0;
+  for (const u of rt.army.units) if (u.alive && !u.isStruct) soldiers++;
+  if (soldiers > 236) { F.goTsumeUntil = rt.t + 25; return; }
+  F.goTsumeUntil = rt.t + 75; F.goTsume = (F.goTsume || 0) + 1;
   const g = allyGroup(rt, { fixed: true, name: '佐久間信盛の後詰', anchor: { x: 0, z: 44 }, facing: Math.PI, width: 4, formation: 'column', aggro: 8, noRout: true },
     dress([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 12 }], SAKU));
   const goal = target.id === 'san' ? SAN_C : target.id === 'ni' ? NI_C : null;
@@ -4852,7 +4857,7 @@ const mitsukuri = {
         const present = u.alive && zoneGroundFighter(rt, u) && z.test(u.pos.x, u.pos.z);
         // 木戸が開いても、打って出た組を退けるまでは付け入り前。
         // 先に庭へ入った本人と仲間だけで二の丸を取り、迎撃を飛ばさない。
-        const ready = present && (z.id !== 'ni' || F.gatePass);
+        const ready = present && F.step >= 2 && (z.id !== 'ni' || F.gatePass);
         // 本人と味方が郭で戦った時間だけ、控えが出る目安に数える。制圧に固定の待ち時間は足さない。
         if (ready && z.owner !== 'friend' && z.friends >= z.need) z._mkFightT = (z._mkFightT || 0) + dt;
         const elapsed = z._mkFightT || 0;

@@ -3103,7 +3103,10 @@ function ariStage(o, defending) {
         }
       }
       const enemy = C.enemy, friend = C.friend;
-      const present = Math.hypot(p.x - C.at.x, p.z - C.at.z) <= (o.r || 16);
+      // 兵と同じく、本人も持ち場と同じ高さで、塀を隔てず立っている時だけ数える。
+      // 屋根の上や町屋の裏から、辻を確保したり後詰を呼んだりしない。
+      const present = Math.hypot(p.x - C.at.x, p.z - C.at.z) <= (o.r || 16)
+        && Math.abs(p.y - C.post.y) <= 3 && !rt.army.wallBetween(p, -1, C.post);
       // 通りの残兵が長く粘っても、期限だけでは達成させない。
       // 本人と組が到着してから残兵を退かせ、下の十二秒の確保を経て進む。
       if (o.passOnLimit && el >= limit && present && friend > 1 && !C.remnantsRetreated) {

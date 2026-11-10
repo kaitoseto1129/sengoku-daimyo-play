@@ -220,6 +220,7 @@ const k05_ueda = {
   foeMarks: true,
   playerAtkMax: 3,
   playerTaken: 0.5,
+  horseHurtMul: 0,         // 馬の命を戻す前に一撃で落馬し、馬が消える事も防ぐ（critic60 X17）
   playerRegen: 0.025,
   closeCombatAssist: true,
   noWinCrane: true,
@@ -556,9 +557,6 @@ const k05_ueda = {
       for (const g of F.foes) if (g.order === 'retreat') for (const u of g.units) if (u.alive && !u.gone && u.pos.x < GATE.x - 4) rt.army.despawn(u);
     }
     if (live(F.masa) && F.masa.order !== 'hold') { F.masa.order = 'hold'; F.masa.anchor = { x: C.x + 2, z: C.z }; }
-    // 主人公の馬はこの戦では倒れない（critic60：いつ下りたか分からないまま馬が消えた）
-    const pl = rt.player;
-    if (pl.mounted && pl.horseMax && pl.horseHp < pl.horseMax * 0.45) pl.horseHp = pl.horseMax * 0.45;
     this.wallFire(rt);
     // 刻限で負けにも達成にもしない。小路で遅れた時だけ下知を伝える。
     const late = left <= 0;

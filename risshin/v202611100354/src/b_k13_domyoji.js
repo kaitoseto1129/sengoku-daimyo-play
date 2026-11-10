@@ -158,7 +158,7 @@ function checkedStep(step) {
   step.max = Infinity;
   step.tick = (rt, C, m, ctx, el, dt) => {
     const p = rt.player.u.pos;
-    const near = Math.hypot(p.x - C.at.x, p.z - C.at.z) < 32;
+    const near = rt.player.u.alive && Math.hypot(p.x - C.at.x, p.z - C.at.z) < 32;
     if (near && C.arrivedAt == null) C.arrivedAt = rt.t;
     // 本人と味方の列がそろう前に寄せを消化すると、先に敵が倒れて
     // 受け止めた記録を付けられず止まる。列を離れた時間も守備に含めない。
@@ -187,7 +187,8 @@ function checkedStep(step) {
       // 寄せが列へ届く前の待機だけで「受け止めた」にしない。
       // 鉄砲戦も含め、本人と味方の列がいる持ち場の射程内へ敵が来た事を残す。
       // 敵を早く退けても、その後に列を保つ時間は数える。
-      if (!C.metAttack) C.metAttack = C.groups.some((g) => !g.routed && g.units.some((u) =>
+      if (!C.metAttack) C.metAttack = C.groups.some((g) => !g.routed &&
+        g.order !== 'retreat' && g.order !== 'flee' && g.units.some((u) =>
         u.alive && !u.fleeing && !u.woundOut && !u.gone && !u.downed && !u.noTarget &&
         !u.rearWound && Math.hypot(u.pos.x - C.at.x, u.pos.z - C.at.z) < 60));
       if (C.metAttack) C.lineTime = (C.lineTime || 0) + dt;
@@ -239,7 +240,8 @@ function matabeiShot(rt) {
   const gunner = () => F.katakura?.units.find((u) => u.alive && u.weapon === 'gun' &&
     !u.gone && !u.woundOut && !u.downed && !u.noTarget && !u.fleeing && !u.rearWound &&
     Math.hypot(u.pos.x - v.pos.x, u.pos.z - v.pos.z) <= 60);
-  const ready = () => v?.alive && k?.alive && !k.gone && !k.woundOut && !k.downed &&
+  const ready = () => v?.alive && k?.alive && !F.katakura.routed &&
+    F.katakura.order !== 'retreat' && F.katakura.order !== 'flee' && !k.gone && !k.woundOut && !k.downed &&
     !k.noTarget && !k.fleeing && !k.rearWound && rt.player.u.alive &&
     Math.hypot(p.x - TOP.x, p.z - TOP.z) < 32 &&
     Math.hypot(p.x - v.pos.x, p.z - v.pos.z) <= 50 && gunner();

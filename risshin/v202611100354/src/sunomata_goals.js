@@ -5,7 +5,7 @@ export function sunomataNorthStopped(F) {
   // 控えの場所で崩れただけでは済ませない。柵へ来た隊の退却か、実際の全員の討死・負傷で止める。
   // 弓で柵の手前に討ち倒した時も、倒れた敵を柵へ歩かせる必要はない。
   return (!!F.northAtFence && (g.routed || !g.units.some((u) =>
-    u.alive && !u.dying && !u.gone && !u.fleeing && !u.woundOut && !u.noTarget))) ||
+    u.alive && !(u.hp <= 0) && !u.dying && !u.gone && !u.fleeing && !u.woundOut && !u.noTarget))) ||
     (g.units.length > 0 && g.units.every((u) => (!u.alive && u.hp <= 0) || u.dying || u.woundOut));
 }
 
