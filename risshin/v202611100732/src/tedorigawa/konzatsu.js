@@ -49,7 +49,7 @@ export function install(rt, ctx) {
     rt.after(15, () => {
       if (done || !active()) return;
       R = enemyGroup(rt, { name: '上杉の物見の騎馬', anchor: { x: -70, z: -44 }, facing: Math.PI / 2, width: 6, order: 'hold', aggro: 30, seekRange: 40, morale: 85, faction: 'uesugi', fleeDir: { x: -1, z: -0.5 } },
-        dress([{ type: 'samurai', n: 1, o: { horse: true } }, { type: 'cavalry', n: 5 }], UESUGI));
+        dress([{ type: 'samurai', n: 1, o: { horse: true } }, { type: 'cavalry', n: 3 }], UESUGI));   // 11/10：六騎では川の手前で一人で倒れる事があった。物見の数に
       R.fixed = false; R.order = 'move'; R.dest = { x: -6, z: -34 }; R.onArrive = (q) => { q.order = 'attack'; q.aggro = 30; };
       sfx('hooves', 0.9);
       rt.say('組頭', '西から騎馬じゃ！　詰まった列を横から突く気だ。槍を向けよ！', 4);
@@ -65,7 +65,7 @@ export function install(rt, ctx) {
       tick = 0.5;
       const p = rt.player.u.pos, el = rt.t - t1;
       if (step === 0) {
-        if (Math.hypot(p.x - DROWN.x, p.z - DROWN.z) < 5) saved(true);
+        if (el > 9 && Math.hypot(p.x - DROWN.x, p.z - DROWN.z) < 5) saved(true);   // 使番の報せと叫びの後に
         else if (el > 70) saved(false);
         return;
       }
