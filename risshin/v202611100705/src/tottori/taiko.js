@@ -11,7 +11,12 @@ import { sfx } from '../audio.js';
 
 // 到着する役目は、時間だけで果たしたことにしない。
 const k15Go = (rt, id, pos, r, text, label, fn, o = {}) =>
-  timedGo(rt, id, pos, r, text, label, fn, { ...o, limit: Infinity });
+  timedGo(rt, id, pos, r, text, label, (r2) => {
+    // 着いた後の台詞の間もピンを切らさない（関所3）：着いた所に残し、次の行き先で置き換える
+    const p = typeof pos === 'function' ? pos() : pos;
+    if (p) { const at = { x: p.x, z: p.z }; rt.marker('k15', () => at, label, { h: o.h || 3, guideAlways: true }); }
+    fn(r2);
+  }, { ...o, limit: Infinity });
 
 export function install(rt, K) {
   const F = rt.flags;
@@ -60,12 +65,15 @@ export function install(rt, K) {
       [5, () => rt.say('黒田官兵衛', '城には兵と民を合わせ、四千ほどが籠もるとか', 4.5)],
       [4.5, () => rt.say('羽柴秀吉', '力攻めはせぬ。付城と柵で囲み、米の道を断つ。城は飢えで落とす', 5)],
       [5, () => rt.say('黒田官兵衛', '北西の櫓台から城の様子を見て参れ', 4)],
-    ], () => k15Go(rt, 'tk-north', north, 0.01, '北西の櫓台に登り、鳥取城を見よ', '北西の櫓台', () => {
+    ], () => k15Go(rt, 'tk-north', north, 0.01, '囲みを見回れ。北西の櫓台から城を見よ', '北西の櫓台', () => {
       // 物見に着いたら：城の煙と、城の上に立つ旗の少なさが見える
       rt.banner('久松山の城', '炊ぐ煙が細い。城の米は残り少ない');
       rt.award((t) => t.side.push('太閤ヶ平から城の様子を見た'), '太閤ヶ平から城の様子を見た');
       k15Scenes(rt, [
         [3, () => rt.say('足軽', '城の煙が、昨日より細うござる', 4)],
+        // 包囲線の見回り（docs/tottori_spec_1109.md 0:00〜2:00）：使番が囲みの道を一つずつ告げる
+        [4, () => rt.say('使番', '北道、異常なし', 2.5)],
+        [3, () => rt.say('使番', '西の谷も封鎖。海側への道も押さえております', 3.5)],
         [4, () => rt.say('黒田官兵衛', '残る道は千代川だけ。西の土塁から川を見よ', 4)],
       ], () => k15Go(rt, 'tk-west', west, 7, '西の土塁から、千代川を見よ', '西の土塁', () => {
         // 物見に着いたら：川面に米舟の灯り。使番が駆け込み、下知が変わる
@@ -81,7 +89,7 @@ export function install(rt, K) {
             const c = F.hide.center();
             placePlayer(rt, c.x + 8, c.z + 6, -Math.PI / 2);
             k15Squad(rt, c.x + 12, c.z + 10);
-            F.k15on = false; F.k15stage = 'bank';
+            F.k15on = false; F.k15stage = 'bank'; rt.unmark('k15');
             if (back) rt.obj('main', back, 'main', true);
             F.stepT = rt.t;
           }, '千代川の岸', '夜更け。米舟の灯りが近い');

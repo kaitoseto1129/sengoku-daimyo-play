@@ -12,7 +12,12 @@ import { sfx } from '../audio.js';
 
 // 到着する役目は、時間だけで果たしたことにしない。
 const k15Go = (rt, id, pos, r, text, label, fn, o = {}) =>
-  timedGo(rt, id, pos, r, text, label, fn, { ...o, limit: Infinity });
+  timedGo(rt, id, pos, r, text, label, (r2) => {
+    // 着いた後の台詞の間もピンを切らさない（関所3）：着いた所に残し、次の行き先で置き換える
+    const p = typeof pos === 'function' ? pos() : pos;
+    if (p) { const at = { x: p.x, z: p.z }; rt.marker('k15', () => at, label, { h: o.h || 3, guideAlways: true }); }
+    fn(r2);
+  }, { ...o, limit: Infinity });
 
 export function wrap(def, K) {
   const midA = def.midA;
@@ -20,7 +25,7 @@ export function wrap(def, K) {
     const F = r.flags;
     if (k15Off(r) || F.nidaDone || F.step !== 1) return midA.call(this, r);
     if (F.k15stage === 'nida') return;
-    start(r, K, () => { F.nidaDone = true; F.k15on = false; F.k15fight = false; F.step = 1; midA.call(this, r); });
+    start(r, K, () => { r.unmark('k15'); F.nidaDone = true; F.k15on = false; F.k15fight = false; F.step = 1; midA.call(this, r); });
   };
 }
 function start(rt, K, done) {
@@ -39,6 +44,7 @@ function start(rt, K, done) {
     rt.say('組頭', '川上を見よ！　揚げた俵を担いで山へ運んでおる。組ごと懸かれ', 4.5);
     F.hide.noRout = true; F.hide.fixed = false; F.hide.order = 'attack'; F.hide.anchor.x = at.x + 6; F.hide.anchor.z = at.z + 6; F.hide.focus = null;
     F.k15fight = true;
+    const runT0 = rt.t;
     k15Go(rt, 'nd-run', at, 10, '川上で、俵を運ぶ人足と護衛を止めよ', '俵の列', () => {
       k15Charge(rt, escort, at);
       rt.objProgress('main', `護衛 ${k15Live(escort)}／${N0}`);
@@ -55,6 +61,8 @@ function start(rt, K, done) {
       k15Rout(rt, escort, K.CASTLE); k15Rout(rt, porters, K.CASTLE);
       rt.unmark('k15foe');
       rt.banner('俵は川へ落ちた', '人足は荷を捨てて山へ逃げた');
+      // 手間取れば一部の俵は山へ運ばれる（補給を通す＝戦が長引く。後の段で城が長く持つ）
+      if (rt.t - runT0 > 150) { F.ttLeak = (F.ttLeak || 0) + 1; F.ttSiege = (F.ttSiege ?? 100) - 20; rt.after(3, () => { if (!rt.over) rt.say('組頭', '幾俵かは山へ運ばれた。城がその分、長う持つ', 4); }, true); }
       sfx('wade', 0.6);
       rt.award((t) => t.side.push('城へ運ぶ俵を止めた'), '城へ運ぶ俵を止めた');
       // 城から助けの兵が崖道を降りて来る（戦況が変わる）
@@ -69,6 +77,8 @@ function start(rt, K, done) {
           k15Charge(rt, help, at);
           rt.marker('k15foe', centerOf(help), '城の助けの兵', { red: true, group: help });
           rt.obj('main', '崖道から降りる城兵を押し返せ', 'main', true);
+          // 11/10 鳥取の係：印だけでは bot が岸の手前（-35,-30）に立ったまま撃退の輪（32歩）に入らず止まった。行き先を持たせる
+          F.k15at = { id: 'nd-help', at: () => at, r: 6, t0: rt.t, fight: true };
           const t0 = rt.t;
           const tick = () => {
             if (rt.over || F.k15stage !== 'nida') return;
@@ -77,7 +87,9 @@ function start(rt, K, done) {
             // 11/9 二巡：崖の上に残った弓二人が下りて来ず、三人まで減らせずに十五分止まった。
             //   半ばを討って一分余り経てば、本人が持ち場を守っている時に残りが引き上げる。
             //   放置や持ち場からの離脱を、時間だけで撃退の手柄にしない。
-            if (repelled(rt, left, 3, at) || (el > 75 && repelled(rt, left, Math.ceil(H0 / 2), at))) {
+            // 11/10 鳥取の係：崖の上の城兵が下りず、半ばを討てないまま刻限まで止まった。二分半、本人が岸を守っていれば引き上げる
+            if (repelled(rt, left, 3, at) || (el > 75 && repelled(rt, left, Math.ceil(H0 / 2), at)) || el > 150 && repelled(rt, 0, 0, at)) {
+              F.k15at = null;
               k15Rout(rt, help, K.CASTLE); rt.unmark('k15foe');
               rt.say('組頭', '城兵は崖を逃げ戻った。追うな。退き太鼓じゃ', 4);
               rt.award((t) => t.side.push('崖道の城兵を押し返した'), '崖道の城兵を押し返した');

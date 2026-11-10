@@ -806,14 +806,12 @@ const t06_hetsugi = {
       rt.say(F.mine.leader?.name || '手勢の侍', '島津の一手が川を渡って来る。鏡城へ走れ！', 2.6);
       rt.after(4, () => { if (!F.ending) rt.say(nm(rt), '……本隊は川向こうで止まっておる。隊列が、少しも崩れておらぬ', 3.2); });
     }
-    // 退く段も島津は勢いを保ち、川を渡って追う。止まれば囲まれる。
+    // 本隊の行き先は④で定めた北岸のまま。川を渡る追手だけが追撃を続ける。
     if (F.step >= 4) {
       if ((F.chaseT = (F.chaseT || 0) - 0.25) <= 0) {
         F.chaseT = 2;
         // 渡り終えた時と、落ち武者が討たれた後も追う相手を更新する。
         this.cutCharge(rt);
-        const to = { x: P.pos.x, z: Math.min(P.pos.z, F.step >= 5 ? 40 : -6) };
-        for (const b of [B.niiro, B.honjo, B.ieh, B.ijuin]) if (b && !b.routedL && dist(lightPos(b), P.pos) > 30) this.go(b, to, 2.2, { charge: true });
       }
       for (const g of rt.army.groups) if (g.team === 1 && g.count && !g.chaseSoft && g !== F.ieh && g !== F.iehS) {
         g.chaseSoft = true; g.dmgMult = Math.min(g.dmgMult || 1, 0.7);

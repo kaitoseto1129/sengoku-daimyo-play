@@ -18,6 +18,8 @@ export function install(rt, def, C) { const v = S(rt); v.C = C; v.def = def; }
 export function afterIntro(rt, then) { const v = S(rt); hakobi.start(rt, v.def, v.C, then); }
 export function heading(rt) { const v = S(rt); return v.ph === 'hakobi' ? GOALS15.hakobi : undefined; }
 export function destination(rt) { return S(rt).ph === 'hakobi' ? hakobi.dest(rt) : null; }
+// 11/10 六十秒の見張り（fushin.js）から：運搬の護衛を済ませて次へ
+export function hakobiForce(rt) { hakobi.force(rt); }
 export function onWave2(rt) { const v = S(rt); yoru.start(rt, v.def, v.C); }
 export function tick(rt, dt) {
   const v = S(rt);

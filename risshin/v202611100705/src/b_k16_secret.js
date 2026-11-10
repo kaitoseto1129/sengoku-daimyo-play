@@ -321,7 +321,13 @@ const k16_secret = {
     // ほかの段：段の隊が立っている間は、その隊の自分に一番近い兵（隊の真ん中が空の野に落ちない）
     let p = STEP_AT[F.step];
     if (F.step === 5) p = campRoute(P.pos, F.ieyasu && F.ieyasu.alive ? F.ieyasu.pos : MOUTH);
-    else if (live(g)) { let bd = 1e9; for (const u of g.units) if (standing(u)) { const d = dist(u.pos, P.pos); if (d < bd) { bd = d; p = u.pos; } } }
+    else if (live(g)) {
+      let bd = 1e9;
+      for (const u of g.units) if (standing(u)) { const d = dist(u.pos, P.pos); if (d < bd) { bd = d; p = u.pos; } }
+      // 味方が先に隊を減らし、残兵が遠くへ散った時は、未到着の目標へ導く。
+      // 残兵を追って目標の場所から離れ続けると、到着の判定に入れなくなる。
+      if (!F.stepSeen && F.stepN > 0 && F.stepN - aliveN(g) >= F.stepN * 0.3 && bd >= 35) p = STEP_AT[F.step];
+    }
     // 柵越しの敵へ直進させず、実際に抜けられる京街道の口を指す。
     p = viaGap(P.pos, p) || p;
     PIN.x = p.x; PIN.z = p.z;
@@ -725,7 +731,9 @@ const k16_secret = {
     if (live(g)) for (const u of g.units) if (standing(u) && dist(u.pos, P.pos) < 35) { near = true; break; }
     if (!live(g) && dist(P.pos, STEP_AT[F.step]) < 35) near = true;
     // 敵だけが出発点まで寄ってきても刻限を始めない。主人公が目標の場所へ寄って接敵してから。
-    if (near && !F.stepSeen && dist(P.pos, STEP_AT[F.step]) < 35) { F.stepSeen = true; F.engagedT = rt.t; }
+    // 味方が先に三割以上を退けた後なら、残兵が遠くても本人の到着を認める。
+    // この印が無いと、下の「十秒待って次へ」が永久に働かない。
+    if (!F.stepSeen && dist(P.pos, STEP_AT[F.step]) < 35 && (near || gone >= F.stepN * 0.3)) { F.stepSeen = true; F.engagedT = rt.t; }
     // 主人公が戦場から離れただけでは「敵が散った」にしない。目標の場所で残兵が来ない時だけ数える。
     F.farT = near || dist(P.pos, STEP_AT[F.step]) >= 35 || rt.t - F.stepT < 25 || gone < F.stepN * 0.3 ? 0 : (F.farT || 0) + 0.25;
     // 刻限の六割を過ぎて段の隊の四割を討っていれば、崩れたとみなす（11/9 bot：本多の旗本の散り残りを追い回して刻限が尽きた）

@@ -62,11 +62,18 @@ export function install(rt, ctx) {
     };
     rt.after(at, deploy);
   });
-  const say = (at, who, line, d = 3.6) => rt.after(at, () => { if (live() && !F.inabaT) rt.say(who, line, d); });
-  say(95, '足軽', '前の段が押されておる……坂井殿の旗が下がるぞ！');
-  say(190, '森可成', '磯野め、段を次々に破りおる。ここが破れれば本陣じゃ。穴を埋めよ！', 4);
-  say(300, '足軽', '後ろの段まで押されておる……磯野の旗が止まらぬ！');
-  say(318, '使番', '本陣より！　旗本も槍を取った。森の備は退かず、浅井の横腹を突けとの仰せ！', 4);
+  // 時計だけで段の破れや横槍を告げない。本人が寄せを止めた通しでも、声と戦況をそろえる。
+  const say = (at, who, line, when, d = 3.6) => rt.after(at, () => {
+    if (live() && !F.inabaT && when()) rt.say(who, line, d);
+  });
+  const pressing = () => F.iso && !F.iso.anePending && F.iso.count > 0 && !F.iso.routed &&
+    F.iso.order !== 'retreat' && F.iso.order !== 'flee';
+  say(95, '足軽', '前の段が押されておる……坂井殿の旗が下がるぞ！', () => F.breach >= 1 && pressing());
+  say(190, '森可成', '磯野め、段を次々に破りおる。ここが破れれば本陣じゃ。穴を埋めよ！', () => F.breach >= 2 && pressing(), 4);
+  say(300, '足軽', '後ろの段まで押されておる……磯野の旗が止まらぬ！', () => F.breach >= 3 && pressing());
+  say(318, '使番', '本陣より！　森の備は退かず、本陣へ抜ける浅井を止めよとの仰せ！', () => !!(F.hqThreat || F.hqDefend), 4);
   rt.after(TK_AT, () => { if (live()) ctx.tokugawa(); });
-  say(YOKO_AT - 4, '森可成', '東に稲葉殿の旗！　横から突く備えじゃ、もう少し支えよ！', 3.4);
+  say(YOKO_AT - 4, '森可成', '東に稲葉殿の旗！　横から突く備えじゃ、もう少し支えよ！', () =>
+    F.inaba && !F.inaba.anePending && F.inaba.count > 0 && !F.inaba.routed &&
+    F.inaba.order !== 'retreat' && F.inaba.order !== 'flee', 3.4);
 }
