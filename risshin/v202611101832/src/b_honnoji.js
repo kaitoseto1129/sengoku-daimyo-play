@@ -4858,12 +4858,12 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
   // 使者の家の戸口：会話の場面で知らせを渡す。使者は備中高松へ駆け出し、織田家編が終わる
   shishaTalk(rt) {
     const F = rt.flags;
-    if (F.step >= 7 || F.ending || rt.over) return;
+    if (F.step !== 6 || F.ending || rt.over || !rt.player.u.alive) return;
     F.step = 7; F.stepT = rt.t;
     rt.unmark('shisha'); rt.unzone('shisha');
     rt.player.u.invuln = true;
     const go = () => {
-      if (rt.over) return;
+      if (F.step !== 7 || F.ending || rt.over || !rt.player.u.alive) return;
       honnoSay(rt, '使者', '承知した。備中高松の羽柴筑前守様の陣へ走る！', 3.5);
       const g = F.shisha;
       if (g && !gone(g)) { g.order = 'path'; g.path = [[KYO_ST, SHISHA.z], [KYO_ST, -172], [0, -174]]; g.pathIdx = 0; g.speed = 5.5; g.run = true; }
@@ -4878,6 +4878,8 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
   win(rt) {
     const F = rt.flags;
     if (F.ending || rt.over || !rt.player.u.alive) return;
+    // 使者との会話だけで、守っていない持ち場まで達成にしない。
+    if (F.step !== 7 || !this.goals5(rt).slice(0, 4).every((goal) => goal.check(rt))) return;
     F.ending = true;
     rt.setPhase('end'); rt.objRemove('escort');
     rt.unmark('out'); rt.unmark('nExit'); rt.unmark('north'); rt.unmark('chase'); rt.unmark('shisha'); rt.unzone('out'); rt.unzone('shisha');
