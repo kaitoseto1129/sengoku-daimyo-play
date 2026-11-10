@@ -902,7 +902,7 @@ const okawachi = {
   retreatGuideLabel(rt, reached) {
     const u = rt.player.u;
     // 一時退避の印を、離れた陣や柵そのものだと言い換えない。
-    if (u.wounds?.bleed > .0001) return reached ? 'ここで止まり、手当てせよ' : '血が出ている。道沿いに味方の後ろへ';
+    if (u.wounds?.bleed > .0001) return reached ? '味方の後ろで止まり、手当てせよ' : '血が出ている。道沿いに味方の後ろへ';
     if (u.hp < u.maxHp * .3) return reached ? '味方の後ろで身を守れ' : '命が少ない。道沿いに味方の後ろへ';
     // 一時退避中も本来の持ち場を残す。「下がれ」だけで帰陣や封鎖と競合させない。
     if (rt.flags.step === 3) return reached ? '追っ手を見て、陣への道を進め' : '城兵を避けよ。戻る先は南の陣';
@@ -4403,7 +4403,7 @@ function okChaseTick(rt) {
     let foe = null;
     rt.army.forNear(c.x, c.z, 12, (u) => {
       // 倒れかけ・退走・脱落や、折り返し道の上の味方で追跡を止めない。
-      if (!foe && u.team === 0 && u.alive && !u.dying && !u.gone && !u.isStruct &&
+      if (!foe && u.team === 0 && u.alive && !u.dying && !u.downed && !u.gone && !u.isStruct &&
         !u.fleeing && !u.woundOut && !u.dropped && !u.noTarget &&
         Math.abs(u.pos.y - c.y) <= 3 &&
         !rt.army.wallBetween(c, -1, u.pos)) foe = u;
@@ -4769,11 +4769,11 @@ function okHold(o) {
         g._okMarchFar = far; g.calm = far;
         for (const u of g.units) if (u.alive) { u.noTarget = far; if (far) u.target = null; }
       }
-      const p = rt.player.u.pos, near = o.sortie ? okAtSouthLine(rt) : okAtPost(rt, o.at, o.r);
+      const p = rt.player.u.pos, near = !rt.player.u.downed && (o.sortie ? okAtSouthLine(rt) : okAtPost(rt, o.at, o.r));
       const holdY = o.sortie ? rt.world.heightAt(o.at.x, o.at.z) : 0;
       let foes = 0, sortieFoes = 0, friends = 0, line = 0, closeFoe = null, closeD = 18;
       rt.army.forNear(o.at.x, o.at.z, o.r, (u) => {
-        if (!u.alive || u.dying || u.gone || u.isStruct || u.fleeing || u.woundOut || u.dropped || u.noTarget) return;
+        if (!u.alive || u.dying || u.downed || u.gone || u.isStruct || u.fleeing || u.woundOut || u.dropped || u.noTarget) return;
         if (o.sortie && (Math.abs(u.pos.y - holdY) > 3 || rt.army.wallBetween(C.holdPoint, -1, u.pos))) return;
         if (u.team === 1) {
           foes++;

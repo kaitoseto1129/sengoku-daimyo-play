@@ -34,6 +34,9 @@ export function resume(rt, u) {
     if (Math.hypot(candidate.x - u.pos.x, candidate.z - u.pos.z) < .35) continue;
     const point = u._ikSweepWay || (u._ikSweepWay = { x: 0, z: 0 });
     point.x = candidate.x; point.z = candidate.z;
+    // 戸口と堂の床は同じ平面でも高さが違う。歩く時の経路の引き直しへ
+    // 高さも渡し、参道へ戻る時は使い回した床の高さを消す。
+    point.y = candidate.y;
     way = point; nearest = d;
   }
   if (!way) return;

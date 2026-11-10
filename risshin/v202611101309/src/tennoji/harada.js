@@ -48,7 +48,7 @@ export function install(rt, ctx) {
       if (!F.haradaDone && !F.haradaHelp && me.alive && !me.dying && !me.fleeing && !me.woundOut &&
           (me.atk || me.swing || me.guard)) {
         for (const enemy of P.units) {
-          if (!enemy.alive || enemy.dying || enemy.fleeing || enemy.woundOut ||
+          if (!enemy.alive || enemy.dying || enemy.gone || enemy.noTarget || enemy.fleeing || enemy.woundOut ||
               Math.hypot(enemy.pos.x - me.pos.x, enemy.pos.z - me.pos.z) > 7 ||
               Math.abs((enemy.pos.y || 0) - (me.pos.y || 0)) > 3 ||
               rt.army.wallBetween?.(me.pos, -1, enemy.pos, false)) continue;
