@@ -45,7 +45,7 @@ export function step(H) {
       rt.say('普請の奉行', '火は焚くな。声も立てるな。小田原から見られてはならぬ', 3.6);
       rt.after(4.2, () => rt.say(nm(rt), '林の向こうに……石垣と白い壁。もう城が出来ておる', 3.4));
     },
-    tick(rt, C, m, ctx, el) {
+    tick(rt, C, m, ctx, el, dt = 0) {
       // 物見：山の北の林から三度、少しずつ忍び寄る
       while (C.w < WAVES.length && el >= WAVES[C.w][0]) {
         const from = H.SCOUT_FROM[WAVES[C.w][1]];
@@ -62,10 +62,12 @@ export function step(H) {
       // 主な物見を退けるか、現地で夜明けまで守れば、残兵には撤退の下知が出る。
       // 命を消して全滅にせず、生きたまま林へ退かせる。
       const near = Math.hypot(rt.player.u.pos.x - H.FUSHIN.x, rt.player.u.pos.z - H.FUSHIN.z) < 18;
+      // 陣を離れて待った時間は、普請を守った時間に含めない。
+      if (near && rt.player.u.alive !== false) C.guardHold = (C.guardHold || 0) + dt;
       const total = C.scouts.reduce((n, g) => n + g.units.length, 0);
       const remaining = C.scouts.reduce((n, g) => n + live(g), 0);
       if (!C.withdraw && C.w >= WAVES.length && near && remaining > 0 &&
-          (remaining <= total * 0.2 || el >= 180)) {
+          (remaining <= total * 0.2 || C.guardHold >= 180)) {
         C.withdraw = true;
         for (const g of C.scouts) {
           g.order = 'move'; g.dest = { ...H.SCOUT_FROM[1] }; g.speed = 3;

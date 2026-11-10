@@ -5988,7 +5988,8 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
       }
       F.roadOrder = roadOrder;
     }
-    if (F.step >= 1 && F.oda.every(gone) && rt.canFailMission()) {
+    // 後詰と本丸へ向かう新手も攻め手。先手だけの全滅で敗北にしない。
+    if (F.step >= 1 && F.oda.every(gone) && gone(F.gozume) && gone(F.umaG) && rt.canFailMission()) {
       if (F.collapseAt === undefined) {
         F.collapseAt = Math.max(rt.t + 30, F.helpUntil || 0);
         if (!F.collapseWarned) {

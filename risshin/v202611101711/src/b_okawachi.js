@@ -4429,7 +4429,7 @@ function okChaseTick(rt) {
         g.order = 'path'; g.march = true; g.formation = 'column'; g.colW = 2; g.speed = 3.6;
         g.roadColumn = true; g.followColumnRoad = true;
         g.path = downRoad(g, [me.x, me.z]); g.pathIdx = 0;
-        g.onArrive = (q) => { q.order = 'attack'; q.anchor = q.center(); q.formation = 'yari'; q.width = 6; q.aggro = 18; q.seekRange = 28; };
+        g.onArrive = (q) => { q.order = 'attack'; q.march = false; q.anchor = q.center(); q.formation = 'yari'; q.width = 6; q.aggro = 18; q.seekRange = 28; };
       }
       continue;
     }
@@ -4449,8 +4449,10 @@ function okChaseTick(rt) {
           : '追っ手の声じゃ！　坂の旗で槍を返せ。先に退く組を守れ！', 4);
       }
     }
+    // 道の終点で攻撃へ替わった組も、行軍の指定を残して接近を控えない。
+    g.march = false;
     if (g.order === 'attack') continue;
-    g.order = 'attack'; g.march = false; g.onArrive = null;
+    g.order = 'attack'; g.onArrive = null;
     g.anchor.x = c.x; g.anchor.z = c.z;
     g.formation = 'yari'; g.width = 6; g.aggro = 18; g.seekRange = 28;
   }
@@ -4543,7 +4545,7 @@ function okChaseWave(rt) {
     [[0, -68], [0, -52], [MAE_C.x, MAE_C.z],
       ...KARAMETE_WAY.slice(0, -1).reverse(), [CAMP_LINE.x, CAMP_LINE.z - 10]];
   g.pathIdx = 0;
-  g.onArrive = (q) => { q.order = 'attack'; q.formation = 'yari'; q.width = 6; q.aggro = 18; q.seekRange = 28; };
+  g.onArrive = (q) => { q.order = 'attack'; q.march = false; q.formation = 'yari'; q.width = 6; q.aggro = 18; q.seekRange = 28; };
   F.sorties.push(g); F.chasers.push(g);
   F.gates.karamete._openNow(false);
 }
