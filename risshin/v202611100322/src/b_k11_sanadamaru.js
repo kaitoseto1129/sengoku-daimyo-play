@@ -635,6 +635,8 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
       // ③ 堀の前：柵を破る組を守り、一斉射撃と横矢に耐える。城内の爆発で井伊・松平が殺到
       DP.rest({ dur: 5, heal: 0.9 }),
       this.fenceStep(DP.hold({ at: { x: 6, z: C.z + FENCE_R + 10 }, dur: 80, r: 16, label: '柵の前', title: '堀と柵', sub: '塀と櫓から鉄砲が並ぶ',
+        // 柵破りのほかに、札にない討ち取り数を満たすまで新手を足さない。
+        noRefill: true,
         obj: '柵を破る組と一緒に、真田丸の柵を打ち倒せ',
         waves: [
           { t: 8, say: ['足軽', '東の口から真田の兵が出てきた！　柵を破る組を狙っておる！'], foes: () => [{ name: '東の口の真田の兵', from: PORT(1), list: [uS(2), uA(10)], mass: 160 }] },
@@ -647,6 +649,8 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
       // 11/6 遊んだ：竹束の陣（丸から 80 余り）で待つと、大助の隊は途中で味方の退き勢と当たって止まり、一度も来なかった（九2）。
       //   殿は堀から退く味方の後ろ、篠山の北の麓で受ける（打って出た真田と当たる所）
       this.holdStep(DP.hold({ at: { x: 12, z: 32 }, dur: 60, r: 14, label: '篠山の北の麓', title: '退け', sub: '大御所の下知：寄せ手は引き揚げよ',
+        // 大助・伊木と追い討ちの寄せを押し返せば退く。本人の討ち取りは帰陣の条件にしない。
+        noRefill: true,
         obj: '篠山の北の麓で、打って出た真田大助の隊を食い止めよ',
         waves: [
           { t: 1, say: ['足軽', '六文銭の旗！　真田が丸から打って出た！'], foes: () => [{ name: '真田大助の隊', from: PORT(1), list: [{ type: 'busho', n: 1, o: { name: '真田大助', horse: true, hat: 'kabuto_sanada', haori: 0x7a1a12 } }, uS(6), uA(10), uG(3)], noRout: 60, seek: 130, dmg: 0.4 }] },
