@@ -757,7 +757,9 @@ const k05_ueda = {
       // 兵をまとめる：岸に三十秒いて、信繁の一撃が済む（来なければ刻限で）
       if (F.nbOut && !F.nbBack) {
         // 一撃の後は居場所にかかわらず退く。途中で詰まる・戦力を失う場合にも打ち切る。
-        const spent = F.nbAt != null && rt.t - F.nbAt > 10;
+        // 隊の到着だけで一撃を済ませない。隊列が岸の手前で広がっても、本人へ届く時間を残す。
+        if (F.nbAt != null && F.nbContact == null && F.nobushige.units.some((u) => u.alive && !u.gone && !u.fleeing && dist(u.pos, P.pos) < 10)) F.nbContact = rt.t;
+        const spent = F.nbContact != null && rt.t - F.nbContact > 10;
         if (spent || !live(F.nobushige) || rt.t - F.nbOut > 65) {
           F.nbBack = true;
           if (live(F.nobushige)) { rt.say(NOBU, '……ここまで。引くぞ', 2.6); this.back(F.nobushige); }

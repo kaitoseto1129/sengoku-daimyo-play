@@ -582,10 +582,11 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
       this.walk(g, w, t);
       return;
     }
-    // 道筋を通過し終えた隊は、後列待ちを解いてその場で構える。
+    // 道筋を通過し終えた隊は後列待ちを解く。遅れた兵の中心へ持ち場を戻すと、
+    // 出撃隊が坂まで来ず、寄せ手も門の外へ引き返すため、終点の持ち場を保つ。
     w.done = true;
     if (!g || g.routed) return;
-    this.to(g, this.centerOf(g) || g.anchor);
+    this.to(g, w.route[w.route.length - 1] || g.anchor);
     g.formation = 'yari'; g.aggro = w.aggro;
   },
   // 味方の隊を喰違の筋に沿って進める（いちばん近い所から先へ。塀を突き抜けない）
@@ -654,7 +655,11 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
     for (const u of g.units) if (u.alive && !u.fleeing && !u.woundOut) { x += u.pos.x; z += u.pos.z; n++; }
     return n ? { x: x / n, z: z / n } : null;
   },
-  fighting(g, at, r) { return g.units.filter((u) => u.alive && !u.fleeing && !u.woundOut && (!at || Math.hypot(u.pos.x - at.x, u.pos.z - at.z) < r)).length; },
+  fighting(g, at, r) {
+    let n = 0;
+    for (const u of g.units) if (u.alive && !u.fleeing && !u.woundOut && (!at || Math.hypot(u.pos.x - at.x, u.pos.z - at.z) < r)) n++;
+    return n;
+  },
   gateStruct(rt) { return rt.siegeKit?.kits?.[0]?.gate?.struct || null; },
 
   update(rt, dt) {
@@ -715,19 +720,22 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
       // 四割を討たれるか、芥田が討たれれば崩れて引く。長引く場合も、寄せ手との接触が必要。
       // 行軍の到着や出撃からの秒数だけでは、戦っていない目標を済みにしない。
       const boss = F.sally.units.find((u) => u.name === '芥田悪六兵衛');
-      if (F.fightT == null) for (const u of F.sally.units) {
-        if (!u.alive || u.fleeing) continue;
-        const target = rt.army.nearestEnemy(u, 6, (v) => !v.noTarget && !v.isStruct && !v.fleeing && Math.abs(v.pos.y - u.pos.y) < 3 && !rt.army.wallBetween(u.pos, -1, v.pos));
-        if (target) {
-          F.fightT = rt.t;
-          // 敵と組み合った後まで行軍の後列待ちを続けない。
-          // 門を抜ける途中でも、接触した持ち場で隊を開いて迎撃に応じる。
-          if (F.sw && !F.sw.done) {
-            F.sw.done = true;
-            this.to(F.sally, this.centerOf(F.sally) || F.sally.anchor);
-            F.sally.formation = 'yari'; F.sally.aggro = F.sw.aggro;
+      if (F.fightT == null && !(F.fightCheckAt > rt.t)) {
+        F.fightCheckAt = rt.t + 0.5;
+        for (const u of F.sally.units) {
+          if (!u.alive || u.fleeing || u.woundOut) continue;
+          const target = rt.army.nearestEnemy(u, 6, (v) => !v.noTarget && !v.isStruct && !v.fleeing && Math.abs(v.pos.y - u.pos.y) < 3 && !rt.army.wallBetween(u.pos, -1, v.pos));
+          if (target) {
+            F.fightT = rt.t;
+            // 敵と組み合った後まで行軍の後列待ちを続けない。
+            // 門を抜ける途中でも、接触した持ち場で隊を開いて迎撃に応じる。
+            if (F.sw && !F.sw.done) {
+              F.sw.done = true;
+              this.to(F.sally, this.centerOf(F.sally) || F.sally.anchor);
+              F.sally.formation = 'yari'; F.sally.aggro = F.sw.aggro;
+            }
+            break;
           }
-          break;
         }
       }
       // 芥田を討つか四割を討ち減らせば撃退。百二十秒の下限で、果たした戦いを続けさせない。

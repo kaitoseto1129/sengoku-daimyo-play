@@ -146,6 +146,7 @@ const t06_hetsugi = {
   // 五2：名のある将の名は四十 m の内で出す。名札は史料に名のある将だけ（組頭・侍に名札を出さない）
   nameRange: 60,   // 11/8 五2：十河・統常・家久の名が四十 m の外で一度も出なかった
   hideNameTag: (u) => !NAMED.has(u.name),
+  keepBattleSigns: true,   // 行き先の▼を出す間も、敵全員の赤い▼と名のある将の名札を残す。
   forceBarAlways: true,   // 両軍の数を渡すだけでは共通の棒が隠れるため、戦の間は表示する。
   introSides: { a: '豊臣勢（四国の衆）　六千', b: '島津勢　一万二千' },   // 五4・十二1：始まりの札に史実の数
   // 支度の布陣図に地名（11/8 BR：支度の裏の絵が戸次川でも鶴賀城でもなかった）
@@ -212,6 +213,11 @@ const t06_hetsugi = {
     else if (F.step === 4) at = shingari.pin(rt, K);   // 殿の間は北の口、皆が渡ったら南の岸
     else { at = SAFE; r = 9; }   // ⑤：渡り切った西の岸の土手
     q.x = at.x; q.z = at.z; q.r = q.hide = r;
+    // 下知が「追え」「退け」だけでも、印には実際の行き先の名を添える。
+    q.label = STEP_NOUN[F.step - 1];
+    if (F.step === 2 && !F.feigned) q.label = '伊集院の先手';
+    else if (F.step === 2 && F.s2?.leg === 1) q.label = '島津の囲みの陣';
+    else if (F.step === 3) q.label = !F.s3?.st ? '中津留の河原' : F.s3.st >= 3 || (F.s3.st === 2 && F.s3.motoOrdered) ? '長宗我部元親' : '長宗我部信親';
     // 防戦・救援は着いてから続く。共通の六 m 内の省略で目標の▼を消さない。
     q.hideDistance = 0;
     q.arrived = Math.hypot(p.x - at.x, p.z - at.z) < r;

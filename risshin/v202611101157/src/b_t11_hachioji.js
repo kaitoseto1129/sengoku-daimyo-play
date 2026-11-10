@@ -373,7 +373,15 @@ function kuruwaFight(o) {
       g.t11Kuruwa = k; g.stay = true; g.noAI = true;
     }
   };
-  s.start = (rt, C, m, ctx) => { start(rt, C, m, ctx); bind(C); };
+  s.start = (rt, C, m, ctx) => {
+    start(rt, C, m, ctx); bind(C);
+    // 坂から退いた射手も金子丸の守り。段で新しく出した組だけに絞ると、
+    // この組だけ柵の外まで寄せ手を追い、曲輪の内に留まらなかった。
+    const bow = rt.flags.slopeBow;
+    if (o.title === '金子丸' && bow && !bow.routed) {
+      bow.t11Kuruwa = k; bow.stay = true; bow.noAI = true;
+    }
+  };
   s.end = (rt, C, m, ctx) => {
     end(rt, C, m, ctx);
     for (const g of C.groups) retreat(g);

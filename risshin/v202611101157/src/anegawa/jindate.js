@@ -121,7 +121,8 @@ export function hit(rt, u) {
 // 右上の一行（def.missionOf）：始まりの段の番号。済んだら null
 export function stageOf(rt) {
   const S = rt.flags.aneJin;
-  if (!S || S.done || rt.flags.step !== 0) return null;
+  if (!S || S.done || S.k === 3 || rt.flags.step !== 0) return null;
+  // 撃退後は次の「森の備で迎え撃て」へ。退いた物見への攻撃を指示し続けない。
   // 陣立てを見た直後は、六秒後の出現待ちや兵の枠待ちがある。
   // 実際に物見が出るまでは「追い返せ」を現在の任務にしない。
   return S.k >= 2 ? 1 : 0;
@@ -171,5 +172,9 @@ export function bot(b, goTo, p, inp, strike) {
       return true;
     }
   }
-  return false;
+  // 撃退後や退く下知の直後は、ピンと同じ持ち場へ戻る。
+  // 本手の相手探しに落とすと、別戦線の敵を追って組から離れてしまう。
+  const at = S.post || S.at;
+  goTo(p, inp, at.x, at.z, 6);
+  return true;
 }
