@@ -5528,10 +5528,10 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
       F.climbReleasedGuards = releasedGuards;
       // 攻め始めるのと同じ範囲で待ちを案内する。待ちながら十二メートル先へ進ませない。
       F.climbWaiting = d < 16 && guards === 0 && F.patrolWave === AMBUSH_IDS.length;
-      // 待つ間は本人の足元を示す。先の角へ誘って合流の範囲から出さない。
-      // 道へ戻る案内が必要な時は、その印を保つ。
+      // 番兵を迎える間も行き先は登り口に固定する。足元へ移すと距離が零になり、
+      // 登り口の手前で止まった本人へ進む場所を示せなくなる。戻る案内は保つ。
       if (updateHud && (F.climbWaiting || F.climbDefending) && !F.trailGuard && !F.guideBlocked && !F.guideReturning) {
-        F.trailPoint.x = p.x; F.trailPoint.z = p.z;
+        F.trailPoint.x = BELOW.x; F.trailPoint.z = BELOW.z;
       }
       if (F.trailGuard) {
         F.guideBlocked = false; F.guideReturning = false;

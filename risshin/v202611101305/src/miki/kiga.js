@@ -53,8 +53,14 @@ export function tick(rt, ctx) {
   } else if (S.k === 1) {
     const G = ctx.store;
     const at = Math.hypot(p.x - G.x, p.z - G.z) < 8;
+    if (at && !(F.storedLoads > 0) && !S.waitingLoads) {
+      S.waitingLoads = true;
+      rt.obj('main', '平田の蔵で、俵の運び入れを待て', 'main');
+      rt.say('組頭', '担ぎ手が俵を運んでおる。蔵で到着を待て', 3.5);
+    }
     // 蔵で俵を確かめた時も、足軽の声と五秒後の組頭の声を聞いてから下知へ進む。
-    if (at && t >= 10) {
+    // 本人だけ先に着いても、担ぎ手の運び入れが済むまで次の下知へ進めない。
+    if (at && t >= 10 && F.storedLoads > 0) {
       next(rt, S);
       sfx('horagai', 0.5);
       rt.say('使番', '平井山より！　「城を力で攻めるな。囲みを締め、兵糧の道を一つ残らず断て」との仰せ', 5);

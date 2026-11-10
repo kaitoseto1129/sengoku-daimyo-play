@@ -4627,22 +4627,22 @@ const inabayama = {
     if (F.dp?.on) return this.objectiveEnemies(rt)[0] || null;
     if (F.step === 4) {
       // 柵の向こうの相手は、口を通るまで▼で指さない（ピンが口を指す）。
-      const u = nearestFoeOf(rt, honTargetGroup(rt));
+      const u = nearestFoeOf(rt, honTargetGroup(rt), true);
       return u && !honGateStep(rt, u) ? u : null;
     }
     // 木戸の奥や別の折れに隠れた城兵へ印を出さず、見える兵がいなければ道の案内を保つ。
     if (F.step === 3 && F.tsuke) return F.tsukeGate ? nearestFoeOf(rt, [F.oteGate, F.nigeru], true) : inabaClimbGuideEnemy(rt);
-    if (F.step === 3 && F.guardOn && !gone(F.kguard) && inabaAtWoodGate(rt)) return nearestFoeOf(rt, F.kguard);
+    if (F.step === 3 && F.guardOn && !gone(F.kguard) && inabaAtWoodGate(rt)) return nearestFoeOf(rt, F.kguard, true);
     if (F.step === 3) return inabaClimbGuideEnemy(rt);
     if (F.step === 2) return this.objectiveEnemies(rt)[0] || null;
-    if (F.step === 1 && F.clearT !== undefined) return nearestFoeOf(rt, F.townGuards);
+    if (F.step === 1 && F.clearT !== undefined) return nearestFoeOf(rt, F.townGuards, true);
     return null;
   },
   // 名のある守り（龍興の馬廻）の頭は、▼を大きくして目立たせる（稲生 5）。
   commanderTarget(rt) {
     const g = honTargetGroup(rt);
     if (!g || g !== rt.flags.tatsu) return null;
-    for (const u of g.units) if (inabaFoe(u) && (u.type === 'samurai' || u.type === 'busho')) return honGateStep(rt, u) ? null : u;
+    for (const u of g.units) if (inabaFoe(u) && !u.offscreen && sightScreenUnit(rt, u) && (u.type === 'samurai' || u.type === 'busho')) return honGateStep(rt, u) ? null : u;
     return null;
   },
   // 戦いの最中も次の行き先を保ち、敵の近さでピンを消さない。

@@ -776,7 +776,8 @@ html:root body #hud#hud#hud.shigino-goals.shigino-combat #goal-sign .gs-tag > sp
     }
     inp.guardHold = false;
     const t = this.missionPin(b) || MIZU;
-    goTo(p, inp, t.x, t.z, 2);
+    // ③の印は x=70、達成は x>69。二歩手前で止まると x=68 のまま退き終えられない。
+    goTo(p, inp, t.x, t.z, F.step === 3 ? 0.5 : 2);
     // 味方が先に全滅させた持ち場でも、本人の攻めの操作で確保を確認する。
     if ((F.step === 1 || F.step === 4 || F.step === 5) && dist(u.pos, t) < 8) inp.leftPressed = true;
   },
