@@ -299,7 +299,8 @@ OWN.t10_oshi = (rt) => {
   const M = rt.def.missions || [];
   const N = ['城の外の柵', '丸墓山', '浅瀬の口', '堰', '堤の岸', '丸墓山', '佐間口の門前', '佐間口', '佐間口の門前', '佐間口'];
   return M.map((text, k) => ({ kind: 'stage', k, text, noun: N[k] || '',
-    count: k === 5 ? (r) => r.flags.step === 6 ? KILLS.t10_oshi(r) : null : undefined,
+    // 避難・打って出・門前は、段を進める時と同じ人数を出す。名前から敵を拾うと討てない将まで分母に入る。
+    count: k === 5 || k === 7 || k === 8 ? (r) => r.flags.step === k + 1 ? KILLS.t10_oshi(r) : null : undefined,
     check: k === M.length - 1 ? won : (r) => won(r) || (r.flags.step ?? 0) > k + 1 }));
 };
 

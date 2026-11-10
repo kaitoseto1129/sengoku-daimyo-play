@@ -1472,9 +1472,9 @@ const arrived = (g, p, r, waitRadius = r + 2) => {
   // 11/7：先手が討たれ尽くした時や、先手が皆よそで打ち合って前列が一人も着かない時に、文殊楼の前で段が進まず
   //   通しが二百秒以上止まった。待つ相手のいない時は待たせず、前列の誰も来ない時も本人の到着から十五秒で次へ。
   if (gone(g) || alive === 0) return true;
-  // 前列の誰も着かない間は、本人が持ち場に着いて待つ時だけ数える（本人が来る前から数えて、列を置いて先へ行かせない）。
+  // 本人が持ち場に着いて待つ時だけ数える。離れた間の時間を到着待ちに足さない。
   const waiting = hieiWho && Math.hypot(hieiWho.pos.x - p.x, hieiWho.pos.z - p.z) < waitRadius;
-  if (front === 0 && !waiting) { if (g._arrKey === key) g._arrSince = null; return false; }
+  if (!waiting) { if (g._arrKey === key) g._arrSince = null; return false; }
   if (g._arrKey !== key || g._arrSince == null) { g._arrKey = key; g._arrSince = hieiClock; }
   // 11/6 fixc1721（kaito 三2）：持ち場で何も起きないまま待たせない。前列が着いて八秒で次へ。
   return hieiClock - g._arrSince >= (front === 0 ? 15 : 8);
@@ -3267,6 +3267,15 @@ const hiei_mtn = {
     const hud = rt.hud, hudProgress = hud.progress;
     // 近接の候補判定ではなく、傷が通った時に数える。弓・鉄砲も本人の働きに含める。
     const meritHit = rt.army.hooks.onMeritHit;
+    const finishCap = rt.army.heroFinishCap;
+    // 本人が戦う前に味方だけで守りを消し、命中の条件を果たせなくしない。
+    // 中堂の先頭の一人にだけ余力を残す。本人の一撃が通った後は通常へ戻す。
+    rt.army.heroFinishCap = function (target, amount, source) {
+      if (!F.courtHand && target === F.courtGuard && !source?.isPlayer) {
+        return Math.max(0, Math.min(amount, target.hp - target.maxHp * .5));
+      }
+      return finishCap.call(this, target, amount, source);
+    };
     rt.army.hooks.onMeritHit = function (target, source, kind, amount) {
       if (meritHit) meritHit.call(this, target, source, kind, amount);
       if (F.courtDone && source?.isPlayer && amount > 0 && target?.group &&
@@ -3305,6 +3314,7 @@ const hiei_mtn = {
       rt.player.canStep = canStep;
       hud.progress = hudProgress;
       rt.army.hooks.onMeritHit = meritHit;
+      rt.army.heroFinishCap = finishCap;
       hud.root.classList.remove('hiei-goals');
       F.foeSigns?.remove();
       plaque.remove();
@@ -3832,6 +3842,8 @@ const hiei_mtn = {
     F.kodoG = this.foe(rt, { name: '大講堂の僧兵', anchor: { x: -46, z: -27 }, facing: Math.PI / 2, width: 6, aggro: 10, morale: 85, fleeDir: { x: -1, z: -0.6 } },
       [...dress([{ type: 'ashigaru', n: 4 }, { type: 'samurai', n: 1, o: { weapon: 'spear' } }], SOHEI), ...dress([{ type: 'ashigaru', n: 2 }], LAY)]);
     for (const g of [F.chudoG, F.courtBow, F.kodoG]) g.noRout = true;
+    F.courtGuard = F.chudoG.units.find(hieiReady);
+    if (F.courtGuard) F.chudoG.focus = rt.player.u;
   },
 
   // 西塔の鐘：別の地区が警戒し、西塔から加勢が来る（P5 の入口）
@@ -4195,8 +4207,8 @@ const hiei_mtn = {
           if (!hieiDefeated(F.courtBow)) walk(F.courtBow, [[-36, -7], [-36, -5]], 2.4, (q) => attackFrom(q, 16));
           rt.say('根本中堂の僧兵頭', '廻廊の衆も前へ出よ！　中堂を渡すな！', 3);
         }
-        // 本人が攻め上り、味方と守りを破れば進む。味方の最後の一撃で命中の機会が消えても詰ませない。
-        if (near(u, P.court, 12) && guardedRoad(rt, P.court) &&
+        // 本人の実際の命中と守りの敗退を共に確かめる。到着と時間だけで果たさない。
+        if (F.courtHand && near(u, P.court, 12) && guardedRoad(rt, P.court) &&
             [F.chudoG, F.courtBow].every(hieiDefeated) && rt.t - F.courtT > 15) {
           // 15分の構成：根本中堂の後も締めず、西塔の鐘・西塔・横川へ続ける（もとの P5〜P7。docs/oda15_plan_1108.md の 12）
           if (rt.G.lord) this.win(rt, '根本中堂の前の守りを退け、燃える東塔を押さえた');

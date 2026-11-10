@@ -1749,7 +1749,8 @@ function gateWork(rt, gate, at) {
     rt.army.damage(gate, 42, rt.player.u, { kind: 'gateWork' });
     rt.army.play('knock', at, 1.2);
     rt.game.hitstop = 0.05;
-  }, { r: 3.4, hold: 0.7, prio: 14 });
+  // 作業点は門の二歩手前。有効な打撃は門から四歩以内なので、届かない位置では打たせない。
+  }, { r: 2, hold: 0.7, prio: 14 });
 }
 let KAKeyaHandle, KAKeyaHead, KAKeyaMat;
 // 既存の先手から打ち手を選ぶ。兵を足さず、門へ届いた掛矢の作業だけで傷める。
