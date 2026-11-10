@@ -516,9 +516,11 @@ const ino = {
     try { stopMusic(5); } catch (e) { /* 音の無い時も続ける */ }
     for (const g of [...F.van, F.sakuma, F.mates, F.mori, F.nobuG]) if (live(g)) {
       // 前進の到着命令を残すと、追撃停止後も古い攻撃の下知が残り、持ち場を整えられない。
+      // 相手を消すだけでは次の判断で加勢し直す。余韻の間は敵探しも止める。
+      g.noAI = true; g.peaceful = true; g.retreatOnly = true; g.arriveNoncombat = true;
       g.order = 'hold'; g.aggro = 0; g.fire = false; g.anchor = { ...g.center() };
       g.onArrive = null; g.dest = null; g.path = null; g.focus = null;
-      for (const u of g.units) { u.target = null; u.atk = null; u.swing = null; u.bind = null; u.watch = null; u.moveTo = null; }
+      for (const u of g.units) { u.noTarget = true; u.target = null; u.atk = null; u.swing = null; u.bind = null; u.watch = null; u.moveTo = null; }
     }
     // 戦の跡を歩く本人だけを置き去りにしない。声を掛ける仲間と組頭が実際に歩いて集まる。
     const P = rt.player.u.pos;

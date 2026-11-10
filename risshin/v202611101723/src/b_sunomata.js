@@ -431,7 +431,16 @@ function sunoMarchTick(rt) {
     if (g.order === 'assault' && r > FORT + 20 && !g._sunoMarch) { march(); continue; }
     const st = g._sunoStallAt;
     if (!st || Math.hypot(c.x - st.x, c.z - st.z) > 3) { g._sunoStallAt = { x: c.x, z: c.z, t: rt.t }; continue; }
-    if (F.wave !== 3 || rt.t - st.t < 15) continue;
+    if (rt.t - st.t < 15) continue;
+    // 一・二の手も柵の前で止まったら道を歩き直す。三の手だけの救済では、
+    // 西の寄せ手が二分後の退却まで同じ柵に詰まり、守る相手が動かなかった。
+    // 退却の条件は変えず、西は空いた北の土橋へ、それ以外は元の寄せ道へ戻す。
+    if (F.wave !== 3) {
+      if (c.x < -FORT - 3 && c.z > -FORT - 6) {
+        if (sunoGapLoad(rt) < 8) march(true);
+      } else march();
+      continue;
+    }
     // 迂回の縦隊も後列待ちで止まる。北の接敵前と、生きた寄せ大将は退却で済ませず歩き直す。
     if (g === F.W3a && !F.northAtFence || g === F.W3b && F.yoseBoss?.alive) { march(g === F.W3b); continue; }
     if (F.foughtWave === 3 && rt.t - st.t >= 20 && !(g === F.W3b && F.yoseBoss?.alive)) { g.noRout = false; g.morale = 0; }
