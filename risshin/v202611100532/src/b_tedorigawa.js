@@ -98,7 +98,7 @@ function pressPlayer(rt, dt) {
     // 待機中は▼も出さない追手。本人が近づいても、出発の下知より先に引き出さない。
     if (o.group?.tedoRelieved || o.group?.tedoFrom && !o.group.tedoActive) continue;
     // 後送中・倒れかけの兵は、通常の歩みを止めていても追加追撃で動いてしまうため外す。
-    if (!o.alive || o.dying || o.gone || o.team === P.team || o.isStruct || o.fleeing || o.woundOut || o.rearWound || o.downed || o.noTarget || o.name || o.mounted ||
+    if (!o.alive || o.dying || o.gone || o.team === P.team || o.isStruct || o.fleeing || o.woundOut || o.rearWound || o.downed || o.dragging || o.noTarget || o.name || o.mounted ||
         o.type === 'gun' || o.type === 'bow' || o.type === 'busho' || o.group?.routed || o.group?.order === 'path') continue;
     const d = Math.hypot(o.pos.x - P.pos.x, o.pos.z - P.pos.z);
     if (d > 18 || Math.abs(o.pos.y - P.pos.y) > 1.8) continue;   // 11/8 critic60 一行目：十二歩→十八歩
@@ -130,10 +130,11 @@ function pressStep(rt, dt) {
       if (o.target === P && o.pullUntil > now) { o.target = null; o.pullUntil = now; }
       list.splice(i, 1); continue;
     }
-    if (!o.alive || o.dying || o.gone || o.fleeing || o.woundOut || o.rearWound || o.downed || o.noTarget || o.group?.routed || o.group?.order === 'path' || o.target !== P || !(o.pullUntil > now) || !P.alive || rt.over || F.ending) { list.splice(i, 1); continue; }
-    // 矢に伏せる間と打たれたよろめきには、追加の歩みで滑らせない。
+    if (!o.alive || o.dying || o.gone || o.fleeing || o.woundOut || o.rearWound || o.downed || o.dragging || o.noTarget || o.group?.routed || o.group?.order === 'path' || o.target !== P || !(o.pullUntil > now) || !P.alive || rt.over || F.ending) { list.splice(i, 1); continue; }
+    // 救助は通常の後送に任せる。鍔迫り合い・接触で足を止める間も追加の歩みで滑らせない。
+    // 矢に伏せる間と打たれたよろめきも同じ。
     // 狙いは保ち、立ち直ってから追撃を再開する。
-    if (weak || o.pinT > now || o.stagger > 0 || o.swing && !o.swing.done) continue;
+    if (weak || o.bind || o.contactFrozen || o.contactStopT > 0 || o.pinT > now || o.stagger > 0 || o.swing && !o.swing.done) continue;
     // 深みにいる者を追加の歩みで岸へ引き上げず、川の押し流しに任せる。
     if (W.inWaterAt(o.pos.x, o.pos.z) && W.waterDepthAt(o.pos.x, o.pos.z) > 0.5) continue;
     const dx = P.pos.x - o.pos.x, dz = P.pos.z - o.pos.z, d = Math.hypot(dx, dz);
