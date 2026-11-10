@@ -294,7 +294,7 @@ const k09_imafuku = {
       wallLine(rt, [[x, -BANK - 1], [x, -WADE - 2]], { team: 1, hp: 70, name: '外の矢来', segLen: 5 });
       wallLine(rt, [[x, WADE + 2], [x, BANK + 1]], { team: 1, hp: 70, name: '外の矢来', segLen: 5 });
       const st = rt.army.addStruct({ seg: [x, 3, x, -3], nx: 1, nz: 0, hp: 90, maxHp: 90, team: 1, name: '外の矢来の木戸' });
-      st.mesh = yaraiGate(W, x, -3, 3, 2.5); rt.scene.add(st.mesh); st.wing = wing;
+      st.mesh = yaraiGate(W, x, -3, 3, 2.5); rt.scene.add(st.mesh); st.wing = wing; st._shattered = true;
       F.outer.push(st);
     }
     const fortWing = [...wallLine(rt, [[FORT.x + 12, -3.4], [FORT.x + 12, -BANK - 1]], { team: 1, hp: 1e9, name: '砦の矢来', segLen: 5 }), ...wallLine(rt, [[FORT.x + 12, BANK + 1], [FORT.x + 12, 3.4]], { team: 1, hp: 1e9, name: '砦の矢来', segLen: 5 })];
@@ -302,7 +302,7 @@ const k09_imafuku = {
     wallLine(rt, [[FORT.x + 12, WADE + 2], [FORT.x + 12, BANK + 1]], { team: 1, hp: 1e9, name: '砦の矢来', segLen: 5 });
     F.gate = rt.army.addStruct({ seg: [FORT.x + 12, 3.4, FORT.x + 12, -3.4], nx: 1, nz: 0, hp: 200, maxHp: 200, team: 1, name: '砦の木戸' });
     F.gateMesh = yaraiGate(W, FORT.x + 12, -3.4, 3.4, 3.1); rt.scene.add(F.gateMesh);
-    F.gate.mesh = F.gateMesh; F.gate.wing = fortWing;
+    F.gate.mesh = F.gateMesh; F.gate.wing = fortWing; F.gate._shattered = true;
     // 櫓は木戸の両脇の二つだけ（奥の櫓は堤の真ん中だと裏の柵の口の正面をふさいで木村・後藤の隊が砦の裏で詰まり（九2）、
     //   堤の縁へ寄せると砦の中で戦う本人のカメラを壁でふさいだ（十一2））
     const TOWERS = [[FORT.x + 8, 9], [FORT.x + 8, -9]];
@@ -464,6 +464,12 @@ const k09_imafuku = {
           { name: '後藤又兵衛の殿', from: { x: FORT.x - 68, z: 2 }, list: [uS(2), uA(14), uG(4)], width: 6, mass: 120, dmg: 0.25, noRout: 9999 }]),
         reward: '増援とともに豊臣方を退けた' }), { idleAdvance: false }),
     ].map(requiredStage), (rt2) => this.win(rt2));
+  },
+
+  // 刀・槍や火矢で壊した時も、縄で倒す時と同じく袖まで開く。
+  // 共通処理は木戸だけを倒すため、そのままでは袖が残り、味方の列が詰まる。
+  onStructDestroyed(rt, st) {
+    if (st.wing) this.pull(rt, st);
   },
 
   // 木戸を縄で引き倒す。両脇の袖の柵も一緒に倒れ、堤の上の幅いっぱいが開く（六尺の口だけだと、組が柵の前で詰まって立ち尽くした。一5）

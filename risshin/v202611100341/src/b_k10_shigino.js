@@ -526,15 +526,18 @@ html:root body #hud#hud#hud.shigino-goals #h-prog#h-prog.goal-mode .pg-goals h3 
     if (!live(F.riverFoe)) { F.riverSecured = true; return true; }
     if (rt.t < (F.riverNext || 0)) return true;
     const targets = F.riverFoe.units.filter((u) => u.alive && !u.gone);
-    let shots = 0;
+    let shots = 0, attempted = false;
     for (const g of [F.mzN, F.mzS]) for (const u of g.units) {
       if (!u.alive || u.gone || u.fleeing || u.woundOut || u.rearWound || u.sidearm || u.type !== 'gun' || dist(u.pos, RIVER) > 18 || !targets.length) continue;
       const target = targets[shots % targets.length];
       u.heading = Math.atan2(target.pos.x - u.pos.x, target.pos.z - u.pos.z); u.reload = 0;
+      attempted = true;
       if (this.commandShot(rt, u, target)) shots++;
     }
+    // 不発でも装填し直す。成功時だけ待たせると、連打で毎コマ弾を失う。
+    if (attempted) F.riverNext = rt.t + 7;
     if (shots) {
-      F.riverShots++; F.riverNext = rt.t + 7;
+      F.riverShots++;
       sfx('playerGun', 1);
       // 三度の実射の後、寄せ手が崩れて佐竹が押し返す。
       if (F.riverShots === 3) {

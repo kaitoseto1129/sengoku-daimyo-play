@@ -93,7 +93,7 @@ function steps(rt) {
         { t: 46, say: ['足軽', '東の塀にも取り付いた！　横から来るぞ！'], foes: () => [{ name: '東から回った島津勢', from: { x: 78, z: -14 }, off: { x: 38, z: -14 }, list: [uS(2), uA(10)] }] },
       ],
       noRefill: true, reward: '塀の上で島津の夜討ちを押し返した' })),
-    rest({ dur: 6, heal: 0.25, say: [['足軽', '……息が続かぬ'], ['宮部継潤', '島津は引かぬ。日が落ちた、まだ来るぞ']],
+    rest({ dur: 6, heal: 0.25, say: [['足軽', '……息が続かぬ'], ['宮部継潤', '島津は引かぬ。夜は長い、まだ来るぞ']],
       fn: (r) => { try { r.world.setTime('night'); if (r.world.fade) r.world.fade.dur = 40; } catch (e) { /* 空の切り替えが無い時はそのまま */ } } }),
     // 3. 破られた塀に駆け、穴を塞ぐ
     //   破れ口の場所で守る形（坂の下まで敵を追って歩かせない。11/3 測り：fight の形だと bot が坂の下 z=67 まで追って討たれた）
@@ -132,6 +132,8 @@ function defendHold(o) {
     tick(rt, C, m, ctx, el, dt);
     const p = rt.player.u.pos;
     C.inT = inT + (Math.hypot(p.x - C.at.x, p.z - C.at.z) < (o.r || 14) ? dt : 0);
+    // 寄せが尽きても持ち場で守った刻が足りなければ、敵零人の表示で止めない。
+    if (el >= dur && C.inT < dur * 0.45) rt.objProgress('dp', `${o.label}で守る あと${Math.ceil(dur * 0.45 - C.inT)}秒`);
     return el >= dur && !C.waves.length && C.inT >= dur * 0.45;
   };
   s.end = (rt, C, ...args) => {
