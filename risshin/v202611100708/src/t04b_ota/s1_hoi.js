@@ -10,7 +10,7 @@ export default {
     // 城を遠巻きに囲む備（秀長・中村・小西・浅野・仙石・蜂須賀）は depth.js の陣立てが置く。ここは北の本隊の後ろだけ
     F.hosts = [host(rt, { x: 0, z: -150, w: 70, d: 22, count: 600, facing: 0, seed: 4101 })];
     F.workers = porters(rt, '築堤の人夫', P.pile, 10);
-    F.carry = 0; F.workT = 0; F.dug = 0;
+    F.carry = 0; F.workT = 0; F.dug = 0; F.workVisited = false;
     move(F.friends, { x: P.work.x - 4, z: P.work.z - 8 }, true);
     rt.say('羽柴秀長', '城へ斬り込むな。堤で囲み、紀の川の水で城を浮かせるのじゃ', 4);
     reports(rt, [
@@ -25,14 +25,15 @@ export default {
   },
   tick(rt, dt, t) {
     const F = rt.flags;
+    if (near(rt, P.work, 26)) F.workVisited = true;
     workTick(rt, dt);
-    return t > 165 && !!F.scout && (broken(F.scout, 0.35) || t > 200) && near(rt, P.work, 26);
+    return t > 165 && !!F.scout && (broken(F.scout, 0.35) || t > 200) && F.workVisited;
   },
   leave(rt, F) {
     if (F.scout) { F.scout.noRout = false; F.scout.morale = 0; move(F.scout, { x: 0, z: -10 }); F.scout.order = 'retreat'; }
   },
   foes: (rt) => [rt.flags.scout],
-  max: 240,
+  max: Infinity, // 未到着のまま次の持ち場に替えない。残敵の刻限は上で保つ。
 };
 // 人夫が土俵の山と堤の間を行き来し、堤が高くなる（人夫が残っている分だけ進む）
 export function workTick(rt, dt) {

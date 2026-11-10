@@ -87,7 +87,12 @@ export function oshiStep(NG) {
           g.noRout = false; g.morale = 0; g.order = 'retreat'; g.dest = GATE;
         }
       }
-      return C.ph >= 5 && el > 200 && (heads(C.groups) <= 5 || C.withdrawn === true) && onRoad;
+      // 共通の戦闘段を使わない山道でも、来た人数と退けた人数を渡す。
+      // まだ来ていない新手は数に含めず、目標の達成は山道への到着で判定する。
+      C.nTot = C.groups.reduce((n, g) => n + (g.initial || g.units.length), 0);
+      const remaining = heads(C.groups);
+      rt.objProgress('dp', C.nTot ? `敵 ${Math.max(0, C.nTot - remaining)}／${C.nTot}人` : '');
+      return C.ph >= 5 && el > 200 && (remaining <= 5 || C.withdrawn === true) && onRoad;
     },
     end(rt, C) {
       for (const [g, orders] of C.orders) { Object.assign(g, orders); g.dest = null; }

@@ -17,12 +17,13 @@ export function steps(K) {
       waves: [
         { t: 0, foes: () => [{ name: '返してくる朝倉の後備え', from: K.at(4, -130), list: [K.S(2), K.A(10)], formation: 'yari', mass: 0 }] },
         { t: 22, say: ['組頭', '荷駄の陰から槍が来るぞ！'], foes: () => [{ name: '荷駄を守る朝倉の兵', from: K.at(-6, -134), list: [K.S(1), K.A(8)], mass: 0 }] },
-        { t: 50, say: ['使番', '朝倉道景、討ち取ったり！　朝倉の名のある者が次々倒れておりまする！'], foes: () => [{ name: '朝倉道景の供', from: K.at(10, -136), list: [K.S(3), K.A(6)], formation: 'yari', mass: 0 }] },
+        { t: 50, say: ['組頭', '朝倉道景の供が返してくるぞ！'], foes: () => [{ name: '朝倉道景の供', from: K.at(10, -136), list: [K.S(3), K.A(6)], formation: 'yari', mass: 0 }] },
       ],
       reward: '狭い坂道で朝倉の列を押し破った' }),
     K.rest({ dur: 6, heal: 0, fn: (rt) => {
       sfx('kane', 0.3);
-      rt._bannerT = rt.t; rt.hud.banner('朝倉の重臣、次々討死', '山崎吉家・斎藤龍興・朝倉道景らが坂に倒れる');
+      // この段には道景本人を置いていない。実際に討たれた坂の将だけを知らせる。
+      rt._bannerT = rt.t; rt.hud.banner('朝倉の重臣、次々討死', '山崎吉家・斎藤龍興が坂に倒れる');
       rt.flags.fallTold = true;
     }, say: [['柴田勝家', '列は崩れた！　峠口の殿を破れば、義景の背じゃ！']] }),
   ];

@@ -505,7 +505,7 @@ const k05_ueda = {
       for (const g of [F.ambL, F.ambR, F.sortie]) this.away(rt, g, { x: 46, z: -136 });
       sfx('taiko', 1);
       if (F.hideU) F.hideU._crouch = false;   // 本陣の秀忠が床几から立つ
-      rt.say('秀忠の使番', '関ヶ原の方より急使！　「先を急がれよ」との事！', 3.4);
+      rt.say('秀忠の使番', '美濃の方より急使！　「先を急がれよ」との事！', 3.4);
       rt.after(3.8, () => rt.say('徳川秀忠', '外へ出て来るなら、もう城を落とす。大手門へかかれ！', 3.4));
       for (const [g, p] of [[F.honda, { x: FRONT.x + 8, z: FRONT.z - 6 }], [F.okubo, { x: FRONT.x + 8, z: FRONT.z + 6 }], [F.saka, { x: FRONT.x + 12, z: FRONT.z + 12 }], [F.makino, { x: TOWN.x + 6, z: TOWN.z - 14 }]]) go(g, p, g === F.makino ? 'hold' : 'attack');
       F.reAt = 0;
@@ -671,7 +671,7 @@ const k05_ueda = {
     } else if (F.step === 3) {
       // 囲みを抜けて田へ戻る（伏兵の全滅を待たない）
       if ((dist(P.pos, OUT) < 12 && el > 25) || over) {
-        rt.say('本多忠政', '……三十ほど討たれた。また時を失うたわ', 3);
+        rt.say('本多忠政', '……追うては戻るばかり。また時を失うたわ', 3);
         this.toStep(rt, 4);
       }
     } else if (F.step === 4) {
@@ -766,7 +766,8 @@ const k05_ueda = {
     if (!F.gate) return;
     if ((F.gateT = (F.gateT || 0) - dt) <= 0) {
       F.gateT = 0.3;
-      let need = F.step >= 2 && F.step <= 6;
+      // 段の間ずっと開けず、真田の出入りの時だけ開ける。
+      let need = false;
       for (const g of F.foes) {
         if (g.order === 'hold' && !g.dest) continue;
         if (g.order !== 'retreat' && g.order !== 'move' && rt.t - (g._bornT ?? rt.t) > 12) continue;

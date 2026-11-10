@@ -1,7 +1,7 @@
 // 太田城 ④ 9〜12分「堤が崩れる」：東の堤の一か所が水に押されて崩れ、水が溢れ出す。人夫は逃げ惑い、
 // 雑賀衆がここぞと崩れた所へ打って出る。崩れた所を守り、人夫が土俵で塞ぐまで持ちこたえる。
 import { P, SAIKA, porters } from './scene.js';
-import { troops, reports, move, living, broken } from '../toyo15/kit.js';
+import { troops, reports, move, living, broken, near } from '../toyo15/kit.js';
 import { sfx } from '../audio.js';
 
 export default {
@@ -16,7 +16,7 @@ export default {
     F.fixers = porters(rt, '堤を塞ぐ人夫', { x: 40, z: -70 }, 10);
     move(F.fixers, { x: P.breach.x - 3, z: P.breach.z - 6 });
     move(F.friends, { x: P.breach.x - 6, z: P.breach.z - 4 }, true);
-    F.fix = 0; F.fixed = 0; F.fixerReliefs = 0; F.fixerReliefAt = 0;
+    F.fix = 0; F.fixed = 0; F.breachGuard = 0; F.fixerReliefs = 0; F.fixerReliefAt = 0;
     rt.say('人夫頭', '堤が崩れた！　水が出ていく！　土俵を持って東へ走れ！', 3.5);
     rt.after(4, () => rt.say('羽柴秀長', '崩れた所を守れ！　雑賀は必ずそこを突いてくる！', 3.5));
     const wave = (name, from, list) => () => { const g = troops(rt, false, name, from, list, SAIKA, { free: true, aggro: 18 }); move(g, P.breach, true); F.foesB.push(g); };
@@ -36,9 +36,11 @@ export default {
       move(F.fixers, { x: P.breach.x - 3, z: P.breach.z - 6 });
       F.fixerReliefs++; F.fixerReliefAt = t + 30;
     }
+    // 人夫の損耗時にも最低の速さは保ち、主人公が崩れ目を守った事を別に確かめる。
+    if (near(rt, P.breach, 26)) F.breachGuard += dt;
     F.fix += dt * (n >= 4 ? 1 : 0.5);
     const quiet = F.foesB.length >= 3 && F.foesB.every((g) => broken(g, 0.35));
-    if (!F.fixed && t > 150 && F.fix >= 120 && (quiet || t > 190)) {
+    if (!F.fixed && t > 150 && F.fix >= 120 && F.breachGuard >= 12 && (quiet || t > 190)) {
       F.fixed = t; F.waterTo = 0.45;
       rt.say('人夫頭', '塞いだぞ！　また水が溜まる！', 3);
     }

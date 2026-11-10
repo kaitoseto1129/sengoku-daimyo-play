@@ -647,6 +647,23 @@ function retreatColumn(g, to) {
 // 一揆の門徒：具足は軽く、鉢巻に、南無阿弥陀仏の旗
 const IKKO = { armor: 0x3a342c, lace: 0x5a5040, cloth: 0x4a4236, skin: 0xc49b78, hat: 'jingasa', flag: 'namu' };
 const NODA_UNIT_LIMIT = 250;
+// 追手が壁の向こうにいるだけでは、本人や殿と遭遇した事にしない。
+function chaseNear(rt, u, v) {
+  return canJoin(v) && Math.abs(u.pos.y - v.pos.y) < 3 &&
+    Math.hypot(u.pos.x - v.pos.x, u.pos.z - v.pos.z) < 12 &&
+    !rt.army.wallBetween(v.pos, -1, u.pos) && !rt.army.terrainBlocks(v.pos, u.pos);
+}
+function chaseEncountered(rt) {
+  const F = rt.flags, g = F.chase;
+  if (!g?.units.length) return false;
+  if (gone(g)) return true;
+  for (const u of g.units) {
+    if (!canJoin(u)) continue;
+    if (chaseNear(rt, u, rt.player.u)) return true;
+    for (const v of F.nodaRear?.units || NO_GROUPS) if (chaseNear(rt, u, v)) return true;
+  }
+  return false;
+}
 // 11/6（kaito 九2）：新手を出す前に、砦の奥（堤から見えない北の岸の内）の名の無い三好の兵を退かせて枠を空ける。
 function makeRoom(rt, need) {
   let room = NODA_UNIT_LIMIT;
@@ -3961,9 +3978,10 @@ const nodafukushima = {
     rt.zone('retreat', ODA_JOIN.x, ODA_JOIN.z, 10);
     // 11/6（kaito 九2・十二4）：囲みを解いて退く列へ、堤を越えて門徒が追い討つ（公記：江口でも一揆が舟を隠して退路を塞いだ）。
     //   追手は本人と殿の後ろ（浅瀬の側）から堤を越えて来る。四十秒は崩れずに追い、退く列と斬り合う。
-    rt.after(0.5, () => {
-      if (F.ending || !F.retreating) return;
-      makeRoom(rt, 14);
+    const sendChase = () => {
+      if (F.ending || !F.retreating || F.nodaEguchi || rt.over || F.chase) return;
+      // 枠が足りない時に空の組を作らず、追手を出せるまで待つ。
+      if (makeRoom(rt, 14) < 14) { rt.after(2, sendChase); return; }
       const g = enemyGroup(rt, { faction: 'honganji', name: '追い討つ門徒', anchor: { x: 34, z: 2 }, facing: -Math.PI * 0.6, aggro: 18, seekRange: 70, width: 8, morale: 100, noRout: true, fleeDir: { x: 0, z: -1 }, formation: 'yari' },
         dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 11 }, { type: 'gun', n: 2 }], IKKO));
       g.ikko = true; g.order = 'attack'; g.speed = 2.6; g.seekRange = 18;
@@ -3973,7 +3991,8 @@ const nodafukushima = {
       rt.say('一揆の門徒', '退くぞ、追え！　仏敵を一人も帰すな！', 3.5);
       rt.after(2.5, () => rt.say('前田利家', '追手じゃ！　振り返って一太刀浴びせ、また退け！', 3.5));
       rt.after(40, () => { if (!gone(g)) g.noRout = false; });
-    });
+    };
+    rt.after(0.5, sendChase);
   },
   winEnd(rt) {
     const F = rt.flags;
@@ -4092,9 +4111,9 @@ const nodafukushima = {
       const safe = !rt.army.nearestEnemy(rt.player.u, 4, u => canJoin(u) && !u.isStruct && !u.farSim && u.type !== 'dummy' &&
         Math.abs(u.pos.y - pp.y) < 3 && !rt.army.wallBetween(pp, -1, u.pos) && !rt.army.terrainBlocks(pp, u.pos));
       // 11/6 fix61（九2・十二4）：本人が詰め陣のそばにいても、目標に書いた追手が来て斬り合う前に終えない（直す前は退く段が二秒で済んだ）。
-      //   追手が本人か退く列の十二m 内へ来るか、崩れるまで待つ。追手が出せなかった時は三十秒で終える
-      if (!F.chaseMet && (rt.t - F.retreatT > 30 || F.chase && (gone(F.chase) || F.chase.units.some(u => u.alive &&
-          Math.hypot(u.pos.x - pp.x, u.pos.z - pp.z) < 12)))) F.chaseMet = true;
+      // 追手が本人か殿の十二m内へ来るか、実際に出た追手が崩れるまで待つ。
+      // 壁越しの接近や、三十秒たっただけでは遭遇済みにしない。
+      if (!F.chaseMet && chaseEncountered(rt)) F.chaseMet = true;
       let joined = campJoinAvailable(rt);
       const rear = F.namedGuards[1];
       const c = retreatPoint(rt);

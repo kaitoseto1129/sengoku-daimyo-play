@@ -18,8 +18,11 @@ export function start(rt, def, C, then) {
   rt.marker('s15dock', v.dock, '岸の舟着き');
   const live = () => !rt.over && !F.ending && v.ph === 'hakobi';
   const say = (t, who, s, d = 3.4) => rt.after(t, () => { if (live()) rt.say(who, s, d); });
-  say(1, '木下藤吉郎', '材木は上の川で組ませ、舟で流して来させた。岸の舟着きで受け取り、柵まで担ぐのじゃ', 4);
-  say(6, '蜂須賀正勝', '川並衆の舟が着くぞ。荷を下ろす間、岸を見張ってくれ', 3.4);
+  // 11/10 紙（sunomata_spec_1109）の一番目：何もない河原で「ここに城を築く。」、見回しても何もない
+  say(.5, '木下藤吉郎', 'ここに城を築く。', 2.4);
+  say(3, '足軽', '……ここに？', 1.8);
+  say(5.2, '木下藤吉郎', '材木は上の川で組ませ、舟で流して来させた。岸の舟着きで受け取り、柵まで担ぐのじゃ', 4);
+  say(9.6, '蜂須賀正勝', '川並衆の舟が着くぞ。荷を下ろす間、岸を見張ってくれ', 3.4);
   // 人足の半分が舟着きへ向かう（本物の人足が歩く）
   rt.after(2, () => {
     if (!live() || !F.wk) return;
@@ -28,7 +31,7 @@ export function start(rt, def, C, then) {
     F.wk.path = [[0, C.FORT - 5], ...KISHI_ROAD.slice(0, -1), [v.dock.x * 0.85, v.dock.z * 0.85]];
     F.wk.onArrive = (g) => { g.order = 'hold'; v.wkAtDock = rt.t; };
   });
-  say(14, '人足', '材木は重いぞ……一本ずつ担いでゆくしかない', 3);
+  say(15, '人足', '材木は重いぞ……一本ずつ担いでゆくしかない', 3);
 }
 
 export function dest(rt) {
@@ -70,6 +73,8 @@ function back(rt) {
   });
 }
 
+// 11/10 六十秒の見張り（fushin.js）：人足や物見が引っかかっても、運搬の護衛を済ませて次へ進める
+export function force(rt) { const v = rt.flags.s15; if (v?.raid && !v.raid.routed) { v.raid.noRout = false; v.raid.morale = 0; v.raid.routed = true; v.raid.order = 'flee'; v.raid.fleeSet = true; v.raid.fleeDir = { x: 0, z: -1 }; } done(rt); }
 function done(rt) {
   const F = rt.flags, v = F.s15;
   if (v.hakobiDone) return;

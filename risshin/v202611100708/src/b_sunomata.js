@@ -1,6 +1,7 @@
 import { useTerrain } from './asset_manifest.js';
 import { sunomataFinalGoalsDone } from './sunomata_goals.js';
 import * as SU15 from './sunomata/index.js';
+import * as FS from './sunomata/fushin.js';   // 11/10 築城の進み・詰まらない決まり（docs/sunomata_spec_1109.md）
 import { DEPTH_SUNOMATA } from './sunomata/depth.js';   // 陣立ての表（army_depth.js）   // 11/8 十五分の構成（材木の運搬・夜と火矢・夜明けの退き）
 import { battleJin, buildBattleJin } from './b_jinkei_g1.js';
 import * as THREE from 'three';
@@ -4499,6 +4500,7 @@ const sunomata = {
     sunoObj(rt, 'gate', '北の口で、人足の普請を守れ', 'side');
     rt.marker('gateGuard', { x: 6, z: -FORT + 1.4 }, () => !rt.over && !F.ending && F.sunoTask === 'gate' ? '守る柵' : '', SUNO_GUARD_GUIDE);
     SU15.install(rt, this, { dock: F.C.kuruwa.kishi.centroid, FORT, enemyGroup, walk: sunomataWalk });
+    F.fsFlagMaker = (x, z) => sunoFortFlag(W, x, z);
     rt.after(4, () => SU15.afterIntro(rt, () => {   // 普請の段取りの前に、材木の運搬の護衛（sunomata/hakobi.js）
       if (rt.over || F.ending || F.won) return;
       const mark = (id, seg, label) => rt.marker(id, { x: (seg.seg[0] + seg.seg[2]) / 2, z: (seg.seg[1] + seg.seg[3]) / 2 }, label);
@@ -4958,6 +4960,7 @@ const sunomata = {
   update(rt, dt) {
     const F = rt.flags;
     SU15.tick(rt, dt);
+    FS.tick(rt, dt, this, { FORT, hakobiForce: SU15.hakobiForce });
     sunoArrowWarning(rt);
     sunoFooting(rt);
     SUNO_VIEW.value.copy(rt.player.u.pos); SUNO_VIEW.value.y += 1.4;
@@ -4998,7 +5001,7 @@ const sunomata = {
       }
       return;
     }
-    if (!F.hut.alive && rt.canFailMission()) { this.onStructDestroyed(rt, F.hut); return; }
+    if (!F.hut.alive && !F.hutLost && rt.canFailMission()) { this.onStructDestroyed(rt, F.hut); return; }
     // 夜明けは時刻の移り変わり。目標にない期限だけで任務を失敗にしない。
     if (F.wave === 3 && rt.t >= F.finishAt && !F.lastCall) {
       F.lastCall = true; F.duskAt = F.finishAt;
@@ -5442,10 +5445,15 @@ const sunomata = {
   holdWin(rt) {
     const F = rt.flags;
     // 敵将の討死や夜明けでも、材木の運搬・柵の修理・点検を飛ばして普請完了にしない。
-    if (F.won || F.ending || rt.over || !rt.player.u.alive || rt.player.u.hp <= 0 || rt.t < F.finishAt || !F.hut.alive || !fortSafe(rt) || !sunomataFinalGoalsDone(F)) return;
-    if (!F.woodDelivered || F.buildBusy || !F.finalChecked || F.segs.some((s) => !s.alive)) return;
-    // 大将の討死から直接呼ばれても、護衛の目標と最後の安全確認を飛ばさない。
-    if (!F.s15?.hakobiDone || F.safeSince == null || rt.t - F.safeSince < 20) return;
+    if (F.won || F.ending || rt.over || !rt.player.u.alive || rt.player.u.hp <= 0 || rt.t < F.finishAt) return;
+    // 11/10 詰まらない決まり：六十秒なにも進まず夜明けを過ぎた時（F.fsForce）は、残りの寄せを退かせて仕上げる。
+    //   特定の兵・大将の討死・物理の動きの完了の知らせだけに頼らない（docs/sunomata_spec_1109.md）
+    if (!F.fsForce) {
+      if (!FS.built(rt) || !fortSafe(rt) || !sunomataFinalGoalsDone(F)) return;
+      if (!F.woodDelivered || F.buildBusy || !F.finalChecked || F.segs.some((s) => !s.alive)) return;
+      // 大将の討死から直接呼ばれても、護衛の目標と最後の安全確認を飛ばさない。
+      if (!F.s15?.hakobiDone || F.safeSince == null || rt.t - F.safeSince < 20) return;
+    }
     {
       const warning = document.getElementById('rain-mark');
       if (warning) warning.hidden = true;
@@ -5481,6 +5489,7 @@ const sunomata = {
       // 余韻は終わりの段に入ってから積む（finish の退き口の支度が、それより前の時計を消す）。
       // 勝鬨が上がり、川向こうの旗が退き、次の戦（稲葉山）へ思いを向けて閉じる。
       rt.after(1.5, () => rt.army.play('eiei', { x: 0, z: 0 }, 1.1));
+      rt.after(2.5, () => rt.say('前野長康', '……できた。', 2.5));   // 11/10 夜明け、振り返ると昨日の河原に城
       rt.after(4, () => rt.say('人足', F.woodDelivered ? 'あんたの材木が役に立った。杭も結び目も、これで持つぞ' : '槍で守ってくれたおかげじゃ。わしらの手で柵が結べた', 3));
       rt.after(7.5, () => rt.say('', '信長公記には、信長が墨俣の守りを固めたとある。一夜城は後に伝わった物語。', 4));
       rt.after(12, () => rt.say('木下藤吉郎', '夜が明けた。墨俣は美濃攻めの足場じゃ。次は稲葉山ぞ', 3));
@@ -5564,6 +5573,9 @@ const sunomata = {
         for (let k = f.rampStart; k < f.rampEnd; k++) FL.ramps[k].ya = FL.ramps[k].yb = -10000;
       }
       if (!rt.canFailMission()) return;
+      // 11/10：小屋を失っても任務は終えない（完全に詰むのは本人が倒れた時だけ）。普請は遅れるが続く。
+      if (!F.hutLost) { F.hutLost = true; rt.say('木下藤吉郎', '小屋が焼けた！　じゃが普請は止めぬ。柵を守れ！', 3.5); }
+      if (F.hutLost) return;
       F.ending = true;
       for (const id of ['gate', 'nida', 'porters', 'scout', 'post', 'flag', 'perfect']) sunoFail(rt, id);
       for (const id of ['post0', 'post3', 'gate', 'nida', 'porterGuide', 'heal', 'hut', 'scout', 'ke', 'flagdrop', 'w', 'w2', 'w3', 'w4', 'boats', 'flag', 'buildGate', 'buildSide']) rt.unmark(id);

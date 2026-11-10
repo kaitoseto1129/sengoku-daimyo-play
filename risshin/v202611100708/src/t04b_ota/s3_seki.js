@@ -8,13 +8,13 @@ export default {
   goal: '出水の堰を開き、小舟で寄せる雑賀衆から堰を守れ',
   pin: { ...P.weir, label: '出水の堰' },
   enter(rt, F) {
-    F.boats = [];
+    F.boats = []; F.opened = null; F.weirLift = 0;
     move(F.friends, { x: P.weir.x - 6, z: P.weir.z - 6 }, true);
     rt.say('羽柴秀長', '堤は繋がった。堰へ行け。水を入れる', 3.5);
   },
   tick(rt, dt, t) {
     const F = rt.flags, W = rt.world;
-    if (!F.opened && (near(rt, P.weir, 9) || t > 60)) {
+    if (F.opened === null && near(rt, P.weir, 9)) {
       F.opened = t; F.waterTo = 0.25; F.weirLift = 0;
       F.weirSolid.yBot = W.heightAt(P.weir.x, P.weir.z) + 3;
       sfx('wood', 0.8);
@@ -34,10 +34,10 @@ export default {
         }],
       ]);
     }
-    if (F.opened && F.weirLift < 2.4) { F.weirLift = Math.min(2.4, F.weirLift + dt * 0.8); F.weir.position.y = W.heightAt(P.weir.x, P.weir.z) + 1 + F.weirLift; }
-    return !!F.opened && t - F.opened > 130 && F.boats.length >= 2 && (F.boats.every((g) => broken(g, 0.35)) || t - F.opened > 170);
+    if (F.opened !== null && F.weirLift < 2.4) { F.weirLift = Math.min(2.4, F.weirLift + dt * 0.8); F.weir.position.y = W.heightAt(P.weir.x, P.weir.z) + 1 + F.weirLift; }
+    return F.opened !== null && t - F.opened > 130 && F.boats.length >= 2 && (F.boats.every((g) => broken(g, 0.35)) || t - F.opened > 170);
   },
   leave(rt, F) { for (const g of F.boats) { g.noRout = false; g.morale = 0; move(g, { x: 0, z: -10 }); g.order = 'retreat'; } },
   foes: (rt) => rt.flags.boats,
-  max: 260,
+  max: Infinity, // 開く前の待ち時間で、小舟の迎撃を飛ばさない。
 };
