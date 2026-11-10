@@ -48,6 +48,7 @@ if (HAS_DEM) {
 // ---- 場所（ゲームの座標） ----
 const START = { x: 152, z: 0 };          // 小早川勢の寄せ口（大手の外の田の中）
 const OTE = { x: 104, z: -8 };           // 大手門の内（侍屋敷の谷戸）
+const SAN_FOOT = { x: 82, z: -42 };     // 侍屋敷を抜けた三の丸の尾根の下（進軍の到着地点）
 const SAN = { x: 4, z: -107 };           // 三の丸（北の尾根の先。石田正澄）
 const NI3 = { x: -8, z: -78 };           // 二の丸の下の段
 const NI1 = { x: -8, z: -34 };           // 二の丸の上の段（本丸の北の下）
@@ -269,7 +270,9 @@ const k07_sawayama = {
     // 固有の指定が null を返すと共通の行き先も消える。敵が見えない間も次の曲輪を指す。
     const i = D.i;
     if (i === 0) return F.gateOpen?.ote ? { ...OTE, label: '大手門の内の侍屋敷' } : { x: 119, z: 0, label: '大手門' };
-    if (i <= 3) return { ...SAN, label: '三の丸' };
+    // 夜の進軍は尾根の下への到着を待つ。三の丸を指すと到着地点を飛ばしてしまう。
+    if (i <= 2) return { ...SAN_FOOT, label: '三の丸の尾根' };
+    if (i === 3) return { ...SAN, label: '三の丸' };
     if (i <= 5) return { ...NI3, label: '二の丸の下の段' };
     if (i === 6) return { ...NI1, label: '二の丸の上の段' };
     return { ...HON_YARD, label: '本丸の天守の前' };
@@ -462,7 +465,7 @@ html body #hud.enemy-action-guide:has(#h-prog[data-battle="k07_sawayama"]) #goal
       // 十七日の日暮れ：攻めは止み、三の丸を受け持つ大坂の援兵・長谷川守知が兵を連れて城を出て、小早川の先陣に付く（内応）
       DP.rest({ dur: 9, heal: 0.7, fn: (rt2) => this.dusk(rt2),
         say: [['小早川の侍', '日が暮れた。攻めは止みじゃ'], ['小早川秀秋', '三の丸から長谷川守知の手が出てくる。岡野殿の申された通りじゃ。通してやれ', 4.2]] }),
-      DP.move({ to: { x: 82, z: -42 }, obj: '侍屋敷の北の口を抜け、三の丸の尾根の下へ行け', label: '三の丸の尾根', r: 8, max: 90,
+      DP.move({ to: SAN_FOOT, obj: '侍屋敷の北の口を抜け、三の丸の尾根の下へ行け', label: '三の丸の尾根', r: 8, max: 90,
         // 伏兵は北の口へ向かう道の脇（南の屋敷の間で出すと、追う主人公のカメラが屋敷の屋根の中に入った）
         ambush: { d: 30, say: ['小早川の侍', '侍屋敷の陰に伏兵じゃ！'], foes: () => [keep('侍屋敷の伏兵', { x: 96, z: -21 }, [{ type: 'ashigaru', n: 7 }, { type: 'samurai', n: 1 }])] } }),
       // ② 三の丸

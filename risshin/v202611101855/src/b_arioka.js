@@ -37,6 +37,7 @@ import { DEPTH_ARIOKA } from './arioka/depth.js';
 import { demBlend } from './dem.js';
 import { INTERIOR_WALLS } from './shironaka.js';
 import { NAKA } from './naka.js';
+import { cameraWallBlocked } from './battle_sight.js';
 import { horiboriHeight, mizubori, goten } from './castle_parts.js';
 import { reset as flReset, addDeck, addRamp } from './floors.js';
 import { tickTabas, tabaInteractTick, makeTabaAdvance, patchGunCover, tabaGeo } from './taketaba.js';
@@ -1589,6 +1590,12 @@ const arioka = {
   compactCombatGuides: true, compactGuardGuide: true,
   enemyCornerSign: true, // 乱戦の相手は四隅で示し、長い白枠で隣の具足や槍を隠さない。
   enemySignOnly: true, enemyFootRingRadius: .4, // 四隅と足元を残し、刀の印と大きな輪で胴を覆わない。
+  // 町屋に隠れた兵の▼だけを屋根越しに並べない。体の高さで見通しを調べる。
+  enemySignDepthTest: true,
+  enemySignVisible(rt, u) {
+    const eye = rt.camera.position;
+    return !cameraWallBlocked(rt, eye, u.pos, eye.y, u.pos.y + 1.2);
+  },
   enemyFrameAtPosition: true, compactApproachGuide: true, // 現在の相手を示し、接近の大旗を重ねない。
   compactPlayerSign: true, // 足元と向きは残し、白い輪で土橋や兵の足を隠さない。
   keepPlayerFeet: true, footFrameMinDistance: 1.6, // 携帯横でも本人の足を画面内へ収め、輪だけを残さない。壁際の寄った視点は保つ。

@@ -1620,6 +1620,8 @@ function nfCollapse(rt) {
   // 柵の定位置からの斉射を終え、追撃する鉄砲組の射撃を妨げない。
   ST_WALL.stop(rt);
   F.nf.crossWest = false;
+  // 柵の守備中に抑えた自動の乗り直しは、追撃の下知で戻す。
+  rt.player.autoMountAt = rt.t;
   rt.setPhase('pursuit');
   F.pursuit = rt.t;
   try { rt.world.setTime('afternoon'); } catch (e) { /* 光が替えられなくても進む */ }
@@ -1977,7 +1979,7 @@ const shitaragahara = {
   routeGuidePriority: (rt) => !!rt.flags.pursuit && rt.flags.tsuigeki?.stage < 3 && !shChaseCounter(rt),
   movePathDirection: false, // 11/6 fix61（五3）：浅瀬の道筋の矢印・柵の口の矢印は出さない（行き先は真上の▼一つ）
   routeWaymarks: false,
-  routeWaymarkLabel: 'ここを渡る',
+  routeWaymarkLabel: '連吾川を渡る',
   guidePath: () => null,
   placeFrame: () => null,
   dodgeLabel: (rt, direction, rain) => direction || 'いまは さがれ',
@@ -3494,7 +3496,9 @@ const shitaragahara = {
         P.loose = { x, z, heading: P.u.heading, spd: 0, mode: 'wait' };
         P.horse.position.set(x, rt.world.heightAt(x, z), z); P.horse.rotation.set(0, P.u.heading, 0);
         rt.scene.add(P.horse);
-        P.autoMountAt = rt.t + 8;
+        // 柵の奥で馬のそばへ下がっても、八秒後に勝手に乗り直さない。
+        // 自分で乗る操作は保ち、追撃の下知で自動の乗り直しも戻す。
+        P.autoMountAt = Infinity;
       } else if (P.mounted) { rt.army.setMounted(P.u, false); P.mounted = false; P.hspd = 0; }
     }
     rt.say('侍大将', '長篠を救うぞ。武田が寄せるまでに、柵の守りを固めよ', 3.5);
