@@ -73,6 +73,14 @@ html:root body #hud #h-prog .pg-goals li.now {
 #hud #h-prog .pg-goals li.now::before { content:'●'; flex:none; color:#fff3ba; font-size:14px; /* 今の目標は向きを持たない丸印一つ。 */ }
 #hud #h-prog .pg-goals li.now em { font-size:16px; }
 html:root body #hud #h-prog.goals-all-rows .pg-goals li.now { font-size:inherit; }
+/* 田野は五目標を残す。携帯横で現在行だけ大きく継承して札が膨らむのを防ぐ。 */
+@media (max-height:500px) {
+ html:root body #hud #h-prog[data-battle="tano"].goals-all-rows .pg-goals li,
+ html:root body #hud #h-prog[data-battle="tano"].goals-all-rows .pg-goals li.now {
+  font-size:max(15px,calc(15px * var(--text-scale,1))); line-height:1.3; gap:6px; padding:0;
+ }
+ html:root body #hud #h-prog[data-battle="tano"] .pg-goals ul { gap:3px; }
+}
 #hud #h-prog.goals-all-rows .pg-goals li.now i { display:block; }
 #hud #h-prog.goals-all-rows .pg-goals li.now::before { content:none; }
 html:root body #hud #h-prog .pg-goals #armybar {

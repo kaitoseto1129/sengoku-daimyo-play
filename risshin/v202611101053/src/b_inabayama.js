@@ -1218,13 +1218,15 @@ function saitoNobori(W, x, z, h) {
   return f;
 }
 
-function nearGuard(rt, group) {
+function nearGuard(rt, group, visibleOnly = false) {
   if (group.hidden || group.noAI || group.routed) return null;
   const p = rt.player.u.pos;
   let target = null, nearest = Infinity;
   for (const u of group.units) {
     if (!u.alive || u.hp <= 0 || u.dying || u.gone || u.fleeing || u.noTarget || u.woundOut
       || u.evacuatedWound || u.rearWound || u.downed || u.mesh?.visible === false) continue;
+    // 任務の組は保ち、敵印だけは壁の裏・画面外の兵へ出さない。
+    if (visibleOnly && (u.offscreen || !sightScreenUnit(rt, u))) continue;
     const d = Math.hypot(u.pos.x - p.x, u.pos.z - p.z) + Math.abs(u.pos.y - p.y) * 4;
     if (d < nearest) { target = u; nearest = d; }
   }
@@ -5772,7 +5774,7 @@ const inabayama = {
     if (F.townTarget !== target) {
       F.townTarget = target;
       rt.unmark('townGuard');
-      if (target) rt.marker('townGuard', () => nearGuard(rt, target), target.name, { red: true, group: target });
+      if (target) rt.marker('townGuard', () => nearGuard(rt, target, true), target.name, { red: true, group: target });
     }
     this.nextObj(rt, target ? '印の守兵を払え。火付けの足軽を守れ' : '足軽が向かう家の印へ。火付けを守れ');
     rt.objProgress('main', `家 ${F.lit}／${NEED}・${target ? target.name : '火付けは足軽が家に着いてから'}`);
@@ -6506,7 +6508,7 @@ const inabayama = {
       rt.say('斎藤方の足軽', '裏から来たぞ！　木戸を守れ、通すな！', 3);
       if (inabaAtWoodGate(rt)) rt.objProgress('main', '木戸の声は敵じゃ。仲間と守りを追い払え');
     });
-    rt.marker('kguard', () => nearGuard(rt, F.kguard), '搦手の守り', { red: true, group: F.kguard });
+    rt.marker('kguard', () => nearGuard(rt, F.kguard, true), '搦手の守り', { red: true, group: F.kguard });
     rt.say(officer(rt), nearGate ? F.carry ? '竹束を置け。仲間と木戸を攻めよ' : '仲間と木戸の守りを追い払え' : '先頭が木戸に着いた。道の印をたどれ', 3);
   },
 
@@ -6627,7 +6629,7 @@ const inabayama = {
     if (!target) { F.honTarget = null; rt.unmark('honGuard'); return; }
     if (F.honTarget !== target) {
       F.honTarget = target;
-      rt.marker('honGuard', () => nearGuard(rt, target), target.name, { red: true, group: target });
+      rt.marker('honGuard', () => nearGuard(rt, target, true), target.name, { red: true, group: target });
     }
     this.nextObj(rt, F.carry ? '竹束を据え、仲間と守兵を追い払え'
       : `${target.name}を仲間と追い払え`);
@@ -7234,7 +7236,7 @@ const inabayama = {
           F.townTarget = target;
           rt.unmark('kino');
           // 敵が動いても古い中心へ向かわせず、残る守兵を指す。
-          rt.marker('townGuard', () => nearGuard(rt, target), target.name, { red: true, group: target });
+          rt.marker('townGuard', () => nearGuard(rt, target, true), target.name, { red: true, group: target });
           // 続けて組が崩れても、同じ下知は八秒あける。
           if (rt.t - (F.townGuideSaidAt ?? -Infinity) >= 8) {
             F.townGuideSaidAt = rt.t;
