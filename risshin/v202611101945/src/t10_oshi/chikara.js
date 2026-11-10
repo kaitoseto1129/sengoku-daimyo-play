@@ -95,6 +95,10 @@ export function retreat(rt, C) {
   // 柵の段の外の組（塀の上の鉄砲など）も、退く間は撃たない（bot 125秒：20〜28 歩先の鉄砲で倒れた）
   const me = rt.player.u.team; K.fireWas = [];
   for (const g of rt.army.groups) if (g.team !== me && g.fire !== false) { K.fireWas.push(g); g.fire = false; }
+  // 狙いを外すだけでは、既に振り出した刃や構えた矢玉が退く本人へ当たる。
+  for (const g of rt.army.groups) if (g.team !== me) for (const u of g.units) {
+    u.atk = null; u.swing = null; u.bind = null; u.charging = false;
+  }
   // 「撃つな」でも構えた弓が射続けた（bot：柵の守りの弓に背を射られて倒れた）。退く間は敵の弓・鉄砲の矢玉を切らせ、夜の段で戻す
   K.ammoWas = [];
   for (const g of rt.army.groups) if (g.team !== me) for (const u of g.units) if (u.alive && (u.type === 'bow' || u.type === 'gun')) { K.ammoWas.push([u, u.arrowAmmo, u.gunAmmo]); u.arrowAmmo = 0; u.gunAmmo = 0; }
@@ -182,7 +186,12 @@ export function tick(rt, dt, C) {
   } else if (F.step === 2) {
     // 柵の守りは柵の内から出ない
     // 11/9 三巡：柵の際で囲まれたまま退きが始まると、柵の守りが退く本人を突き続けて倒した（bot 119秒）。退く間は本人を狙わない
-    for (const g of [K.foe, K.foe2]) if (C.live(g)) { g.order = 'hold'; g.aggro = Math.min(g.aggro, 3); for (const u of g.units) if (u.alive && !u.gone && (u.target === P || !C.near(u.pos, K.saku, 9))) u.target = null; }
+    for (const g of [K.foe, K.foe2]) if (C.live(g)) { g.order = 'hold'; g.aggro = Math.min(g.aggro, 3); for (const u of g.units) if (u.alive && !u.gone) {
+      if (u.target === P || !C.near(u.pos, K.saku, 9)) u.target = null;
+      if (u.atk?.target === P) u.atk = null;
+      if (u.swing?.target === P) u.swing = null;
+      if (u.bind?.o === P) u.bind = null;
+    } }
     // 本陣の印まで戻ってから軍議へ。遠くに残ったまま時刻だけで済ませない。
     if (!K.council && P.alive && C.near(P.pos, C.MARU, 16)) council(rt, C);
   }

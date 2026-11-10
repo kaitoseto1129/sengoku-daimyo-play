@@ -447,6 +447,9 @@ function camps(rt) {
 function warp(rt, x, z, heading) {
   const P = rt.player, u = P.u;
   const put = (o, px, pz) => {
+    // 日が替わった後へ、前日の斬り合いや古い行き先を持ち越さない。
+    o.target = null; o.watch = null; o.atk = null; o.swing = null; o.bind = null;
+    o.charging = false; o.moveTo = null; o.aiT = 0;
     o.pos.set(px, rt.world.heightAt(px, pz), pz);
     if (o.vel) o.vel.x = o.vel.y = o.vel.z = 0;
     if (o.push) { o.push.x = 0; o.push.z = 0; }

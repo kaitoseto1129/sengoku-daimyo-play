@@ -721,6 +721,15 @@ function ariHouseWalls(house) {
   return walls;
 }
 
+// 束ねて描く町屋も、主要な町屋と同じく壁と軒で視線を遮る。
+// 描画用の家を増やさず、設営時に数値だけを登録する。
+function ariStreetHouseSight(rt, x, z, rot) {
+  const house = {}, y = rt.world.heightAt(x, z), c = Math.cos(rot), s = Math.sin(rot);
+  rt.flags.ariCameraHouses.push(
+    { house, x, z, y, c, s, half: 3.72, depth: 2.72, bottom: 0, top: 3 },
+    { house, x, z, y, c, s, half: 5, depth: 4, bottom: 2.9, top: 5 });
+}
+
 function burnHouse(rt, h) {
   h.burnt = true;
   const W = rt.world;
@@ -832,6 +841,7 @@ function ariStreetHouses(rt, W) {
     if (!ok || high - low > .5) continue;
     if (SOLIDS.slice(0, start).some((o) => o.x0 < x + hw && o.x1 > x - hw && o.z0 < z + hd && o.z1 > z - hd)) continue;
     hut(W, x, z, w, d, rot, { ita: true, boardRoof: true, weatheredBoards: true, batch, wall: (x + z) % 3 > 1.5 ? 0x6e5a40 : 0x78654c });
+    ariStreetHouseSight(rt, x, z, rot);
   }
   finalizeSimpleBatch(rt, batch);
 }
@@ -2248,6 +2258,7 @@ const arioka = {
         ita: true, boardRoof: true,
         weatheredBoards: true, batch: townBatch, wall: 0x78654c,
       });
+      ariStreetHouseSight(rt, TOWN_X + dx, z, Math.PI / 2);
     }
     finalizeSimpleBatch(rt, townBatch);
     ariStreetHouses(rt, W);

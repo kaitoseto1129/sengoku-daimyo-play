@@ -129,6 +129,13 @@ function requirePresence(s, contactNames = null) {
     // 寄せ手が届く前の待ち時間は含めない。遅れて接敵した直後に
     // 敵が崩れても、それまで立っていた時間だけで守備達成にしない。
     if (s.kind === 'hold' && C.k01Engaged && p.alive && d < (C.botRadius || 14) + 8) C.k01InT = (C.k01InT || 0) + dt;
+    // 関所 2（11/10）：寄せが全部出て全部崩れた後も、本人が持ち場に立ち続けたら守り抜いた事にする。
+    //   二の丸の西の小早川勢が石垣の外（太鼓の丸）で上林の手と斬り合ったまま崩れ、本人に届かず、段が十分以上終わらなかった
+    if (s.kind === 'hold' && !C.k01Engaged && p.alive && d < (C.botRadius || 14) + 8 && C.waves && !C.waves.length &&
+      C.groups.length && C.groups.every((g) => g.routed || !g.count)) {
+      C.k01ClearT = (C.k01ClearT || 0) + dt;
+      if (C.k01ClearT >= 12) { C.k01Engaged = true; C.k01InT = Math.max(C.k01InT || 0, (s.max - 35) * 0.45); }
+    }
     // 到着した記憶だけでは足りない。屋敷を離れた後に味方が番兵を
     // 倒しても、遠くから火を掛けたり、次の持ち場へ進めたりしない。
     // 敵を追い払った後は持ち場へ戻す。無関係な敵を追って塀の上で
@@ -150,6 +157,7 @@ const lv = (cx, cz, up) => (b) => b(cx, cz) + up;
 // 三の丸・二の丸・松の丸は踏み固めた土の平場にする（白い砂利の平場が真夏の日に照って、雪の曲輪に見えていた）
 const PLAN = {
   mon: 'tokugawa', name: '伏見城', type: 'hirayama', year: 1600, gateSlope: 7, lifeNoFlags: true,
+  stoneAllGaps: true, stoneSolid: 'player',   // 関所 2（11/10）：二つ目からの口でも石垣と塀を切り、塀の線に本人だけの当たりを置く（塀を抜けて歩けた・口の上に塀が続いていた。寄せ手まで止めると石垣の外に溜まって段が終わらなかった）
   kuruwa: [
     // 大手の曲輪も石垣（柵と逆茂木の囲いでは豊臣の伏見城の大手に見えず、三の丸の虎口の前に逆茂木が並んで見えた。critic60）
     { id: 'ote', name: '大手の曲輪', level: lv(0, 70, 0.4), wall: 'ishigaki', kind: 'san', poly: rectPoly(-22, 22, 60, 84), gapAt: [[0, 84], [0, 60]], gapW: 6, floor: false },
@@ -265,12 +273,27 @@ function fushimiWay(army, u, want) {
     q.z = -12;
     return q;
   }
+  // 関所 2（11/10）：石垣の上の塀に当たりを置いたので、曲輪の内から外の行き先へは、行き先に近い口を通って出す。
+  //   大手の曲輪の北東の隅から三の丸の東の隅櫓へ真っすぐ向かい、塀の角に二十秒以上突っかかった
+  for (const k of PLAN.kuruwa) {
+    const [x0, z0] = k.poly[0], [x1, z1] = k.poly[2];
+    const inside = (px, pz, m) => px > Math.min(x0, x1) - m && px < Math.max(x0, x1) + m && pz > Math.min(z0, z1) - m && pz < Math.max(z0, z1) + m;
+    if (!inside(x, z, 2.2) || inside(want.x, want.z, 2.2)) continue;
+    let best = null, bd = Infinity;
+    for (const g of k.gapAt || []) { const d = Math.hypot(g[0] - want.x, g[1] - want.z) + Math.hypot(g[0] - x, g[1] - z) * 0.5; if (d < bd) { bd = d; best = g; } }
+    if (!best || Math.hypot(best[0] - x, best[1] - z) < 3) break;
+    const q = u._k01Gate || (u._k01Gate = { x: 0, z: 0, botRadius: 1 });
+    q.x = best[0]; q.z = best[1];
+    return q;
+  }
   // 回り道は三の丸より南（大手の脇）の外だけ。前は二の丸と本丸の間の空堀の脇に立つ者まで大手門の前へ回され、
   //   本丸へ寄せる寄せ手が二の丸の北の石垣に溜まって、本丸の口へ一人も来なかった（11/7 描いて遊んで見つけた）
   // 大手の石垣の幅の内なら、道案内で土橋の中央へ戻す。
   // 土橋の脇（例 x=8,z=53）から南へ戻すと、大手の北の石垣に突き当たる。
   // 城外を回る者も、三の丸の幅（左右28歩）より外へ出てから南下する。
-  if (z < 92 && z > 16 && Math.abs(x) > 22 && !inKuruwa(x, z) && inKuruwa(want.x, want.z)) {
+  // 関所 2（11/10）：曲輪の間の道（三の丸の門の前の土橋など）へ戻る時も同じ。塀に当たりを置いたので、大手の東の塀の外の角で突っかかった
+  const onRoad = Math.abs(want.x) < 9 && want.z > 16 && want.z < 92;
+  if (z < 92 && z > 16 && Math.abs(x) > 22 && !inKuruwa(x, z) && (inKuruwa(want.x, want.z) || onRoad)) {
     const q = u._k01Out || (u._k01Out = { x: 0, z: 0, botRadius: 1.2 });
     if (z >= 90) { q.x = 0; q.z = 97; }
     else if (Math.abs(x) < 31) { q.x = Math.sign(x) * 32; q.z = z; }
