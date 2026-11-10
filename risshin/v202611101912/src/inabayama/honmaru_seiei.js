@@ -1,0 +1,77 @@
+// ======================================================================
+// 稲葉山城 15分の構成（docs/oda15_plan_1108.md 5）　④「本丸周辺・斎藤方精鋭・複数方向から織田軍が登る」（10〜13分）
+// 本丸の段（signal）に入った後に重ねる：
+//   ・東の百曲りと西の二の丸の斜面で、柴田・丹羽の手が別の道から登って来る（軽い作り addClash。本物の兵は増やさない）
+//   ・龍興の近習の精鋭が本丸の奥から打って出る（本物の兵。本丸の守りに数え、退けるまで合図の火は付けられない）
+//   ・本丸の旗が揺らぎ、守兵が主殿の奥へ退く知らせ。龍興の退去は開城後の幕。
+// 呼び方：b_inabayama.js の signal() の終わりで install(rt, ctx)。
+// ======================================================================
+import { enemyGroup } from '../bhelp.js';
+import { clash } from '../b_sekigahara.js';
+import { TIER } from '../device_tier.js';
+
+const gone = (g) => !g || g.count === 0 || g.routed;
+
+// ctx：{ HON, dress, officer }
+export function install(rt, ctx) {
+  const F = rt.flags;
+  if (F.k15Hon) return;
+  const { HON, dress, officer, retreat } = ctx;
+  const H = (F.k15Hon = { t0: rt.t });
+  const n = (k) => Math.round(k * (TIER.weak ? 0.6 : 1));
+
+  // 別の道から登る織田勢（東の百曲り・西の二の丸）。本人の近くは本物の兵に任せ、軽い兵は遠くだけ描く
+  rt.after(10, () => {
+    if (rt.over || F.ending) return;
+    try {
+      H.C = [
+        clash(rt, { x: HON.x + 34, z: HON.z + 18, facing: -Math.PI / 2, w: 22, gap0: 8, seed: 156801, noRout: true, noWake: true, nearHide: 14, killRate: 0.02,
+          A: { flag: 'oda', armor: 0x302d29, count: n(110), team: 0, faction: 'oda', flagRate: 0.4 },
+          B: { flag: 'saito', armor: 0x38352f, count: n(90), team: 1, faction: 'saito', flagRate: 0.4 } }),
+        clash(rt, { x: HON.x - 46, z: HON.z + 20, facing: Math.PI / 2, w: 20, gap0: 8, seed: 156802, noRout: true, noWake: true, nearHide: 14, killRate: 0.02,
+          A: { flag: 'oda', armor: 0x302d29, count: n(100), team: 0, faction: 'oda', flagRate: 0.4 },
+          B: { flag: 'saito', armor: 0x38352f, count: n(80), team: 1, faction: 'saito', flagRate: 0.4 } }),
+      ].filter(Boolean);
+      for (const C of H.C) C.go?.();
+    } catch (e) { H.C = []; }
+    rt.banner('三方から登る', '東の尾根道と二の丸からも織田の旗');
+    rt.say('使番', '織田の後続が東の尾根道を、丹羽殿の手が二の丸を登っております！', 3.6);
+  });
+
+  // 龍興の近習の精鋭：本丸の奥から打って出る。退けるまで合図は上げられない（本丸の守りに数える）
+  rt.after(32, () => {
+    if (rt.over || F.ending || F.step !== 4) return;
+    const at = { x: HON.x + 6, z: HON.z - 6 };
+    const g = enemyGroup(rt, { fixed: true, faction: 'saito', name: '龍興の近習衆', anchor: at, facing: Math.PI / 2, order: 'attack', aggro: 16, seekRange: 34, width: 4, morale: 100, formation: 'yari', fleeDir: { x: 0, z: -1 } },
+      dress([{ type: 'samurai', n: 4, o: { hat: 'kabuto_m' } }, { type: 'ashigaru', n: 4 }], { flag: 'saito' }));
+    g.noRout = true;
+    rt.after(40, () => { if (!gone(g)) g.noRout = false; });
+    H.elite = g;
+    F.hata.push(g); F.honGuards.unshift(g);
+    rt.banner('斎藤の精鋭', '龍興の近習が本丸から打って出る');
+    rt.say('斎藤の侍', '織田の雑兵ども、ここから先は通さぬ！', 3.2);
+    rt.after(3.6, () => { if (!rt.over && !F.ending) rt.say(officer(rt), '近習衆じゃ、手強いぞ。囲んで突け！', 3); });
+    // 本丸共通の案内が生きた守兵を指す。隊の中心へ別の印を重ねない。
+  });
+
+  // 本丸の守りが崩れる。城主の退去と開城は、合図後の幕まで先取りしない。
+  const fall = () => {
+    if (H.fell || rt.over || F.ending) return;
+    H.fell = true;
+    // 崩れた知らせと同時に残る近習へ退く下知を出す。
+    // 少数になっても noRout のまま戦い続け、火付けへの下知と食い違っていた。
+    if (!gone(H.elite)) retreat(H.elite);
+    // 龍興の舟による退去は、合図後の八月十五日の開城で知らせる。
+    rt.banner('本丸の守りが揺らぐ', '主殿の奥へ退く斎藤勢');
+    rt.say('使番', '本丸の守りが主殿の奥へ退いてゆきます！', 3.4);
+    rt.after(3.8, () => { if (!rt.over && !F.ending) rt.say(officer(rt), '守りが崩れた。城主は追うな。合図の火を上げよ！', 3.6); });
+    for (const C of H.C || []) C.push?.('A', 0.7);
+    for (const g of F.hata || []) if (!gone(g) && g !== H.elite) g.morale = Math.min(g.morale, 45);
+  };
+  H.tick = () => {
+    if (H.fell || !H.elite) return;
+    if (gone(H.elite) || H.elite.count <= 3 || rt.t - H.t0 > 120) fall();
+  };
+}
+
+export function tick(rt) { rt.flags.k15Hon?.tick?.(); }
