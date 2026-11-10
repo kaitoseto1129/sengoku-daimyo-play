@@ -339,11 +339,22 @@ export function tick(rt, hidden = []) {
 }
 
 // 昼の段の bot：近い敵を突き、いなければ金の▼へ
+function onRoad(path, p) {
+  for (let i = 1; i < path.length; i++) {
+    const a = path[i - 1], b = path[i], dx = b[0] - a[0], dz = b[1] - a[1];
+    const t = Math.max(0, Math.min(1, ((p.x - a[0]) * dx + (p.z - a[1]) * dz) / (dx * dx + dz * dz || 1)));
+    if (Math.hypot(p.x - a[0] - dx * t, p.z - a[1] - dz * t) < 6) return true;
+  }
+  return false;
+}
 export function bot(b, inp, { goTo, patientStrike }) {
-  const p = b.player, u = p.u;
+  const p = b.player, u = p.u, H = b.flags.iwHiru;
+  const road = H.s === 2 ? H.down : H.s === 4 ? H.up : null;
   // 夜の追撃と同じく、柵や切岸の向こうへ斬りかかり続けない。
+  // 山道の往復中は道外の敵を追って崖へ登らない。間合い内の相手にはその場で応戦する。
   const e = b.army.nearestEnemy?.(u, 18, (o) => !o.isStruct && !o.fleeing && !o.noTarget && o.alive &&
     !o.woundOut && !o.rearWound && !o.invuln &&
+    (!road || Math.hypot(o.pos.x - u.pos.x, o.pos.z - u.pos.z) <= 2.4 || onRoad(road, o.pos)) &&
     Math.abs(o.pos.y - u.pos.y) < 3 && !b.army.wallBetween(u.pos, -1, o.pos) &&
     !b.army.terrainBlocks(u.pos, o.pos));
   if (e) {

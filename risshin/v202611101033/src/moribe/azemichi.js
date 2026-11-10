@@ -34,7 +34,11 @@ function wake(rt) {
   rt.army.playFar?.('eshout', v.azeGs[0].center(), 1.3);
   sfx('taiko', 0.6);
   rt.say('足軽', '稲の陰から斎藤の伏兵じゃ！', 2.6);
-  rt.after(2.8, () => rt.say('組頭 源八（げんぱち）', 'あの陣笠の侍が物頭じゃ。物頭を討てば崩れる！', 3.2));
+  rt.after(2.8, () => {
+    // 予約の間に討たれた物頭へ、もう一度向かわせない。
+    if (!rt.over && !F.ending && !v.azeDone && v.ph === 'aze' && ready(v.azeBoss))
+      rt.say('組頭 源八（げんぱち）', 'あの陣笠の侍が物頭じゃ。物頭を討てば崩れる！', 3.2);
+  });
 }
 
 export function tick(rt) {

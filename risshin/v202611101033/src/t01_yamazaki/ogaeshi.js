@@ -181,7 +181,15 @@ export function tick(rt, dt, ctx) {
       if (ctx.live(F.proScouts)) { F.proScouts.routed = true; F.proScouts.order = 'flee'; }
       rt.say('足軽', '追い払うたぞ！', 2);
     }
-    if (near(P, SCENE[3].pins[0], 10) && (F.proScoutsGone || el > 95)) next(rt, ctx, 4);
+    // 刻限だけで健在の物見を消して山崎へ進めない。合流地点まで追わせ、実際に退けてから移る。
+    if (!F.proScoutsGone && F.proScouts && near(P, SCENE[3].pins[0], 10) && el > 95) {
+      const g = F.proScouts;
+      if (!(g.order === 'move' && g._tateRe) && (!g.dest || !near(g.dest, P, 6))) {
+        g.order = 'move'; g.dest = { x: P.x, z: P.z };
+        g.onArrive = (q) => { q.order = 'attack'; };
+      }
+    }
+    if (near(P, SCENE[3].pins[0], 10) && F.proScoutsGone) next(rt, ctx, 4);
   }
 }
 

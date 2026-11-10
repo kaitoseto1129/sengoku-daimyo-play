@@ -26,7 +26,11 @@ export function tick(rt) {
     rt.marker('yumi', () => (v.yumiGs.find(live)?.center() || null), '左の畦の弓・鉄砲衆', { red: true });
     sfx('taiko', 0.7);
     rt.say('足軽', '左の畦に斎藤の弓と鉄砲が集まったぞ！　横から射すくめられる！', 3.4);
-    rt.after(3.6, () => rt.say('森可成', '三左衛門の隊が横へ回る！　源八の組も西の畦へ続け、射手を討て！', 3.6));
+    rt.after(3.6, () => {
+      // 射手が討たれた後や退却した後は、古い攻め先を告げない。
+      if (!rt.over && !F.ending && !v.yumiDone && v.ph === 'yumi' && v.yumiGs.some(live))
+        rt.say('森可成', '三左衛門の隊が横へ回る！　源八の組も西の畦へ続け、射手を討て！', 3.6);
+    });
     const Y = F.Y; if (Y && Y.units.some(ready)) { Y.order = 'move'; Y.dest = { x: -36, z: 12 }; Y.speed = 2.6; Y.onArrive = (q) => { q.order = 'attack'; q.seekRange = 30; }; }
     return;
   }

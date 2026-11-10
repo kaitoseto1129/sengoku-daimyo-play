@@ -156,7 +156,7 @@ function ldBegin(keys, battle = '') {
   $('loading').style.setProperty('--ld-stages', String(keys.length));
   $('loading').classList.remove('failed', 'ready');
   //   11/8 critic60（八王子・高遠・有岡・雑賀）：「人の姿（4/6）」「あと約2秒」などの支度の段の字と、操作・逸話の豆知識を出さない
-  $('loading').classList.toggle('silent-preparation', ['inou', 'tennoji', 't08_nejirozaka', 'shiga', 't11_hachioji', 'takato', 'arioka', 'saika', 'nodafukushima'].includes(battle));
+  $('loading').classList.toggle('silent-preparation', ['inou', 'tennoji', 't08_nejirozaka', 'shiga', 't11_hachioji', 'takato', 'arioka', 'saika', 'nodafukushima', 'tano'].includes(battle));
   clearInterval(ldIv); ldIv = 0;
   document.getElementById('ld-map')?.remove();
   const actions = document.querySelector('#loading .ld-cancel');

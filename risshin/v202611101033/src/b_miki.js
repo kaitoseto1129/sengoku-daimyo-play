@@ -1346,7 +1346,8 @@ function mikiGoalBoard(rt) {
   // 印は使い回し、見通しの保存は共通の処理を使う。
   const foeMarks = hud.foeMarks, tris = [], box = document.createElement('div'), v = new THREE.Vector3();
   box.className = 'miki-foe-marks';
-  box.style.cssText = 'position:absolute;inset:0;pointer-events:none';
+  // 印の原点だけ置く。全画面の箱にすると、空の部分まで札の重なり・占有面積に数えられる。
+  box.style.cssText = 'position:absolute;left:0;top:0;width:0;height:0;overflow:visible;pointer-events:none';
   box.setAttribute('aria-hidden', 'true');
   hud.root.appendChild(box);
   hud.foeMarks = function (battle) {
@@ -2652,7 +2653,9 @@ const miki = {
     rt.after(12, () => {
       if (F.ending || rt.over || F.step !== 1 || gone(F.hide)) return;
       F.hide.speed = Math.max(F.hide.speed || 0, 5);   // 馬の駆け足（走る兵よりはっきり速い。一8）
-      F.hide.order = 'path'; F.hide.march = true; F.hide.dest = null;
+      // march を重ねると実際の隊形が march に替わり、column 用の曲がり角の持ち場が使われない。
+      // 馬の速さは保ち、後列も同じ道をたどる二列縦隊で駆けつける。
+      F.hide.order = 'path'; F.hide.march = false; F.hide.dest = null;
       F.hide.formation = 'column'; F.hide.colW = 2; F.hide.roadColumn = true; F.hide.followColumnRoad = true;
       // 道の途中で全騎の整列を待つと、後列の遅れだけで大村への救援が止まる。
       // 急報を受けた同じ列を、初めから坂の下まで走らせる。
@@ -2880,7 +2883,7 @@ const miki = {
           : [[-104, -48], [-100, -64], [-94, -78], [-80, -84], [x, z]];
       if (g === F.hide) F.hidePath = g.path;
       g.pathIdx = 0;
-      if (g === F.hide) { g.speed = Math.max(g.speed || 0, 5); g.formation = 'column'; g.colW = 2; g.roadColumn = true; g.followColumnRoad = true; }
+      if (g === F.hide) { g.speed = Math.max(g.speed || 0, 5); g.march = false; g.formation = 'column'; g.colW = 2; g.roadColumn = true; g.followColumnRoad = true; }
       g.onArrive = (q) => { q.order = then; q.march = false; q.facing = Math.PI; q.onArrive = null; if (q === F.hide) q.formation = 'line'; };
     }
     // 同じ後列を槍組に続かせる。位置の入れ物は一度だけ作り、毎コマ使い回す。

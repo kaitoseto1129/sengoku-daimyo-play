@@ -172,6 +172,8 @@ const k10_shigino = {
   noReserve: true,
   noTaishoRaid: true,
   foeMarks: true,
+  enemyTriangleSigns: true, // 見えている敵全員に共通の赤い▼を付ける。
+  keepBattleSigns: true,    // 行き先の印が出ても、武将名と敵印を隠さない。
   playerAtkMax: 3,
   playerTaken: 0.45,
   playerRegen: 0.025,
@@ -248,7 +250,7 @@ html:root body #hud#hud#hud.shigino-goals.shigino-combat #goal-sign .gs-tag > sp
     document.head.appendChild(st);
     const hudProgress = hud.progress;
     hud.progress = function (battle) {
-      if (battle === rt) hud.root.classList.toggle('shigino-combat', rt.flags.step !== 3 && !rt.flags.riverAid);
+      if (battle === rt) hud.root.classList.toggle('shigino-combat', rt.flags.step !== 3 && (!rt.flags.riverAid || dist(rt.player.u.pos, RIVER) <= 14));
       const out = hudProgress.call(this, battle);
       if (battle === rt && this.prog && !rt.over) goalsTick(this.prog, rt);
       return out;
@@ -690,7 +692,8 @@ html:root body #hud#hud#hud.shigino-goals.shigino-combat #goal-sign .gs-tag > sp
         if (near || rt.t - F.volT > 15) {
           F.volleyTry = rt.t;
           this.volley(rt);
-          for (const g of [F.mzN, F.mzS]) g.fire = true;
+          // 射列が未到着・射程外・全筒不発の間は「撃つな」を守る。
+          if (F.shot > 0) for (const g of [F.mzN, F.mzS]) g.fire = true;
           if (F.shot === 1 && !F.counterOrdered) {
             F.counterOrdered = true;
             rt.after(5, () => {
