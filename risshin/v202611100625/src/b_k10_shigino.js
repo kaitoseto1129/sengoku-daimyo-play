@@ -483,7 +483,7 @@ html:root body #hud#hud#hud.shigino-goals.shigino-combat #goal-sign .gs-tag > sp
     let shots = 0;
     // 堤の左右に開いた水原の鉄砲が、一人ずつ本物の筒で放つ（火と煙は筒先から）
     const foes = [];
-    for (const g of [F.wata, F.kimu]) for (const u of g?.units || []) if (u.alive && !u.gone && u.pos.x > MIZU.x - 64 && u.pos.x < MIZU.x + 6) foes.push(u);
+    for (const g of [F.wata, F.kimu]) for (const u of g?.units || []) if (u.alive && !u.gone && !u.noTarget && u.pos.x > MIZU.x - 64 && u.pos.x < MIZU.x + 6) foes.push(u);
     let k = 0;
     for (const g of [F.mzN, F.mzS]) for (const u of g.units) {
       if (!u.alive || u.gone || u.fleeing || u.woundOut || u.rearWound || u.sidearm || u.type !== 'gun' || !foes.length) continue;
@@ -542,7 +542,8 @@ html:root body #hud#hud#hud.shigino-goals.shigino-combat #goal-sign .gs-tag > sp
     // 空の対岸に架空の発砲数は足さず、何もしないままの達成にも変えない。
     if (!live(F.riverFoe)) { F.riverSecured = true; return true; }
     if (rt.t < (F.riverNext || 0)) return true;
-    const targets = F.riverFoe.units.filter((u) => u.alive && !u.gone);
+    // 倒れる途中や手傷で狙えない者へ全員が撃ち続けると、残る寄せ手への実射が止まる。
+    const targets = F.riverFoe.units.filter((u) => u.alive && !u.gone && !u.noTarget);
     let shots = 0, attempted = false;
     for (const g of [F.mzN, F.mzS]) for (const u of g.units) {
       if (!u.alive || u.gone || u.fleeing || u.woundOut || u.rearWound || u.sidearm || u.type !== 'gun' || dist(u.pos, RIVER) > 18 || !targets.length) continue;

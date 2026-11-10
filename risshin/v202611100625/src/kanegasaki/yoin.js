@@ -7,7 +7,10 @@ export function play(rt, ctx, at) {
   const live = () => !rt.ended;
   rt.after(at + 4, () => { if (live()) rt.say('足軽', '追手の太鼓が止んだ……朝倉は追うのをやめたぞ', 3.4); });
   rt.after(at + 9, () => { if (live()) rt.say('使番', '上様、朽木谷を越えられたとの知らせ！　お命は無事にござる！', 3.8); });
-  rt.after(at + 14, () => { if (live()) rt.say('木下藤吉郎', '負け戦でも、生きて帰れば次がある。皆、よう生き延びた', 4); });
+  // 11/10 kanegasaki_spec_1109：三将が集まり、人数を確かめる（撃破数でなく生還）
+  const hc = ctx?.hc;
+  if (hc?.n0) rt.after(at + 12, () => { if (live()) rt.say('池田勝正', `殿の組、出た時は${hc.n0}人。戻ったのは${hc.n1}人……`, 3.4); });
+  rt.after(at + 15.5, () => { if (live()) rt.say('木下藤吉郎', '負け戦でも、生きて帰れば次がある。わしらが残ったから、上様は逃げられた', 4); });
   rt.after(at + 19.5, () => { if (live()) rt.say('', '四月晦日、信長は朽木を越えて京へ帰った', 3.4); });
   rt.after(at + 24, () => { if (live()) rt.say('', '兵を立て直し、六月。次の戦場は姉川へ', 3.4); });
   return at + 29;
