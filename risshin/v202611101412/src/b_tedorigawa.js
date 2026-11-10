@@ -3175,6 +3175,26 @@ const tedorigawa = {
     if (F.ending) return;
     if (F.failedHold || !rt.player.u.alive) { this.lose(rt); return; }   // 南岸の持ち場を守り切った後に追手を追って岸を離れても、勝ちを取り消さない
     F.ending = true;
+    // 退き口まで逃げ切った後の三十秒は、追撃の狙いを余韻へ持ち越さない。
+    // 敗走にはせず、南へ出た上杉の先手だけ浅瀬を通して北岸へ戻す。
+    for (const g of [...(F.pursuit || []), F.fordFoe]) if (g && g.count && !g.routed) {
+      g.focus = null; g.noHunt = true; g.fixed = false; g.retreatOnly = true;
+      g.aggro = 0; g.seekRange = 0;
+      if (g.units.some((u) => u.alive && !u.gone && u.pos.z > FORD.z)) {
+        const c = g.center();
+        g.order = 'path'; g.formation = 'column'; g.colW = 3;
+        g.path = c.z > SOUTH.z - 4 ? [[4, SOUTH.z - 4], [3, FORD.z + 10], [FORD.x + 6, FORD.z - 8]] :
+          [[FORD.x + 6, FORD.z - 8]];
+        g.pathIdx = 0;
+        g.onArrive = (q) => { q.order = 'hold'; q.facing = 0; };
+      } else {
+        const c = g.center(); g.anchor.x = c.x; g.anchor.z = c.z;
+        g.order = 'hold'; g.onArrive = null;
+      }
+      for (const u of g.units) if (u.alive) {
+        u.target = null; u.pullUntil = rt.army.time; u.watch = null; u.moveTo = null;
+      }
+    }
     rt.setPhase('end'); rt.objRemove('dp');
     rt.obj('main', '手取川を渡った。退き太鼓に合わせ、手負いを連れて南へ退く', 'main');
     rt.unmark('south'); rt.unzone('south');
@@ -3414,7 +3434,7 @@ const tedorigawa = {
       fordTick(rt);
       for (const g of F.crossGroups) for (const u of g.units) if (u.alive && !u.gone) {
         if (u.pos.z >= BANK_Z && !rt.world.inWaterAt(u.pos.x, u.pos.z)) F.crossed++;
-        else if (u.woundOut || u.fleeing) F.crossStranded++;
+        else if (u.dying || u.woundOut || u.fleeing || u.rearWound || u.downed || u.dragging || u.noTarget || g.routed) F.crossStranded++;
         else F.crossRemaining++;
       }
     }
@@ -4358,7 +4378,10 @@ function tedoHold(o) {
     // 初めの防戦・逆襲・南岸の迎えは、元の接敵と渡河の条件を保つ。
     C.orderlyWithdrawal = tedoWithdrawing(C, F) && C.emptyT >= 8 && C.inT >= 8 && inRing;
     if (C.orderlyWithdrawal) return true;
-    return onSouthBank && (!o.waitCross || inRing) && (el >= o.dur || cleared) && tedoHeld(C, rt.flags) && C.inT >= o.dur * 0.5 && (!o.push || rt.flags.playerHelp && rt.flags.pushTime >= 8) && (!o.waitCross || rt.flags.crossRemaining === 0) && (!o.readyMain || rt.flags.mainCross >= 100);
+    // 指示書どおり、動ける味方の八割が渡れば残る列は後続へ任せる。
+    // 防戦・持ち場・本隊の渡河は省かず、最後の一人の足止まりだけを待たない。
+    const crossReady = F.crossRemaining === 0 || F.crossed >= Math.ceil((F.crossed + F.crossRemaining) * 0.8);
+    return onSouthBank && (!o.waitCross || inRing) && (el >= o.dur || cleared) && tedoHeld(C, rt.flags) && C.inT >= o.dur * 0.5 && (!o.push || rt.flags.playerHelp && rt.flags.pushTime >= 8) && (!o.waitCross || crossReady) && (!o.readyMain || rt.flags.mainCross >= 100);
   };
   s.end = (rt, C) => {
     rt.flags.postFlag.visible = false;

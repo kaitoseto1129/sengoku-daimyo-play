@@ -82,7 +82,17 @@ export function install(rt, ctx) {
       if (!n || el > 110) {
         rt.unmark('konzatsuR');
         if (!n) { rt.objDone('konzatsu2'); rt.award((t) => t.side.push('渡り口を横から突いた上杉の騎馬を払った'), '上杉の物見の騎馬を払った'); }
-        else rt.objRemove('konzatsu2');
+        else {
+          rt.objRemove('konzatsu2');
+          // 刻限で次の段へ移す時は、物見も北西へ引く。古い騎馬の攻撃を
+          // 荷をどける本人と、次に寄せる殿の追手へ重ね続けない。
+          R.focus = null; R.noHunt = true; R.fixed = false; R.retreatOnly = true;
+          R.aggro = 0; R.seekRange = 0; R.order = 'move'; R.dest = { x: -70, z: -64 };
+          R.onArrive = (q) => { q.order = 'hold'; q.facing = 0; };
+          for (const u of R.units) if (u.alive) {
+            u.target = null; u.pullUntil = rt.army.time; u.watch = null; u.moveTo = null;
+          }
+        }
         // ③ 渡り口の俵の荷が崩れて列が止まる。荷の所へ行くと、荷を川へ落として口が開く
         step = 2; t1 = rt.t; R = null;
         rt.after(2, () => {
