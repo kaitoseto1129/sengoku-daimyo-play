@@ -34,7 +34,7 @@ import { depthStart, depthTick, depthBot } from './b_depth.js';
 import { timeslipField } from './timeslip_field.js';
 import { buildHorse, horseStyleFor } from './units.js';
 import { goalsTick } from './hud_goals.js';
-import { sightUnit, sightScreenUnit } from './battle_sight.js';
+import { sightUnit } from './battle_sight.js';
 import * as jin13 from './k13/jindate.js';
 import { DEPTH13 } from './k13/depth.js';   // 陣立ての表（army_depth.js）   // 陣立ての厚み・「真田隊、来ます！」・誉田の鉄砲戦・騎馬・徳川の損害（11/8）
 
@@ -405,16 +405,18 @@ function goalBoard(rt) {
     const out = foeMarks.call(this, battle);
     if (battle !== rt) return out;
     const me = rt.player.u;
-    const on = me.alive && !rt.over && !rt.choice && !this.introWaiting && !rt.player.camShot && !this.bigmap && !this.root.classList.contains('photo');
+    const intro = document.getElementById('intro');
+    const on = me.alive && rt.t > 0.5 && !rt.over && !rt.choice && !this.introWaiting &&
+      !(intro && !intro.hidden && intro.firstElementChild) &&
+      !rt.player.camShot && !this.bigmap && !this.root.classList.contains('photo');
     let n = 0;
     if (on) for (const u of rt.army.units) {
       if (!u.alive || u.gone || u.dying || u.woundOut || u.rearWound || u.downed || u.noTarget || u.isStruct || u.civ || u.team === me.team || u.team > 1 ||
           u.mesh?.visible === false || u.camHidden) continue;
       const d2 = (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2;
       if (d2 > 3600) continue;
-      // 共通の近距離印は十二 m まで。霧や煙で候補から外れた兵にも
-      // 古い印の状態が残るため、共通の見通しを満たす時だけ重複を省く。
-      if (d2 <= 144 && u._nearSignOn && sightScreenUnit(rt, u)) continue;
+      // _nearSignOn は共通の表示候補で、実際に描いた印ではない。
+      // 札や別の印との重なりで共通の印が省かれても、この戦の▼は残す。
       // 二十五 m の内は霧でも必ず付ける（斜面の斬り合いで、目の前の後藤勢に▼が無かった。九3「一人残らず」）
       if (d2 > 625) {
         if (!(u._dmSeenAt > rt.t - .34 && u._dmSeenAt <= rt.t)) { u._dmSeen = sightUnit(rt, u); u._dmSeenAt = rt.t; }
