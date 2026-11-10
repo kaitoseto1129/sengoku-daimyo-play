@@ -172,8 +172,9 @@ export function tick(rt, dt, def, C) {
   if (!B.vis) B.vis = buildVis(rt);
   const alive = rt.player.u.alive && rt.player.u.hp > 0;
   const held = siteHeld(rt, C.FORT);
-  // 築城の進み：時間＋安全さ。人足が減っても最低の速さで進む。
-  if (alive && dt > 0 && dt < 1) {
+  // 材木の護衛が済んでから普請を進める。出迎え前の放置で資材の到着や外柵を作らない。
+  // 運搬後に人足が減っても、引き継いで最低の速さで進む。
+  if (alive && F.s15?.hakobiDone && dt > 0 && dt < 1) {
     const hands = F.wk?.units?.filter(ready).length ?? 0;
     let rate = 100 / 780;                       // 安全なら十三分ほどで仕上がる速さ
     if (F.finishAt && F.wave >= 3) rate = Math.max(rate, (100 - B.p) / Math.max(4, F.finishAt - rt.t));

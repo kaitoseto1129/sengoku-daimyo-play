@@ -1071,7 +1071,7 @@ const t10_oshi = {
         if (F.weirDefense >= 90 && fighting(F.weirRaid)) {
           const g = F.weirRaid;
           g.noRout = false; g.morale = 0; g.order = 'retreat'; g.dest = { x: WEIR_RAID.x, z: WEIR_RAID.z }; g.aggro = 0; g.onArrive = null;
-          for (const u of g.units) if (u.alive && !u.gone) { u.fleeing = true; u.target = null; u.watch = null; }
+          for (const u of g.units) if (u.alive && !u.gone) { u.fleeing = true; u.target = null; u.watch = null; u.atk = null; }
           rt.say('石田勢の足軽', '城兵が退くぞ！　堰板を抜け！', 2.8);
         }
         // 堰へ寄せた城兵を退けるまで、堰板は抜けない（主人公が着いて立つだけでは切れない）
@@ -1083,7 +1083,7 @@ const t10_oshi = {
           for (const u of F.weirRaid.units) if (u.alive && !u.gone && !near(u.pos, P.pos, 6)) { u.fleeing = true; u.target = null; u.watch = null; u.atk = null; }
         }
         const raidOn = F.weirRaid && fighting(F.weirRaid) && F.weirRaid.units.filter((u) => u.alive && !u.gone && !u.fleeing).length > 1;
-        if (F.weirRaid && !raidOn && fighting(F.weirRaid)) { F.weirRaid.noRout = false; F.weirRaid.morale = 0; for (const u of F.weirRaid.units) if (u.alive && !u.gone) u.fleeing = true; }
+        if (F.weirRaid && !raidOn && fighting(F.weirRaid)) { F.weirRaid.noRout = false; F.weirRaid.morale = 0; for (const u of F.weirRaid.units) if (u.alive && !u.gone) { u.fleeing = true; u.target = null; u.watch = null; u.atk = null; } }
         F.weirT = P.alive && near(P.pos, WEIR, 4.5) && F.weirRaid && !raidOn ? F.weirT + 0.5 : 0;
         if (F.weirT >= 2) this.openWeir(rt);
       }
@@ -1147,7 +1147,7 @@ const t10_oshi = {
       // 二人までに減るか、着いて四十五秒で舟へ退く（全滅を待たない）
       for (const g of cur) if (fighting(g) && (g.units.filter((u) => u.alive && !u.gone && !u.fleeing).length <= 2 || rt.t - F.mendRaidT > 35 && g === cur[cur.length - 1] && F.mendWave >= 3 || t > 140)) {
         g.noRout = false; g.morale = 0; g.order = 'move'; g.dest = { x: FORD.x, z: FORD.z }; g.aggro = 0;
-        for (const u of g.units) if (u.alive && !u.gone) { u.fleeing = true; u.target = null; }
+        for (const u of g.units) if (u.alive && !u.gone) { u.fleeing = true; u.target = null; u.watch = null; u.atk = null; }
       }
       for (const g of cur) for (const u of g.units) if (u.alive && !u.gone && u.fleeing && near(u.pos, FORD, 6)) rt.army.despawn(u);
       // 普請の進み：時で進み、城兵が切れ口の十歩内にいる間は半分の速さ（八十〜百秒ほどで塞がる）

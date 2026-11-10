@@ -81,8 +81,16 @@ export function tick(rt) {
     }
     return;
   }
+  // 11/10 クラウドの流し（携帯の bot）：残る三人が谷の上の岩場（届かない高み）に立ち、本人がその下で七百秒止まった。
+  //   残りの数が六十秒減らなければ、残る者は外の山へ逃げる
+  if (Y.s === 1 || Y.s === 3) {
+    const n = standing(Y.g);
+    if (Y.lastN !== n) { Y.lastN = n; Y.lastT = rt.t; }
+    if (n > 2 && rt.t - Y.lastT > 60 && n < Y.g.units.length) Y.lastN = -1;
+  }
   if (Y.s === 1) {
-    if (standing(Y.g) > 2) return;
+    if (standing(Y.g) > 2 && Y.lastN !== -1) return;
+    Y.lastN = null;
     rout(Y.g);
     Y.s = 2; Y.at = rt.t;
     rt.say('組頭', '残りは谷へ逃げた。右の谷筋へ回れ！', 3.2);
@@ -101,7 +109,8 @@ export function tick(rt) {
     return;
   }
   if (Y.s === 3) {
-    if (standing(Y.g) > 2) return;
+    if (standing(Y.g) > 2 && Y.lastN !== -1) return;
+    Y.lastN = null;
     rout(Y.g);
     Y.s = 4; Y.at = rt.t;
     rt.say('組頭', '生け捕った者が言うには、残党が大滝寺に籠ったそうじゃ', 3.6);
