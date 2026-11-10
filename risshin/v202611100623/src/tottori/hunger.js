@@ -169,7 +169,8 @@ function start(rt, K, done) {
         rt.objProgress('main', `城兵 ${left}／${N0}`);
         // 坂に残った城兵を待ち続けない。半ばを討って一分余り経ち、本人が柵を守っていれば残りは城へ引く。
         // 時間だけで、放置や持ち場からの離脱を成功にしない。
-        if (guarding && inside < 4 && (left <= 2 || el > 75 && left <= Math.ceil(N0 / 2) || held >= 90 && left < N0)) {
+        // 柵で実際に迎え撃ち続けた時は、討ち取りが無くても飢えた寄せは力尽きて退く。
+        if (guarding && inside < 4 && (left <= 2 || el > 75 && left <= Math.ceil(N0 / 2) || held >= 90)) {
           k15Rout(rt, g, K.CASTLE); rt.unmark('k15foe'); F.k15fight = false;
           starve(rt, walls, 4);
           rt.award((t) => t.side.push('夜の寄せを柵で止めた'), '夜の寄せを柵で止めた');

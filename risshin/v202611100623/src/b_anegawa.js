@@ -4200,8 +4200,8 @@ const anegawa = {
     //   駆け足の移動（move）で、北の川岸の高さまで上がってから浅井の横へ回る（二つの足取り）。
     F.inabaGoal = { x: c.x + 10, z: Math.max(c.z, aneSouthBank(c.x + 10) + 2) };
     const attach = (gg) => {
-      // 出現待ちの空の隊や、終戦後の遅れた到着を横槍に数えない。
-      if (F.inabaT || gg.anePending || !gg.count || F.step !== 1 || F.ending || rt.over) return;
+      // 退く下知の後の到着も横槍に数えず、敗走を攻撃へ戻さない。
+      if (F.inabaT || gg.anePending || gone(gg) || F.step !== 1 || F.ending || rt.over) return;
       gg.noAI = false; gg.stay = false;
       gg.order = 'attack'; gg.seekRange = 50; gg.aggro = 10; F.inabaT = rt.t;
       // 11/6 fixc0454：横槍の手（史実は千ほど）が十六人のまま磯野の三十余と当たり、取り付いて二十秒で逆に崩れて東へ逃げた。
@@ -4227,6 +4227,7 @@ const anegawa = {
     g.order = 'move'; g.noRun = false;
     g.dest = { x: MINO.x, z: Math.max(F.holdAt.z + 10, aneSouthBank(MINO.x) + 8) };
     g.onArrive = (gg) => {
+      if (gg.anePending || gone(gg) || F.step !== 1 || F.ending || rt.over) return;
       if (F.inabaGoT) { gg.order = 'move'; gg.dest = { ...F.inabaGoal }; gg.onArrive = attach; return; }
       gg.order = 'hold'; gg.anchor.x = gg.dest.x; gg.anchor.z = gg.dest.z; gg.facing = -Math.PI / 2; F.inabaStaged = true;
     };
