@@ -224,6 +224,8 @@ const k10_shigino = {
     st.textContent = `
 html:root body #hud#hud#hud.shigino-goals:not(.photo) #armybar:not([hidden]) { display:grid !important; visibility:visible !important; opacity:1 !important; }
 html:root body #hud#hud#hud.shigino-goals #armybar .clock { visibility:hidden !important; }
+html:root body #hud#hud#hud.shigino-goals #armybar#armybar .gauge.one {
+ display:block !important; grid-column:1 / -1; width:100%; }
 html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.shigino-goals :is(#armybar, #h-prog) { visibility:hidden !important; }
 html:root body #hud#hud#hud.shigino-goals #h-prog#h-prog.goal-mode > :not(.pg-goals) { display:none !important; }
 html:root body #hud#hud#hud.shigino-goals #h-prog#h-prog.goal-mode > .pg-goals { display:block !important; }
@@ -356,7 +358,7 @@ html:root body #hud#hud#hud.shigino-goals.shigino-combat #goal-sign .gs-tag > sp
     // ---- 豊臣方の柵の守り（井上頼次の手。柵の内で鉄砲を構える） ----
     F.g1 = this.foe(rt, '一の柵の鉄砲衆', { x: F1 - 6, z: 0 }, [uS(2), uA(7), uG(8)], { hold: true });
     F.g2 = this.foe(rt, '二の柵の鉄砲衆', { x: F2 - 6, z: 0 }, [uS(2), uA(7), uG(8)], { hold: true });
-    F.w1S = sumN(F.g1, F.g2);
+    F.w1N = [aliveN(F.g1), aliveN(F.g2)];
     // 目標に名を書いた敵将は、右上の一行で伏せない（「見えぬ敵の陣を物見する」に化けさせない・十1）
     for (const n of ['井上頼次', '渡辺糺', '木村宗明', '竹田永翁', '大野治長']) revealName(rt, n);
     this.goalsHud(rt);
@@ -636,9 +638,9 @@ html:root body #hud#hud#hud.shigino-goals.shigino-combat #goal-sign .gs-tag > sp
       if (live(O) && (O.order !== 'hold' || dist(O.center(), OONO) > 8) && O.order !== 'move' && O.order !== 'retreat') { O.order = 'hold'; O.anchor = { x: OONO.x, z: OONO.z }; O.seekRange = 8; O.aggro = 4; }
     }
     if (F.step === 1) {
-      const k = F.w1S - sumN(F.g1, F.g2);
-      // 本人も柵前の戦いに加わり、鉄砲衆を押し返すまで次へ進めない。
-      if (k >= Math.round(F.w1S * 0.6) && F.playerFight1) this.toStep(rt, 2);
+      // 二つの柵をそれぞれ押し返す。一方の全滅だけで、もう一方の柵まで破った扱いにしない。
+      const repelled = [F.g1, F.g2].every((g, i) => F.w1N[i] - aliveN(g) >= Math.round(F.w1N[i] * 0.6));
+      if (repelled && F.playerFight1) this.toStep(rt, 2);
     } else if (F.step === 2) {
       // 来援の先手は三の柵の西で待つ（井上の討死までは寄せない）
       for (const g of [F.wata, F.kimu]) if (live(g) && g._wait && g.order === 'attack') { g.order = 'hold'; g.anchor = { x: g._wait.x, z: g._wait.z }; g.seekRange = 8; g.aggro = 4; }
@@ -680,7 +682,8 @@ html:root body #hud#hud#hud.shigino-goals.shigino-combat #goal-sign .gs-tag > sp
       const k = F.w4N - sumN(F.wata, F.kimu);
       // 本人も参戦して全て退けた時は、撃つ相手のいない一斉射を待たせない。
       const repelled = F.shot >= 2 || !live(F.wata) && !live(F.kimu);
-      if (k >= Math.round(F.w4N * 0.6) && repelled && F.playerFight4) {
+      // 「二の柵の跡まで押し返す」は、本人もその場へ押し出してから果たす。
+      if (k >= Math.round(F.w4N * 0.6) && repelled && F.playerFight4 && dist(P.pos, HOLD) < 22) {
         for (const g of [F.wata, F.kimu]) if (live(g)) { g.order = 'retreat'; g.dest = { x: -150, z: 0 }; g.speed = 4; g.aggro = 0; }
         rt.say('渡辺糺', '上杉の鉄砲、侮れぬ……一度引け！', 2.8);
         rt.after(3, () => this.toStep(rt, 5));

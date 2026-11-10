@@ -596,8 +596,9 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
       for (const u of rt.army.units) if (u.alive && u.team === 1 && !u.fleeing && inFort(u.pos)) k++;
       F.inside = k;
     }
-    F.inT = F.inside >= 40 ? F.inT + dt : Math.max(0, F.inT - dt);
-    if (F.inT > 15)this.lose(rt, '島津が砦の中へなだれ込んだ');
+    // 四十人以上の侵入が十五秒続いた時だけ守りの破れとする。途切れた侵入を足し合わせない。
+    F.inT = F.inside >= 40 ? F.inT + dt : 0;
+    if (F.inT >= 15)this.lose(rt, '島津が砦の中へなだれ込んだ');
   },
 };
 
