@@ -222,10 +222,11 @@ function fordStakes(W) {
 }
 
 // 道の詰まりは経路側で直す。経過時間で本人の到着や一騎打ちを省略しない。
-function mine(step, r, inside) {
+function mine(step, r, inside, retreated) {
   step.idleAdvance = false; step.max = 1e9;
   step.noHardCap = true; step.limit = Infinity;   // 共通の四分・七分の時間送りも使わない
-  if (r) { const t = step.tick; step.tick = (rt, C, ...a) => { const ok = t(rt, C, ...a), p = rt.player.u.pos; return ok && (inside ? inside(p) : Math.hypot(p.x - C.at.x, p.z - C.at.z) < r); }; }
+  // 二人以下の組は共通判定で済みになるが、守将の退却と知らせは省かない。
+  if (r) { const t = step.tick; step.tick = (rt, C, ...a) => { const ok = t(rt, C, ...a), p = rt.player.u.pos; return ok && (!retreated || !!rt.flags[retreated]) && (inside ? inside(p) : Math.hypot(p.x - C.at.x, p.z - C.at.z) < r); }; }
   return step;
 }
 // 二人以下の組は共通の段判定では済みになる。一騎打ちと飯沼本人の討死は人数と別に待つ。
@@ -239,7 +240,7 @@ function yoneno(step) {
       const g = C.groups.find((q) => q.name === '飯沼長資の手');
       if (g) { g.noRout = true; g.morale = 100; }
     }
-    return done && !!rt.flags.otsukaDone && !!rt.flags.iinumaDown;
+    return done && !!rt.flags.yonenoBroke && !!rt.flags.otsukaDone && !!rt.flags.iinumaDown;
   };
   return step;
 }
@@ -430,7 +431,7 @@ const k02_kawada = {
         // 時刻だけで名のある敵の討ち取りを告げず、既にいる旗本と戦う。
         // 柵の前へ新しい槍組を突然出さない。
         later: [{ t: 22, say: ['大塚権太夫', '柵の口へ続け！　旗本を押し返すぞ！'], foes: () => [] }],
-        reward: '河田の渡しを渡った' }), 45, insideNorthGuard),
+        reward: '河田の渡しを渡った' }), 45, insideNorthGuard, 'northBroke'),
       DP.rest({ dur: 5, heal: 0.9, fn: (rt2) => rt2.world.setTime('day') }),
       // ③ 北岸を下流の米野村へ。昼、百々綱家の隊と組み合う。飯沼長資が大塚権太夫を討って出て、ここで討ち死にする（討ったのは池田長吉とも）
       yoneno(DP.fight({ at: YONENO, title: '米野', sub: '百々綱家の隊が村の前に構える', obj: '北岸を西へ進み、米野村の百々綱家の隊を追い払え', max: 240, noRefill: true,   // 百々が退いた後に「新手の百々綱家の旗本」を湧かせない（11/6）

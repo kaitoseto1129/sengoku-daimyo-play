@@ -4599,7 +4599,7 @@ nagashima.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
   // 近いだけの相手より、いま打ち込む相手を先に受ける。
   let attacker = null, ad = 10;
   for (const o of b.army.threats || []) {
-    if (!o.alive || o.team === u.team || o.fleeing || o.noTarget || o.invuln ||
+    if (!bankFoeReady(o) || o.team === u.team || o.invuln ||
         o.type === 'gun' || o.type === 'bow' || o.boatSeat?.aboard || o.pos.z < BANK_Z - 3 || Math.abs(o.pos.y - u.pos.y) >= 3 ||
         b.army.wallBetween(u.pos, -1, o.pos)) continue;
     const d = Math.hypot(o.pos.x - u.pos.x, o.pos.z - u.pos.z);
@@ -4607,10 +4607,12 @@ nagashima.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
     if (!(o.charging && o.target === u || o.atk?.target === u || o.swing && !o.swing.done && o.swing.target === u)) continue;
     if (d < ad) { attacker = o; ad = d; }
   }
-  const candidate = attacker || strikeTarget(b, F.step === 1 ? 8 : 13);
+  const picked = attacker || strikeTarget(b, F.step === 1 ? 8 : 13);
+  // 共通の選び方に深手の兵が残っていても、守備と同じ判定で戦える門徒へ移る。
+  const candidate = bankFoeReady(picked) ? picked : bankNearestFoe(b);
   // 岸を守る者は、退く舟や川の中の門徒を追わない。上陸した相手を受ける。
   // 東へ移る時は、十三歩先で味方が受けている敵を向いて寄り道しない。
-  const e = candidate && !candidate.boatSeat?.aboard && candidate.pos.z >= BANK_Z - 3 &&
+  const e = bankFoeReady(candidate) &&
     (F.step !== 1.25 || attacker) &&
     (F.step !== 3.5 || attacker || Math.hypot(candidate.pos.x - u.pos.x, candidate.pos.z - u.pos.z) < 6) ? candidate : null;
   // 11/2：見張りの段（1.25）で、届かない岸の際の敵へ向いたまま印の九歩手前で止まり、480秒まで段が進まなかった（bot だけ）。

@@ -414,6 +414,8 @@ const t10_oshi = {
     return { x: at.x, z: at.z };
   },
   missionStyle: 'lesson',
+  winWord: '忍城、開城',
+  victoryCaption: '水攻めでは落とせず、小田原開城の後に明け渡された',
   noCouriers: true, noTaisho: true, noReserve: true, noWake: true,
   frontlineDensity: false,
   lethal: { soft: true },   // 命懸けの戦場（11/9 係A：堰の段が延びないよう soft）
@@ -666,15 +668,15 @@ const t10_oshi = {
       F.flood.visible = true;   // 落ちる水の板（fall）は宙に浮いた板に見えたので出さない
       rt.army.play('shout', BREAK, 1.4);
       // 軍記物の伝え：豪雨で本丸まで水が来そうになり、下忍口の本庄泰展の手が夜半に堤を二か所切った（一次史料では決められない）
-      rt.say('石田勢の足軽', '城の者が堤を切った！　水がこっちへ来るぞ！', 3);
+      rt.say('石田勢の足軽', '堤が切れた！　水がこっちへ来るぞ！', 3);
       rt.after(3.4, () => rt.say(nm(rt), '人夫も兵も、丸墓山へ上がれ！　わしに付いて来い！', 3.4));
       // 11/7：堤を切った城兵（伝えでは本庄泰展の手）が、丸墓山への道の堤の上に残っている。逃げる途中に斬り合いがある
       rt.after(10, () => {
         if (F.step !== 6) return;
-        F.cutters = enemyGroup(rt, { faction: 'narita', name: '堤を切った城兵', anchor: { ...CUT_AT }, facing: Math.PI * 1.2, fleeDir: { x: -1, z: -1 }, width: 3, noRout: true, formation: 'line', morale: 75,
+        F.cutters = enemyGroup(rt, { faction: 'narita', name: '堤へ寄せた城兵', anchor: { ...CUT_AT }, facing: Math.PI * 1.2, fleeDir: { x: -1, z: -1 }, width: 3, noRout: true, formation: 'line', morale: 75,
           order: 'hold', aggro: 14, seekRange: 22, dmgMult: 0.35 }, dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 4 }], HOJO));
         rt.army.play('eshout', CUT_AT, 1);
-        rt.say('石田勢の足軽', '堤の上に城の者が残っておる！　堤を切った奴らじゃ！', 3);
+        rt.say('石田勢の足軽', '堤の上に城の者が残っておる！　人夫を守れ！', 3);
       });
     });
     rt.obj('main', MISSIONS[5], 'main');

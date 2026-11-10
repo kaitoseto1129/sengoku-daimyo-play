@@ -588,7 +588,19 @@ const k14_yao_wakae = {
       F.next = true;
       for (const q of g.units) if (q.alive && q.name && !q.invuln) { rt.army.kill(q); break; }   // 隊の将も崩れの中で討たれる
       for (const q of F.step === 1 ? [g, F.fuseG] : [g]) { q.order = 'flee'; q.routed = true; }
-      if (F.step === 1) { rt.award((t) => t.side.push('八尾で長宗我部の横を突いた'), '長宗我部の横を突いた'); rt.after(2.5, () => this.toStep(rt, 2)); }
+      if (F.step === 1) {
+        rt.award((t) => t.side.push('八尾で長宗我部の横を突いた'), '長宗我部の横を突いた');
+        // 早く横の備を退けても、八尾の討死を飛ばして若江へ戻らない。
+        // 時刻だけに任せると二将が生きたまま終戦し、弔う台詞だけが出る。
+        let delay = 0;
+        for (const [q, name, line] of [[F.takanoriG, '藤堂高刑', '八尾で藤堂高刑様、お討死！'],
+          [F.kuwanaG, '桑名吉成', '桑名吉成様もお討死！　藤堂勢、崩れかかっております']]) {
+          if (!q.units.some((u) => u.name === name && u.alive)) continue;
+          rt.after(delay, () => this.fall(rt, q, name, line));
+          delay += 3.6;
+        }
+        rt.after(Math.max(2.5, delay), () => this.toStep(rt, 2));
+      }
       else if (F.step === 2) { rt.award((t) => t.side.push('若江で内藤長秋の隊を崩した'), '内藤長秋の隊を崩した'); rt.after(2.5, () => this.toStep(rt, 3)); }
       else if (F.step === 3) { rt.award((t) => t.side.push('若江で山口弘定の隊を崩した'), '山口弘定の隊を崩した'); rt.after(2.5, () => this.toStep(rt, 4)); }
     }

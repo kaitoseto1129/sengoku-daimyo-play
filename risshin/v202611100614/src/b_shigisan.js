@@ -2003,6 +2003,15 @@ function honmaruPostReached(rt) {
     honmaruDefendersGone(rt) &&
     (z?.test(P.x, P.z) || Math.hypot(P.x - TOP.x, P.z - (TOP.z + TOP.r + 4)) < 10);
 }
+// 同じ道の同じ角で待つ期限は、兵が近づいたり離れたりしても延ばさない。
+function waitForCastleAllies(rt, route, corner, near) {
+  if (!(near > 16 && near < 90)) return false;
+  const waits = rt.flags.guideWaits || (rt.flags.guideWaits = new WeakMap());
+  let ends = waits.get(route);
+  if (!ends) { ends = []; waits.set(route, ends); }
+  if (ends[corner] == null) ends[corner] = rt.t + 25;
+  return rt.t < ends[corner];
+}
 const shigisan = {
   resumeSteps: [[1, 'climb'], [2, 'tower'], [3, 'gateFight']],   // 戦の途中の保存（battle_checkpoint.js）：段の始まりを、段の関数を順に流して作り直す
   terrainCameraLift: false, // 切岸の上へ持ち上げず、斜面の手前へ寄せて道を見る。
@@ -3857,11 +3866,7 @@ const shigisan = {
           for (const q of F.oda) if (!gone(q)) for (const u of q.units) if (u.alive && !u.fleeing && !u.woundOut) near = Math.min(near, Math.hypot(u.pos.x - p.x, u.pos.z - p.z));
           // 11/6 fixc0814：十二秒では門前で組み合う先手を待ち切れず、本人だけ曲輪へ出た → 二十五秒まで待つ。
           //   同じ角で待つのは一度だけ（味方が寄っては離れるたびに待ち直し、曲輪の口で三百秒止まった回があった）。
-          if (near > 16 && near < 90 && F.guideWaitDone !== guideFrom) {
-            if (F.guideWaitAt == null) F.guideWaitAt = rt.t;
-            if (rt.t - F.guideWaitAt < 25) F.castleGuideI = guideFrom;
-            else { F.guideWaitDone = guideFrom; F.guideWaitAt = null; }
-          } else F.guideWaitAt = null;
+          if (waitForCastleAllies(rt, route, guideFrom, near)) F.castleGuideI = guideFrom;
         }
         F.castleGuidePoint.x = route[F.castleGuideI][0]; F.castleGuidePoint.z = route[F.castleGuideI][1];
         if (inside && F.castleGuideI === route.length - 1 && Math.hypot(p.x - F.castleGuidePoint.x, p.z - F.castleGuidePoint.z) < 3

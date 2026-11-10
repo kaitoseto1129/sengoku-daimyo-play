@@ -69,8 +69,10 @@ export function battleEvent(rt, type, pos = null, group = null, team = null, big
   // 武将のいない組の頭が討たれた時は「大将」と呼ばず「組頭」。小さな出来事なので三十秒に一度まで
   if (type === EVENT_COMMANDER_KILLED && group && !text && !group.units?.some((u) => u.type === 'busho' || u.isTaisho)) {
     text = `${team === 0 ? '味方' : '敵'}の組頭が討たれた`; big = false;
-    if (rt.t - e.t < 30 && e.text === text) return false;
   }
+  // 見回り側が文を指定した知らせにも同じ間隔を適用する。将の討死を挟んでも短くしない。
+  const minorCommander = type === EVENT_COMMANDER_KILLED && /^(味方|敵)の組頭が討たれた$/.test(text);
+  if (minorCommander && rt.t - (e.minorCommanderAt ?? -Infinity) < 30) return false;
   // 大きな出来事を、後から来た小さな同種の出来事で消さない。
   if (e.pending && e.big && !big && rt.t - e.t <= 30) return false;
   if (rt.t - e.t < 8 && (!big || e.big)) return false;
@@ -82,6 +84,7 @@ export function battleEvent(rt, type, pos = null, group = null, team = null, big
   e.type = type; e.t = rt.t; e.x = p.x; e.z = p.z; e.team = team; e.group = group;
   e.text = text || `${team === 0 ? '味方の' : team === 1 ? '敵の' : ''}${WORDS[i]}`;
   e.big = big; e.pending = true; e.level = 0; e.sub = '';
+  if (minorCommander) e.minorCommanderAt = rt.t;
   e.logIndex = E.count++ % E.log.length;
   copy(E.log[e.logIndex], e);
   decisiveCameraEvent(rt, type, pos, team, big, e.text);

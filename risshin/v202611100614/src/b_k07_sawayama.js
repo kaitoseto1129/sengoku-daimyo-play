@@ -645,9 +645,8 @@ html body #hud.enemy-action-guide:has(#h-prog[data-battle="k07_sawayama"]) #goal
     //   残すと下から斬れない射手の下に寄せ手が詰まり、三の丸へ入れなかった
     const A = rt.army;
     for (const u of A.units.slice()) if (u.alive && u.team === 1 && u.perch && u.pos.z < -90) {
-      A.scene.remove(u.mesh); A.units.splice(A.units.indexOf(u), 1);
-      if (u.group) u.group.units.splice(u.group.units.indexOf(u), 1);
-      u.alive = false; u.gone = true;
+      // 共通の退場処理で、射手に刺さった矢と攻撃の参照も片付ける。
+      A.despawn(u);
     }
     F.hasegawa = allyGroup(rt, { faction: 'oda', name: '長谷川守知の手', anchor: { x: 20, z: -102 }, facing: Math.PI / 2, width: 8, aggro: 6, noRout: true, order: 'attack', seekRange: 20, fixed: true },
       dress([{ type: 'busho', n: 1, o: { name: '長谷川守知', invuln: true, horse: true } }, { type: 'samurai', n: 4 }, { type: 'gun', n: 4 }, { type: 'ashigaru', n: 6 }], TANAKA));
@@ -765,9 +764,8 @@ html body #hud.enemy-action-guide:has(#h-prog[data-battle="k07_sawayama"]) #goal
     rt.setPhase('end');
     sfx('horagai', 0.9);
     rt.player.u.invuln = true;
-    // 締め（十五秒）：燃える天守へ目を向け、落城の字と台詞を見せてから結果へ。
+    // 締め（十五秒）：視点は主人公に任せ、落城の字と台詞を見せてから結果へ。
     //   共通の「合戦に勝利」の札は finish で出て、落城の字の上に重なって隠していたので、finish は字と台詞の後に呼ぶ
-    F.endLookT = rt.t;
     const say = (t, f) => rt.after(t, () => { if (!rt.over) f(); });
     say(0.3, () => { if (!F.touun) { F.touun = true; rt.say('土田東雲斎', '蔵の金銀を撒け。殿の御最期の時を稼ぐのじゃ', 3.4); } });
     say(3.9, () => rt.say(nm(rt), '天守に火が！　正継殿・正澄殿・朝成殿は、天守で腹を召されたと', 3.8));
@@ -783,15 +781,6 @@ html body #hud.enemy-action-guide:has(#h-prog[data-battle="k07_sawayama"]) #goal
       rt.finish({ scriptedEnd: true }, 4);
     });
   },
-  // 締めの間だけ、目を燃える天守へゆっくり向ける（遊びの間はカメラを回さない・九7）
-  endLook(rt, dt) {
-    const F = rt.flags, P = rt.player;
-    if (F.endLookT == null || rt.over || !P) return;
-    const u = P.u, want = Math.atan2((HON.x - 4) - u.pos.x, (HON.z + 2) - u.pos.z);
-    let d = want - (P.yaw || 0); d = Math.atan2(Math.sin(d), Math.cos(d));
-    P.yaw = (P.yaw || 0) + d * Math.min(1, dt * 1.2);
-  },
-
   lose(rt) {
     const F = rt.flags;
     if (F.ending || !rt.canFailMission()) return;
@@ -807,7 +796,7 @@ html body #hud.enemy-action-guide:has(#h-prog[data-battle="k07_sawayama"]) #goal
   update(rt, dt) {
     const F = rt.flags;
     hata.tick(rt, dt);
-    if (F.ending) { this.endLook(rt, dt); return; }
+    if (F.ending) return;
     depthTick(rt, dt);
     tickTabas(rt, dt);
     if (F.rocks) F.rocks.tick(dt);

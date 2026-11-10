@@ -1337,7 +1337,7 @@ const mikatagahara = {
     const holding = C ? C.s.kind === 'hold' && (id === 'dp' || id === 'retreat-way')
       : F.step <= 1 && id === 'hira' || F.step === 2 && !F.mkFlank && id === 'pike';
     const radius = C?.botRadius || rt.missionGuide?.marker?.guideRadius || (F.step <= 1 ? 8 : 5);
-    return holding && distance < radius ? '持ち場で構えよ' : `あと${Math.ceil(distance)}歩`;
+    return holding && distance < radius ? '持ち場で構えよ' : `${Math.ceil(distance)}m`;
   },
   // 足元の構えの印でも、守る相手と次の下知を任務名から消さない。
   waitOrderLabel(rt) {
@@ -1357,7 +1357,7 @@ const mikatagahara = {
     if (F.dpB && C?.s.kind === 'rest') {
       const at = F.dp.i < 2 ? SOUTH_SLOPE : REARGUARD_POST, p = rt.player.u.pos;
       const distance = Math.ceil(Math.hypot(p.x - at.x, p.z - at.z));
-      return distance > 10 ? `南の坂へ退け。あと${distance}歩`
+      return distance > 10 ? `南の坂 ${distance}m`
         : '坂に着いた。北の追手へ構え、味方を先に通せ';
     }
     // 段の札が選ばれた時も、主の札に記録した通過人数と次の下知を読む。
@@ -2691,7 +2691,7 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
       const d = Math.hypot(p.x - HAMA.x, p.z - HAMA.z);
       for (const q of F.chase || []) if (q.count < 3 && !gone(q)) q.morale = Math.min(q.morale, 20);
       const left = Math.ceil(Math.hypot(p.x - F.retreatPoint.x, p.z - F.retreatPoint.z));
-      rt.objProgress('main', `${RETREAT_LABELS[F.retreatIdx]}、あと${left}歩`);
+      rt.objProgress('main', `${RETREAT_LABELS[F.retreatIdx]} ${left}m`);
       // 城へ入ったら退き口は終わる。開いた門で新たな総攻めを受ける筋にはしない。
       if (d < 8 && p.z > HAMA.z - 8) {
         for (const q of F.chase || []) if (!gone(q)) { q.order = 'hold'; q.seekRange = 0; q.aggro = 0; }
@@ -3209,7 +3209,7 @@ function withdraw(o) {
     }
     const distance = Math.ceil(Math.hypot(rt.player.u.pos.x - C.at.x, rt.player.u.pos.z - C.at.z));
     rt.objProgress('main', C.arr ? '北の追手へ構え、味方を先に通せ'
-      : `南の坂へ退け。あと${distance}歩`);
+      : `南の坂 ${distance}m`);
     // 坂では次の段で味方を守る。ここで待ち伏せを二十五秒受け続けない。
     return done || C.arr;
   };
