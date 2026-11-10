@@ -3187,6 +3187,7 @@ const moribe = {
     if (!F.signal) {
       if (F.pointDone) return null;
       pos = POINT2; r = FORD_R; hide = 0;
+      q.label = '楡俣川の北岸の畦';
       q.gatherArea = true; // ピンの根元に、到着できる範囲を描く。
       // 上陸したら同じ地点の待機へ替え、追う必要のないチェック印を挟まない。
       q.arrived = playerAtFord(rt.player.u.pos, rt.world);
@@ -3213,12 +3214,14 @@ const moribe = {
       }
       F.linePinReturning = returning;
       pos = entry; r = hide = 0;
+      q.label = '森部の野の前備の槍列';
       q.guardArea = !returning;
       q.waitDuration = 100;
       q.waiting = !returning; q.arrived = !returning; q.crossing = returning;
       q.progress = this.missionWaitProgress(rt) || 0;
     } else if (F.stage === 'assemble') {
       pos = F.gatherUnit ? F.gatherUnit.pos : F.asm;
+      q.label = F.gatherUnit ? F.gatherUnit.name || '組頭源八の組' : '森部の野の集結地点';
       r = hide = F.gatherUnit ? 6 : 12;
       q.gatherArea = true;
       // 集結地点へ着いたら歩き直させず、同じピンの中で帰着を待つ。
@@ -3228,6 +3231,7 @@ const moribe = {
     } else if (F.vBroken) {
       if (!F.lineReturning) return null;
       pos = F.linePoint;
+      q.label = '森部の野の前備の槍列';
       r = hide = 18;
       q.gatherArea = true;
     } else {

@@ -420,7 +420,7 @@ export const BATTLE_LINES = {
       ally: ['殿が自ら先頭に立たれたぞ！', 'わずかな供でも、恐れるな'],
       enemy: ['木津で織田勢を退けたぞ。砦も押せ！'],
     },
-    order: { ally: ['味方の旗へ続け！　槍をそろえよ！'] },
+    order: { ally: ['味方の旗へ続け！　槍を揃えよ！'] },
     breaking: { enemy: ['先の列が崩れた！　城戸口へ退け！'] },
   },
   saika: {

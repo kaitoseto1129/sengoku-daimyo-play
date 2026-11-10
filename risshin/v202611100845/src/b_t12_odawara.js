@@ -363,7 +363,8 @@ function castleReveal(step) {
           .multiplyScalar(I.castle.scale.x).add(I.castle.position).project(rt.camera);
         visible = Math.abs(castleViewPoint.x) < 0.85 && Math.abs(castleViewPoint.y) < 0.85 && Math.abs(castleViewPoint.z) < 1;
       }
-      C.castleSeen = visible ? (C.castleSeen || 0) + dt : 0;
+      // 二秒見届けた後は、辺りを見回しても確認済みのままにする。
+      if (!(C.castleSeen >= 2)) C.castleSeen = visible ? (C.castleSeen || 0) + dt : 0;
       return step.tick(rt, C, m, ctx, el, dt) && C.castleSeen >= 2;
     },
   };
