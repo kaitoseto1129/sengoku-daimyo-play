@@ -49,6 +49,7 @@ const Fk = (k) => (rt) => rt.flags[k];
 const Pre = (n) => (rt) => rt.flags.pre?.[n];
 export const depthPlan = {
   byMen: true,   // 布陣図どおりの兵数の比で軽い兵を配る（docs/fujin/）
+  bindTail: true,   // 本物の隊に結んだ備の後ろに、兵数の比の軽い列（army_depth_view.js の buildTail。クラウド厚み係 11/10）
   A: { name: '東軍', facing: Math.PI / 2, honjin: { x: -214, z: 10 }, mpu: 6, formation: '鶴翼', terrain: 'mountain', flag: 'ageha', armor: 0x1c1a1a, openAt: 9999, attrition: 0,
     sonae: [
       { id: 'nagayoshi', layer: 'sakite', wing: 'center', men: 1500, taisho: '池田長吉', flag: 'ageha', bind: Fk('naga') },

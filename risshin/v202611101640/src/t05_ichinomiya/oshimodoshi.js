@@ -22,13 +22,20 @@ export function withdraw(g) {
   if (outside) {
     if (c.z >= 90) g.fleePath.push([c.x, 81]);
     g.fleePath.push([-16, 81], [-16, 94]);
-  } else if (c.z < 93) g.fleePath.push([-16, 94]);
+  } else if (c.z < 93 || g.units.some((u) => u.alive && u.pos.z < 93)) {
+    // 隊の中心が入城しても、門前に残る後尾は敷居の内へ寄せてから奥へ退く。
+    // 本丸の口へ直接向けると、門の脇の北面の塀へ斜めに突き当たる。
+    g.fleePath.push([-16, 81], [-16, 94]);
+  }
   // 本丸の北の口まで。南の塀には出口がなく、城外へ一直線に逃がすと壁に詰まる。
   g.fleePath.push([-16, 106], [-16, 110], [-16, 114]);
   for (const u of g.units) if (u.alive) {
     // 林に潜んだまま退く番兵も立って走る。潜伏の姿勢を次の段へ持ち越さない。
     u._crouch = false;
-    u.fleePathIdx = 0; u.routIn = 0.3; u.aiT = 0;
+    // 既に曲輪へ入った兵は城外へ戻さず、門の内側から退路へ合流する。
+    const gateIn = g.fleePath.findIndex(([x, z]) => x === -16 && z === 94);
+    u.fleePathIdx = gateIn >= 0 && u.pos.z >= 93 && u.pos.x >= -32 && u.pos.x <= 0 ? gateIn : 0;
+    u.routIn = 0.3; u.aiT = 0;
     u.target = null; u.atk = null; u.swing = null; u.bind = null; u.charging = false;
   }
 }

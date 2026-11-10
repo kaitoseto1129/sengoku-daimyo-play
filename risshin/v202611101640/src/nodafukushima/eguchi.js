@@ -31,7 +31,11 @@ export function start(rt, ctx) {
       ctx.dress([{ type: 'ashigaru', n: 9 }, { type: 'gun', n: 3 }], ctx.ikko));
     if (!g || !g.count) return;
     S.k = 1; S.aT = rt.t;
-    g.ikko = true; g.order = 'attack'; g.focus = rt.player.u; S.g = g;
+    // 11/10 クラウド：本人だけを狙って八十歩も追わせると、殿から離れた本人が十二人に囲まれて倒れた（act bot 970秒）。
+    //   待ち伏せは渡しの手前で待ち、近い者から相手にする。殿と退く列もこの門徒へ向き直って払う。
+    g.ikko = true; g.order = 'attack'; g.focus = null; g.seekRange = 22; S.g = g;
+    let n = 0;
+    for (const f of ctx.friends) if (f && f.count && !f.routed && n < 3) { n++; f.order = 'attack'; f.dest = { x: DEST.x + 20, z: DEST.z - 34 }; f.focus = g.units[0] || null; f.seekRange = Math.max(f.seekRange || 0, 30); }
     rt.marker('nodaAmbush', () => { const u = g.units.find(fighting); return u ? { x: u.pos.x, z: u.pos.z } : null; }, '舟を隠した門徒', { red: true, group: g });
     rt.army.play('eshout', { x: DEST.x + 20, z: DEST.z - 34 }, 1.6);
     rt.say('足軽', '舟が無い！　一揆が舟を隠して待ち伏せしておったぞ！', 3.4);
@@ -44,6 +48,7 @@ export function start(rt, ctx) {
     g.onArrive = null; g.focus = null;
     g.dest = { x: DEST.x + 20, z: DEST.z - 34 };
     g.noRout = false; g.morale = 0; g.order = 'retreat';
+    for (const f of ctx.friends) if (f && f.count && !f.routed && f.order === 'attack') { f.focus = null; f.order = 'move'; f.dest = { x: DEST.x + (Math.random() - 0.5) * 16, z: DEST.z - 10 - Math.random() * 10 }; }
   }
   S.tick = () => {
     if (S.done || rt.over || !rt.player.u.alive) return;
