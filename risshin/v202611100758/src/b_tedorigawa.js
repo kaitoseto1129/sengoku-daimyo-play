@@ -491,7 +491,7 @@ function riverSheen(rt, tex) {
   g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
   g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
   g.setIndex(idx);
-  const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ map: tex, vertexColors: true, transparent: true, opacity: 0.35,
+  const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ map: tex, vertexColors: true, transparent: true, opacity: 0.26,
     blending: THREE.AdditiveBlending, depthWrite: false, fog: false, side: THREE.DoubleSide }));
   m.renderOrder = 2;
   m.onBeforeRender = () => { tex.offset.x = -(rt.t || 0) * 0.07; };
@@ -2345,6 +2345,9 @@ const tedorigawa = {
 
   prelude: false, // この戦の使番と下知で開戦を伝え、共通の待ちを重ねない。
   setup(rt) {
+    tedoLive = rt;
+    // 11/10 指示書「見た瞬間に怖い濁流」：増水の手取川の水面を、明るい灰でなく暗い泥色の濁りに（この戦の川だけ。共通の水は触らない）。
+    for (const st of rt.world.def?.streams || []) if (st.mesh?.material?.color) { st.mesh.material.color.setHex(0x8c7254); st.mesh.material.opacity = 0.9; }
     { const P = rt.player, td = P.takeDamage, k = rt.def.cutFloor; P.takeDamage = function (a, s) { const m = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow'; const d = td.call(this, a, s); return s && !s.isStruct && !m && d > 0 ? d * k : d; }; }   // 11/1：刃の一太刀を def.cutFloor 倍に（この戦だけ）
     const W = rt.world;
     const F = rt.flags;
@@ -4265,6 +4268,8 @@ function tedoHold(o) {
     const inRing = onSouthBank && Math.hypot(p.x - C.at.x, p.z - C.at.z) < C.postRadius;
     C.awayT = inRing ? 0 : (C.awayT || 0) + dt;
     if (inRing) C.inT += dt;
+    // 11/10：南岸の持ち場は、土手の上で篝火から二十二歩内にいる時間も数える（追手を払いに数歩出ても持ち場を捨てた事にしない）。
+    if (o.waitCross && onSouthBank && Math.hypot(p.x - C.at.x, p.z - C.at.z) < 22) C.southT = (C.southT || 0) + dt;
     // 持ち場の火で踏みとどまるのが殿の働き。共通の「止まったまま四十五秒」の時間切れで負けにしない（bot 11/4：南岸で守って「取り残された」で失敗）。
     if (inRing && rt._idleP) rt._idleP.t = rt.t;
     // 迷ったままでも呼び戻す。川の中では下の上陸の声だけにし、重ねない。
@@ -4363,7 +4368,7 @@ function tedoHold(o) {
     //   11/9 織田F：南岸も同じ。篝火の持ち場に刻限の半ばまで立てば守った事にする（本隊や遅れた味方が渡りきらない・追手が来ないのは主人公のせいでない）。
     //   11/10：終わりの瞬間に篝火の輪の外（追手を払いに数歩出た等）でも、南岸に上がっていれば守った事にする（指示書の詰まり防止）。
     const pp = rt.player.u.pos;
-    const present = o.waitCross ? pp.z >= BANK_Z && !rt.world.inWaterAt(pp.x, pp.z) && C.inT >= o.dur * 0.5 :
+    const present = o.waitCross ? pp.z >= BANK_Z && !rt.world.inWaterAt(pp.x, pp.z) && Math.max(C.inT, C.southT || 0) >= o.dur * 0.5 :
       C.orderlyWithdrawal || C.broken || C.inT >= Math.min(o.dur * 0.5, 4);
     const won = !rt.flags.failedHold && present;
     if (won && C.broken) { rt.objDone('dp'); const D = rt.flags.dp; D.steps.length = D.i + 1; return; }   // 残りの火は飛ばし、done（渡河・勝ち）へ進む
@@ -4491,6 +4496,13 @@ tedorigawa.botEvacuating = (b) => {
     (C.s.tedoLine || C.s.tedoPush) &&
     Math.hypot(b.player.u.pos.x - C.at.x, b.player.u.pos.z - C.at.z) > (C.s.tedoPush ? 9 : 6)));
 };
+let tedoLive = null;
+// 11/10：殿の持ち場（北岸・南岸）の間は、bot の共通の逃げ足で六十歩も南へ離れない（命が三割を切れば共通の退避に任せる）。
+Object.defineProperty(tedorigawa, 'botDefendsFort', { configurable: true, get() {
+  const rt = tedoLive;
+  if (!rt || rt.def !== tedorigawa || rt.over || rt.flags.ending) return false;
+  return !!rt.flags.dp?.on && (rt.flags.step === 2 || rt.flags.step === 4);
+} });
 tedorigawa.botBrainDepth = true;   // 段の間も下の頭で渡り口の筋を通す
 tedorigawa.botBrain = (b, inp, { goTo }) => {
   const p = b.player, u = p.u, F = b.flags;

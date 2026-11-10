@@ -53,6 +53,8 @@ export function start(rt, K) {
   });
   // 加勢が北の口へ着く頃：味方が押される（隊を門の内の半ばまで下げる）
   S(40, () => {
+    // 加勢を先に退けた時は、押されていない味方を時刻だけで下げない。
+    if (!alive(F.engun) || remaining(rt) <= Math.ceil((F.engunN || 1) * 0.3)) return;
     rt.say('蜂須賀の侍', '押される！　門の内まで下がって組を立て直せ！', 3);
     for (const g of [F.saki, F.asano, F.ikeda]) if (alive(g)) {
       const x = g.order === 'path' && g.path?.length ? g.path[g.path.length - 1][0] : g.anchor.x;
