@@ -1422,6 +1422,13 @@ function ariTownsfolk(rt) {
 const ARI_GOALS = ['上臈塚の木戸へ寄れ', '木戸の内の番兵を押し出し、惣構えの通りを押さえよ', '侍町の辻を取れ', '辻で寄せ返す荒木勢を防ぎ、侍町の焼け跡と奥の木戸を押さえよ', '牢を出た官兵衛を迎えよ'];
 const ARI_JUNCTION = { x: TOWN_X - 2, z: -14 };
 const ariGoalText = (rt) => ARI_GOALS[arioka.missionOf(rt)];
+// 五つの目標は保ち、行き先の地名だけ今の段の持ち場に合わせる。
+function ariPlaceName(rt, k = arioka.missionOf(rt)) {
+  const F = rt.flags;
+  if (k === 1) return F.dpW ? '惣構えの通り' : '木戸の内';
+  if (k === 3) return F.dpU ? '侍町の奥の木戸' : F.dpD ? '侍町の焼け跡' : '侍町の辻';
+  return k === 0 ? '上臈塚の木戸' : k === 4 ? '小寺官兵衛' : '侍町の辻';
+}
 // 11/5 kaito 九1・九3・十1：右上は①〜⑤を最初から全部並べ、済んだ物に印（hud_goals の札）。両軍の今の兵の数の棒も上に常に出す。
 //   共通の任務札は一行だけなので、その後に目標の札を重ねて置き換える（森部と同じ作り）。時の字は出さない。
 const ARI_BOARD_CSS = `
@@ -1544,7 +1551,7 @@ const arioka = {
       return arioka.missionOf(rt) === k && F.dpOn && F.dp?.cur?.at ? F.dp.cur.at : place[k];
     };
     // 11/9 iPhone 874×402：右上の札が「1　①上臈塚の…」と番号を二重に出した。番号は札（hud_goals）が付ける
-    return ARI_GOALS.map((text, k) => ({ kind: 'stage', k, text, noun: ['上臈塚の木戸', '木戸の内', '侍町の辻', '侍町の辻', '小寺官兵衛'][k], action: text,
+    return ARI_GOALS.map((text, k) => ({ kind: 'stage', k, text, noun: ariPlaceName(rt, k), action: text,
       // 期限は各段で下知とともに扱う。長い④の途中や官兵衛を待つ間に、札だけを失敗にしない。
       place: k < 4 ? () => currentPlace(k) : () => rt.flags.kanbeAt || null, check: k < 4 ? at(k) : () => won() || !!rt.flags.kanbeMet }));
   },
@@ -1604,9 +1611,9 @@ const arioka = {
   cornerFlagFrames: true, subtleFlagFrames: true,
   namedGuideMarkers: true,
   // 曲がり角の印にも、着く先の名を出す（「印へ進め」では何の印か分からない。AR1）。
-  travelGuideLabel: (rt) => ariGoalText(rt),
+  travelGuideLabel: (rt) => ariPlaceName(rt),
   goalSignAction: (rt) => arioka.missionHeading(rt),
-  edgeDestinationLabel: (rt) => (['上臈塚の木戸へ', '木戸の内へ', '侍町の辻へ', '侍町の辻へ', '官兵衛のもとへ'][arioka.missionOf(rt)]), // 実物の旗がない曲がり角を「旗へ」と呼ばない。
+  edgeDestinationLabel: (rt) => ariPlaceName(rt) + 'へ', // 実物の旗がない曲がり角を「旗へ」と呼ばない。
   hideArrivedDestination: true, // 辻や曲がり角に着いたら、本人を覆う大きな印を足元へ畳む。
   compactHoldGuide: true, // 持ち場の印は地面へ収め、兵より大きな輪を重ねない。
   softGuideRings: true, dashedGuideRings: true, nearAllyBodyOnly: true,
