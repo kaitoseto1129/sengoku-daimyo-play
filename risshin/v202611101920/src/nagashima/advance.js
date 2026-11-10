@@ -72,6 +72,11 @@ function withdraw(C) {
   for (const g of C.groups) if (!g.routed && g.order !== 'retreat') {
     g.noRout = false; g.morale = 0; g.order = 'retreat';
     g.fire = false;
+    // 撤退の下知より前に構えた一撃や装填を持ち越さない。
+    // 射撃停止だけでは、近い相手への攻撃や斬撃が残る。
+    for (const u of g.units) {
+      u.target = null; u.atk = null; u.swing = null; u.bind = null; u.reload = null;
+    }
     // 南の舟入りでは川へ下がらず、家族のいる在所の側へ退く。
     g.dest = { x: C.at.x, z: C.at.z + (C.at.z < -110 ? 24 : -24) };
   }

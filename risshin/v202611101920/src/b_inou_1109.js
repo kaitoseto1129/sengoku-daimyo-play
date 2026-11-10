@@ -624,7 +624,12 @@ const ino = {
       F.shibaFlag.visible = !!F.shibaU?.alive && !F.shibaU.gone;
       if (F.shibaFlag.visible) F.shibaFlag.position.set(F.shibaU.pos.x + 1.6, F.shibaU.pos.y, F.shibaU.pos.z - 1.2);
     }
-    if (F.nobuFlag && F.nobuU?.alive) F.nobuFlag.position.set(F.nobuU.pos.x + 1.6, F.nobuU.pos.y, F.nobuU.pos.z + 1.2);
+    if (F.nobuFlag) {
+      // 信長の大旗も本人が戦場を去った後に残さない。大将として遊ぶ時は本人に付ける。
+      const lord = rt.G.lord ? P : F.nobuU;
+      F.nobuFlag.visible = !!lord?.alive && !lord.gone;
+      if (F.nobuFlag.visible) F.nobuFlag.position.set(lord.pos.x + 1.6, lord.pos.y, lord.pos.z + 1.2);
+    }
     if ((F.scanT = (F.scanT || 0) - dt) > 0) return;
     F.scanT = 0.25;
     const L = F.lead?.alive && !F.lead.gone ? F.lead : null;

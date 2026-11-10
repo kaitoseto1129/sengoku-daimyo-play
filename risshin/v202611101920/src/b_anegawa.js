@@ -4123,18 +4123,28 @@ const anegawa = {
     F.breach++;
     if (F.breach < 3) {
       g.order = 'move'; g.dest = { x: MORI.x, z: F.breach === 1 ? 260 / 5 : MORI.z + 4 };
-      g.onArrive = (q) => { q.order = 'attack'; q.seekRange = 24; };
+      g.onArrive = (q) => {
+        if (F.step !== 1 || F.ending || rt.over || q.order !== 'move' || gone(q)) return;
+        q.order = 'attack'; q.seekRange = 24;
+      };
     } else {
       // 本物の兵を増やさず、後ろの軽い二段も押し下げて、深い入り込みを見せる。
       for (const q of F.odaLayers) q.m.retreat(34, 12);
       F.holdAt.z = MORI.z + 20;
       for (const q of [F.vanguard, F.mori, F.guns[0], F.shibata]) if (q && !gone(q)) {
         q.order = 'move'; q.dest = { x: q.anchor.x, z: q === F.guns[0] ? F.holdAt.z + 6 : F.holdAt.z };
-        q.onArrive = (r) => { r.order = 'hold'; r.facing = Math.PI; r.aggro = 12; };
+        q.onArrive = (r) => {
+          // 追撃や退却へ移った後に、段を立て直す古い下知で止めない。
+          if (F.step !== 1 || F.ending || rt.over || r.order !== 'move' || gone(r)) return;
+          r.order = 'hold'; r.facing = Math.PI; r.aggro = 12;
+        };
       }
       for (const q of [F.second, F.third]) if (q && !gone(q)) { q.order = 'attack'; q.seekRange = 75; }
       g.order = 'move'; g.dest = { x: MORI.x, z: F.holdAt.z - 13 };
-      g.onArrive = (q) => { q.order = 'attack'; q.seekRange = 30; };
+      g.onArrive = (q) => {
+        if (F.step !== 1 || F.ending || rt.over || q.order !== 'move' || gone(q)) return;
+        q.order = 'attack'; q.seekRange = 30;
+      };
       rt.banner('後ろの段まで押し込まれた', '本陣の手前で、槍の列を揃え直せ');
       anegawaObjective(rt, 'main', '印の槍列で槍を揃え直せ', true);
       F.holdLabel = '森の後ろの槍列';
@@ -4150,6 +4160,8 @@ const anegawa = {
     F.flankG = g; F.waves[3] = g;
     g.order = 'path'; g.path = [[108, 16], [96, MORI.z - 1], [MORI.x + 36, MORI.z + 20]]; g.pathIdx = 0;
     g.onArrive = (q) => {
+      // 総崩れで退く別手を攻撃へ戻し、守った東の瀬を失敗にしない。
+      if (F.step !== 1 || F.ending || rt.over || q.order !== 'path' || gone(q)) return;
       q.order = 'attack'; q.seekRange = 32;
       if (!F.flankDone) {
         F.flankDone = true;
@@ -4184,7 +4196,7 @@ const anegawa = {
   },
   defendEast(rt) {
     const F = rt.flags;
-    if (!F.flankChoiceShown || F.flankDone || F.flankPick === 0) return;
+    if (F.step !== 1 || F.ending || rt.over || !F.flankChoiceShown || F.flankDone || F.flankPick === 0) return;
     const p = rt.player.u.pos;
     if (Math.hypot(p.x - 92, p.z - (MORI.z - 1)) > 25) return;
     F.flankPick = 0;
@@ -4193,7 +4205,10 @@ const anegawa = {
     const q = rt.G.lord ? F.kino : rt.squadGroups?.[0];
     if (q && !gone(q)) {
       q.order = 'move'; q.dest = { x: 92, z: MORI.z - 1 };
-      q.onArrive = (r) => { returnLine(r); r.facing = Math.PI; r.aggro = 18; };
+      q.onArrive = (r) => {
+        if (F.step !== 1 || F.ending || rt.over || r.order !== 'move' || gone(r)) return;
+        returnLine(r); r.facing = Math.PI; r.aggro = 18;
+      };
     }
     rt.obj('flank', '東の瀬で浅井の別手を止めよ', 'side');
     rt.objProgress('flank', '瀬の出口で槍を揃えよ。深みへ入るな');

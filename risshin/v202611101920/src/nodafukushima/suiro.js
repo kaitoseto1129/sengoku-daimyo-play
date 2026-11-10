@@ -86,7 +86,7 @@ export function install(rt, ctx) {
         S.k = 3; S.backT = rt.t;
         rt.unmark('nodaSnipe');
         withdraw();
-        rt.say('前田利家', '追い払ったな。堤へ戻れ、今日の下知を言うぞ', 3.5);
+        rt.say('前田利家', S.timedOut && S.contestedAt == null ? '三好の鉄砲は砦へ退いた。堤へ戻れ、今日の下知を言うぞ' : '追い払ったな。堤へ戻れ、今日の下知を言うぞ', 3.5);
       }
     }
     if (S.k === 3 && rt.t - S.t0 >= MIN_T && rt.t - S.backT > 8) finish();
