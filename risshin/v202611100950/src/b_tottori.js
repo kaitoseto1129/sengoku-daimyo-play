@@ -310,7 +310,9 @@ function boatApproach(rt, boat) {
       if (!atBank(boat.x, z)) continue;
       let cost = Math.abs(p.z - z);
       for (const g of [F.guard, F.guard2]) for (const u of g.units) {
-        if (!u.alive || u.fleeing || u.woundOut || u.noTarget) continue;
+        // 倒れた番や深手で退く番を避けて、通れる側を遠回りしない。
+        if (!u.alive || u.hp <= 0 || u.dying || u.downed || u.gone ||
+            u.fleeing || u.woundOut || u.rearWound || u.noTarget) continue;
         const x = Math.max(boat.x, Math.min(-36, u.pos.x));
         const d = Math.hypot(u.pos.x - x, u.pos.z - z);
         if (d < 8) cost += (8 - d) * 8;
