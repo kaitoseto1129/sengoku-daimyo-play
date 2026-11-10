@@ -1954,7 +1954,7 @@ const iga = {
     F.niwaU = F.niwa.units[0];
     F.tsutsui = allyGroup(rt, { fixed: true, formation: 'line', guard: true, guardLeash: 12, name: '西の押さえの組', anchor: { x: -26, z: 40 }, facing: Math.PI, width: 12, aggro: 10, noRout: false },
       dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 14 }], ODA));
-    F.ram = allyGroup(rt, { fixed: true, name: '木戸を破る組', anchor: { x: 20, z: 44 }, facing: Math.PI, width: 5, aggro: 3, noRout: false, formation: 'column' },
+    F.ram = allyGroup(rt, { fixed: true, noAI: true, order: 'hold', guard: true, guardLeash: 6, seekRange: 6, name: '木戸を破る組', anchor: { x: 20, z: 44 }, facing: Math.PI, width: 5, aggro: 3, noRout: false, formation: 'column' },
       dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 12, o: { hat: 'jingasa_n' } }], ODA));
     F.oda = [F.niwa, F.tsutsui, F.ram];
     F.niwa.leader = F.niwaU;
@@ -3372,8 +3372,20 @@ function igaMove(o) {
     igaGather(rt, rt.flags.niwaNagahide, { x: C.at.x - 4, z: C.at.z + 6 });
     igaGather(rt, rt.flags.takigawa, { x: C.at.x + 10, z: C.at.z + 8 });
     igaGather(rt, rt.flags.tsutsuiJunkei, { x: C.at.x + 4, z: C.at.z + 6 });
-    C.guideUnit = { pos: rt.player.u.pos }; C.guideAt = 0;
-    C.lastDistance = Infinity; C.stuckT = 0; C.corner = { x: 0, z: 0 }; C.roadFrom = {}; C.roadTo = {};
+    C.guideUnit = { pos: rt.player.u.pos, isPlayer: true }; C.guideAt = 0;
+    // 上下の道が近い角でも、通った角へ印を戻さない。道順は段の始めに一度だけ作る。
+    const from = {}, to = {};
+    roadPoint(rt.player.u.pos, from);
+    roadPoint({ x: C.at.x, z: C.at.z, y: rt.world.heightAt(C.at.x, C.at.z) }, to);
+    C.roadPath = []; C.roadIndex = 0;
+    if (Math.min(rt.player.u.pos.z, C.at.z) < 12) {
+      if (from.d > 2.8) C.roadPath.push({ x: from.x, z: from.z });
+      const direction = to.s > from.s ? 1 : -1;
+      for (let i = direction > 0 ? Math.floor(from.s) + 1 : Math.ceil(from.s) - 1;
+        direction > 0 ? i < to.s : i > to.s; i += direction)
+        C.roadPath.push({ x: ROAD[i][0], z: ROAD[i][1] });
+      C.roadPath.push({ x: to.x, z: to.z });
+    }
   };
   s.tick = (rt, C, m, ctx, el, dt) => {
     const distance = Math.hypot(rt.player.u.pos.x - C.at.x, rt.player.u.pos.z - C.at.z);
@@ -3387,25 +3399,25 @@ function igaMove(o) {
     if (!C.arr && rt.t >= C.guideAt) {
       C.guideAt = rt.t + 0.5;
       const d = Math.hypot(rt.player.u.pos.x - C.at.x, rt.player.u.pos.z - C.at.z);
-      C.stuckT = d < C.lastDistance - 0.5 ? 0 : C.stuckT + 0.5; C.lastDistance = d;
-      let next = igaWay(rt.army, C.guideUnit, C.at);
-      if (C.stuckT >= 8 && next === C.at) {
-        roadPoint(rt.player.u.pos, C.roadFrom); roadPoint(C.at, C.roadTo);
-        if (C.roadFrom.d > 2.8) { C.corner.x = C.roadFrom.x; C.corner.z = C.roadFrom.z; }
-        else {
-          const forward = C.roadTo.s > C.roadFrom.s;
-          const i = Math.max(0, Math.min(ROAD.length - 1, forward ? Math.floor(C.roadFrom.s) + 1 : Math.ceil(C.roadFrom.s) - 1));
-          C.corner.x = ROAD[i][0]; C.corner.z = ROAD[i][1];
-        }
-        next = C.corner;
+      const p = rt.player.u.pos;
+      while (C.roadIndex < C.roadPath.length) {
+        const corner = C.roadPath[C.roadIndex];
+        // 半秒ごとの更新で角を少し越しても通過とする。真上の別の段は通過に数えない。
+        if (Math.hypot(p.x - corner.x, p.z - corner.z) > 1.4 ||
+            Math.abs(p.y - rt.world.heightAt(corner.x, corner.z)) >= 2) break;
+        C.roadIndex++;
       }
+      const roadGoal = C.roadPath[C.roadIndex] || C.at;
+      const next = igaCampWay(rt.army, C.guideUnit, roadGoal);
       // 小屋を回る角の到着と次の角への切替は igaCampWay に任せる。
       // その手前の1.2歩で目的地へ戻すと、出口の角を飛ばして壁へ直進してしまう。
       if (next !== C.at) {
         // 目的地と折れ目の矢印を重ねず、次に歩く所だけを同じ印で示す。
         rt.marker('dp', next, '道の折れ目', { h: 3 }); C.goal = next;
         if (!C.detour) { rt.unzone('dp'); C.detour = true; }
-        rt.objProgress('dp', '道の折れ目へ回れ。堀や小屋を避けよ');
+        rt.objProgress('dp', C.roadIndex < C.roadPath.length
+          ? `道の折れ目 ${C.roadIndex}／${C.roadPath.length}。印をたどれ`
+          : '道の折れ目へ回れ。堀や小屋を避けよ');
       } else {
         rt.marker('dp', C.at, o.label || '次の持ち場', { h: 3 }); C.goal = C.at;
         if (C.detour) { rt.zone('dp', C.at.x, C.at.z, o.r || 8); C.detour = false; }
@@ -3418,6 +3430,7 @@ function igaMove(o) {
   // 共通の放置救済でも、未到着の曲輪を調べ終えた扱いにしない。
   s.idleAdvance = false;
   s.max = Infinity; // 到着前の時間切れを、確認済みにはしない。
+  s.noHardCap = true; // 共通の七分打ち切りでも、帰陣・曲輪の調査を飛ばさない。
   return s;
 }
 
