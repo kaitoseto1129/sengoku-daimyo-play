@@ -4318,7 +4318,7 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
   // 史実の決め手。大将の船と思われる一艘を近くへ寄せる。
   decisive(rt) {
     const F = rt.flags;
-    F.step = 4; F.stepT = rt.t; F.cannonPost = F.guns[1];
+    F.step = 4; F.stepT = rt.t; F.cannonPost = F.guns[1]; F.flagshipAttended = false;
     // 10/31 大筒へ向かう間、甲板に残る乗り込み勢の刃を浅くする（囲まれて倒れきらない）。
     // 10/31 弓と鉄砲の船も同じ。艫の味方も持ち場から出て、本人の周りの敵へ加勢する。
     for (const g of rt.army.groups) if (g.team === 1) g.dmgMult = Math.min(g.dmgMult ?? 1, 0.3);
@@ -5027,8 +5027,11 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
       if (elapsed >= 130 && rt.t >= 600 && (F.pk || 0) >= 1) { this.decisive(rt); return; }   // 15分の段：大将船は九分半ごろ（有名な場面を七〜十三分に）。乗り口で戦い続けた者を負けにせず、決め手の段へ（bot 10/26）
     }
     if (F.step === 4) {
+      // 下知どおり大筒で横腹を待った者も、持ち場を守る働きとして援護する。
+      // ①の到着を持ち越さず、この段で改めて西の大筒へ来た時だけ拾う。
+      if (!F.flagshipAttended && deckRouteDistance(rt.player.u, F.guns[1].post) <= 2.6) F.flagshipAttended = true;
       // 援護も射界・玉込め・着弾を通す。時間だけで射程外の大将船を壊さない。
-      if (!F.bigSunk && elapsed >= 60 && (F.pf4 || F.pk)) {
+      if (!F.bigSunk && elapsed >= 60 && (F.pf4 || F.pk || F.flagshipAttended)) {
         for (let i = 0; i < F.guns.length; i++) if (cannonReady(rt, F.guns[i])) { this.fire(rt, i, false); break; }
       }
       // 命中後の崩れを見せたら退きへ進む。砲撃が早く決まっても待たせない。
