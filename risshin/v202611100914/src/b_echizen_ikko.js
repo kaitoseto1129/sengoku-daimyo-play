@@ -2362,8 +2362,11 @@ function echizenIkkoMorning(rt) {
 const echizen_ikko = {
   // 稲生の型。進軍・敵・持ち場を同じ一行とピンで示す（全部の戦の札は今は一行の型・hud_cards.js の battleOrder）。
   missionSingleLine: true,
-  // この戦は既存の参道の印と任務一行を使う。共通の「門へ進め」「ここを攻める」を重ねない。
-  goalSignOff: () => true,
+  // 共通の行き先印へ一本化する。印を無効にすると敵を指す間も案内が消えてしまう。
+  goalSignOff: (rt) => rt.def.woundRetreatNeeded(rt) || !!(rt.hud.retreatGuide?.active && rt.hud.retreatGuide.valid),
+  goalSignOnly: true,
+  goalSignNavigation: true,
+  goalSignDistanceAlways: true,
   // 参道の途中も同じ▼で案内し、足元の矢印へ替えない。場所名と距離を残す。
   pinOnlyDestination: true,
   goalSignTriangle: true,
@@ -2462,7 +2465,7 @@ const echizen_ikko = {
     pin.enemy = !!pin.unit; pin.route = route;
     pin.r = route ? .5 : defend ? F.step === 5 ? 18 : 6 : enemy ? 3 : 4;
     // 到着しても制圧・待機が済むまでは持ち場を示す。到着半径と表示の有無を分ける。
-    pin.hide = 0; pin.always = true;
+    pin.hide = 0; pin.hideDistance = 0; pin.always = true;
     pin.waiting = defend && !route;
     // 山の斜面や堂の向こうへ囲みを透かさず、持ち場は一つの印で示す。
     pin.defend = false;
@@ -2472,6 +2475,7 @@ const echizen_ikko = {
       : F.mode === 'defend' ? '本堂' : F.step >= 4 ? '奥山道'
       : gate?.struct.alive ? F.step === 1 ? '惣門' : '山門'
         : TEMPLE_HALL_NAMES[TEMPLE_HALL_IDS[F.step - 1]];
+    pin.label = pin.destinationName;
     pin.destinationDistance = Math.round(Math.hypot(goal.x - p.x, goal.z - p.z));
     pin.name = ''; pin.approach = false; pin.arrow = false;
     return pin;
@@ -2762,6 +2766,7 @@ const echizen_ikko = {
     nightLight: { sky: 0x3a3b40, top: 0x15171c, fog: 0x2e2d30, sun: 0xd2ccbf, hemiSky: 0x9c9a98, hemiGround: 0x4a4030 }, // 11/01 点付け「暗くて見えない」：信貴山の月夜を手本に、紺の空と青い月を灰と暖かみへ
     fogTintStrength: 1, // 夜の青白い既定色を残さず、空に近い暗い霧へそろえる。
     mistFar: 140, // 麓の最初の霧で先手と門が白い壁に隠れない距離。
+    clearAir: true, // 昼の雨でも遠景を灰色一色にしない。夜の闇・敵の発見距離・兵の描画距離は保つ。
     smokeFogFloor: 60, // 火と鉄砲の煙は残し、目前の先手と参道を白い壁で隠さない。
     muddy: 0.1,
     patchyGround: true, // 土の斑と草の株を同じ分布にし、道肩に踏み荒らされた裸地を残す。

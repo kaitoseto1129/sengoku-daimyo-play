@@ -4698,8 +4698,9 @@ const anegawa = {
     SEN.end(rt);
     if (shortPursuit) {
       for (const g of [F.rear, F.counterChase, F.flankG]) if (g && !gone(g)) {
-        g.order = 'move'; g.dest = { x: g.anchor.x - 64, z: -180 }; g.formation = 'column';
-        g.onArrive = (q) => { q.order = 'hold'; q.anchor.x = q.dest.x; q.anchor.z = q.dest.z; };
+        // 終幕でも退く下知を出す。移動後の待機では、頭が生きた残兵が戦い続ける。
+        g.noRout = false; g.morale = 0; g.order = 'retreat';
+        g.onArrive = null; g.focus = null;
       }
     }
     const gather = () => {

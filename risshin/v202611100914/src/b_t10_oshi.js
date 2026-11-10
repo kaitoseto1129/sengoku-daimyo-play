@@ -660,6 +660,13 @@ const t10_oshi = {
   night(rt) {
     const F = rt.flags;
     if (F.step >= 3) return;
+    // 通常の軍議と途中再開の両方で、退却中だけ止めた射撃を戻す。
+    const K = F.chi;
+    if (K) {
+      if (rt.world?.def) rt.world.def.strictFireOrders = K.strictWas;
+      for (const g of K.fireWas || []) g.fire = true;
+      for (const [u, a, b] of K.ammoWas || []) { u.arrowAmmo = a; u.gunAmmo = b; }
+    }
     F.step = 3; F.stepT = rt.t;
     rt.setPhase('night');
     rt.world.setTime('night');

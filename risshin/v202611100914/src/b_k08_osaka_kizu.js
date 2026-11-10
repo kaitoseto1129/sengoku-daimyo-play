@@ -58,19 +58,23 @@ const OSAKA ={ x: 260, z: -260 };             // 大坂城の方角（遠く）
 const alive = (g) => g && !g.routed && g.count > 0;
 const near = (p, q, r) => Math.hypot(p.x - q.x, p.z - q.z) < r;
 // 討てない大将だけの組や退場中の兵を追わず、まだ戦っている兵へ寄せる。
-const fightable = (u) => u.alive && !u.noTarget && !u.invuln && !u.fleeing && !u.dying && !u.woundOut && !u.evacuatedWound;
+const fightable = (u) => u.alive && !u.gone && !u.noTarget && !u.invuln && !u.fleeing && !u.dying && !u.woundOut && !u.rearWound && !u.downed && !u.evacuatedWound;
+// ③は砦の内を取る戦い。閉じた北門の外や横塀の外まで残兵を追わせない。
+const insideFort = (p) => Math.abs(p.x) < WALL_X && p.z > WALL_N && p.z < GATE.z + 6;
+const guardsInside = (u) => fightable(u) && insideFort(u.pos);
 // 組の生存数には手負いの将も残る。目標と行き先は、まだ戦える守兵でそろえる。
-const sum = (gs) => {
+const sum = (gs, inside = false) => {
   let n = 0;
-  for (const g of gs) if (alive(g)) for (const u of g.units) if (fightable(u)) n++;
+  for (const g of gs) if (alive(g)) for (const u of g.units) if (inside ? guardsInside(u) : fightable(u)) n++;
   return n;
 };
-function fightingTarget(groups, p, north) {
+function fightingTarget(groups, p, north, inside = false) {
   let best = null, distance = Infinity;
   for (const g of groups) {
     if (!alive(g)) continue;
     for (const u of g.units) {
       if (!fightable(u)) continue;
+      if (inside && !guardsInside(u)) continue;
       if (north && g !== north.engun && !guardsNorth(u)) continue;
       const d = (u.pos.x - p.x) ** 2 + (u.pos.z - p.z) ** 2;
       if (d < distance) { best = u; distance = d; }
@@ -78,6 +82,7 @@ function fightingTarget(groups, p, north) {
   }
   return best;
 }
+const insideTarget = (F, p) => fightingTarget(F.s3, p, null, true);
 // 味方の隊は持ち場（anchor）を移すだけ。兵は走って付いてくる（名のある武将の隊は order の move で動かない）
 const hold = (g, x, z) => { if (!g || g.routed) return; g.anchor.x = x; g.anchor.z = z; g.order = 'hold'; g.dest = null; g.path = null; g.focus = null; };
 // 浅野勢と池田勢は、残る横塀へ直進せず、開いた南面か東西の切れ目から入る。
@@ -190,10 +195,11 @@ const sq = (side, type, n, o) => ({ type, n, o: kit(side, o) });
 // 豊臣方の組（明石の砦の兵）
 const foe = (rt, name, at, list, o = {}) => enemyGroup(rt, { fixed: true, name, faction: 'toyotomi', flag: TOYO.flag, armor: TOYO.armor, anchor: at, facing: 0, order: 'hold', aggro: 12, width: 8, ...o }, list);
 // 持ち場に控えていた豊臣方の新手を放つ（本物の兵。数える組に足し、倒す数も増やす）
-function join(rt, list, key, g) {
+function join(rt, list, key, g, defend = false) {
   const F = rt.flags;
   if (!alive(g)) return;
-  g.noAI = false; g.order = 'attack'; g.aggro = 26; g.seekRange = 60;
+  g.noAI = false; g.order = defend ? 'hold' : 'attack'; g.aggro = defend ? 16 : 26; g.seekRange = defend ? 20 : 60;
+  if (defend) g.interiorHold = true;
   F[list].push(g); F[key] += g.count;
 }
 // 高い所（櫓・舟の上）に兵を据える
@@ -389,7 +395,7 @@ const k08_osaka_kizu = {
     for (const [x, z, rot] of BOATS) {
       const g = allyGroup(rt, { faction: 'hachisuka', name: '蜂須賀の舟手', fixed: true, anchor: { x, z }, facing: Math.PI / 2, order: 'hold', aggro: 2, seekRange: 0, noRout: true, morale: 100, fullStrength: true },
         [sq(HACHI, 'gun', 2)]);
-      g.noFrontline = true;
+      g.noFrontline = true; g.noAI = true;   // 舟から上陸する号令を共通の頭に出させず、下の射撃処理で川から支援する
       perch(g, x, W.heightAt(x, z) + W.waterDepthAt(x, z) + 0.9, z, Math.PI / 2 + rot);
       F.fune.push(g);
     }
@@ -544,13 +550,13 @@ const k08_osaka_kizu = {
     }
     holdInside(F.ikeda, INSIDE.x - 12, INSIDE.z - 2); F.ikeda.aggro = 20;
     F.garrison.noAI = false;
-    for (const g of [F.wallG, F.garrison]) { g.order = 'attack'; g.aggro = 16; }
+    for (const g of [F.wallG, F.garrison]) { g.order = 'hold'; g.aggro = 16; g.seekRange = 20; g.interiorHold = true; }
     // 門の内の弓鉄砲は持ち場から動かずに一斉に射つ（雨のように）。夜明け前でも門の内は篝火の明かりで当たる
-    F.inner.noAI = false; F.inner.order = 'hold'; F.inner.aggro = 40; F.inner.seekRange = 40;
+    F.inner.noAI = false; F.inner.order = 'hold'; F.inner.aggro = 40; F.inner.seekRange = 40; F.inner.interiorHold = true;
     rt.after(0.6, () => { if (F.step === 3) rt.say('明石全延', '入ってきたぞ。射て、射て！', 2.4); });
     for (const g of F.allies) g.dmgMult = 0.4;   // 逃げ場の無い砦の内の守兵は死に物狂い（③が一息で済まない）
     F.s3 = [F.garrison, F.wallG, F.inner]; F.gN = sum(F.s3);
-    rt.marker('k08', () => fightingTarget(F.s3, rt.player.u.pos)?.pos || INSIDE, '明石の守兵', { red: true, group: F.garrison });
+    rt.marker('k08', () => insideTarget(F, rt.player.u.pos)?.pos || INSIDE, '明石の守兵', { red: true, group: F.garrison });
     rt.say(SHISHA, '殿の仰せ。門が開いた、内へ攻め入れ、と', 3.2);
     rt.after(3.6, () => { if (F.step === 3) rt.say('浅野長晟', '浅野も着いた。東から挟み込め', 3); });
     rt.after(7.4, () => { if (F.step === 3) rt.say('池田の物頭', '池田の手、西の柵を破った。乗り込め', 3); });
@@ -724,18 +730,27 @@ const k08_osaka_kizu = {
       if (F.burned) n += 6;   // 背の火で守りが浮き足立ち、閂を守る手が減る（門の前に主人公を一分半も立たせない）
       if (n) { st.hp -= dt * 0.9 * Math.min(n, 14); if (st.hp <= 0) { st.hp = 0; st.alive = false; rt.army.structFall(st); this.onStructDestroyed(rt, st); } }
     } else if (F.step === 3) {
-      if (!F.okuOn && sum(F.s3) <= F.gN * 0.5) {
+      const left = sum(F.s3, true), elapsed = rt.t - F.tS;
+      if (!F.okuOn && (left <= F.gN * 0.5 || (F.insideJoined && insideFort(P) && elapsed > 90))) {
         F.okuOn = true;
         for (const u of F.oku.units) u.noTarget = false;
-        join(rt, 's3', 'gN', F.oku);
+        join(rt, 's3', 'gN', F.oku, true);
         rt.say('明石全延', '奥の者も出よ！　門を取り返せ', 3);
         return;
       }
-      if (F.insideJoined && F.okuOn && sum(F.s3) <= F.gN * 0.15) this.stage4(rt);
+      // 本人が内へ入り、守りの八割を崩せば残兵は退く。奥の手の出撃は必ず待つ。
+      // 長引いた時も六割を崩し、本人が砦内を八秒保つまでは進めない。
+      F.insideHeld = F.insideJoined && insideFort(P) && left <= F.gN * 0.4 ? (F.insideHeld || 0) + dt : 0;
+      if (F.insideJoined && F.okuOn && (left <= F.gN * 0.2 || (elapsed > 180 && F.insideHeld > 8))) this.stage4(rt);
     } else if (F.step === 4) {
       // 柵の外へ押し出された守兵は北の口の守りから外れた者（博労淵へ逃げる）。残りが追えずに④が止まらないように
       //   退き口を守る組は四十五秒は粘る（11/5 crit：④が二十秒で済んだ）
-      if (F.northJoined && northLeft(F) <= Math.floor(F.nN * 0.2) && rt.t - F.tS > 45 && engun.cleared(rt)) this.stage5(rt);
+      const left = northLeft(F);
+      // 加勢が塀の外で足止めされても、両方の手を半数まで崩し北の口を押さえれば退ける。
+      // 出撃と後備の押し返しは engun.cleared で待つ。時間だけでは達成しない。
+      F.northHeld = F.northJoined && insideFort(P) && near(P, NORTH_AT, 16) && left <= F.nN * 0.5 && engun.remaining(rt) <= (F.engunN || 0) * 0.5 ? (F.northHeld || 0) + dt : 0;
+      const secured = rt.t - F.tS > 180 && F.northHeld > 8;
+      if (F.northJoined && (left <= Math.floor(F.nN * 0.2) || secured) && rt.t - F.tS > 45 && engun.cleared(rt, secured)) this.stage5(rt);
     } else if (F.step === 5) {
       // 幟は主人公が北の口に来て立てる。待つだけで最後の目標を果たさない。
       // 主人公は北の口に着いて幟の竿を土に突き立てる（櫓から撃たれながら五秒ほど留まる。着いた途端に勝ちにしない）
@@ -795,7 +810,7 @@ k08_osaka_kizu.botBrain = (b, inp, { goTo, patientStrike }) => {
     inp.leftPressed = Math.random() < 0.6;
     return;
   }
-  if (F.step === 3) { goNorthTo(b, inp, goTo, fightingTarget(F.s3, u.pos)?.pos || INSIDE, 2.2); return; }
+  if (F.step === 3) { goNorthTo(b, inp, goTo, insideTarget(F, u.pos)?.pos || INSIDE, 2.2); return; }
   if (F.step === 4) {
     const target = northTarget(F, u.pos)?.pos || NORTH_AT;
     // 加勢を迎えて門の外へ出た後も、内の守兵へは開いた北門を通って戻る。
@@ -815,7 +830,7 @@ KILLS.k08_osaka_kizu = (rt) => {
   const F = rt.flags;
   if (F.ending) return null;
   if (F.step === 1) return cut(F.fN, sum(F.s1), F.fN * 0.15);
-  if (F.step === 3) return cut(F.gN, sum(F.s3), F.gN * 0.15);
+  if (F.step === 3) return cut(F.gN, sum(F.s3, true), F.gN * 0.2);
   if (F.step === 4) {
     const north = cut(F.nN, northLeft(F), Math.floor(F.nN * 0.2));
     const reinforcements = cut(F.engunN, engun.remaining(rt), Math.ceil(F.engunN * 0.3));
@@ -830,4 +845,3 @@ setStages('k08_osaka_kizu', [['入り江を渡り、岸の鉄砲組を討つ', 1
 
 export { k08_osaka_kizu };
 export default k08_osaka_kizu;
-
