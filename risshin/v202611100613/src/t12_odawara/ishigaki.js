@@ -40,6 +40,7 @@ export function step(H) {
         for (const [dx, dz] of [[-8, 4], [6, 6], [-2, -4]]) rt.scene.add(tawara(W, H.FUSHIN.x + dx, H.FUSHIN.z + dz, 0.4, 5));
       }, '六月二十五日の夜　石垣山', '火を焚かず、城を築く');
       rt.obj('dp', '石垣山の普請場で、忍び寄る北条の物見を討つ', 'main');
+      rt.marker('dp', H.FUSHIN, '石垣山の普請場', { h: 3 });
       rt.say('普請の奉行', '火は焚くな。声も立てるな。小田原から見られてはならぬ', 3.6);
       rt.after(4.2, () => rt.say(nm(rt), '林の向こうに……石垣と白い壁。もう城が出来ておる', 3.4));
     },
@@ -69,6 +70,7 @@ export function step(H) {
     end(rt, C) {
       for (const g of [...C.scouts, C.porters, C.guard]) if (g) for (const u of g.units) if (u.alive && !u.gone) rt.army.despawn(u);
       rt.objDone('dp');
+      rt.unmark('dp');
       rt.award((t) => t.side.push('石垣山の普請を北条の物見から守った'), '石垣山の普請を守った');
       // 翌朝の井伊の陣へ（暗転。城が現れる段は、井伊の陣から南西を見る）
       k15Fade(rt, () => {

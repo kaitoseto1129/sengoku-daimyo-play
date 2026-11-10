@@ -21,7 +21,9 @@ export const TOKUGAWA_LINE = [
   { id: 'k15_tennoji_okayama', name: '天王寺・岡山の戦い', year: 1615, mins: '20〜30分', file: './b_k15_tennoji_okayama.js' },
   // 秘密の最後の戦（もしもの戦）。15戦に勝つと開く（tokugawa_secret.js）。本陣では虹色の縁の札
   //   noKubi：勝った後の首実検の場面（影絵の板の絵）を出さない。総大将の自分が家康を討った締めは、戦の中の勝鬨と出世の道で済ませる
-  { id: 'k16_secret', name: '元和天下返し', year: 1615, place: '淀の野', secret: true, noKubi: true, winWord: '天下静謐', victoryCaption: '秀忠が刀を置き、戦が終わった', file: './b_k16_secret.js' },
+  { id: 'k16_secret', name: '元和天下返し', year: 1615, place: '淀の野', secret: true, noKubi: true, winWord: '天下静謐', victoryCaption: '家康が刀を置き、戦が終わった', file: './b_k16_secret.js' },
+  // 終幕（docs/finale_spec_1109.md）：淀の野に勝った後だけ、結果の「数年後へ」から入る。戦の一覧には出さない（hidden）
+  { id: 'k17_shuumaku', name: '静かな城下', year: 1623, place: '戦の無い城下', hidden: true, noKubi: true, winWord: '天下静謐', file: './b_k17_shuumaku.js' },
 ];
 
 // 徳川編の出世の段（docs/chapter3_tokugawa.md「出世と軍勢」）。出世の道（state.js の LADDER）の段の番号。
