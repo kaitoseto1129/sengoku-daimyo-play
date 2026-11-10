@@ -332,8 +332,8 @@ export class HudMarkers {
       const pinned = m === main && (clippedFrame || s.behind || s.x < 0 || s.x > W || s.y < 0 || s.y > H);
       if (clippedFrame) flagBounds = null;
       let sx = s.x, sy = s.y;
-      const off = m === main ? pinned : s.behind || sx < 40 || sx > W - 40 || sy < 60 || sy > H - 40;
-      if (off && (S.reduceGuidance || m !== main)) { el.hidden = true; continue; }
+      const off = m === main && !rt.def.goalSignOnscreenOnly ? pinned : s.behind || sx < 40 || sx > W - 40 || sy < 60 || sy > H - (rt.def.goalSignOnscreenOnly ? 60 : 40);
+      if (off && (S.reduceGuidance || rt.def.goalSignOnscreenOnly || m !== main)) { el.hidden = true; continue; }
       // 画面の外（後ろの本陣など）の将の名札は端に貼らずに消す（画面の下の端に▼付きで貼り付いて動いた。11/6 木津川口・鳥取の頼み）
       if (off && m.guidePerson) { el.hidden = true; continue; }
       // 印が本人の体（頭から足）に重なる時は出さない（頭を指す矢印に見える）。

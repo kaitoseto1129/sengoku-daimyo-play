@@ -8,6 +8,7 @@
 // ======================================================================
 import { sfx } from '../audio.js';
 import { enemyGroup } from '../bhelp.js';
+import { fighting, resume } from './hondo_sweep.js';
 
 export function onOku(rt) {
   const F = rt.flags;
@@ -56,19 +57,17 @@ export function tick(rt, dt, ctx) {
   F.ikOkuT = 5;
   const hondo = [F.ikkoHondoMain?.real, F.ikkoHondoBow?.real];
   for (const u of rt.army.units) {
-    if (u.team !== 1 || !u.alive || u.fleeing || u.isStruct || !ctx.zones.some((z) => z.test(u.pos.x, u.pos.z))) continue;
+    if (u.team !== 1 || !u.alive || u.fleeing || u.isStruct) continue;
+    if (u.woundOut || u.noTarget || !ctx.zones.some((z) => z.test(u.pos.x, u.pos.z))) { u._ikStill = null; continue; }
     if (hondo.includes(u.group)) { u.fleeing = true; u.target = null; u.aiT = 0; continue; }
     // 弓・鉄砲や持ち場の槍は、その場で戦う。立ち止まっているだけで討死にしない。
-    const target = u.target;
-    if (u.atk || u.swing || u.charging || target?.alive && !target.fleeing &&
-        Math.hypot(target.pos.x - u.pos.x, target.pos.z - u.pos.z) <= (u.range || 4) &&
-        !rt.army.wallBetween(u.pos, -1, target.pos)) {
+    if (fighting(rt, u)) {
       u._ikStill = null;
       continue;
     }
     const s = u._ikStill;
     if (!s || Math.hypot(u.pos.x - s.x, u.pos.z - s.z) > 1.5) { u._ikStill = { x: u.pos.x, z: u.pos.z, t: rt.t }; continue; }
-    if (rt.t - s.t > 30) rt.army.kill(u, null);
+    if (rt.t - s.t > 30) { resume(rt, u); s.t = rt.t; }
   }
 }
 

@@ -556,7 +556,7 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
     if (di === 4 && C) for (const g of C.groups) {
       if (g.units.some((u) => u.alive && u.name === '猿渡信光')) g.noRout = true;
     }
-    // 15分の構成：忠隣の段で手の者と九十秒斬り合ったら、手の者は崩れて退き、忠隣ひとりが土橋へ寄る（手の者を討ち尽くすまで十分続いた。11/8 bot）
+    // 15分の構成：忠隣の段で手の者と九十秒斬り合ったら、寄せ手は退き、忠隣と近習は土橋へ寄り続ける（手の者を討ち尽くすまで十分続いた。11/8 bot）
     if (C && di === 7 && rt.t - C.t0 > 90 && !F.tadaHandDone) {
       F.tadaHandDone = true;
       // 組頭が生きている組は士気を下げるだけでは退かない。下知で坂の下へ退かせる。
@@ -565,7 +565,9 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
         g.order = 'retreat'; g.historicalOrders = true; g.noPursue = true;
         g.anchor = { x: g.anchor.x, z: 150 }; g.aggro = 0; g.seekRange = 0;
       }
-      rt.say('宮部の侍', '忠隣の手が崩れた！　残るは忠隣ただ一人！', 3);
+      rt.say('宮部の侍', F.tadaU?.alive
+        ? '忠隣の寄せ手が退くぞ！　忠隣は、なお土橋へ斬り込んでくる！'
+        : '忠隣の寄せ手が退くぞ！　土橋の前で槍を揃えよ！', 3);
     }
     // 忠隣は刻限で味方に討たせない。主人公の止めまで斬り込みを続け、目標を未達のまま先へ進めない。
     // 負け方：砦の中に島津が多く入り込んだまま

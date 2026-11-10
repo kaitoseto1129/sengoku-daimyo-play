@@ -175,7 +175,7 @@ const t07_ganjaku = {
   // 行き先は黄色の印一つだけ（ついていく相手の青い印は出さない）。敵は頭上の▼で分かる（kaito AG・AT・AV15）
   noLeaderFollow: true, enemyTriangleSigns: true,
   // 行き先は頭上の金の▼一つ（ピン・旗の輪・矢印を重ねない）。目標は段の四つだけ（「敵を何人討つ」で埋めない。kaito AR1・AW3・BH6）
-  goalSignOnly: true, stageGoalsOnly: true,
+  goalSignOnly: true, goalSignOnscreenOnly: true, stageGoalsOnly: true,
   retryGoalCount: (rt) => Math.max(0, (rt.flags.stage || 1) - 1),
   sideTaskAfter: Infinity,   // 門の櫓を取る別の目標と字の案内（「櫓の入口から中へ」）を出さない。段の四つの目標だけ
   goalSignAction: (rt) => ['', '門の前へ進め', '坂で迎え撃て', '門の内へ入れ', '二の丸を討ち払え', '本丸へ攻め入れ'][rt.flags.stage || 0] || '',
