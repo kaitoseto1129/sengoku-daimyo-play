@@ -3423,7 +3423,11 @@ function igaMove(o) {
       // その手前の1.2歩で目的地へ戻すと、出口の角を飛ばして壁へ直進してしまう。
       if (next !== C.at) {
         // 目的地と折れ目の矢印を重ねず、次に歩く所だけを同じ印で示す。
-        rt.marker('dp', next, '道の折れ目', { h: 3 }); C.goal = next;
+        // 最後の道の点は目的地の写しなので、参照の違いだけで地名を失わない。
+        const finalPlace = next === roadGoal && C.roadIndex === C.roadPath.length - 1 &&
+          Math.hypot(next.x - C.at.x, next.z - C.at.z) < (o.r || 8) &&
+          Math.abs(rt.world.heightAt(next.x, next.z) - rt.world.heightAt(C.at.x, C.at.z)) < 3;
+        rt.marker('dp', next, finalPlace ? o.label || '次の持ち場' : '道の折れ目', { h: 3 }); C.goal = next;
         if (!C.detour) { rt.unzone('dp'); C.detour = true; }
         rt.objProgress('dp', C.roadIndex < C.roadPath.length
           ? `道の折れ目 ${C.roadIndex}／${C.roadPath.length}。印をたどれ`

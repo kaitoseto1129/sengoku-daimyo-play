@@ -36,7 +36,8 @@ export function start(rt, def, C, then) {
 
 export function dest(rt) {
   const v = rt.flags.s15;
-  if (v.raid && v.raid.units.some(ready)) { const P = rt.player.u.pos; let best = null, bd = 1e9; for (const u of v.raid.units) if (ready(u)) { const d = (u.pos.x - P.x) ** 2 + (u.pos.z - P.z) ** 2; if (d < bd) { bd = d; best = u; } } return best?.pos; }
+  // 組に退却の下知が出た時点で護衛へ戻す。兵ごとの逃走の印が付くまで追わせない。
+  if (v.raid && !v.raid.routed && v.raid.units.some(ready)) { const P = rt.player.u.pos; let best = null, bd = 1e9; for (const u of v.raid.units) if (ready(u)) { const d = (u.pos.x - P.x) ** 2 + (u.pos.z - P.z) ** 2; if (d < bd) { bd = d; best = u; } } return best?.pos; }
   // 荷下ろし中は舟着きを離れず、帰りは砦に着くまで実際の人足に付く。
   // 人足が全員倒れても、本人の出迎えは省かない。出迎え後は南門へ案内し、帰還後の停滞救済につなぐ。
   if (!v.backT && (!v.atDock || rt.flags.wk?.units.some(ready))) return v.dock;

@@ -4635,7 +4635,8 @@ const mitsukuri = {
       // 11/4 夜：掛矢で木戸が先に破れると付け入りの段が飛ぶ（bot）。木戸が半ば傷んだ所でも打って出る。
       const st = gate.struct, worn = st && st.hp < st.maxHp * 0.55;
       // 時間だけで木戸の目標を済ませない。本人か掛矢の組が木戸前へ詰めてから打って出る。
-      if (!worn && !atKido(rt, rt.player.u)) {
+      // 11/10：丸太の組も本人も木戸へ届かないまま止まらないよう、木戸の段が九十秒続いたら打って出る（決まり7）。
+      if (!worn && !atKido(rt, rt.player.u) && rt.t - (F.stepT || 0) < 90) {
         let pressed = false;
         for (const u of F.ram.units) if (atKido(rt, u)) { pressed = true; break; }
         if (!pressed) return;
@@ -4664,7 +4665,8 @@ const mitsukuri = {
     // 郭の守備人数と同じく、負傷して戦線を離れた兵は除く。
     // 生存だけで数えると、重傷兵が半ばを占めた時に迎撃が終わらない。
     // 待つだけでは進めず、実際に戦える城兵が半ばになるまで押し寄せる。
-    if (fighting > F.sallyN * 0.5) return;
+    // 11/10：届かない所へ下がった城兵を討てず、木戸の前で十五分止まった（bot）。打って出て百二十秒たてば退く（決まり7・8）。
+    if (fighting > F.sallyN * 0.5 && rt.t - (F.sallyT || 0) < 120) return;
     // 半ばを討たれて退く。木戸は閉め切れず、退く兵に続いて二の丸へなだれ込める。
     F.sallyBack = true;
     const g = F.sally;

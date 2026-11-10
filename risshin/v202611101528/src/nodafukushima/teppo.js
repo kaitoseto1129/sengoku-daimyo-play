@@ -9,6 +9,9 @@ import { sfx } from '../audio.js';
 
 export const MISSION = '竹束の列で、根来・雑賀の鉄砲衆を野田砦の槍から守れ';
 const POST = { x: -22, z: -20 };    // 竹束の列（堤の下の岸、西寄り）
+// 西の浅瀬を渡り終えた南岸から寄せる。旧位置（-56, -32）は浅瀬のない深みで、
+// 深みの柵にも阻まれ、目標に書いた槍が竹束へ着けなかった。
+const SALLY_FROM = { x: -82, z: -14 };
 const MIN_T = 120;
 // 深手や退いた兵を残敵に数えず、戦える相手だけを防ぐ。
 const fighting = u => u.alive && !u.fleeing && !u.dying && !u.woundOut && !u.rearWound && !u.downed && !u.noTarget && !u.gone;
@@ -40,13 +43,14 @@ export function start(rt, ctx) {
     if (!live() || S.g || rt.t < (S.spawnAt || 0)) return;
     S.spawnAt = rt.t + 5;
     if (ctx.makeRoom(rt, 14) < 14) return;
-    const g = ctx.enemyGroup(rt, { faction: 'miyoshi', name: '野田砦の三好の槍', anchor: { x: POST.x - 34, z: POST.z - 12 }, facing: Math.PI / 2, aggro: 14, seekRange: 60, width: 12, morale: 90 },
+    const g = ctx.enemyGroup(rt, { faction: 'miyoshi', name: '野田砦の三好の槍', anchor: { ...SALLY_FROM }, facing: Math.PI / 2, aggro: 14, seekRange: 60, width: 12, morale: 90 },
       ctx.dress([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 12 }], ctx.foe));
     if (!g || !g.count) return;
     S.g = g; S.k = 1; S.gT = rt.t;
-    g.order = 'move'; g.dest = { x: POST.x - 4, z: POST.z + 2 }; g.onArrive = (q) => { q.order = 'attack'; q.seekRange = 40; };
+    // 横幅十二歩の後列も南岸へ収め、竹束の横まで深みを横切らず進む。
+    g.order = 'move'; g.dest = { x: POST.x - 4, z: POST.z + 6 }; g.onArrive = (q) => { q.order = 'attack'; q.seekRange = 40; };
     rt.marker('nodaTabaFoe', () => { const u = g.units.find(fighting); return u ? { x: u.pos.x, z: u.pos.z } : null; }, '野田砦の槍', { red: true, group: g });
-    rt.army.play('eshout', { x: POST.x - 34, z: POST.z - 12 }, 1.5);
+    rt.army.play('eshout', SALLY_FROM, 1.5);
     rt.say('足軽', '西の野田砦から槍が出たぞ！　鉄砲衆の横を突く気じゃ！', 3.2);
     rt.after(3.4, () => live() && rt.say('前田利家', '鉄砲衆の前に出よ！　込め替えの間を守れ！', 3.2));
   }
@@ -55,7 +59,7 @@ export function start(rt, ctx) {
     if (!g || g.routed) return;
     // 攻めの到着処理を残すと、退く途中で再び竹束へ掛かってしまう。
     g.onArrive = null; g.focus = null;
-    g.dest = { x: POST.x - 34, z: POST.z - 12 };
+    g.dest = { ...SALLY_FROM };
     g.noRout = false; g.morale = 0; g.order = 'retreat';
   }
   S.tick = (dt) => {
