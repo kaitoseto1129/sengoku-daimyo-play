@@ -795,7 +795,8 @@ const t09_yamanaka = {
       if (F.honOn && !F.honOut && T > 200 && F.honU?.alive) { F.honOut = true; g.fixed = false; g.order = 'attack'; g.aggro = 40; g.seekRange = 60; rt.say('松田康長', '者ども、討って出るぞ！', 3); }
       if (F.honOn && g.count < F.honN * 0.4 && F.honU?.alive && !F.honLast) { F.honLast = true; g.aggro = Math.max(g.aggro || 0, 20); rt.say('松田康長', '本丸を枕に討ち死にいたす。かかれ！', 3.5); }
       // 康長の討死は実際の攻撃で決める。近くで待った時間だけで命を尽かせない。
-      if (F.honOn && Math.hypot(p.x - KURUWA.hon.x, p.z - KURUWA.hon.z) < 50 && (g.count === 0 || (F.honU && !F.honU.alive))) this.win(rt);
+      // 隊の戦力の数だけで討死を決めず、終幕の知らせと康長本人の生死を合わせる。
+      if (F.honOn && Math.hypot(p.x - KURUWA.hon.x, p.z - KURUWA.hon.z) < 50 && F.honU && !F.honU.alive) this.win(rt);
     }
   },
 
