@@ -356,14 +356,18 @@ const t03_komaki = {
       F.campFiresLit = true;
       countFallen(rt);
       F.nightDead0 = F.fallen[1]; F.nightAllyDead0 = F.fallen[0];
-      rt.after(1, () => rt.say('日根野弘就', '徳川の先手が田を渡って寄せる。土橋の口を固めよ', 3.2));
+      // 討死・敗北や次の段への移行後に、予約した夜討ちと知らせを続けない。
+      const afterGate = (sec, run) => rt.after(sec, () => {
+        if (F.stage === 2 && !F.ending && !F.transitioning && !rt.over && rt.player.u.alive) run();
+      });
+      afterGate(1, () => rt.say('日根野弘就', '徳川の先手が田を渡って寄せる。土橋の口を固めよ', 3.2));
       F.gateWaves = [];
       // 小牧山の麓から田を渡って寄せる組（柵越しの打ち合い。大軍は動かない）
       const send = (i) => { if (F.stage !== 2) return; const g = this.wave(rt, { x: GATE.x - 22 + (i % 3) * 22, z: 78 + (i % 2) * 8 }, 12, { x: GATE.x, z: GATE.z + 2 }, i === 3 ? '榊原康政の手' : '徳川勢'); if (g) F.gateWaves.push(g); };
-      rt.after(4, () => { send(1); rt.army.play('toki', { x: GATE.x, z: 70 }, 1.2); rt.say('物見', '小牧山から徳川の手！　田を渡って来る！', 2.6); });
-      rt.after(30, () => send(0));
-      rt.after(60, () => { send(2); rt.army.play('volley', { x: GATE.x - 30, z: 60 }, 1.0); });
-      rt.after(95, () => { send(3); rt.say('物見', '榊原の旗！　「無」の字の旗が寄せて来る！', 2.8); });
+      afterGate(4, () => { send(1); rt.army.play('toki', { x: GATE.x, z: 70 }, 1.2); rt.say('物見', '小牧山から徳川の手！　田を渡って来る！', 2.6); });
+      afterGate(30, () => send(0));
+      afterGate(60, () => { send(2); rt.army.play('volley', { x: GATE.x - 30, z: 60 }, 1.0); });
+      afterGate(95, () => { send(3); rt.say('物見', '榊原の旗！　「無」の字の旗が寄せて来る！', 2.8); });
       F.inside = 0;
     } else if (n === 3) {
       countFallen(rt);

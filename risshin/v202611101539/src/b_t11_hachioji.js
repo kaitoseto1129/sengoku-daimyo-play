@@ -570,6 +570,16 @@ const t11_hachioji = {
   ownEnding: true,   // 終幕の段で落城を見せるため、共通の落城場面を重ねない。
   goalVisibleRows: 5, goalRowsAhead: true,   // 始めから今の五件を並べ、後半も現在の目標と続きの場所・行いを残す
   waitForPortrait: true,   // 顔を撮れるまで影の顔を出さず、本人の顔だけを一度表示する（critic60 五6）。
+  clampCamera(rt, camera) {
+    const p = rt.player, u = p.u;
+    if (!u.alive || p.fpK >= 0.01 || p.aiming || p.camShot || p.cine) return;
+    // 曳橋の手すりでカメラが寄ると、共通の近接処理が本人まで隠していた（11/10 通し確認）。
+    // 橋上だけは肩の上へ逃がし、騎馬も体を隠す高さにカメラを残さない。
+    const dx = BRIDGE_N.x - BRIDGE_S.x, dz = BRIDGE_N.z - BRIDGE_S.z;
+    const t = ((u.pos.x - BRIDGE_S.x) * dx + (u.pos.z - BRIDGE_S.z) * dz) / (dx * dx + dz * dz);
+    if (t < 0 || t > 1 || Math.hypot(u.pos.x - BRIDGE_S.x - dx * t, u.pos.z - BRIDGE_S.z - dz * t) > 1.7) return;
+    if (Math.hypot(camera.x - u.pos.x, camera.z - u.pos.z) < 1.6) camera.y = Math.max(camera.y, u.pos.y + (u.mounted ? 3.6 : 2.5));
+  },
   spawn: { x: START.x - 4, z: START.z, heading: -Math.PI / 2 },
   noWake: true,
   minutes: 15,

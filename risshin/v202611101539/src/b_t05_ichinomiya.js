@@ -797,9 +797,9 @@ const ichinomiya = t05_ichinomiya;
 // 兵数は諸説。秀長の阿波勢は五万余、城兵は九千余（谷忠澄の伝え・解説は「一万近く」）。比はおよそ五対一
 t05_ichinomiya.force = (rt) => {
   const F = rt.flags;
-  // 段が進んだだけで六百人ずつ失わせない。討死の記録に対応する分だけ減らす。
+  // 段や開城だけで兵を失わせない。討死の記録に対応する分だけ減らす。
   const b = Math.max(0, 9000 - (F.ek || 0) * 30);
-  return { a: Math.max(0, 50000 - (F.ak || 0) * 20), a0: 50000, b: F.ending && rt.tracker.main ? Math.min(b, 5000) : b, b0: 9000 };
+  return { a: Math.max(0, 50000 - (F.ak || 0) * 20), a0: 50000, b, b0: 9000 };
 };
 t05_ichinomiya.history = '天正十三年（1585）六月、羽柴秀吉は弟の秀長を総大将に、甥の秀次らと合わせて大軍を四国へ送った。阿波へ渡った秀長は、長宗我部元親の家臣、谷忠澄・江村親俊らが守る一宮城を囲んだ。\n秀長は城の水の手を断ち、城兵は水に苦しんだと伝わる。七月、谷忠澄は城を開き、元親のもとへ戻って降伏を説いた。元親は降り、土佐一国だけを許された。\n砦・水場・尾根の道の置き場、両軍の人数、台詞は遊びのための推定である。';
 t05_ichinomiya.botBrain = (b, inp, { goTo }) => {
@@ -813,7 +813,8 @@ t05_ichinomiya.botBrain = (b, inp, { goTo }) => {
   if (b.flags.step === 4 && cur?.at && Math.hypot(u.pos.x - cur.at.x, u.pos.z - cur.at.z) > 16) { inp.leftPressed = false; goTo(b.player, inp, cur.at.x, cur.at.z, 3); return; }
   if (b.flags.step === 5 && !inOgura(u.pos.x, u.pos.z)) {
     // 塀の向こう（小倉丸の内）の敵は斬れない。塀越しに振り続けて門の脇で止まった（11/10）
-    const near = b.army.units.some((o) => o.alive && o.team === 1 && !o.isStruct && !o.fleeing && !inOgura(o.pos.x, o.pos.z) && (o.pos.x - u.pos.x) ** 2 + (o.pos.z - u.pos.z) ** 2 < 5);
+    // 高い切岸の上の敵や、退却の下知が出た組を相手に門前で振り続けない。
+    const near = b.army.units.some((o) => o.alive && o.team === 1 && !o.isStruct && !o.noTarget && !o.woundOut && !o.fleeing && !o.group?.routed && Math.abs(o.pos.y - u.pos.y) < 3 && !inOgura(o.pos.x, o.pos.z) && (o.pos.x - u.pos.x) ** 2 + (o.pos.z - u.pos.z) ** 2 < 5);
     if (!near) {
       const d = destOf(b);
       inp.leftPressed = false;

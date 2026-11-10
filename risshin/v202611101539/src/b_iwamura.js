@@ -2801,9 +2801,9 @@ html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.iwamura-army #army
           rt.say('組頭', '搦手の木戸から城兵が出たぞ。登り口で食い止めよ。坂へは追うな', 4);
         });
       }
-      if (F.footSallySent && !S.iwWithdraw && !gone(S) && S.order === 'path' && S.onArrive && S.pathIdx >= S.path.length - 1 &&
+      if (F.footSallySent && !gone(S) && !S.iwWithdraw && S.order === 'path' && S.onArrive && S.pathIdx >= S.path.length - 1 &&
           S.units.some((u) => chaseReady(u) && Math.hypot(u.pos.x - FOOT.x, u.pos.z - FOOT.z) < 10)) { const deploy = S.onArrive; S.onArrive = null; deploy(S); }
-      if (F.footSallyOut && !S.iwWithdraw && !gone(S)) {
+      if (F.footSallyOut && !gone(S) && !S.iwWithdraw) {
         let fighting = 0;
         for (const u of S.units) if (sallyStanding(u)) fighting++;
         const leaderDown = S.units.filter((u) => u.type === 'samurai').every((u) => !sallyStanding(u));
@@ -2821,8 +2821,9 @@ html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.iwamura-army #army
         }
       }
       // 木戸の城兵を実際に退けた時だけ固め終える。時間切れを達成として扱わない。
+      // 出撃の下知前や待ちの一秒半で全滅した時も、来られない城兵を待ち続けない。
       // 深手で全員離脱した時は歩けない兵の帰還を待たない。転倒だけなら起きるまで戦力に残す。
-      const sallyDone = !!F.footSallyOut && (gone(S) || S.iwReturned || !S.units.some(sallyStanding));
+      const sallyDone = gone(S) || !!F.footSallyOut && (S.iwReturned || !S.units.some(sallyStanding));
       rt.obj('main', F.iwKaijo ? IW_KAIJO.GOAL : !F.footReached ? '山道を退く武田勢を城の麓まで追え' : '城の麓の搦手道の登り口を固めよ', 'main', true);
       // 到着の下知に待機と損耗の声を重ねない。待つ理由は任務札ですぐに示す。
       // 後続の戦いが終わった時や倒れた味方が起きた時も、変わった理由だけを知らせる。

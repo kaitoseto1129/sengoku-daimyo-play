@@ -19,6 +19,8 @@ export function install(rt, ctx) {
   const FLAG = { x: SOUTH.x, z: SOUTH.z + 62, name: '南の退き口の旗', action: '南の退き口の旗まで退け' };
   const t0 = rt.t;
   let done = false, tick = 0, landed = false;
+  // 生存の印が落ちる前の命切れや、重傷の札の間も退却の処理を止める。
+  const stopped = () => F.ending || rt.over || !rt.player.u.alive || rt.player.u.hp <= 0 || rt.result?.down;
   rt.scene.add(nobori(rt.world, FLAG.x, FLAG.z, 'oda', 5));
   rt.setPhase('furikiru');
   rt.obj('main', '南の退き口の旗まで退け。追いすがる騎馬に背を見せきるな', 'main');
@@ -33,7 +35,7 @@ export function install(rt, ctx) {
   // 濁流を押し渡った上杉の騎馬（数騎）
   let C = null;
   rt.after(8, () => {
-    if (done || F.ending || rt.over || !rt.player.u.alive) return;
+    if (done || stopped()) return;
     C = enemyGroup(rt, { name: '濁流を渡った上杉の騎馬', anchor: { x: FORD.x + 6, z: FORD.z + 8 }, facing: 0, width: 4, order: 'attack', aggro: 40, seekRange: 50, morale: 80, faction: 'uesugi', fleeDir: { x: 0, z: -1 } },
       dress([uS(1, { horse: true }), uC(3)], UESUGI));
     sfx('hooves', 1);
@@ -43,7 +45,7 @@ export function install(rt, ctx) {
   return {
     target: FLAG,
     update(dt) {
-      if (done || F.ending || rt.over || !rt.player.u.alive) return;
+      if (done || stopped()) return;
       if ((tick -= dt) > 0) return;
       tick = 0.5;
       const p = rt.player.u.pos, el = rt.t - t0, d = Math.hypot(p.x - FLAG.x, p.z - FLAG.z);
@@ -68,7 +70,7 @@ export function install(rt, ctx) {
         if (d < 9) rt.award((t) => t.side.push('追いすがる上杉の騎馬を振り切り、南の退き口へ退いた'), '追手を振り切った');
         // 引き返す道を命じた直後には、まだ川へ戻り終えていない。
         rt.say('組頭', '南の旗まで退いた。列を組み直せ！', 3.5);
-        rt.after(3, () => { if (!F.ending && !rt.over && rt.player.u.alive) next(); });
+        rt.after(3, () => { if (!stopped()) next(); });
       }
     },
   };
