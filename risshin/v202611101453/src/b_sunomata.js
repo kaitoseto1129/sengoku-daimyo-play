@@ -4779,7 +4779,7 @@ const sunomata = {
     // 紙（battle_events_1101）：斎藤龍興方の夜襲を朝まで守る。三の手の途中で日が落ち、夜討ちになる。
     rt.say('木下藤吉郎', '龍興方は夜討ちで来るぞ。朝まで柵を持たせよ', 4);
     // 11/8 九7：夕から夜へは百四十秒かけて移す（七十秒では空が速すぎた）
-    rt.after(140, () => { if (F.won || F.ending || rt.over) return; rt.world.setTime('night'); rt.bark('日が落ちた。斎藤方の夜討ちが柵へ寄せる'); });
+    rt.after(140, () => { if (F.won || F.ending || rt.over) return; if (F.s15) { F.s15.nightReached = true; F.s15.nightArrowT ??= rt.t; } rt.world.setTime('night'); rt.bark('日が落ちた。斎藤方の夜討ちが柵へ寄せる'); });
     // 寄せの時刻は保ち、最後に材を運び、修理と十八秒の点検をする間を残す。
     F.finishAt = rt.t + 225;   // AB（kaito 11/3）：一・二の手を長く戦っても、三の手の時は削らない
     F.duskNext = 0;

@@ -2161,8 +2161,11 @@ const okawachi = {
       // 攻め落としでなく、信雄を北畠家へ入れる政治の決着を目で見せる（docs/battle_events_1101 の7）。
       // 巻二は十月四日に城を受け取ったのを滝川一益・津田掃部とする。十二歳の茶筅丸は木戸へ来ていない（11/5 専門家の目）。
       if (!F.chasen) {
+        // 高画質では南の囲みに両将が既にいる。本人は持ち場に残し、木戸の受け取りを担う侍だけを加える。
+        // 片方だけ配置できた時も、同じ名の将を二人にしない。
+        const receivers = okReceivingTroops(rt);
         F.chasen = allyGroup(rt, { fixed: true, name: '城の受け取りの組', anchor: { x: GATE.x, z: GATE.z + 12 }, facing: Math.PI, width: 3, aggro: 0, noRout: true },
-          okDress([{ type: 'busho', n: 1, o: { name: '滝川一益', horse: false, invuln: true, hat: 'kabuto_m', haori: 0x2a2a32 } }, { type: 'busho', n: 1, o: { name: '津田掃部', horse: false, invuln: true, hat: 'kabuto_m', haori: 0x32302a } }, { type: 'samurai', n: 4, o: { invuln: true } }], ODA));
+          okDress(receivers, ODA));
         for (const u of F.chasen.units) { u.noTarget = true; u.target = null; }
       }
       // 和睦の知らせを受ける。閉じた木戸の外へ使者を突然作らない。
@@ -4536,6 +4539,15 @@ function okChaseWave(rt) {
   g.onArrive = (q) => { q.order = 'attack'; q.formation = 'yari'; q.width = 6; q.aggro = 18; q.seekRange = 28; };
   F.sorties.push(g); F.chasers.push(g);
   F.gates.karamete._openNow(false);
+}
+function okReceivingTroops(rt) {
+  const troops = [];
+  for (const [name, haori] of [['滝川一益', 0x2a2a32], ['津田掃部', 0x32302a]]) {
+    if (rt.army.groups.some((g) => g.units.some((u) => u.team === 0 && u.name === name && u.alive && !u.gone))) continue;
+    troops.push({ type: 'busho', n: 1, o: { name, horse: false, invuln: true, hat: 'kabuto_m', haori } });
+  }
+  troops.push({ type: 'samurai', n: 4, o: { invuln: true } });
+  return troops;
 }
 function wallStop(b, inp) {
   const p = b.player, u = p.u;

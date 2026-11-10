@@ -81,6 +81,18 @@ html:root body #hud #h-prog.goals-all-rows .pg-goals li.now { font-size:inherit;
  }
  html:root body #hud #h-prog[data-battle="tano"] .pg-goals ul { gap:3px; }
 }
+/* 11/10 iPhone 横 874×402 の見回り：五つを並べる戦（小田原・山崎など）で、済んでいない段が二行ずつ折れて札が画面の四割近くを覆い、
+   右下の「守る」「突く」に被った。携帯の背の低い画面では、今の段の他は一行に詰めて末を「…」にする（①から全部並べる決まりは残す）。 */
+@media (max-height:500px) {
+ html:root body #hud#hud#hud#hud #h-prog#h-prog#h-prog.goals-all-rows .pg-goals li:not(.now) {
+  font-size:13px !important; line-height:1.25 !important; gap:6px !important; padding:0 !important; white-space:nowrap !important;
+ }
+ html:root body #hud#hud#hud#hud #h-prog#h-prog#h-prog.goals-all-rows .pg-goals li:not(.now) span {
+  white-space:nowrap !important; overflow:hidden !important; text-overflow:ellipsis !important; min-width:0;
+ }
+ html:root body #hud#hud#hud#hud #h-prog#h-prog#h-prog.goals-all-rows .pg-goals li:not(.now) i { width:13px; height:13px; }
+ html:root body #hud#hud#hud#hud #h-prog#h-prog#h-prog.goals-all-rows .pg-goals ul { gap:2px !important; }
+}
 #hud #h-prog.goals-all-rows .pg-goals li.now i { display:block; }
 #hud #h-prog.goals-all-rows .pg-goals li.now::before { content:none; }
 html:root body #hud #h-prog .pg-goals #armybar {
@@ -165,7 +177,9 @@ export function goalsTick(el, rt, stg, always) {
     // 今まで済んでいなかった物が済んだ時だけ弾ませる
     if (g.done && before[i] && before[i][0] !== '1' && !still) li.classList.add('pop');
     li.innerHTML = '<i aria-hidden="true"></i><span></span>';
-    li.lastChild.innerHTML = phraseBreaks(`${i + 1}　${goalWords(g.text)}`);
+    // 携帯の背の低い画面では、今の段の他は一行に詰める（CSS の @media と同じ境目）。<wbr> は nowrap でも折れるので入れない（11/10 関ヶ原 874×402）
+    const oneRow = i !== now && visibleRows > 1 && innerHeight <= 500;
+    li.lastChild.innerHTML = (oneRow ? esc : phraseBreaks)(`${i + 1}　${goalWords(g.text)}`);
     const countText = g.count ? (rt.def.goalCountLabel
       ? `${rt.def.goalCountLabel}${g.count[0]}人／${g.count[1]}人`
       : `${g.count[1]}分の${g.count[0]}`) : '';

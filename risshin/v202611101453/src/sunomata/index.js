@@ -24,7 +24,7 @@ export function onWave2(rt) { const v = S(rt); yoru.start(rt, v.def, v.C); }
 export function tick(rt, dt) {
   const v = S(rt);
   if (v.ph === 'hakobi') hakobi.tick(rt, dt);
-  if (v.yoruT) yoru.tick(rt, dt);
+  if (v.yoruT != null) yoru.tick(rt, dt);
   if ((rt.flags.wave || 0) >= 3) asa.tick(rt, dt);
   else asa.waveTick(rt, dt);
 }

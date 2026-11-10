@@ -120,6 +120,29 @@ const near = (a, b, r) => Math.hypot(a.x - b.x, a.z - b.z) < r;
 const sm = (t) => { const k = Math.max(0, Math.min(1, t)); return k * k * (3 - 2 * k); };
 const aliveReal = (rt) => rt.army.units.reduce((n, u) => n + (u.alive && !u.gone ? 1 : 0), 0);
 
+// 夜討ちと切れ口の城兵は、退く時も来た浅瀬を戻る。
+// fleeing の兵は隊の dest を使わず固定方向へ逃げるため、近景・遠景共通の退路を渡す。
+function retreatWay(army, u, goal) {
+  const path = u.group?.oshiRetreat;
+  if (!path || !u.fleeing) return goal;
+  let i = u.oshiRetreatIdx;
+  if (i == null) {
+    let best = Infinity;
+    i = 1;
+    for (let j = 1; j < path.length; j++) {
+      const a = path[j - 1], b = path[j], dx = b[0] - a[0], dz = b[1] - a[1];
+      const k = Math.max(0, Math.min(1, ((u.pos.x - a[0]) * dx + (u.pos.z - a[1]) * dz) / (dx * dx + dz * dz || 1)));
+      const d = Math.hypot(u.pos.x - a[0] - dx * k, u.pos.z - a[1] - dz * k);
+      if (d < best) { best = d; i = j; }
+    }
+  }
+  while (i < path.length - 1 && Math.hypot(u.pos.x - path[i][0], u.pos.z - path[i][1]) < 3) i++;
+  u.oshiRetreatIdx = i;
+  const q = u.oshiRetreatWant || (u.oshiRetreatWant = { x: 0, z: 0 });
+  q.x = path[i][0]; q.z = path[i][1];
+  return q;
+}
+
 // ---- 地形 ----
 function base(x, z) {
   let h = 1 + 0.25 * Math.sin(x * 0.045 + 0.7) * Math.cos(z * 0.038) + 0.15 * Math.sin(x * 0.13 - z * 0.09);
@@ -592,6 +615,7 @@ const t10_oshi = {
     trees: 260, tufts: 3600,
     treeDensity: (x, z) => (Math.hypot(x - BASIN.x, z - BASIN.z) < 120 || dikeD(x, z) < 12 ? 0 : x > 140 || z > 130 ? 1 : 0.2),
     clear: (x, z) => dikeD(x, z) < 10 || near({ x, z }, CAMP, 18) || near({ x, z }, MARU, 38),
+    fleeWay: retreatWay,
     fleeOut: (x, z, team) => team === 1 && near({ x, z }, CASTLE, 14),
   },
   sides: { a: { name: '寄せ手（石田三成）', mon: 'ishida' }, b: { name: '忍城（成田）', mon: 'narita' } },
@@ -698,6 +722,7 @@ const t10_oshi = {
     // 11/8 critic60（十5）：真っ直ぐ口へ向かうと沼の深みを胸まで浸かって渡った。浅瀬の土手の筋（城の口→浅瀬の手前→口）を伝わせる
     // 力攻めの柵の木戸は三歩幅。横隊のままでは両端と騎馬が杭に掛かる。
     g.order = 'path'; g.path = [[at.x, at.z], [FORD.x, FORD.z], [RAIDAT.x, RAIDAT.z]]; g.pathIdx = 0;
+    g.oshiRetreat = [[RAIDAT.x, RAIDAT.z], [FORD.x, FORD.z], [FRONT.x, FRONT.z]];
     g.ai = false; g.raidStartT = rt.t;
     g.onArrive = (q) => { q.onArrive = null; q.order = 'attack'; q.seekRange = 12; q.aggro = 12; };
     F.raids.push(g);
@@ -885,6 +910,7 @@ const t10_oshi = {
     const g = enemyGroup(rt, { faction: 'narita', name: '切れ口へ寄せる城兵', anchor: at, facing: Math.PI * 0.25, fleeDir: { x: -1, z: -1 }, width: 4, noRout: true, formation: 'line', morale: 80,
       order: 'path', speed: 3.2, aggro: 5, dmgMult: 0.34 }, dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 4 + i }, { type: 'bow', n: 1 }], HOJO));
     g.path = [[FORD.x, FORD.z], [KU.x - 8, KU.z - 8], [MEND_AT.x, MEND_AT.z]]; g.pathIdx = 0;
+    g.oshiRetreat = [[MEND_AT.x, MEND_AT.z], [KU.x - 8, KU.z - 8], [FORD.x, FORD.z]];
     g.onArrive = (q) => { q.onArrive = null; q.order = 'attack'; q.seekRange = 12; q.aggro = 12; };
     F.mendWaves.push(g);
     rt.army.play('eshout', at, 1.1);

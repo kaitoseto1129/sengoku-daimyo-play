@@ -225,6 +225,16 @@ export class HudCards {
     }
     let n = 0;
     const markedGroup = on ? rt.def.enemyTriangleGroup?.(rt) : null;
+    // 11/10 iPhone 横の見回り：遠くの隊で▼が八つ十つ重なって赤い塊になり、左上の釦や右上の札にも被っていた。
+    //   近くに置いた▼と重なる物は出さず、HUD の札・釦の上には置かない（札の囲みは一秒ごとに測り直す）。
+    const now = performance.now();
+    if (on && (!this.triBlock || now - this.triBlockT > 1000)) {
+      this.triBlockT = now; this.triBlock = [];
+      for (const b of document.querySelectorAll('#h-prog, #jk-vit, #tc button, button.tb')) {
+        const r = b.getBoundingClientRect(); if (r.width > 0 && r.height > 0 && r.width < innerWidth * .6) this.triBlock.push(r);
+      }
+    }
+    const placed = this.triPlaced || (this.triPlaced = []); placed.length = 0;
     if (on) for (const u of rt.army.units) {
       if (n === this.enemyTriangles.length) break;
       if (rt.def.enemySignVisible?.(rt, u) === false) continue;
@@ -236,6 +246,11 @@ export class HudCards {
       if (!sightUnit(rt, u)) continue;
       const hp = this.headPointerAt, sx = (this.tmpV.x + 1) * innerWidth / 2, sy = (1 - this.tmpV.y) * innerHeight / 2;
       if (hp && performance.now() - hp.t < 150 && Math.abs(sx - hp.x) < 28 && Math.abs(sy - hp.y) < 60) continue;   // 11/8 critic60（五3）：目標の▼と同じ兵に二つ重ねない
+      let hit = false;
+      for (let k = 0; k < placed.length && !hit; k += 2) hit = Math.abs(sx - placed[k]) < 18 && Math.abs(sy - placed[k + 1]) < 20;
+      for (const r of this.triBlock) if (!hit && sx > r.left - 14 && sx < r.right + 14 && sy > r.top && sy < r.bottom + 28) hit = true;
+      if (hit) continue;
+      placed.push(sx, sy);
       const el = this.enemyTriangles[n++];
       el.hidden = false;
       el.style.transform = `translate(${((this.tmpV.x + 1) * innerWidth / 2).toFixed(1)}px,${((1 - this.tmpV.y) * innerHeight / 2).toFixed(1)}px) translate(-50%,-100%)`;
