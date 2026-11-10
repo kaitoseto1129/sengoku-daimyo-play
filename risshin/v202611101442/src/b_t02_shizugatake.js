@@ -935,7 +935,7 @@ const t02_shizugatake = {
   // ⑬ 柴田軍の崩れ：前田が退き、佐久間が孤立。柴田の先手と当たる。遠くに勝家
   pushShibata(rt) {
     const F = rt.flags;
-    if (F.phase >= 4) return;
+    if (rt.over || F.ending || F.phase >= 4) return;
     if (!F.maedaGo) this.withdrawMaeda(rt); // 続きから再開する時も、前田隊を茂山へ戻さない。
     this.enter(rt, 4);
     // 行市山から下った遠景の列も、本隊と同じ下知で崩れる。
@@ -1028,7 +1028,7 @@ const t02_shizugatake = {
       case 2.6: {
         const came = F.hideArrived;
         // 夜の光へ移る四十五秒と、秀吉本人の到着を待って迎える。
-        if (near(JOIN, 14) && came && st > 45) { if (!F.metHide) { F.metHide = true; rt.say('羽柴秀吉', 'よう生きて戻った。玄蕃め、深入りしおったわ', 3); rt.after(3.4, () => this.retake(rt)); } }
+        if (near(JOIN, 14) && came && st > 45) { if (!F.metHide) { F.metHide = true; rt.say('羽柴秀吉', 'よう生きて戻った。玄蕃め、深入りしおったわ', 3); rt.after(3.4, () => { if (!rt.over && !F.ending && F.phase === 2.6) this.retake(rt); }); } }
         return;
       }
       case 3:
