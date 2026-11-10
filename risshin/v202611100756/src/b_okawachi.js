@@ -764,12 +764,12 @@ const okawachi = {
   goals5(rt) {
     const F = rt.flags, st = () => F.step ?? 0;
     return [
-      { kind: 'stage', k: 0, sec: 3600, text: this.missions[0], check: () => !!F.coverReached },
+      { kind: 'stage', k: 0, text: this.missions[0], check: () => !!F.coverReached },
       // 11/6 critic60：②は本人が木戸の前（坂の旗）まで寄せた時に済む。竹束に立ったまま、段が進んだだけでは印を付けない。
-      { kind: 'stage', k: 1, sec: 3600, text: this.missions[1], check: () => st() >= 2 && !!F.gateReached },
-      { kind: 'stage', k: 2, sec: 3600, text: this.missions[2], check: () => st() >= 3 && !!F.pushHeld },
-      { kind: 'stage', k: 3, sec: 3600, text: this.missions[3], check: () => st() >= 4 && !!F.campReached },
-      { kind: 'stage', k: 4, sec: 3600, text: this.missions[4], check: () => !!F.blockHeld },
+      { kind: 'stage', k: 1, text: this.missions[1], check: () => st() >= 2 && !!F.gateReached },
+      { kind: 'stage', k: 2, text: this.missions[2], check: () => st() >= 3 && !!F.pushHeld },
+      { kind: 'stage', k: 3, text: this.missions[3], check: () => st() >= 4 && !!F.campReached },
+      { kind: 'stage', k: 4, text: this.missions[4], check: () => !!F.blockHeld },
     ];
   },
   // 十1：右上の一行は五つの目標の字のまま、途中で言い替えない（前は「竹束の陰へ」「南の柵へ進め」「法螺二声…」と替わった）。合図は組頭の声で伝える。
