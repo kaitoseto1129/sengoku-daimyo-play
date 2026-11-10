@@ -1872,6 +1872,7 @@ const shitaragahara = {
   guardStatusText: '槍を構えている', // 構えは討ち取った印ではなく、今の姿勢として伝える。
   compactRouteGuide: true, // 川を渡る道筋は細い点線にし、手前の地面と兵を空ける。
   avoidAllDestinationNotices: true, // 見切れた持ち場の印は操作欄を避け、空いた端で向きを示す。
+  foeSignRange: 100, // 11/10 関所1：柵の向こう百六十m の武田の▼が体なしで空に浮いた。体の見える百m までに付ける
   teamSignsOnly: true, // 人型の線を省き、敵は共通の赤い▼で示す。
   compactCombatGuides: true, // 既存の小さな敵の印と短い矢印を使い、兵の姿と槍先を空ける。
   meleeApproachArrowLength: 72, // 追撃で敵へ寄る時も、白い案内線で本人の背を覆わない。
@@ -2060,6 +2061,7 @@ const shitaragahara = {
   cutFloor: 0.55,
   meleeGrace: { rate: 1, burst: 1, interval: 2.2 },
   world: {
+    playerHorse: true,   // 11/10 関所5：組頭以上は自分の馬（柵の内では下りて後ろに待たせる）
     playerAtkMax: 2,   // 11/1：本人へ同時に打ち込むのは二人まで（共通の既定は四人・player_pressure.js）
     // 小堂は敷地全体の高い地面に床を合わせる。中心だけでは斜面が内陣・外陣へ突き出す。
     // 外観・板床・戸口・石段は既存の共通基準高を使い、設営時だけ地面を測る。
@@ -3485,8 +3487,15 @@ const shitaragahara = {
     //   馬の背の本人だけが柵の間の道と追い討ちを駆け抜け、組を百メートル後ろに置いて一人で殿に当たっていた
     {
       const P = rt.player;
-      if (P.mounted) { rt.army.setMounted(P.u, false); P.mounted = false; P.hspd = 0; }
-      P.canRide = false; P.horse = P.ownedHorse = null; P.loose = null;
+      // 11/10 関所5：組頭以上は自分の馬がある。柵の内では下りて、馬は本人の五歩後ろ（西）で待たせる。追い討ちで乗れる
+      if (P.mounted && P.horse) {
+        rt.army.setMounted(P.u, false); P.mounted = false; P.hspd = 0;
+        const x = P.u.pos.x - 5, z = P.u.pos.z;
+        P.loose = { x, z, heading: P.u.heading, spd: 0, mode: 'wait' };
+        P.horse.position.set(x, rt.world.heightAt(x, z), z); P.horse.rotation.set(0, P.u.heading, 0);
+        rt.scene.add(P.horse);
+        P.autoMountAt = rt.t + 8;
+      } else if (P.mounted) { rt.army.setMounted(P.u, false); P.mounted = false; P.hspd = 0; }
     }
     rt.say('侍大将', '長篠を救うぞ。武田が寄せるまでに、柵の守りを固めよ', 3.5);
     rt.after(2, () => {
