@@ -47,7 +47,7 @@ const s = (n) => (rt) => (rt.flags.step ?? 0) >= n;
 // 携帯の横（844）の右上の札に一行で入る長さ（十八字まで）
 // 段の順（step）：1 力攻め　2 退く（軍議「水を入れる。」）　3 堤の普請（夜討ち）　4 堰（水を入れる）　5 舟から堤を守る　6 決壊・高所へ　7 切れ口の普請（行き詰まり）　8 開城
 //   docs/oshi_spec_1109.md（kaito 11/9 夜「水を武器にしたのに城が落ちない」）。七月の総攻め（浅瀬・打って出・門前）の三段は外した（城へ突撃する戦にしない）
-const MISSIONS = ['浅瀬の土手を進み、城の外の柵へ寄せる', '前衛を引き、丸墓山の本陣へ退く', '浅瀬の口で、堤を築く人足を守る', '堤の西の堰へ行き、水を入れる', '舟で寄せる城兵から、堤を守る', '人足と兵を連れ、丸墓山の高所へ',
+const MISSIONS = ['浅瀬の土手から城の外の柵へ寄せる', '前衛を引き、丸墓山の本陣へ退く', '浅瀬の口で、堤を築く人足を守る', '堤の西の堰へ行き、水を入れる', '舟で寄せる城兵から、堤を守る', '人足と兵を連れ、丸墓山の高所へ',
   '堤の切れ口を塞ぐ人足を守る', '佐間口で、城方の使者を迎える'];
 STAGES[ID] = MISSIONS.map((m, i) => (i ? [m, s(i + 1)] : [m]));
 
@@ -467,7 +467,7 @@ function keepOutsideGate(rt, u) {
 }
 
 // 段のファイル（t10_oshi/*.js）へ渡す座標と道具
-const C = { MISSIONS, LAKE_MID, dikeWounds, showWound, CASTLE, FORD, GATE, NI, KU, CAMP, MARU, START, RAIDAT, BASIN, FRONT, INSIDE, LAKE_HI, ISHI, HOJO, KIT, dress, live, fighting, near, warp, openDoor, def: null };
+const C = { MISSIONS, DIKE2, LAKE_MID, dikeWounds, showWound, CASTLE, FORD, GATE, NI, KU, CAMP, MARU, START, RAIDAT, BASIN, FRONT, INSIDE, LAKE_HI, ISHI, HOJO, KIT, dress, live, fighting, near, warp, openDoor, def: null };
 
 const t10_oshi = {
   // 任務と同じ八段で再開する。前の段の after は再開時には流れないため、

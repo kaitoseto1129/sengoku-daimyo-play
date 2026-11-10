@@ -516,6 +516,9 @@ const t08_nejirozaka = {
     F.shHon.noPursue = true;
     const yU = F.shHon.units.find((u) => u.name === '島津義珍');
     if (yU) {
+      // 義久・家久と同じく、手傷で狙いと名札を失って本陣から離脱しない。
+      // 夜明けの退却は retreatAll の下知で行う。
+      yU.onWound = () => { yU.hp = Math.max(1, yU.hp); };
       yU._crouch = true;
       rt.scene.add(shogi(W, yU.pos.x, yU.pos.z, Math.PI));
     }

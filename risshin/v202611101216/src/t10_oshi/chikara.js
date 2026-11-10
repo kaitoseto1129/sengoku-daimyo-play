@@ -98,7 +98,16 @@ export function retreat(rt, C) {
   // 「撃つな」でも構えた弓が射続けた（bot：柵の守りの弓に背を射られて倒れた）。退く間は敵の弓・鉄砲の矢玉を切らせ、夜の段で戻す
   K.ammoWas = [];
   for (const g of rt.army.groups) if (g.team !== me) for (const u of g.units) if (u.alive && (u.type === 'bow' || u.type === 'gun')) { K.ammoWas.push([u, u.arrowAmmo, u.gunAmmo]); u.arrowAmmo = 0; u.gunAmmo = 0; }
-  if (C.live(K.ally)) { K.ally.order = 'move'; K.ally.dest = { x: C.CAMP.x - 4, z: C.CAMP.z - 8 }; K.ally.speed = 3.4; K.ally.aggro = 0; K.ally.onArrive = (q) => { q.onArrive = null; q.order = 'hold'; }; for (const u of K.ally.units) u.target = null; }
+  if (C.live(K.ally)) {
+    const g = K.ally;
+    // 前衛も下知どおり丸墓山へ退く。低地の陣への直進では沼を横切り、主人公と離れてしまう。
+    g.order = 'path'; g.path = [[C.FORD.x, C.FORD.z], [C.RAIDAT.x, C.RAIDAT.z], ...C.DIKE2]; g.pathIdx = 0;
+    g.formation = 'column'; g.roadColumn = true; g.followColumnRoad = true; g.width = 2;
+    // 到着後も共通の突撃で城へ引き返さない。
+    g.stay = true; g.speed = 3.4; g.aggro = 0; g.seekRange = 0;
+    g.onArrive = (q) => { q.onArrive = null; q.order = 'hold'; };
+    for (const u of g.units) { u.target = null; u.watch = null; }
+  }
   rt.say('使番', '前衛を引け！　三成様の御下知じゃ。力攻めはならぬ、丸墓山の本陣へ戻れ！', 3.6);
   rt.after(4.2, () => rt.say(nm(rt), '土手一本では、寄せても寄せても上から撃たれる……', 3.2));
   rt.after(16, () => { if (F.step === 2) rt.say('石田勢の足軽', '深田に足を取られて、半分も戻れぬわ', 3); });
