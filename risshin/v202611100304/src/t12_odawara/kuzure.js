@@ -34,7 +34,9 @@ export function step(H) {
       for (const g of C.runners) if (!g.sat && Math.hypot(g.center().x - H.BANK.x, g.center().z - H.BANK.z) < 7) { g.sat = true; for (const u of g.units) if (u.alive) u._crouch = true; rt.say('逃げて来た北条の兵', 'お助けを……城の中は、もう皆、戦う気がござらぬ', 3.6); }
       const chasers = C.groups.filter((g) => g.chaser);
       rt.objProgress('dp', '');
-      const done = C.r3 && chasers.length >= 3 && chasers.every((g) => live(g) <= 1);
+      // 追っ手だけを先に討っても、降りに来た三組を岸で迎えるまでは済ませない。
+      const welcomed = C.runners.length === 3 && C.runners.every((g) => g.sat);
+      const done = C.r3 && welcomed && chasers.length >= 3 && chasers.every((g) => live(g) <= 1);
       if (done && Math.hypot(rt.player.u.pos.x - H.BANK.x, rt.player.u.pos.z - H.BANK.z) < 18 && !C.done) {
         C.done = el;
         for (const g of chasers) { g.noRout = false; g.morale = 0; }

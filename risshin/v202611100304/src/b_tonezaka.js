@@ -1073,7 +1073,8 @@ const COUNTER_PATHS = [
 function counterMarch(g, path) {
   if (!fighting(g) || g._countermarch) return;
   g._countermarch = true;
-  march(g, path, toneHold);
+  // 返し合わせの終点は待機場所ではない。追い手へ押し出して槍を合わせる。
+  march(g, path, (q) => { toneHold(q); q._charge = true; });
 }
 
 // 後衛の敗走は、夜の知らせと実際に流れ込む兵で次の備へ伝わる。
@@ -1490,8 +1491,12 @@ function withdrawStage(rt) {
       retreat(g); tonezaka.onRout(rt, g);
       continue;
     }
-    if (g === F.r1 && g.lastStand && !g.units.some((u) => u.name === '河合吉統' && u.alive)) {
+    // 将が生きている間は時刻で退かせない。討死後は残る旗本にも崩れを伝える。
+    // 河合だけを解くと、山崎・龍興の旗本は将を失っても最後の一人まで退けない。
+    if (g.lastStand && !g.units.some((u) => u.type === 'busho' && u.alive)) {
       g.lastStand = false; g.noRout = false;
+      if (fighting(g)) { retreat(g); tonezaka.onRout(rt, g); }
+      continue;
     }
     // 10/30：時の上限で退くのは、本人が近くで戦っている時だけ（立っているだけで段が進んで見えないように）
     // 10/30：味方が削っただけでは退かない。本人が近く（四十五歩）で戦っている時だけ崩れる
@@ -1504,7 +1509,7 @@ function withdrawStage(rt) {
     const idleLate = damaged && F.step <= 3 && rt.t - F.stepT >= STAGE_LIMIT[F.step] * 2;
     // 自分と組が三人を倒すと、三割弱の損失でも守りが崩れる。無傷の備は退かせない。
     const threshold = g._toneHelp >= 3 ? 0.75 : 0.6;
-    // 山崎・龍興の旗本は、時刻で退かせず討たれるまで踏みとどまる。
+    // 山崎・龍興本人が残る間は、時刻で旗本を退かせない。
     if (fighting(g) && !g.lastStand && (close && (remaining <= g.initial * threshold || late) || idleLate)) {
       retreat(g); tonezaka.onRout(rt, g);
     }
@@ -3327,6 +3332,7 @@ const tonezaka = {
         if (!close) continue;
         g._retreatColumn = false; g.path = null;
         toneHold(g); g.facing = TURN; g._face = TURN;
+        g._charge = true;
       }
       retreatCascade(rt);
       toneMarchPace(rt);

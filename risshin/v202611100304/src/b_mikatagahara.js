@@ -2733,6 +2733,7 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
     // 遠くへ追い出した味方の討ち取りでは、持ち場を守った事にしない。
     const C = F.dpOn && F.dp?.cur;
     if (v.team === 1 && k?.team === 0 && C?.s.kind === 'hold' && C.groups.includes(v.group) &&
+        C.at && Math.hypot(rt.player.u.pos.x - C.at.x, rt.player.u.pos.z - C.at.z) < C.botRadius &&
         (k === rt.player.u || C.at && Math.hypot(k.pos.x - C.at.x, k.pos.z - C.at.z) < C.botRadius + 8)) C.metEnemy = true;
     if (v.team === 1) F.ek = (F.ek || 0) + 1; else F.ak = (F.ak || 0) + 1;
   },
@@ -3080,14 +3081,15 @@ function withstand(o) {
     const held = C.inT;
     tick(rt, C, m, ctx, Math.min(el, o.dur - 0.001), dt);
     // 広い近似範囲にいるだけでは、持ち場を守った手柄にしない。
-    if (!C.metEnemy) for (const g of C.groups) {
+    const p = rt.player.u.pos;
+    const inPost = Math.hypot(p.x - C.at.x, p.z - C.at.z) < (o.r || 14);
+    // 本人が不在の間に味方だけで退けた敵を、後から守った実績にしない。
+    if (inPost && !C.metEnemy) for (const g of C.groups) {
       if (g.routed) continue;
       for (const u of g.units) if (u.alive && !u.fleeing && !u.gone && !u.woundOut &&
           Math.hypot(u.pos.x - C.at.x, u.pos.z - C.at.z) < (o.r || 14) + 8) { C.metEnemy = true; break; }
       if (C.metEnemy) break;
     }
-    const p = rt.player.u.pos;
-    const inPost = Math.hypot(p.x - C.at.x, p.z - C.at.z) < (o.r || 14);
     C.inT = held + (inPost && C.metEnemy ? dt : 0);
     if (o.cover && el >= (C.coverScanT || 0)) {
       C.coverScanT = el + 0.5;
