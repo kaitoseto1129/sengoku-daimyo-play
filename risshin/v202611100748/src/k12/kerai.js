@@ -5,7 +5,11 @@
 //   volley：味方の鉄砲が撃つのが見えるように、寄せる敵へ揃えて放つ（音と煙。敵の気を少し落とす）
 // 入れ方：各戦の update から tick(rt, dt, opt) を呼ぶ。opt.guards()・opt.keepHold(g)・opt.guns() で戦ごとに絞る。
 // ======================================================================
-const ok = (g) => g && g.count > 0 && !g.routed;
+// 退く下知は護衛や揃い撃ちより優先する。道明寺側の追従が守っても、その前の護衛で攻撃に戻していた。
+const ok = (g) => g && g.count > 0 && !g.routed && g.order !== 'retreat' && g.order !== 'flee';
+const active = (u) => u.alive && !u.fleeing && !u.gone && !u.woundOut &&
+  !u.rearWound && !u.downed && !u.noTarget;
+const shootable = (u) => active(u) && !u.isStruct;
 
 export function tick(rt, dt, opt = {}) {
   const F = rt.flags, K = F._kerai || (F._kerai = { gT: 0, wT: 0, vT: 4 });
@@ -40,10 +44,17 @@ export function tick(rt, dt, opt = {}) {
     K.vT = 1;
     for (const g of opt.guns(rt).filter(ok)) {
       if ((g._vNext || 0) > rt.t) continue;
-      const c = g.center(), foe = rt.army.nearestEnemy({ pos: c, team: 0, id: -1 }, 42, (o) => !o.fleeing && !o.isStruct);
-      if (!foe || Math.hypot(foe.pos.x - c.x, foe.pos.z - c.z) < 6) continue;
+      // 槍兵だけが残った列や後送された鉄砲兵から、架空の斉射を出さない。
+      let gunner = null, foe = null;
+      for (const u of g.units) {
+        if (!active(u) || u.weapon !== 'gun') continue;
+        const target = rt.army.nearestEnemy(u, 42, shootable);
+        if (!target || Math.hypot(target.pos.x - u.pos.x, target.pos.z - u.pos.z) < 6) continue;
+        gunner = u; foe = target; break;
+      }
+      if (!gunner) continue;
       g._vNext = rt.t + 8 + Math.random() * 3;
-      rt.army.play('volley', c, 1.1);
+      rt.army.play('volley', gunner.pos, 1.1);
       const fg = foe.group;
       if (fg && !fg.noRout) fg.morale = Math.max(0, (fg.morale ?? 100) - 4);
     }

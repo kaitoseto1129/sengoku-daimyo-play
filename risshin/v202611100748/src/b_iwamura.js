@@ -2241,8 +2241,8 @@ html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.iwamura-army #army
     rt.award((t) => t.side.push('夜討ちを退け、囲みを守った'), '包囲の陣と麓の道を守った');
     rt.tracker.main = true;
     rt.award((t) => { t.main = true; t.special = { label: '水晶山の夜討ちを退け、城の麓まで進んだ', pts: 20 }; }, '水晶山の守りを果たした');
-    rt.banner('水晶山の囲みを守った', '夜討ちは退いた。城はもう持たぬ');
-    rt.say('河尻秀隆', 'よう守った。囲みは崩れなんだ。ここに留まれ', 3);
+    rt.banner('降伏の申し出を受けた', '白旗の使者を信忠の本陣へ送り届けた');
+    rt.say('河尻秀隆', 'よう届けた。城の明け渡しを見届けるぞ', 3);
     // 11/1 kaito の紙：勝ちは「城が降る」。夜討ちを退けた後、城が降り、秋山とおつやの方は処刑される（全滅で勝ちにしない）。
     for (const g of rt.army.groups) if (g.team === 1 && !g.routed) { g.order = 'hold'; g.aggro = 0; g.seekRange = 0; }
     // critic60：勝ってすぐ「岩村城、降る」と城の明け渡しが続き、一夜の戦の直後に城が開いたように見えた（二2）。十一日が経った事を先に言う。

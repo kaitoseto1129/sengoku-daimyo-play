@@ -57,16 +57,25 @@ export function sogoFall(rt, K) {
   F.sogoDead = true;
   // 十河は信親と同じ死に方にしない：殿として残り、見えない所で討たれる（後で使番の知らせ）
   rt.say('十河存保', '先へ行け！　ここは十河が引き受ける', 2.8);
-  rt.after(9, () => { if (F.sogoU?.alive) { F.sogoU.invuln = false; F.sogoU.mustLive = false; rt.army.kill(F.sogoU, null); } rt.say('使番', '十河存保殿、討死！　右の備が崩れまする', 2.8); });
-  K.routButai(B.sogo, 30);
-  // 塊だけでなく本物の旗本も崩れる。備への追従を切り、浅瀬を通って退く。
+  // 名乗った直後に本人まで退かせず、旗本とその場で殿を務める。
   F.follow = F.follow.filter(([g]) => g !== F.sogo);
   if (live(F.sogo)) {
     const g = F.sogo;
-    g.order = 'move'; g.focus = null; g.speed = 3.6; g.aggro = 6; g.seekRange = 6;
-    g.dest = { x: K.FORD.x, z: -24 };
-    g.onArrive = (q) => { q.order = 'move'; q.dest = { x: K.FORD.x, z: 40 }; q.onArrive = null; };
+    g.order = 'hold'; g.anchor = { ...g.center() }; g.dest = null; g.onArrive = null; g.focus = null;
+    g.aggro = 6; g.seekRange = 12;
   }
+  rt.after(9, () => {
+    if (F.sogoU?.alive) { F.sogoU.invuln = false; F.sogoU.mustLive = false; rt.army.kill(F.sogoU, null); }
+    rt.say('使番', '十河存保殿、討死！　右の備が崩れまする', 2.8);
+    K.routButai(B.sogo, 30);
+    // 討死してから残る旗本も崩れ、浅瀬を通って退く。
+    if (live(F.sogo)) {
+      const g = F.sogo;
+      g.order = 'move'; g.focus = null; g.speed = 3.6; g.aggro = 6; g.seekRange = 6;
+      g.dest = { x: K.FORD.x, z: -24 };
+      g.onArrive = (q) => { q.order = 'move'; q.dest = { x: K.FORD.x, z: 40 }; q.onArrive = null; };
+    }
+  });
 }
 
 function toB(rt, K) {

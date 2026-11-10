@@ -50,6 +50,15 @@ export function tick(rt, ctx) {
   if (F.step >= 1) S.done = true;
 }
 
+// 竹束の持ち場と同じ高さで、塀を隔てず寄った時だけ①の到着とする。
+export function atGate(rt, ctx) {
+  const u = rt.player.u, p = u.pos;
+  const at = { x: ctx.gate.x - 30, z: ctx.gate.z };
+  at.y = rt.world.heightAt(at.x, at.z);
+  return u.alive && Math.hypot(p.x - at.x, p.z - at.z) < 9
+    && Math.abs(p.y - at.y) <= 3 && !rt.army.wallBetween(p, -1, at);
+}
+
 // 木戸を開けてよいか。時が来ても、本人が竹束の後ろへ寄るまで①を終えない。
 export function mayOpen(rt, near) {
   const S = rt.flags.arOpen;
