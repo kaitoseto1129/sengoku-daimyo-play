@@ -461,6 +461,7 @@ const k13_domyoji = {
   stageGoalsOnly: true,   // 目標は五つの段だけ（「敵を何人討つ」で埋めない。三1）
   goalsAllRows: true,     // 共通の札でも①〜⑤を作り、今の一つ以外も最初から並べる（九1・十1）
   goalVisibleRows: 5,     // 共通の札が実際に作る行数も五つにする（既定の一行では残りが消える）。
+  nearbyAllySignLimit: 0, // 味方の頭上の白い輪は出さない（批評の五2）。敵の赤い▼と武将の名は残す。
   // 下知を待つ間も、先手が向かう小松山の斜面を示す（全戦の通し確認で開始直後の印が無かった）。
   missionPinFallback: true,
   missionPin(rt) {

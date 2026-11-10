@@ -205,7 +205,7 @@ function sunoWoodDrop(rt) {
   const F = rt.flags, p = rt.player.u.pos;
   let receiver = null, best = Infinity, reachable = null, reachableBest = Infinity;
   for (const hand of F.wk.units) {
-    if (!hand.alive || hand.dying || hand.gone || hand.fleeing || hand.woundOut || hand.noTarget) continue;
+    if (!hand.alive || hand.hp <= 0 || hand.dying || hand.gone || hand.fleeing || hand.woundOut || hand.noTarget) continue;
     const d = Math.hypot(hand.pos.x - p.x, hand.pos.z - p.z) - (hand === F.woodReceiver ? 2 : 0);
     if (d < best) { best = d; receiver = hand; }
     // 近さだけで壁の裏の人足を選ぶと、受け取りの印まで来ても渡せない。
@@ -228,7 +228,7 @@ function sunoSupplyLull(rt) {
   if (!b) return false;
   const dx = b.x - a.x, dz = b.z - a.z, lengthSq = dx * dx + dz * dz || 1;
   for (const u of rt.army.units) {
-    if (!u.alive || u.gone || u.team !== 1 || u.fleeing || u.woundOut || u.noTarget || u.group?.routed || u.group?.noAI) continue;
+    if (!u.alive || u.hp <= 0 || u.dying || u.gone || u.team !== 1 || u.fleeing || u.woundOut || u.noTarget || u.group?.routed || u.group?.noAI) continue;
     const t = Math.max(0, Math.min(1, ((u.pos.x - a.x) * dx + (u.pos.z - a.z) * dz) / lengthSq));
     if (Math.hypot(u.pos.x - a.x - dx * t, u.pos.z - a.z - dz * t) < 8) return false;
   }

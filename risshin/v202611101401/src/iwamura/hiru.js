@@ -328,11 +328,8 @@ export function tick(rt, hidden = []) {
       }
     }
     rt.world.setTime('night');
-    // 日が暮れるまでの間に柵の内の陣へ戻っている（場面替え）。柵の外で夜を迎えて柵に阻まれ、篝火へ行けなかった（11/9 の流し）
-    const P = rt.player.u, W = rt.world;
-    const put = (u, x, z) => { u.pos.x = x; u.pos.z = z; u.pos.y = W.heightAt(x, z); };
-    put(P, 2, 10);
-    for (const q of rt.squadGroups || []) for (const u of q.units) if (u.alive) put(u, 4 + Math.random() * 3, 12 + Math.random() * 3);
+    // 本人と配下を陣内へ飛ばさない。夜の支度にある帰陣の道標で
+    // 柵の口を歩いて通り、そのまま篝火へ向かう。
     H.night = true;
     try { H.ctx.done(); } catch (e) { /* なし */ }
   });

@@ -29,5 +29,6 @@ export default {
       { id: 'akashi', layer: 'gozume', wing: 'right', men: 2000, taisho: '明石全登', flag: 'toyotomi', hold: true, at: { x: 130, z: -140 } },
     ] },
   byMen: true,   // 軽い兵を史実の兵数の比で配る（11/9 徳川C。docs/fujin/k11_sanadamaru.md）
+  flagHeight: 4.8,   // 後から置く備の幟も、この戦の一丈五尺までにそろえる。
   honjinView: { A: false, B: false },   // 家康は住吉の陣（戦場外）。下知は使番で伝え、前田と真田の本陣は戦のファイルが作る
 };

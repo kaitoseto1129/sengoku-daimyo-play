@@ -512,7 +512,7 @@ const k05_ueda = {
       F.lureI = 0; F.lureT = rt.t;
       const g = F.sortie;
       if (live(g)) { g.noRout = true; g.morale = 100; this.lureNext(rt); }
-      if (live(g)) {
+      if (g?.units.some((u) => u.alive && !u.gone)) {
         rt.say('徳川の足軽', '逃げるぞ！　逃すな！', 2.6);
         rt.after(3.5, () => rt.say('大久保忠隣', '追え、追え！　小勢じゃ、揉み潰せ！', 3));
         rt.after(10, () => rt.say('徳川の足軽', 'ははっ、真田も口ほどにもない！', 2.8));
@@ -777,7 +777,8 @@ const k05_ueda = {
       const k = F.w5N - aliveN(F.raid);
       if (!F.raidGone && ((F.nidaAt > 20 && (k >= Math.round(F.w5N * 0.4) || F.nidaAt > 45)) || el > 170)) {
         F.raidGone = rt.t;
-        F.raidWithdrew = live(F.raid);
+        // 戦意を失って逃げる兵も生き残り。戦える人数が零でも全滅とは限らない。
+        F.raidWithdrew = F.raid.units.some((u) => u.alive && !u.gone);
         this.away(rt, F.raid, { x: 86, z: 58 });
         if (F.raidWithdrew) {
           rt.say('徳川の足軽', '真田がまた逃げるぞ！', 2.4);
