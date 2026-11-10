@@ -791,7 +791,13 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
     };
     h.tick = (rt, C, m, ctx, el, dt) => {
       t0(rt, C, m, ctx, el, dt);
-      if (!T.alive || T.invuln) return true;
+      if (!T.alive) {
+        // 最大の攻めより先に正面の柵を破っていても、二の構えと打って出は省かない。
+        // 破壊時が第五段より前なら trap は保留されるので、この段で改めて起こす。
+        if (T === rt.flags.target) this.trap(rt);
+        return true;
+      }
+      if (T.invuln) return true;
       // 本人が柵の組を援護し、生きた破城隊が取り付いた刻だけ補う。陣で待つだけでは柵を破ったことにしない。
       const tx = (T.seg[0] + T.seg[2]) / 2, tz = (T.seg[1] + T.seg[3]) / 2, p = rt.player.u;
       const working = p.alive && Math.hypot(p.pos.x - tx, p.pos.z - tz) < 14 && rt.flags.rams.some((g) =>

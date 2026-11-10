@@ -13,13 +13,13 @@ export function install(rt, ctx) {
   rt.obj('main', '堤の上へ上がり、輪中と門徒の砦を見よ', 'main');
   rt.marker('ngMonomi', MI, '岸の堤の上', { h: 1.6, guideAlways: true });
   rt.say('柴田勝家', '堤へ上がって島を見よ。あれが門徒の籠る長島の輪中じゃ', 3.6);
-  const live = () => !F.ending && !rt.over && F.ngMonomi;
+  const live = () => !F.ending && !F.adv && !rt.over && F.ngMonomi === MI;
   rt.after(8, () => { if (live()) rt.say('使番', '七月、上様は三方から長島を囲まれた。早尾口・賀鳥口・市江口、川は九鬼の船で塞ぐ', 4); });
   rt.after(19, () => { if (live()) { sfx('far', 0.5); rt.say('足軽', '川向こうの砦から、念仏が聞こえる……', 2.8); } });
   rt.after(28, () => { if (live()) rt.say('柴田勝家', '島の門徒は大坂の顕如の檄で立った。指図は願証寺と下間の坊官じゃ', 3.6); });
   let done = false;
   const go = () => {
-    if (done || F.ending || rt.over || !rt.player?.u?.alive) return;
+    if (done || !live() || !rt.player?.u?.alive) return;
     // 報告の後に倒れた時も、起き上がるまで進めず、回復後は再開する。
     if (!ctx.ready(rt)) { rt.after(0.4, go); return; }
     done = true;
@@ -30,15 +30,15 @@ export function install(rt, ctx) {
     if (F.ngMonomiDone) return;
     F.ngMonomiDone = true;
     sfx('horagai', 0.7);
-    rt.after(1.5, () => { try { rt.army.play('bell', ctx.bell, 0.7); } catch (e) { /* 音が無くても進む */ } });
+    rt.after(1.5, () => { if (!live()) return; try { rt.army.play('bell', ctx.bell, 0.7); } catch (e) { /* 音が無くても進む */ } });
     rt.banner('長島の輪中', '中洲の砦に門徒と家族が籠る。川は九鬼の船が塞ぐ');
     rt.award((t) => { t.side.push('堤から輪中と砦を見届けた'); }, '輪中と砦を見届けた', MI);
     rt.say('柴田勝家', '大鳥居・篠橋は既に落ちた。残る長島・屋長島・中江も、川に守られておる', 4);
-    rt.after(4.4, () => { if (!F.ending) rt.say('柴田勝家', '前方の堤を確保し、砦と舟着場を押さえよ。水路を塞ぎ、囲みを締めるのじゃ', 4); });
+    rt.after(4.4, () => { if (live()) rt.say('柴田勝家', '前方の堤を確保し、砦と舟着場を押さえよ。水路を塞ぎ、囲みを締めるのじゃ', 4); });
     rt.after(9, go);
   };
   const tick = () => {
-    if (done || F.ending || rt.over) return;
+    if (done || !live()) return;
     const u = rt.player?.u;
     if (ctx.ready(rt) && Math.hypot(u.pos.x - MI.x, u.pos.z - MI.z) < 6) { report(); return; }   // 馬の上からでも見える（11/9 二巡：騎乗の bot が堤で十八分止まった）
     rt.after(0.4, tick);

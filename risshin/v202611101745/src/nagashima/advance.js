@@ -164,6 +164,14 @@ function tag(st, k, cp, pin) {
       return present && C.inT >= duration && !C.waves.length && (done ||
         el >= Math.max(duration + 60, 200) && C.nTot > 0 && fighters(C) <= C.nTot * 0.6);
     };
+    if (st.kind === 'hold') {
+      const end = st.end;
+      st.end = (rt, C, m, ctx) => {
+        // 二人以下の組も崩れた扱いで段が終わる。残兵の射撃と攻撃の下知を残さない。
+        withdraw(C);
+        end?.(rt, C, m, ctx);
+      };
+    }
   }
   if (pin) st.pin = pin;
   st.start = (rt, C, m, ctx) => {

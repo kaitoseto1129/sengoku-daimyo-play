@@ -260,7 +260,22 @@ const stage = (t, key) => {
     $('loading').querySelector('.ldmon')?.removeAttribute('data-sec');
   }
 };
-const stageError = (retry) => { game.loadingReader?.dispose(); game.loadingReader = null; const failedStage = ldName; $('loading').classList.add('failed'); lockHint(false); document.querySelector('#loading .ld-cancel')?.remove(); $('loading').hidden = false; clearInterval(ldIv); ldIv = 0; ldPlan = null; stage(''); const el = $('ld-stage'); el.textContent = `！ ${failedStage}の途中で止まりました。題へ戻っても城下の記録は残ります。もう一度お試しください。`; el.insertAdjacentHTML('beforeend', '<div class="ld-actions"><button class="btn small" id="ld-title">題の画面へ戻る</button><button class="btn small" id="ld-retry">もう一度支度する</button></div>'); el.setAttribute('role', 'alert'); $('ld-retry').onclick = () => { $('ld-retry').disabled = true; $('ld-title').disabled = true; el.setAttribute('role', 'status'); sfx('ui'); if (freshRetry()) return; Promise.resolve().then(retry).catch(() => stageError(retry)); }; $('ld-title').onclick = () => { hideLoading(); game.title(); }; $('ld-title').focus({ preventScroll: true }); };
+const stageError = (retry) => { game.loadingReader?.dispose(); game.loadingReader = null; const failedStage = ldName; $('loading').classList.add('failed'); lockHint(false); document.querySelector('#loading .ld-cancel')?.remove(); $('loading').hidden = false; clearInterval(ldIv); ldIv = 0; ldPlan = null; stage(''); const el = $('ld-stage'); el.textContent = `！ ${failedStage}の途中で止まりました。題へ戻っても城下の記録は残ります。もう一度お試しください。`; el.insertAdjacentHTML('beforeend', '<div class="ld-actions"><button class="btn small" id="ld-title">題の画面へ戻る</button><button class="btn small" id="ld-retry">もう一度支度する</button></div>'); el.setAttribute('role', 'alert'); $('ld-retry').onclick = async () => {
+  $('ld-retry').disabled = true; $('ld-title').disabled = true;
+  el.setAttribute('role', 'status'); sfx('ui');
+  if (freshRetry()) return;
+  let seq;
+  try {
+    const pending = retry();
+    // やり直し自身が進めた出陣番号を覚える。次の戦の失敗札にはしない。
+    seq = game.startSeq;
+    await pending;
+  } catch (e) {
+    // 同期の失敗も受ける。支度済み・取消済みの札は開き直さない。
+    if (seq === undefined) seq = game.startSeq;
+    if (seq === game.startSeq && !$('loading').hidden) stageError(retry);
+  }
+}; $('ld-title').onclick = () => { hideLoading(); game.title(); }; $('ld-title').focus({ preventScroll: true }); };
 // 「もう一度支度する」は頁を読み込み直して同じ所から始める（10/24 Lancers：Windows の Chrome で稲生の後の支度が何度押しても止まった）。
 // 同じ頁のままだと、一度失敗した部品の読み込み（import の失敗・公開の版の入れ替えで消えた古い版）をブラウザが覚えていて、何度押しても同じ所で止まる
 const freshRetry = () => { const ls = game.lastStart; return !!ls && !isNorender() && !/[?&]bot/.test(location.search) && resumeReload(game, ls.fn, ls.args); };
