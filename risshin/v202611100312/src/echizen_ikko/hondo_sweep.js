@@ -1,9 +1,11 @@
 // 本堂を押さえる段（十七日の朝）：堂の中・縁の下・切岸の上で動けなくなった衆徒が一人残ると、
 //   「本堂を味方と押さえる」のまま七分止まった（11/9 二巡・織田H の流し）。
 //   本人が本堂の近くにいる間だけ、五秒ごとに堂の区域を見て、交戦せず詰まった者の経路を引き直す。
+import { siegeFighter } from '../siege_zones.js';
+
 export function fighting(rt, u) {
   const target = u.target;
-  return !!(u.atk || u.swing || u.charging || target?.alive && !target.fleeing &&
+  return !!(u.atk || u.swing || u.charging || target && siegeFighter(target) &&
     Math.hypot(target.pos.x - u.pos.x, target.pos.z - u.pos.z) <= (u.range || 4) &&
     !rt.army.wallBetween(u.pos, -1, target.pos));
 }
@@ -12,7 +14,7 @@ export function fighting(rt, u) {
 export function resume(rt, u) {
   let foe = null, nearest = Infinity;
   for (const v of rt.army.units) {
-    if (v.team === u.team || !v.alive || v.fleeing || v.woundOut || v.noTarget || v.isStruct) continue;
+    if (v.team === u.team || !siegeFighter(v)) continue;
     const d = Math.hypot(v.pos.x - u.pos.x, v.pos.z - u.pos.z);
     if (d < nearest) { nearest = d; foe = v; }
   }

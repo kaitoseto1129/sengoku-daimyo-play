@@ -3057,7 +3057,7 @@ const tonezaka = {
     rt.unmark('pass'); rt.unmark('nobu');
     // 11/6 fixc2220（一6・二2）：坂の殿・人夫・義景の供は一乗谷へ来ない（河合・山崎・龍興は坂で討死、詫美は疋壇城から逃れ、義景は大野へ）。
     //   略図の後の城下に、峠で退いた将の名札と逃げる列を残さない。
-    F.journeyRetired = [...F.rears, F.r2c, F.r3c, F.hurtG, ...(F.porters || []), F.yoshikage];
+    F.journeyRetired = [...F.rears, F.r2c, F.r3c, F.roadG, F.hurtG, ...(F.porters || []), F.yoshikage];
     toneJourneyRetire(rt, F.journeyRetired);
     for (let i = 0; i < F.rears.length; i++) rt.unmark('rear' + i);
     rt.world.setRainTarget(0);
@@ -3252,7 +3252,8 @@ const tonezaka = {
       }
     }
     // 味方の曲がり角での停滞だけをほどく。殿全隊が主人公へ総攻撃する下知は出さない。
-    if (F.step >= 1 && rt.t >= (F.pressureAt || 0)) pressureTick(rt, F.step, [], F.oda,
+    // 後続四組も対象にし、城下では府中に残る信長の馬廻を動かさない。
+    if (F.step >= 1 && rt.t >= (F.pressureAt || 0)) pressureTick(rt, F.step, [], F.step >= 5 ? F.townFriends : [...F.oda, ...F.followers],
       F.guideTask || (F.step <= 3 ? '道の先へ進み、味方と敵を突き破れ' : '道の先へ進み、勝家の手に続け'));
     const hit = rt.player.lastHit;
     // 四割まで減ってからでは遅い。退ける体力があるうちに一度だけ案内する。
