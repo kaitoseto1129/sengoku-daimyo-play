@@ -1221,7 +1221,8 @@ const okehazama = {
     const timedWait = rt.phase === 'wait' || rt.phase === 'brief' && F.briefed;
     // 集合後も同じピンを保ち、穴が満ちる円の満ち具合だけで待ち終わりを示す。
     // 敵は本人の頭上の赤い▼だけ。地面や画面端へ大きな赤いピンを浮かべない。
-    if (!timedWait && F.scoutFighting && rt.phase !== 'assault') return null;
+    // 物見との斬り合い中も、谷の出口へ向かう地面のピンは残す。
+    // 敵の頭上の▼とは役割が異なり、戦いが済んだ後の行き先を見失わせない。
     const pin = F.missionPinTarget || (F.missionPinTarget = { x: 0, z: 0, r: 8, hide: 8 });
     pin.enemy = false; pin.dodge = false; pin.unit = null; pin.waiting = undefined; pin.always = false;
     pin.waitDuration = rt.phase === 'brief' ? (F.briefWaitDuration || DEPART_WAIT) : RAIN_WAIT;

@@ -1550,10 +1550,17 @@ const iga = {
     }
     if (id) {
       const m = rt.markers.find((m) => m.id === id);
-      if (!m) return null;
-      at = m.guideDestination?.() || (typeof m.pos === 'function' ? m.pos() : m.pos);
-      if (!at) return null;
-      q.marker = m; q.fire = /^f[0-2]$/.test(id); q.treatment = id === 'raidRecovery';
+      // 北の曲輪の調査後は移動の印を外して報せを待つ。同じ持ち場の案内を残す。
+      if (!m && stage === 5 && F.dp?.cur?.s.kind === 'rest') {
+        at = KITA; id = 'kitaWait';
+        q.defend = q.waiting = true;
+        q.arrived = Math.hypot(p.x - at.x, p.z - at.z) < 9;
+      } else {
+        if (!m) return null;
+        at = m.guideDestination?.() || (typeof m.pos === 'function' ? m.pos() : m.pos);
+        if (!at) return null;
+        q.marker = m; q.fire = /^f[0-2]$/.test(id); q.treatment = id === 'raidRecovery';
+      }
     }
     q.key = id || (q.enemy ? 'foe' : 'post'); q.x = at.x; q.z = at.z;
     return q;

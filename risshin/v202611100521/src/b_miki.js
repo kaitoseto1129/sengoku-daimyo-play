@@ -2915,7 +2915,8 @@ const miki = {
     // 討死の場面も実際に刃が届く所だけ。木戸の近くにいるだけの敵や柵越しの敵に討たせない。
     let killer = null, kd = Infinity;
     for (const g of F.sallies) for (const e of g.units) {
-      if (!e.alive || e.fleeing || e.woundOut || e.noTarget || e.downed || e.type === 'gun' || e.type === 'bow') continue;
+      // 倒れる途中や後送中の城兵に、谷大膳を討たせない。
+      if (!mikiFighting(e) || e.type === 'gun' || e.type === 'bow') continue;
       const d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
       if (d > Math.min(3.2, (e.reach || 1.8) + .4) || Math.abs(e.pos.y - u.pos.y) > 1.5 ||
         rt.army.terrainBlocks(e.pos, u.pos) || rt.army.wallBetween(e.pos, e.team, u.pos)) continue;

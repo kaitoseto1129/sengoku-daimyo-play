@@ -114,7 +114,9 @@ function sally(rt, H, n) {
   }
   return g;
 }
-const standing = (g) => g.units.filter((u) => u.alive && !u.fleeing).length;
+// 深手で離脱した者は戦力に残さない。一時的に転んだ者は起きるので数える。
+const fighting = (u) => u.alive && !u.fleeing && !u.woundOut;
+const standing = (g) => g.units.filter(fighting).length;
 function rout(g) {
   g.noRout = false; g.morale = 0; g.routed = true; g.order = 'flee'; g.focus = null; g.fleeDir = { x: 0, z: -1 };
   for (const u of g.units) if (u.alive) { u.fleeing = true; u.target = null; u.aiT = 0; }
@@ -166,7 +168,7 @@ export function tick(rt, hidden = []) {
   if (H.s === 2) {
     if (!H.esc) return;
     if (near(p, KOMODA, 26)) { H.esc.order = 'attack'; H.esc.aggro = 30; }
-    const left = H.esc.units.filter((u) => u.alive && !u.fleeing && u.type !== 'porter').length;
+    const left = H.esc.units.filter((u) => fighting(u) && u.type !== 'porter').length;
     // 待ち時間では兵糧入れを止めた事にしない。護りを実際に崩し、麓へ出た本人が確かめる。
     if (left > 2 || !near(p, KOMODA, 26)) return;
     rout(H.esc);

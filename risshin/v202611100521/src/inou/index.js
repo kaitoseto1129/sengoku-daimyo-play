@@ -3,7 +3,7 @@
 //   0〜2分　march.js    ：於多井川を渡った列が稲生の街道を北へ。信長の見回り・使番・名塚の戦・手負い・柴田勢の現れ（移動も出来事に）
 //   2〜5分　vanguard.js ：柴田の物見（本体の練習）の後、葦原の脇道から林勢の前衛。物頭を討つと崩れて逃げる（敗走を初めて見せる）
 //   5〜8分　flank.js    ：柴田勢と列がぶつかり正面は押される。組は小川沿いの畦から柴田の横を突く（横槍）
-//   8〜10分 katsuie.js  ：信長が前へ出て一喝。柴田勝家が馬で打ち掛かる短い一騎打ち。手負うて退く（『信長公記』）
+//   8〜10分             ：信長が前へ出て一喝。柴田勝家は手負うて退く（主人公との一騎打ちはしない）
 //   10〜12分 raid.js     ：列を整える間に、林勢の別手が葦原を回って信長の旗本へ（狙われる本陣）。組が駆け戻って止める
 //   12〜14分 本体        ：林勢の槍の列（hayashi2.js：六割まで減らすと二の備が押し出す）→ 田の伏兵（fushi.js）→ 美作守の旗本（sakuma.js：名塚の佐久間勢が後詰に駆けつける）→ 信長が美作守を突き伏せる
 //   14〜15分 yoin.js     ：信勝方の総崩れ・勝鬨三度・信長の言葉・初陣の評価（余韻を削らない）
@@ -12,7 +12,6 @@
 import * as march from './march.js';
 import * as vanguard from './vanguard.js';
 import * as flank from './flank.js';
-import * as katsuie from './katsuie.js';
 import * as raid from './raid.js';
 import * as hayashi2 from './hayashi2.js';
 import * as sakuma from './sakuma.js';
@@ -67,7 +66,6 @@ export function heading(rt) {
 export function sign(rt) {
   const v = S(rt);
   if (v.ph === 'van') return vanguard.target(rt);
-  if (v.ph === 'duel') return katsuie.target(rt);
   if (v.ph === 'raid') return raid.target(rt) || null;
   return undefined;
 }
@@ -77,7 +75,6 @@ export function pin(rt) {
   if (v.ph === 'march') return march.pin(rt);
   if (v.ph === 'van') return vanguard.pin(rt);
   if (v.ph === 'flank') return flank.pin(rt);
-  if (v.ph === 'duel') return katsuie.pin(rt);
   if (v.ph === 'raid') return raid.pin(rt);
   return undefined;
 }
@@ -99,8 +96,6 @@ export function shoutOk(rt) {
 }
 // 林勢の槍の列を破るのは、二の備が押し出して四十五秒たってから（済まなければ段二の五分半で）
 export function line2Ok(rt) { const v = S(rt); return !!v.l2res && rt.t - v.l2res > 45 || rt.t - (rt.flags.stageT || 0) > 330; }
-// 一喝の後：勝家との一騎打ち（済んだら breakLine1 を呼ぶ）。引き受けたら true
-export function duel(rt, def) { return katsuie.start(rt, def, S(rt).C); }
 // 柴田勢が崩れた後：林勢の別手を止めてから列が林勢へ進む
 export function raidDone(rt, def) {
   const v = S(rt);
@@ -116,7 +111,6 @@ export function tick(rt, dt) {
   if (v.ph === 'march') march.tick(rt, dt);
   if (v.vanT) vanguard.tick(rt, dt);
   if (v.ph === 'flank' || v.flankHit && !v.flankDone) flank.tick(rt, dt);
-  if (v.ph === 'duel') katsuie.tick(rt, dt);
   if (v.raidT) raid.tick(rt, dt);
   if (v.raidDone) { hayashi2.tick(rt, dt); fushi.tick(rt, dt); sakuma.tick(rt, dt); }
 }
@@ -132,7 +126,6 @@ export function bot(b, inp, goTo) {
   let T = null;
   if (v.ph === 'van') T = vanguard.target(b)?.pos || null;
   else if (v.ph === 'flank') T = v.C?.FLANK;
-  else if (v.ph === 'duel') T = katsuie.target(b)?.pos || null;
   else if (v.ph === 'raid') T = raid.target(b)?.pos || b.flags.nobuG?.center?.() || null;
   if (!T) return false;
   if (Math.hypot(T.x - u.pos.x, T.z - u.pos.z) < 2.2) return false;

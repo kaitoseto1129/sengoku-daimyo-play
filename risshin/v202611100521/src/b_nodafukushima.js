@@ -3893,7 +3893,7 @@ const nodafukushima = {
     const c = g.center();
     c.y = rt.world.heightAt(c.x, c.z);
     const consider = (u) => {
-      if (!u.alive || u.fleeing || u.woundOut || u.downed || u.rearWound || u.invuln || u.noTarget || u.isStruct || u.farSim || u.gone || u.pos.z < -16 || Math.abs(u.pos.y - c.y) > 3) return;
+      if (!canJoin(u) || u.invuln || u.isStruct || u.farSim || u.pos.z < -16 || Math.abs(u.pos.y - c.y) > 3) return;
       const d = Math.hypot(u.pos.x - c.x, u.pos.z - c.z);
       if (d < best && !rt.army.wallBetween(c, -1, u.pos) && !rt.army.terrainBlocks(c, u.pos)) { best = d; target = u; }
     };
@@ -3907,6 +3907,9 @@ const nodafukushima = {
     if (g.order === 'move') {
       if (!target || best > 8) return;
       g.order = 'attack'; g.onArrive = null;
+      // 先頭の接敵でも、通常の到着と同じ索敵範囲・攻撃性へ切り替える。
+      // 行軍用の値を残すと、後列が近い味方や主人公へ掛からない。
+      g.seekRange = 60; g.aggro = 16;
     }
     g.focus = target;
   },
