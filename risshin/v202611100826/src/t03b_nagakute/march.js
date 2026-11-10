@@ -64,12 +64,24 @@ export function tick(rt, K, dt) {
       rt.say('信吉隊の侍', '南から加勢が来る！　番所に火をかける間、防げ！', 2.8);
     });
   }
+  // 番所で加勢を迎え撃った時間だけ数える。残兵が柵や林で詰まっても、波を終えて退かせる。
+  // 遠くで待つだけでは進まず、火付けも番所にいる間だけ行う（全戦共通の波の上限）。
+  if (!F.banFire && near && F.banG2 && !F.banWithdraw) {
+    F.banFight = (F.banFight || 0) + dt;
+    if (F.banFight >= 90) {
+      F.banWithdraw = true;
+      for (const g of [F.banG, F.banG2]) if (K.live(g)) {
+        g.routed = true; g.order = 'retreat'; g.dest = { x: 170, z: 60 }; g.aggro = 0;
+      }
+      rt.say('信吉隊の侍', '番所の守りが退く！　今のうちに火をかけよ！', 3);
+    }
+  }
   // 守りを退け、番所のそばで十秒かけて火を付ける。離れている間は進めない。
   // 逃げ出した守り手は退けたものとする。生存人数だけでは、逃走中の加勢を追って火付けが止まる。
   if (!F.banFire && near && defending(F.banG) <= 1 && defending(F.banG2) <= 1 && F.banG2) F.banLit = (F.banLit || 0) + dt;
   if (!F.banFire && near && (F.banLit || 0) >= 10) {
     F.banFire = rt.t;
-    if (K.live(F.banG)) { F.banG.order = 'retreat'; F.banG.dest = { x: 170, z: 60 }; F.banG.aggro = 0; }
+    for (const g of [F.banG, F.banG2]) if (K.live(g)) { g.order = 'retreat'; g.dest = { x: 170, z: 60 }; g.aggro = 0; }
     try { rt.world.addFire(BANSHO.x, BANSHO.z, { size: 2.6, h: 0.4, blackSmoke: true }); rt.world.addFire(BANSHO.x + 4, BANSHO.z - 2, { size: 1.8, h: 0.3 }); } catch (e) { /* 火 */ }
     rt.award((t) => t.side.push('三河への道の徳川の番所を焼いた'), '徳川の番所を焼いた');
     rt.say('信吉隊の侍', '番所は焼けた。……家康の兵はおらなんだな', 3);

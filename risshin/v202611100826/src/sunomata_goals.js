@@ -11,9 +11,18 @@ export function sunomataNorthStopped(F) {
     (g.units.length > 0 && g.units.every((u) => (!u.alive && u.hp <= 0) || u.dying || u.woundOut));
 }
 
+function reliefCanFight(g) {
+  return !!g && !g.routed && g.units?.some((u) => u.alive && !(u.hp <= 0) &&
+    !u.dying && !u.gone && !u.fleeing && !u.woundOut && !u.noTarget);
+}
+
 export function sunomataPincerDone(F) {
-  // 11/10：伏兵の到着（特定の隊の動きの完了）に頼らない。西の寄せが退けば挟みは済んだ事にする
-  if (F.wave === 3 && F.W3b?.routed) return true;
+  // 生きた伏兵が行軍中なら、西の退却だけで挟撃を済ませない。
+  // 伏兵と代わりの射手が全て戦えなくなった場合は、最後の寄せの退却で終えられる。
+  const reliefReady = reliefCanFight(F.reinforceReserve) ||
+    reliefCanFight(F.gunReserve) || reliefCanFight(F.bowReserve);
+  if (F.wave === 3 && F.W3b?.routed &&
+      (F.reinforceArrived || (F.reinforceCalled || F.reinforceReserve) && !reliefReady)) return true;
   return F.wave === 3 && !!F.reinforceArrived && !!F.W3b &&
     (F.W3b.routed || F.W3b.units.filter((u) => u !== F.yoseBoss && u.alive && !(u.hp <= 0) && !u.dying && !u.gone && !u.fleeing && !u.woundOut && !u.noTarget).length <= 4);
 }

@@ -97,13 +97,19 @@ function height(x, z) {
 }
 
 const { way: wayRaw } = routeTools(ROUTE, 'k02');
+const { way: eastWay } = routeTools([[80, 78], [80, 46], [80, 4], [80, -38], [80, -56]], 'k02east');
 // 道の角は 1.5 歩の内で次へ送るが、着いたとみなす輪が 2 歩で、角の 2 歩手前で止まったままになった（11/6 流しで新加納の手前に四分）。輪を 1 歩に
 const kawadaWay = (army, u, want) => {
   // 退避で選んだ直進先は、歩く処理がもう一度道を選ぶ時にも維持する。
   const back = u._k02BackDirect;
   u._k02BackDirect = null;
   if (back && back.x === want.x && back.z === want.z) return want;
-  const q = wayRaw(army, u, want); if (q !== want) q.botRadius = 1; return q;
+  // 北の筋を上がった後は、柵を挟まない行き先へ隊幅を保って進む。
+  // 道譲りや口の脇への一歩まで中央へ戻すと、百人余りが同じ筋へ集まり続ける。
+  if (u.pos.z < -30 && want.z < -30 && !army.wallBetween(u.pos, -1, want, false)) return want;
+  // 東の浅瀬の山内勢は河田へ横切らせない。渡り終えたら北岸を米野へ進む。
+  const way = u.pos.x > 20 && want.x > 20 ? eastWay : wayRaw;
+  const q = way(army, u, want); if (q !== want) q.botRadius = 1; return q;
 };
 // 北岸の退避先は柵を挟まない場所から選んである。砦の外から道へ戻すと、
 // 内側の折れ角へ引かれて柵で止まる。川を渡る退避だけ浅瀬の道を使う。
@@ -124,9 +130,11 @@ const seat = (u) => { if (u) u.jinchu = { standing: false, t: 99, len: 99, dange
 // 段の中の組を名で探し、持ち場に留める（名のある将の旗本は前へ出ない・背を向けて歩かない。BK5）
 function holdGuard(C, name, at, facing) {
   const g = C && C.groups.find((q) => q.name === name);
-  if (g && !g.routed && g.order !== 'retreat') { g.order = 'hold'; g.anchor = { x: at.x, z: at.z }; g.facing = facing; g.aggro = 9; }
+  if (g && !g.routed && g.order !== 'retreat') { g.order = 'hold'; g.anchor.x = at.x; g.anchor.z = at.z; g.facing = facing; g.aggro = 9; }
   return g;
 }
+// 後方へ離脱した負傷兵は、生きていても守りの戦力に数えない。
+const guardStrength = (g) => g.units.reduce((n, u) => n + (u.alive && !u.fleeing && !u.woundOut && !u.noTarget ? 1 : 0), 0);
 
 // ①が済むと、池田輝政は本陣を中洲の小屋場島へ移す（旗立ての松。南の筋は河田の浅瀬を歩いて渡る）
 function moveHonjin(rt) {
@@ -226,13 +234,13 @@ function fordStakes(W) {
 function mine(step, r, inside, retreated) {
   step.idleAdvance = false; step.max = 1e9;
   step.noHardCap = true; step.limit = Infinity;   // 共通の四分・七分の時間送りも使わない
-  // 二人以下の組は共通判定で済みになるが、守将の退却と知らせは省かない。
-  if (r) { const t = step.tick; step.tick = (rt, C, ...a) => { const ok = t(rt, C, ...a), p = rt.player.u.pos; return ok && (!retreated || !!rt.flags[retreated]) && (inside ? inside(p) : Math.hypot(p.x - C.at.x, p.z - C.at.z) < r); }; }
+  // 守将が退いた段は離脱中の負傷兵を待たない。本人の到着と退却の知らせは省かない。
+  if (r) { const t = step.tick; step.tick = (rt, C, ...a) => { const ok = t(rt, C, ...a), p = rt.player.u.pos; return (retreated ? !!rt.flags[retreated] : ok) && (inside ? inside(p) : Math.hypot(p.x - C.at.x, p.z - C.at.z) < r); }; }
   return step;
 }
 // 二人以下の組は共通の段判定では済みになる。一騎打ちと飯沼本人の討死は人数と別に待つ。
 function yoneno(step) {
-  mine(step, 50);
+  mine(step, 50, null, 'yonenoBroke');
   const tick = step.tick;
   step.tick = (rt, C, ...a) => {
     const done = tick(rt, C, ...a);
@@ -427,7 +435,7 @@ const k02_kawada = {
         onEnd: (rt2) => { if (!rt2.flags.isleFlag) { rt2.flags.isleFlag = true; for (const [x, z] of [[ISLE.x + 2, ISLE.z], [ISLE.x + 5, ISLE.z - 1.5], [ISLE.x - 2, ISLE.z + 1]]) rt2.scene.add(nobori(rt2.world, x, z, 'ageha', 6)); rt2.say('池田照政', '島の松に揚羽蝶の旗を立てよ。本陣を小屋場島へ移す', 3.6); moveHonjin(rt2); } } })),
       DP.rest({ dur: 5, heal: 0.9 }),
       // ② 北の筋を渡り、柵の内の木造長政の旗本を追い払う。木造は侍の旗本に囲まれて動かない（BK5）。旗本が崩れると岐阜へ退く（翌日の岐阜城に居た）
-      mine(DP.fight({ at: NORTH, title: '河田の渡し', sub: '北の岸に木造長政の鉄砲', obj: '北の筋を渡り、柵の内の木造長政の旗本を追い払え', max: 200, noRefill: true,
+      mine(DP.fight({ at: GUARD, title: '河田の渡し', sub: '北の岸に木造長政の鉄砲', obj: '北の筋を渡り、柵の内の木造長政の旗本を追い払え', max: 200, noRefill: true,
         onEnd: (rt2) => { rt2.flags.gumasaDown = true; },
         say: [['木造長政', '渡らせるな。浅瀬に入った所を撃て！'], ['大塚権太夫', '一柳監物が家来、大塚権太夫。一番に上がるぞ！']],
         // 始めから北岸に構えていた組をそのまま段の敵にする（目の前に湧かせない）
@@ -494,7 +502,7 @@ const k02_kawada = {
       // 木造の旗本は柵の内で南を向いて構える（前へ出て行かない・背を向けて歩かない。BK5）
       const g = holdGuard(C, '北岸の旗本', GUARD, 0);
       // 段の到着判定だけでなく退却も本人を待つ。南岸で止まっている間に木造が退くと、目標の将に会えない。
-      if (g && !F.gumasaDown) { g.noRout = true; if (g.count <= 6 && insideNorthGuard(rt.player.u.pos)) F.gumasaDown = true; }
+      if (g && !F.gumasaDown) { g.noRout = true; if (guardStrength(g) <= 6 && insideNorthGuard(rt.player.u.pos)) F.gumasaDown = true; }
       // 木造の旗本が五人を切ったら、木造は岐阜へ退き、北岸の守りは崩れて段が済む（木造は討たせない）
       if (F.gumasaDown && !F.northBroke) {
         F.northBroke = true; C.later.length = 0;
@@ -515,7 +523,7 @@ const k02_kawada = {
       // 飯沼長資が出て大塚権太夫との一騎打ちが済むまで、百々の旗本は退かない（先に米野が崩れて一騎打ちが無くなっていた。11/6 流し）
       const ot = F.hitotsu && F.hitotsu.units.find((q) => q.name === '大塚権太夫');
       // 米野へ寄る前に味方だけで百々を退かせず、本人が将の見える所まで来てから退く。
-      if (g && !F.dodoDown) { g.noRout = true; if (g.count <= 6 && Math.hypot(rt.player.u.pos.x - YONENO.x, rt.player.u.pos.z - YONENO.z) < 40 && (F.otsukaDone || !(ot && ot.alive))) F.dodoDown = true; }
+      if (g && !F.dodoDown) { g.noRout = true; if (guardStrength(g) <= 6 && Math.hypot(rt.player.u.pos.x - YONENO.x, rt.player.u.pos.z - YONENO.z) < 40 && (F.otsukaDone || !(ot && ot.alive))) F.dodoDown = true; }
       // 飯沼長資の手は退かず、飯沼が倒れるまで斬り合う（米野で討ち死に）
       const ig = C.groups.find((q) => q.name === '飯沼長資の手');
       if (ig && !ig.routed) ig.noRout = !F.iinumaDown;
