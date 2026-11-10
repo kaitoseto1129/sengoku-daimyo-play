@@ -31,7 +31,23 @@ export function toCourt(rt, g, z) {
   const forward = z.pos.z >= c.z;
   const between = mouths.filter(v => forward ? v > c.z && v < z.pos.z : v < c.z && v > z.pos.z);
   if (!forward) between.reverse();
-  g.path = [[c.x, c.z], [0, c.z], ...between.map(v => [0, v]), [z.pos.x, z.pos.z]];
+  // 木戸が先に開いた時は、援軍がまだ九十九折りの途中にいる。
+  // 横に本道の軸へ寄せると山肌を横切るので、今いる高さの道へ戻り、
+  // 残る折れ角を順に通ってから郭の口へ入る。
+  let roadX = 0;
+  if (c.z < GATE_KINOME.z) {
+    for (let i = 1; i < ROAD.length; i++) {
+      const a = ROAD[i - 1], b = ROAD[i];
+      if (c.z < a[1] || c.z > b[1] || b[1] === a[1]) continue;
+      roadX = a[0] + (b[0] - a[0]) * (c.z - a[1]) / (b[1] - a[1]);
+      break;
+    }
+  }
+  const bends = ROAD.filter(p => p[1] < GATE_KINOME.z &&
+    (forward ? p[1] > c.z && p[1] < z.pos.z : p[1] < c.z && p[1] > z.pos.z));
+  const way = [...bends, ...between.map(v => [0, v])];
+  way.sort((a, b) => forward ? a[1] - b[1] : b[1] - a[1]);
+  g.path = [[c.x, c.z], [roadX, c.z], ...way, [z.pos.x, z.pos.z]];
   g.onArrive = q => { q.order = 'attack'; q.seekRange = 40; q.aggro = 30; };
 }
 

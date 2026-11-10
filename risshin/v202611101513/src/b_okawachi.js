@@ -4424,6 +4424,7 @@ function okChaseTick(rt) {
             rt.army.wallBetween(c, -1, me))) {
         g._okChaseAimAt = rt.t + 4;
         g.order = 'path'; g.march = true; g.formation = 'column'; g.colW = 2; g.speed = 3.6;
+        g.roadColumn = true; g.followColumnRoad = true;
         g.path = downRoad(g, [me.x, me.z]); g.pathIdx = 0;
         g.onArrive = (q) => { q.order = 'attack'; q.anchor = q.center(); q.formation = 'yari'; q.width = 6; q.aggro = 18; q.seekRange = 28; };
       }
@@ -4532,6 +4533,8 @@ function okChaseWave(rt) {
     fleeDir: { x: 0, z: -1 }, formation: 'column', aggro: 6 },
   okDress(pts.map((p) => ({ type: 'ashigaru', n: 1, o: { x: p.x, z: p.z, heading: p.yaw } })), KITABATAKE));
   g._sortieSent = true; g.march = true; g.order = 'path'; g.speed = 2.8;
+  // 追加の追っ手も既存の城兵と同じ道沿いの縦隊にし、後列が切岸へ直進しない。
+  g.roadColumn = true; g.followColumnRoad = true;
   g.path = F.step === 2.5 ? [[0, -68], [0, -52], [FRONT.x, FRONT.z]] :
     [[0, -68], [0, -52], [MAE_C.x, MAE_C.z],
       ...KARAMETE_WAY.slice(0, -1).reverse(), [CAMP_LINE.x, CAMP_LINE.z - 10]];
