@@ -396,6 +396,25 @@ function steps(rt) {
       stage.noHardCap = true;
       const tick = stage.tick;
       stage.tick = (r, C, m, ctx, el, dt) => {
+        // 自動送りを止めても、岩や塀に残った一組を永久に探させない。
+        // 本人が持ち場へ来て戦った時間だけ数え、後の寄せが出尽くしてから残兵を退かせる。
+        // 段そのものは送らず、守備時間と小倉丸への入城は従来の判定を通す。
+        if (!stage.needIn) {
+          const p = r.player.u.pos;
+          const near = Math.hypot(p.x - C.at.x, p.z - C.at.z) < (stage.kind === 'hold' ? C.botRadius : 18);
+          C.pressureT = (C.pressureT || 0) + (near ? dt : 0);
+          if (!C.remnantsRetreated && C.pressureT >= stage.max && !(C.later?.length || C.waves?.length)) {
+            C.remnantsRetreated = true;
+            C.nudgeT = el;   // 共通の呼び寄せで、今出した退却の下知を攻撃へ戻さない。
+            let retreating = false;
+            for (const g of C.groups) if (g.count > 2 && !g.routed && g.units.some((u) => u.alive && !u.fleeing)) {
+              g.noRout = false; g.morale = 0; g.focus = null; g.order = 'retreat';
+              g.dest = { x: HON_GATE.x, z: HON_GATE.z + 8 };
+              retreating = true;
+            }
+            if (retreating) r.say('足軽', '残る城兵が城の奥へ退いてゆくぞ！', 3);
+          }
+        }
         const held = C.inT || 0;
         const done = tick(r, C, m, ctx, el, dt);
         if (stage.kind === 'hold') {

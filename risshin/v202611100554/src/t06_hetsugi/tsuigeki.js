@@ -86,7 +86,24 @@ export function engaged(rt) {
   if (swing && (swing.res === 'hit' || swing.res === 'armor' || swing.res === 'block') && F.ijBands) {
     for (const g of F.ijBands) if (g.units.includes(swing.target)) { F.ijContact = true; return true; }
   }
+  // 先手の槍を本人が受けた時も交戦。攻め返す前に味方が討っても止めない。
+  for (const g of F.ijBands || []) for (const u of g.units) {
+    if (u.swing?.target === rt.player.u && (u.swing.res === 'hit' || u.swing.res === 'armor' || u.swing.res === 'block')) { F.ijContact = true; return true; }
+  }
   return false;
+}
+
+export function pressed(rt, K) {
+  if (engaged(rt)) return true;
+  const F = rt.flags, P = rt.player.u.pos;
+  // 本人が先手の持ち場を押さえ、味方が既に先手を崩した場合も追撃へ。
+  // 無関係な敵の討ち取りや、遠くで待つだけでは進めない。
+  const front = K.lightPos(F.blk.ijuin);
+  const remaining = (F.ijBands || []).some((g) => g.units.some((u) =>
+    u.alive && !u.gone && !u.dying && !u.noTarget && !u.woundOut && !u.rearWound && !u.fleeing));
+  if (remaining || Math.hypot(P.x - front.x, P.z - front.z) >= 24) { F.ijFrontAt = null; return false; }
+  F.ijFrontAt ??= rt.t;
+  return rt.t - F.ijFrontAt >= 10;
 }
 
 export function update(rt, K) {
