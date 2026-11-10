@@ -3000,13 +3000,25 @@ function ariStreetWay(c, dest, back) {
   let road = ARI_STREET;
   if (north(c) || north(dest)) road = [...road, [TOWN_X, Math.min(north(c) ? c.z : ARI_JUNCTION.z, north(dest) ? dest.z : ARI_JUNCTION.z)]];
   if (back) road = road.slice().reverse();
-  let k = 0, end = 0, best = Infinity, destBest = Infinity;
-  road.forEach(([x, z], i) => { const d = Math.hypot(x - c.x, z - c.z); if (d < best) { best = d; k = i; } });
-  road.forEach(([x, z], i) => { const d = Math.hypot(x - dest.x, z - dest.z); if (d < destBest) { destBest = d; end = i; } });
-  // 既に通りの終わり近く（行き先まで二十メートル以内）なら角をたどらない。
-  if (Math.hypot(dest.x - c.x, dest.z - c.z) < 20) return [[dest.x, dest.z]];
-  // 途中の角を押さえる段では、辻まで通り越してから引き返さない。
-  const corners = end >= k ? road.slice(k + 1, end + 1) : road.slice(end, k).reverse();
+  // 最寄りの角でなく、通りのどの辺まで来たかを調べる。角の手前で
+  // 下知し直した後詰も、その角を通過済みとして町屋へ直進させない。
+  const along = (p) => {
+    let best = Infinity, at = 0;
+    for (let i = 0; i < road.length - 1; i++) {
+      const [x, z] = road[i], dx = road[i + 1][0] - x, dz = road[i + 1][1] - z;
+      const t = Math.max(0, Math.min(1, ((p.x - x) * dx + (p.z - z) * dz) / (dx * dx + dz * dz || 1)));
+      const d = (p.x - x - dx * t) ** 2 + (p.z - z - dz * t) ** 2;
+      if (d < best) { best = d; at = i + t; }
+    }
+    return at;
+  };
+  const from = along(c), to = along(dest), corners = [];
+  // 近い行き先でも間に角があれば通る。同じ辺の途中なら直接進む。
+  if (to >= from) {
+    for (let i = Math.floor(from) + 1; i <= to; i++) corners.push(road[i]);
+  } else {
+    for (let i = Math.ceil(from) - 1; i >= to; i--) corners.push(road[i]);
+  }
   return [...corners, [dest.x, dest.z]];
 }
 function ariStage(o, defending) {

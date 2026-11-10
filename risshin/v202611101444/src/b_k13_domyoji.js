@@ -350,6 +350,8 @@ function datearrive(rt) {
 const BOARD_CSS = `
 html:root body #hud#hud#hud.domyoji-goals #armybar:not([hidden]) { display:grid !important; visibility:visible !important; opacity:1 !important; }
 html:root body #hud#hud#hud.domyoji-goals #armybar .clock { visibility:hidden !important; }
+/* 顔が撮れるまで、隠した絵の幅だけが空の枠として残らないようにする。 */
+html:root body #hud.domyoji-goals #jk-vit canvas[style*="visibility: hidden"] { display:none !important; }
 /* 共通の battle-order は棒も隠すため、道明寺では両軍を左右に分けた一本だけ戻す。 */
 html:root body #hud#hud#hud.domyoji-goals #h-prog#h-prog #armybar#armybar .gauge.one {
  display:block !important; grid-column:1 / -1; width:100%; }
@@ -484,6 +486,8 @@ const k13_domyoji = {
     fogFar: 20, mistFar: 40,
     groundHalf: 300,
     mountainScale: 0.6,
+    // 通し確認で白い丸丘に見えた山肌へ、既存の林床と土・下草の斑を使う。
+    slopeForest: 0.65, patchyGround: true, stableSlopeGrain: true,
     paths: [ROUTE.slice(0, 5), ROUTE.slice(4)],
     // 石川（南から北へ）と大和川（北の端。国分の亀の瀬から西へ）。石川は大和川に入って終わる
     streams: [{ pts: [[ISHI_X + 2, 260], [ISHI_X - 4, 110], [ISHI_X, 0], [ISHI_X - 2, -80], [ISHI_X - 6, YAMATO_Z]], w: 12, depth: 0.75 },
@@ -504,9 +508,10 @@ const k13_domyoji = {
     clear: (x, z) => kofunDist(x, z) > 0 && kofunDist(x, z) < 9 || HOUSES.some(([hx, hz]) => Math.hypot(x - hx, z - hz) < 7) || Math.hypot(x - HACHIMAN.x, z - HACHIMAN.z - 1) < 9 || distToPolyline(x, z, ROUTE) < 9 || (Math.abs(z) < 40 && x > -160 && x < 130 && !(x > -40 && x < 70 && Math.abs(z) > 22)),
     trees: 420,
     tufts: 2400,
-    treeDensity: (x, z) => { const kd = kofunDist(x, z); if (kd > 0 && kd < 9) return 0; if (kd <= 0) return 1.4; if (distToPolyline(x, z, ROUTE) < 12) return 0; return Math.abs(z) > 50 ? 1.1 : 0.15; },
+    treeDensity: (x, z) => { const kd = kofunDist(x, z); if (kd > 0 && kd < 9) return 0; if (kd <= 0) return 1.4; if (distToPolyline(x, z, ROUTE) < 12) return 0; if (x > -40 && x < 70 && Math.abs(z) > 22) return 1.1; return Math.abs(z) > 50 ? 1.1 : 0.15; },
     groves: [{ x: 90, z: -50, r: 18, n: 22, kind: 'sugi' }, { x: 80, z: 54, r: 18, n: 22, kind: 'sugi' }, { x: -110, z: 50, r: 14, n: 16 },
-      { x: 16, z: -50, r: 14, n: 18 }, { x: 8, z: 50, r: 14, n: 18 }, { x: 44, z: -48, r: 10, n: 10 }, { x: -24, z: 48, r: 10, n: 10 }, { x: -6, z: -60, r: 16, n: 18 }, { x: 0, z: 62, r: 16, n: 18 }],
+      // 本数は増やさず、左右の林を斜面まで寄せる。中央の登り道と頂の旗は空ける。
+      { x: 16, z: -34, r: 10, n: 18 }, { x: 8, z: 34, r: 10, n: 18 }, { x: 44, z: -34, r: 8, n: 10 }, { x: -24, z: 34, r: 8, n: 10 }, { x: -6, z: -60, r: 16, n: 18 }, { x: 0, z: 62, r: 16, n: 18 }],
     fleeOut: (x, z, team) => (team === 1 ? x < -220 : x > 240),
   },
 

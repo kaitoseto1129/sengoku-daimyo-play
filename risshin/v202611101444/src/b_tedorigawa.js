@@ -3223,10 +3223,6 @@ const tedorigawa = {
   },
 
   update(rt, dt) {
-    { const F = rt.flags; F.paceNanao?.update(dt); F.paceKonzatsu?.update(dt); F.paceFurikiru?.update(dt); }   // 15分の段（prototype/src/tedorigawa/*.js）
-    huntPlayer(rt, dt);
-    pressPlayer(rt, dt);
-    pressStep(rt, dt);
     const F = rt.flags;
     // 重傷の決着とやり直しは共通の処理へ渡す。倒れた本人へ次の下知を出さない。
     if (!rt.player.u.alive || rt.player.u.hp <= 0) {
@@ -3246,6 +3242,11 @@ const tedorigawa = {
       }
       return;
     }
+    // 命が尽きたコマでは、物見・救援・退却の達成や追加追撃を先に進めない。
+    F.paceNanao?.update(dt); F.paceKonzatsu?.update(dt); F.paceFurikiru?.update(dt);
+    huntPlayer(rt, dt);
+    pressPlayer(rt, dt);
+    pressStep(rt, dt);
     // 余韻では退いた殿を南岸の持ち場へ戻さず、川と退く列を残す。
     if (rt.flags.ending) { this.flood(rt, dt); return; }
     // 11/6 BT：謙信と馬廻は水際の浅瀬まで。斬り合いに釣られて濁流を南岸まで越えない（越えた者は北の水際へ戻す）。
