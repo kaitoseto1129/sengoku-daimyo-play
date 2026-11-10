@@ -10,7 +10,8 @@ import { shogi, jinmaku, nobori } from '../props.js';
 const seat = (rt, g, name, at, face) => {
   for (const u of g.units) {
     if (u.name !== name) continue;
-    u.invuln = true; u.noTarget = true; u._crouch = true;
+    // 討死しない総大将。討たれない指定だけでは、主人公の手傷で討死する共通処理がある。
+    u.invuln = true; u.mustLive = true; u.noTarget = true; u._crouch = true;
     u.pos.set(at.x, rt.world.heightAt(at.x, at.z), at.z); u.mesh.position.copy(u.pos);
   }
   try { rt.scene.add(shogi(rt.world, at.x, at.z, face)); } catch (e) { /* 飾り */ }

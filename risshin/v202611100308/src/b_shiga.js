@@ -2921,7 +2921,8 @@ const shiga = {
       { name, faction: look === AZA ? 'azai' : 'asakura', anchor: { x, z }, facing: 0, order: 'hold', seekRange: 12, aggro: 8, morale: 90, fleeDir: { x: -1, z: -1 } },
       dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: n - 1 - bows }, { type: 'bow', n: bows }], look));
       const castleReserve = name.includes('城へ寄せる') || name === '朝倉の新手' || name === '木戸へ迫る最後の寄せ手';
-      const waiting = castleReserve || name === '正面から押す朝倉勢' || name === '山側から押す浅井勢';
+      // 物見の間は先手も控え。出撃まで直立したままにせず、同じ寄せ場を警戒する。
+      const waiting = castleReserve || name === '朝倉の先手' || name === '浅井の先手' || name === '正面から押す朝倉勢' || name === '山側から押す浅井勢';
       roster[name].fire = !bows && !waiting;
       if (waiting) {
         // 下知まで北の控えで列を保つ。出発時も位置と死傷者を引き継ぐ。
