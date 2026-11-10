@@ -899,7 +899,7 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
   subdue(o) {
     return { kind: 'fight', max: o.max, limit: Infinity,
       start(rt, C, m, ctx) {
-        const g = rt.flags.flankG; C.n0 = g ? g.units.length : 0; rt.obj('dp', o.obj, 'main'); C.at = g ? g.center() : RALLY; C.goal = C.at; rt.marker('dp', C.at, o.label, { h: 3 });
+        const g = rt.flags.flankG; C.n0 = g ? g.units.length : 0; rt.obj('dp', o.obj, 'main'); C.at = g ? g.center() : RALLY; C.goal = C.at; rt.marker('dp', () => C.at, o.label, { h: 3 });
         // 先手と二の手も横の鉄砲衆へかかる（本人ひとりに任せない。11/10 bot act：討てずに十二分止まった）
         if (g) for (const f of ctx.friends(rt)) { f.order = 'attack'; f.seekRange = 40; f.anchor = { x: C.at.x, z: C.at.z + 6 }; f.focus = null; }
       },
@@ -1049,7 +1049,7 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
     // 引きつけてから：寄せが近づいて撃ち始めた時は、すぐに一斉射
     F.volT = rt.t + (F.holdFire ? 0.6 : 5);
     for (const g of F.fireGroups) g.fire = true;
-    if (!F.holdFire) rt.say('塀の上の声', '引きつけよ。まだ撃つな……', 3);
+    if (!F.holdFire) rt.say('塀の上の声', '寄せ手が近いぞ、放て！', 3);
   },
 
   // 城の中で火薬が爆ぜる → 内応の合図と思い込んだ井伊・松平が堀へ殺到（必ず）

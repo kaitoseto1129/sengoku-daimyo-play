@@ -47,9 +47,10 @@ export function tick(rt, dt, opt = {}) {
       // 槍兵だけが残った列や後送された鉄砲兵から、架空の斉射を出さない。
       let gunner = null, foe = null;
       for (const u of g.units) {
-        if (!active(u) || u.weapon !== 'gun') continue;
+        if (!active(u) || u.weapon !== 'gun' || u.sidearm || u.mounted || (u.gunAmmo ?? 20) <= 0) continue;
         const target = rt.army.nearestEnemy(u, 42, shootable);
         if (!target || Math.hypot(target.pos.x - u.pos.x, target.pos.z - u.pos.z) < 6) continue;
+        if (rt.army.coverBetween(u.pos, target.pos, u.team) <= 0 || rt.army.shotBlocked(u, target.pos)) continue;
         gunner = u; foe = target; break;
       }
       if (!gunner) continue;
