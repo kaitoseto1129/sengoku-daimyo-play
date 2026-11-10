@@ -8,7 +8,7 @@ export function withdraw(g) {
   if (!g?.count || g.routed) return;
   const c = g.center();
   g.noRout = false; g.noAI = true; g.focus = null; g.morale = 0;
-  g.routed = true; g.order = 'flee'; g.dest = null;
+  g.routed = true; g.order = 'flee'; g.dest = null; g._lurk = false;
   g.fleeDir = { x: 0, z: 1 }; g.fleeSet = true;
   g.fleePath = [];
   if (c.z < 68) g.fleePath.push([-58, 68]);
@@ -23,6 +23,8 @@ export function withdraw(g) {
   // 本丸の北の口まで。南の塀には出口がなく、城外へ一直線に逃がすと壁に詰まる。
   g.fleePath.push([-16, 106], [-16, 110], [-16, 114]);
   for (const u of g.units) if (u.alive) {
+    // 林に潜んだまま退く番兵も立って走る。潜伏の姿勢を次の段へ持ち越さない。
+    u._crouch = false;
     u.fleePathIdx = 0; u.routIn = 0.3; u.aiT = 0;
     u.target = null; u.atk = null; u.swing = null; u.bind = null; u.charging = false;
   }
