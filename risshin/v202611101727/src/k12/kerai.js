@@ -18,7 +18,9 @@ export function tick(rt, dt, opt = {}) {
   // 家臣が主君を守る（半秒ごと）
   if ((K.gT -= dt) <= 0) {
     K.gT = 0.5;
-    const threat = rt.army.nearestEnemy(P, 8, (o) => !o.fleeing && !o.noTarget && !o.isStruct && !o.invuln);
+    // 止めだけ主人公に任せる団右衛門には、味方も手傷を負わせられる。
+    // 控えの将は除いたまま、斬り込んだ将からも家臣が主君を守る。
+    const threat = rt.army.nearestEnemy(P, 8, (o) => !o.fleeing && !o.noTarget && !o.isStruct && (!o.invuln || o.allyOk));
     const gs = [...(opt.guards ? opt.guards(rt) : []), ...(rt.squadGroups || [])].filter(ok);
     for (const g of gs) {
       if (threat) {

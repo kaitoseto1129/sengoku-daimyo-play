@@ -1272,7 +1272,11 @@ function mkClothMat(src) {
     compile.call(src, sh, r);
     sh.uniforms.uMkT = MK_CLOTH_T;
     sh.vertexShader = "uniform float uMkT;\nvarying vec2 vMkUv;\nvarying float vMkSeed;\n" + sh.vertexShader.replace("#include <begin_vertex>", `#include <begin_vertex>
-      float mkPh = (modelMatrix * vec4(0.0, 0.0, 0.0, 1.0)).x * 0.71 + (modelMatrix * vec4(0.0, 0.0, 0.0, 1.0)).z * 0.43;
+      vec4 mkRoot = modelMatrix * vec4(0.0, 0.0, 0.0, 1.0);
+      #ifdef USE_INSTANCING
+        mkRoot = modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0);
+      #endif
+      float mkPh = mkRoot.x * 0.71 + mkRoot.z * 0.43;
       float mkFree = clamp((position.x - 0.025) / 0.75, 0.0, 1.0);
       float mkDown = smoothstep(0.0, 1.0, 1.0 - uv.y);
       float mkK = mkDown * (0.3 + 0.7 * mkFree);
@@ -1305,7 +1309,8 @@ float mkV(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f)
 // 城の共通の作りが立てた置き幟も、晒していない布の色むらと垂れた布の揺れに替える（白い板に見せない）。支度の後に一度だけ。
 function mkClothSweep(scene) {
   const made = new Set(mkClothMats.values());
-  scene.traverse((o) => { const m = o.isMesh && !o.isInstancedMesh && o.material; if (m && !made.has(m) && m.customProgramCacheKey?.().startsWith('置き幟の皺')) o.material = mkClothMat(m); });
+  // 共通の軽量化で束ねた幟も対象にする。位置は上の一本ごとの行列で求める。
+  scene.traverse((o) => { const m = o.isMesh && o.material; if (m && !made.has(m) && m.customProgramCacheKey?.().startsWith('置き幟の皺')) o.material = mkClothMat(m); });
 }
 function mkNobori(W, x, z, kind, h) {
   const g = nobori(W, x, z, kind, h), flag = g.userData.flag;
