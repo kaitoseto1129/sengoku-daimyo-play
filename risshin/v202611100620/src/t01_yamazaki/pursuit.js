@@ -64,6 +64,18 @@ export function tick(rt, dt, ctx) {
     rt.army.play('toki', { x: 64, z: -176 }, 1.0);
     rt.say('明智の侍', '殿が落ちられるまで、門は渡さぬ！', 2.8);
   }
+  // 道の途中に残った健在の兵で門前の務めが止まらないよう、守りに合流させる。
+  // 時間だけでは退かせず、門前で実際に戦ってから締める。
+  if (F.sortie && el > 100 && near(P, GATE, 18) && (F.rearGatherT = (F.rearGatherT || 0) - dt) <= 0) {
+    F.rearGatherT = 3;
+    for (const g of F.rearGs) {
+      if (!ctx.live(g) || g.routed) continue;
+      const c = g.center();
+      if (!c || near(c, GATE, 24)) continue;
+      g.stay = false; g.order = 'move'; g.dest = { x: GATE.x, z: GATE.z };
+      g.onArrive = (q) => { q.order = 'attack'; q.aggro = 26; q.seekRange = 34; };
+    }
+  }
   if (F.sortie && near(P, GATE, 18) && ctx.aliveN(F.rearGs) <= 2) {
     F.pStep = 1;
     finale(rt, ctx);

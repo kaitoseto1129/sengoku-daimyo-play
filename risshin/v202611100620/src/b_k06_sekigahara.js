@@ -538,7 +538,7 @@ const k06_sekigahara = {
     rt.after(15, () => rt.say('使番', '松尾山の旗、いまだ動きませぬ！', 3));
     // 問鉄砲（一説）：家康が松尾山へ鉄砲を撃ちかけさせた
     rt.after(22, () => {
-      rt.say('徳川家康', '松尾山へ鉄砲を撃ちかけよ。どちらに付くか、はっきりさせてやれ', 4);
+      rt.say('使番', '松尾山の方で鉄砲の音……小早川への催促でござろうか', 4);
       rt.army.play('volley', { x: MATSUO.x + 60, z: MATSUO.z - 120 }, 1.2);
     });
     rt.after(FLIP_AT, () => this.flip(rt));   // 松尾山が動かない焦り（jindate の野の声もこの間に）

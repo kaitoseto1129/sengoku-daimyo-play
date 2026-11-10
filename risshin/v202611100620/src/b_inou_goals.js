@@ -23,3 +23,16 @@ export const GOALS15 = {
   flank: '小川沿いの畦から柴田勢の横を突け',
   raid: '信長の後ろで林の敵を止めろ',
 };
+// 11/10 稲生の作り直し（docs/ino_spec_1109.md・b_inou_1109.js）：右上の一行は段ごとに一つ。名を呼ばれない足軽の任務
+export const INO_GOALS = {
+  march: '隊長についていけ',
+  scout: '隊長と並んで物見を止めろ',
+  van: '前衛に合流せよ',
+  hayashi: '林勢を押し返せ',
+  join: '佐久間隊へ合流せよ',
+  shibata: '柴田勢の前進を止めろ',
+  retreat: '名塚砦まで退け',
+  rally: '殿のもとで向き直れ',
+  push: '柴田勢を押し返せ',
+  after: '戦の跡を歩け',
+};
