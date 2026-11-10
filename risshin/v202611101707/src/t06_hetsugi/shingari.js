@@ -41,12 +41,14 @@ export function crossed(rt, K) {
 
 export function pin(rt, K) { return crossNow(rt) ? { x: K.FORD.x, z: 34 } : MOUTH_N; }
 
-export function update(rt) {
+export function update(rt, K) {
   const S = rt.flags.s4, P = rt.player.u.pos;
   if (!S) return;
   if (S.go) {
     // 下知だけでは退いた事にしない。本人が浅瀬へ入ってから、後ろに残る十河の討死を知らせる。
-    if (!S.fallQueued && P.z > -8 && Math.abs(P.x - MOUTH_N.x) < 22) {
+    // 渡り切りの判定は浅瀬の縁にも届く。中央を通らず岸へ上がった時も、
+    // ⑤へ進む前に十河の知らせを予約し、生還の締めを止めない。
+    if (!S.fallQueued && ((P.z > -8 && Math.abs(P.x - MOUTH_N.x) < 22) || crossed(rt, K))) {
       S.fallQueued = true;
       rt.after(9, () => rt.def.sogoFall?.(rt));
     }

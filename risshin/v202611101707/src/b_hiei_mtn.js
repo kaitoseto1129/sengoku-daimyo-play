@@ -1960,7 +1960,8 @@ function hieiGuideDistance(rt, F = rt.flags) {
 // 本人へ届く打ち込みだけは受けられるように、守りの案内を残す。
 function hieiMeleeGuide(rt, enemy) {
   const F = rt.flags, p = rt.player.u;
-  if (!enemy?.alive || enemy.fleeing || enemy.gone || enemy.woundOut || enemy.noTarget
+  // 倒れかけ・退避中の兵に残った攻撃の記録で、本道への復帰を止めない。
+  if (!hieiReady(enemy)
     || !enemy.sidearm && (enemy.type === 'bow' || enemy.type === 'gun')) return false;
   const d = Math.hypot(enemy.pos.x - p.pos.x, enemy.pos.z - p.pos.z);
   if (Math.abs(enemy.pos.y - p.pos.y) >= 2 || rt.army.wallBetween(p.pos, p.team, enemy.pos, false)) return false;

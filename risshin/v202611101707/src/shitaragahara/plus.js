@@ -12,7 +12,8 @@ import { sfx } from '../audio.js';
 export const TOBI = { x: 880, z: 620 };
 const PT = { x: 0, z: 0 };
 export const shooters = (q) => q.routed ? 0 : q.units.reduce((n, u) => n +
-  (u.alive && !u.fleeing && !u.gone && !u.woundOut && !u.rearWound && !u.noTarget ? 1 : 0), 0);
+  (u.type === 'gun' && !u.sidearm && u.gunAmmo !== 0 && u.alive && !u.fleeing && !u.gone &&
+    !u.woundOut && !u.rearWound && !u.noTarget ? 1 : 0), 0);
 
 // 鳶ヶ巣山の別の戦場。t0 は夜明けの寄せの始まり（本体の N.t0）
 export function tobiTick(rt, t0) {

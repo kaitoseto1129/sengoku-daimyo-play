@@ -495,7 +495,9 @@ const k14_yao_wakae = {
     const F = rt.flags;
     if (F.kimuraDone || !canProgress(rt)) return;
     const U = F.kimuraU;
-    if (!U || U.gone) return;
+    // 主人公の復帰を待つ間に遺体が片付けられても、成立した討死は失わない。
+    // 生きたまま退場した場合は討取りにしない。
+    if (!U || (U.alive && U.gone)) return;
     if (U?.alive) { U.invuln = false; rt.army.kill(U); }
     // 討死が成立してから若江の崩れと勝ちを予約する。
     if (U.alive) return;
