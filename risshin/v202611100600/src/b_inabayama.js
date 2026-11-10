@@ -5517,7 +5517,7 @@ const inabayama = {
     rt.setPhase('brief');
     rt.obj('main', '藤吉郎と話す', 'main', true);
     // 背景は戦の前の説明へ残し、冒頭は今の行動を短く伝える。
-    rt.say('', '印の人、藤吉郎と話そう', 3);
+    rt.say('', '木下藤吉郎に近づいて話す', 3);
     rt.after(4, () => {
       if (F.step === 0 && !F.joinedKino && !F.ending && !rt.over) rt.say(officer(rt), '今日は風が強い。井口の町に火をかける。まず話を聞け', 4);
     });
@@ -6921,6 +6921,18 @@ const inabayama = {
         F.otePushAt = rt.t + 0.5;
         // 道順の途中で詰まった組も寄せる。道順の組を除くと、城兵が来ないまま救済も働かなかった。
         for (const q of qs) if (!gone(q)) {
+          // 下山中の道順を捨てると、鹿垣へ直進して切岸で止まる。
+          // 道を外れた兵を戻し、坂を下り切ってから本人の前へ寄せる。
+          if (q.order === 'path') {
+            inabaUnstick(rt, q, SALLY_WAY);
+            continue;
+          }
+          const c = q.center(q._centerProbe), end = SALLY_WAY[SALLY_WAY.length - 1];
+          c.y = rt.world.heightAt(c.x, c.z);
+          if (Math.abs(c.y - rt.world.heightAt(end[0], end[1])) >= 3) {
+            march(q, SALLY_WAY.slice(nearestWay(rt, c, SALLY_WAY)), 'attack', 3.4);
+            continue;
+          }
           q.noAI = false; q.order = 'attack'; q.aggro = 30; q.seekRange = 60;
           q.anchor.x = rt.player.u.pos.x; q.anchor.z = rt.player.u.pos.z - 6;
         }
