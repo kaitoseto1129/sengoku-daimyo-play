@@ -895,6 +895,19 @@ t09_yamanaka.botBrain = (b, inp, { goTo, patientStrike }) => {
   }
   // 出丸の東の畝堀（x −27〜−12）は、間の土橋（z 170〜182）だけを渡る（堀の中に落ちて槍に囲まれ、三度とも倒れた。11/8 bot）
   if (F.step === 1 && u.pos.x > -30 && (u.pos.z < 171 || u.pos.z > 181)) { goTo(p, inp, u.pos.x > -10 ? -6 : -32, 176, 1.5); return; }
+  // 柵が一枚破れただけで隊の中心へ直進すると、隣の生きた柵に詰まる。
+  // 先手と同じ破れ口の内側を通り、渡り終えてから間宮の隊へ向かう。
+  if (F.step === 1) {
+    let mouth = null, md = Infinity;
+    for (const s of F.daiWall) {
+      if (s.alive !== false && s.hp > 0) continue;
+      const x = (s.seg[0] + s.seg[2]) / 2, z = (s.seg[1] + s.seg[3]) / 2;
+      const dx = KURUWA.dai.x - x, dz = KURUWA.dai.z - z, L = Math.hypot(dx, dz) || 1;
+      const d = Math.hypot(u.pos.x - x, u.pos.z - z);
+      if (d < md) { md = d; mouth = { x: x + dx / L * 3, z: z + dz / L * 3 }; }
+    }
+    if (mouth && b.army.wallBetween(u.pos, -1, KURUWA.dai, false)) { goTo(p, inp, mouth.x, mouth.z, 1); return; }
+  }
   if (F.step === 1 && F.dai && !gone(F.dai)) { const t = F.dai.center(); goTo(p, inp, t.x, t.z, 2); return; }
   // 出丸の手勢が尽きても、出丸へ寄るまでは次の段にならない。先に障子堀へ向かうと進行が止まる。
   if (F.step === 1) { goTo(p, inp, KURUWA.dai.x, KURUWA.dai.z, 3); return; }

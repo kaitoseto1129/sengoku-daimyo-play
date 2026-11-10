@@ -9,7 +9,7 @@ export const HIST_OUTCOME = {
   mikatagahara: { battle: '会戦 敗北', mission: '家康を生きて帰す' },
   t06_hetsugi: { battle: '会戦 敗北', mission: '生きて退く' },
   t03b_nagakute: { battle: '長久手 羽柴軍敗北', mission: '細ヶ根まで退く' },
-  tedorigawa: { battle: '織田軍 敗北', mission: '手取川を渡り、退く' },
+  tedorigawa: { battle: '織田軍 敗北・手取川渡河 成功・主力部隊 生還', mission: '撤退 達成' },   // docs/tedorigawa_spec_1109.md の結果
   t10_oshi: { battle: '水攻め 攻略ならず（小田原開城で忍城も開城）', mission: '堤と陣を守る' },
 };
 // 結果の二行（字は短く。合戦・任務の順）
