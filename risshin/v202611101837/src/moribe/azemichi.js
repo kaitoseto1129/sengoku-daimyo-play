@@ -1,0 +1,87 @@
+// ======================================================================
+// 森部 5〜7分：北岸の田の畦（足場の悪さ・小隊長の撃破）
+//   斎藤の先手が畦から退くと、組は前備の槍の列へ向かってぬかるむ田を渡る。田の畦の稲の陰に、斎藤の物頭と足軽が伏せて待つ。
+//   組と一緒に物頭を討てば、頭を失った伏兵は背を向けて逃げる。済んだら本体の「前備の槍の列で受け止めよ」へ。
+//   柴田の前備も物頭へ向かい、実際に討たれてから次へ進む。
+// ======================================================================
+import { sfx } from '../audio.js';
+
+const ready = (u) => !!u && u.alive && u.hp > 0 && !u.dying && !u.downed && !u.gone && !u.fleeing && !u.woundOut && !u.rearWound && !u.noTarget;
+
+export function prepare(rt, C) {
+  const F = rt.flags, v = F.m15;
+  if (v.azeGs) return;
+  // 北岸の畦に初めから伏せる。本人の移動先へ途中で兵を作らない。
+  v.azeGs = [[34, 46, true], [49, 40, false]].map(([x, zz, head]) => {
+    const g = C.enemyGroup(rt, { faction: 'saito', name: '斎藤の伏兵', fixed: true, anchor: { x, z: zz }, facing: 0, fleeDir: { x: -0.2, z: -1 }, aggro: 0, speed: 2.2,
+      noRout: true, formation: 'line', ambush: true },
+    head ? [{ type: 'samurai', n: 1, o: { name: '斎藤の物頭' } }, { type: 'ashigaru', n: 5 }] : [{ type: 'ashigaru', n: 5 }, { type: 'bow', n: 1 }]);
+    g.order = 'hold'; g.noAI = true;
+    return g;
+  });
+  v.azeBoss = v.azeGs[0].units.find((u) => u.name === '斎藤の物頭');
+}
+
+export function start(rt, def, C) {
+  const F = rt.flags, v = F.m15;
+  if (v.azeT) return;
+  v.azeT = rt.t; v.ph = 'aze';
+  prepare(rt, C);
+  rt.marker('aze', () => (ready(v.azeBoss) ? v.azeBoss.pos : null), '田の畦の物頭', { red: true, group: v.azeGs[0] });
+  rt.say('組頭 源八（げんぱち）', '先手は退いた。ぬかるむ田を渡って前備の列へ寄るぞ。足を取られるな', 3.6);
+}
+
+function wake(rt) {
+  const F = rt.flags, v = F.m15;
+  if (v.azeUp) return;
+  v.azeUp = rt.t;
+  for (const g of v.azeGs) { g.noAI = false; g.order = 'attack'; g.aggro = 14; g.seekRange = 24; }
+  rt.army.playFar?.('eshout', v.azeGs[0].center(), 1.3);
+  sfx('taiko', 0.6);
+  rt.say('足軽', '稲の陰から斎藤の伏兵じゃ！', 2.6);
+  rt.after(2.8, () => {
+    // 予約の間に討たれた物頭へ、もう一度向かわせない。
+    if (!rt.over && !F.ending && !v.azeDone && v.ph === 'aze' && ready(v.azeBoss))
+      rt.say('組頭 源八（げんぱち）', 'あの陣笠の侍が物頭じゃ。物頭を討てば崩れる！', 3.2);
+  });
+}
+
+export function tick(rt) {
+  const F = rt.flags, v = F.m15;
+  if (v.azeDone || rt.over || F.ending) return;
+  const P = rt.player.u.pos, t = rt.t - v.azeT;
+  if (!v.azeUp && (t > 25 || v.azeGs.some((g) => g.units.some((u) => ready(u) && Math.hypot(u.pos.x - P.x, u.pos.z - P.z) < 12)))) wake(rt);
+  const B = v.azeBoss;
+  // 時間だけで遠くの物頭を討たない。前備も実際に近づき、通常の槍で戦う。
+  if (v.azeUp && ready(B)) {
+    const g = F.A;
+    if (g && g.units.some(ready)) {
+      g.order = 'attack'; g.dest = B.pos; g.seekRange = 30;
+      for (const u of g.units) if (ready(u)) u.target = B;
+    }
+  }
+  const fallen = B && (!B.alive || B.hp <= 0 || B.dying);
+  // 物頭が深手で戦列を離れた時も次へ進む。一時の後退や隊の敗走印だけでは済みにしない。
+  const defeated = fallen || B && (B.fleeing || B.gone || B.woundOut && B.invuln);
+  if (v.azeUp && defeated && t > 20) {
+    v.azeDone = true; v.ph = null;
+    rt.unmark('aze');
+    // 士気の崩れ判定を待たず、残る伏兵の攻め先と射撃を取り消す。
+    // 畦の任務を済みにする下知と同時に、両組へ墨俣への退却を伝える。
+    for (const g of v.azeGs) {
+      g.noRout = false; g.morale = 0; g.leader = null;
+      g.order = 'retreat'; g.dest = null; g.onArrive = null; g.fire = false;
+      g.fleeSet = true; g.fleeDir = { x: -0.2, z: -1 };
+    }
+    rt.say('組頭 源八（げんぱち）', fallen ? '物頭を討ったぞ！　頭を失うた伏兵が逃げてゆく' : '物頭は戦列を離れた！　伏兵も退くぞ、前備の列へ戻れ！', 3.2);
+    const merit = fallen ? '田の畦で斎藤の物頭を討った' : '田の畦で斎藤の物頭を退けた';
+    if (t <= 90) rt.award((tr) => tr.side.push(merit), merit);
+  }
+}
+export function target(rt) {
+  const v = rt.flags.m15, P = rt.player.u.pos;
+  if (ready(v.azeBoss)) return v.azeBoss;
+  let best = null, bd = Infinity;
+  for (const g of v.azeGs || []) for (const u of g.units) { if (!ready(u)) continue; const d = (u.pos.x - P.x) ** 2 + (u.pos.z - P.z) ** 2; if (d < bd) { bd = d; best = u; } }
+  return best;
+}
