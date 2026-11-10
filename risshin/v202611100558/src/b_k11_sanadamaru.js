@@ -671,6 +671,7 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
     // 共通の放置・刻限による段飛ばしでは、登頂・柵破り・帰陣を果たしたことにしない。
     for (const s of F.dp.steps) {
       s.idleAdvance = false;
+      s.noHardCap = true;
       if (s.kind === 'move') s.limit = Infinity;
     }
   },
@@ -700,7 +701,8 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
       if (present) C.sanadaHoldT = (C.sanadaHoldT || 0) + dt;
       const done = tick(rt, C, m, ctx, el, dt);
       // 先に滞在時間を満たしていても、持ち場を捨てた先で敵が退いただけでは済ませない。
-      return done && present && (C.sanadaHoldT || 0) >= dur * 0.45;
+      // 敵一人が口で詰まっても、防戦の上限まで守れば退ける。登頂・柵破り・帰陣は別に必須。
+      return (done || el >= h.max) && present && (C.sanadaHoldT || 0) >= dur * 0.45;
     };
     return h;
   },
@@ -719,7 +721,14 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
     h.limit = Infinity;
     h.tick = (rt, C, m, ctx, el, dt) => {
       const done = t0(rt, C, m, ctx, el, dt), T = rt.flags.target;
-      if (!T.alive) return done;
+      if (!T.alive) {
+        // 柵を先に破っても、防戦が済むまでは持ち場の印を残す。
+        if (!done && !C.fenceHoldMark) {
+          C.fenceHoldMark = true;
+          rt.marker('dp', C.at, '柵の前', { h: 3 });
+        }
+        return done;
+      }
       rt.objProgress('dp', `柵 残り${Math.max(1, Math.ceil(T.hp / T.maxHp * 100))}%`);
       return false;
     };
