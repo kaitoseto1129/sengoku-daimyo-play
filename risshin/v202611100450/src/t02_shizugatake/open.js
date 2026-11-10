@@ -77,8 +77,8 @@ export function startRelief(rt, ctx) {
   // 盛政の本隊は北から大岩山へ寄せる
   if (ctx.live(F.saku)) { F.saku.order = 'move'; F.saku.dest = { x: ctx.OIWA.x - 8, z: ctx.OIWA.z + 14 }; F.saku.speed = 3; F.saku.onArrive = (q) => { q.order = 'hold'; }; }
   if (ctx.live(F.mori)) { F.mori.order = 'move'; F.mori.dest = { x: ctx.OIWA.x - 2, z: ctx.OIWA.z + 22 }; F.mori.speed = 3; F.mori.onArrive = (q) => { q.order = 'hold'; }; }
-  // 桑山の手から一組が主人公と一緒に下る
-  F.scoutG = allyGroup(rt, { name: '桑山の物見の組', fullStrength: true, anchor: { x: ctx.LOOK.x - 2, z: ctx.LOOK.z + 4 }, facing: 2.4, width: 4, aggro: 14, seekRange: 26, order: 'move', dest: { x: RELIEF.x - 1, z: RELIEF.z + 3 }, speed: 3.8, noRout: true },
+  // 桑山の手から一組が主人公と一緒に下る。到着後も遠い敵へ打って出ず、救援の坂で追手を受ける。
+  F.scoutG = allyGroup(rt, { name: '桑山の物見の組', fullStrength: true, anchor: { x: ctx.LOOK.x - 2, z: ctx.LOOK.z + 4 }, facing: 2.4, width: 4, aggro: 14, seekRange: 26, order: 'move', dest: { x: RELIEF.x - 1, z: RELIEF.z + 3 }, speed: 3.8, noAI: true, noRout: true },
     [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 8 }, { type: 'gun', n: 2 }]);
   F.scoutG.onArrive = (q) => { q.order = 'hold'; q.aggro = 12; q.seekRange = 14; };
   say(rt, '桑山重晴', '中川殿を見殺しにはできぬ。加勢に下れ！', 0.8);

@@ -660,8 +660,16 @@ const t03b_nagakute = {
     const ok = (o) => !o.fleeing && !o.invuln && !o.noTarget && Math.abs(o.pos.y - u.pos.y) < 3;
     const t = goalOf(F.stage);
     const run = F.stage === 5.5 || F.stage === 2 || F.stage === 4 || F.stage === 6 || Math.hypot(t.x - u.pos.x, t.z - u.pos.z) > 14;
-    // 走って退く段（②・⑥）は、行く手（西）を塞ぐ敵とだけ斬り合う。後ろ（東）から追う敵に足を止めない
-    const ahead = (o) => ok(o) && ((F.stage !== 6 && F.stage !== 2) || o.pos.x < u.pos.x + 0.5);
+    // 走る間は、行き先までの道を塞ぐ敵だけを払う。横や後ろの追手へ向き直って足を止めない。
+    const dx = t.x - u.pos.x, dz = t.z - u.pos.z, len = Math.hypot(dx, dz);
+    const ahead = (o) => {
+      if (!ok(o)) return false;
+      if (!run) return true;
+      if (len < 2) return false;
+      const ex = o.pos.x - u.pos.x, ez = o.pos.z - u.pos.z;
+      const forward = (ex * dx + ez * dz) / len;
+      return forward > 0 && forward < len && Math.abs(ex * dz - ez * dx) / len < 1.4;
+    };
     const e = b.army.nearestEnemy(u, run ? 2.6 : 10, ahead);
     if (e) {
       const d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);

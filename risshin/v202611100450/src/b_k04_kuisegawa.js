@@ -130,10 +130,8 @@ const k04_kuisegawa = {
       sonae: [
         { id: 'gamo', layer: 'sakite', wing: 'center', men: 200, taisho: '蒲生郷舎', flag: 'ishida', bind: (r) => r.flags.gamo },
         { id: 'shima', layer: 'ichi', wing: 'left', men: 300, taisho: '島左近', flag: 'ishida', bind: (r) => r.flags.shimaG },
-        { id: 'ishida1', layer: 'ni', wing: 'left', men: 3000, taisho: '', flag: 'ishida', at: T(-170, -70), hold: true },
-        { id: 'ukita', layer: 'ni', wing: 'right', men: 8000, taisho: '宇喜多秀家', flag: 'ukita', at: T(-180, 40), hold: true },
-        { id: 'ukita2', layer: 'yobi', wing: 'right', men: 6000, taisho: '', flag: 'ukita', at: T(-204, 70), hold: true },
-        { id: 'ishida', layer: 'hatamoto', wing: 'center', men: 3000, taisho: '石田三成', flag: 'ishida', at: T(-214, -46), hold: true },
+        // 三成・秀家と西軍の主力は戦場外の大垣城。川岸の予備や本陣として足さない。
+        // 明石の八百は葦に伏せ、三段目の ambush で初めて出す。
       ] },
     honjinView: { A: false, B: false },
   }),

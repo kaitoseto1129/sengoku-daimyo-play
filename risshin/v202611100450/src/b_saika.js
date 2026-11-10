@@ -3530,13 +3530,14 @@ const saika = {
   },
   update(rt, dt) {
     huntPlayer(rt, dt);
-    { const F = rt.flags; F.paceMono?.update(dt); F.paceMago?.update(dt); F.paceTsutsumi?.update(dt); }   // 15分の段（prototype/src/saika/*.js）
     if (rt.flags.fordRaid?.noRout && rt.t > 40) rt.flags.fordRaid.noRout = false;
     // 11/4 jin（AP10・AF）：持ち場の四方に作り物の合戦（armyBackdrop）を置かない。いない所に軍勢を見せない
     const F = rt.flags;
     tickSaikaRear(rt);
     F.gunSmoke?.update(dt);
     if (F.ending || rt.over || !rt.player.u.alive) return;
+    // 倒れた後に物見の手柄や堤の占拠を進めない。各段も本人の生存を確かめてから動かす。
+    F.paceMono?.update(dt); F.paceMago?.update(dt); F.paceTsutsumi?.update(dt);
     tickRaiders(rt, dt);
     // 画質にかかわらず、実際に放った生存中の射手の筒から一度だけ出す。
     // 携帯では一回に一人まで。無人の岸や装填中の兵から煙を出さない。
