@@ -772,17 +772,21 @@ function height(x, z) {
 // 部隊の軽い大軍を、向きのまま前へ（負なら後ろへ）
 function adv(b, d, secs, charge) { if (b && !b.routedL && b.light) b.light.advance(d, secs, { charge: !!charge }); }
 const TAKEDA_FRONT_IDS = ['yamagata', 'oyamada', 'baba', 'obata', 'katsuyori', 'naito', 'kosaka'];
+function mikataAttackGuard(g) {
+  if (!g?.count || g.routed || g.retreatOnly || g.order !== 'hold' && g.order !== 'yari') return;
+  g.order = 'attack'; g.guard = false; g.seekRange = 120; g.aggro = 16;
+}
 // 寄せる備から本物へ替わった兵にも同じ下知を渡す。本陣・脇備えは動かさない。
 function mikataAdvanceGuards(rt) {
   const F = rt.flags;
   if (!F.step || F.ending || rt.over) return;
   for (const id of TAKEDA_FRONT_IDS) {
     const b = F.bT[id], A = b?.light?.army;
-    if (!A || A.rout || b.routedL) continue;
-    for (const g of A.wk?.groups || []) {
-      if (!g.count || g.routed || g.order !== 'hold' && g.order !== 'yari') continue;
-      g.order = 'attack'; g.guard = false; g.seekRange = 120; g.aggro = 16;
-    }
+    if (!b || A?.rout || b.routedL) continue;
+    // fieldButai が出す実兵は遠景の wk ではなく備の real に入る。
+    // 遠景だけを動かす下知では、近づいて出た組が hold のまま残る。
+    mikataAttackGuard(b.real);
+    if (A?.wk?.groups) for (const g of A.wk.groups) mikataAttackGuard(g);
   }
 }
 // 武田の頭（F7）：始めに決めた手（F.tPlan）で、どの備から前へ出すかを変える
