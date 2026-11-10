@@ -5,7 +5,7 @@
 //     ③井伊の手と福島隊の後ろへ一旦退く（怒った福島正則が突撃） ④福島隊に続いて藤下で宇喜多の先手と槍を合わせる
 //     ⑤宇喜多の先手を天満山の麓へ押し返す ⑥北の岡山の麓で黒田の隊に加わる ⑦笹尾山の麓の柵を越え島左近の隊を陣の内へ退かせる
 //     ⑧小早川の寝返り（必ず）の後、笹尾山を登り石田の旗本を追い落とす ⑨陣場野の家康の本陣の前で島津の退き口を受ける
-// 勝ち：⑨まで果たす。負け：①〜④で井伊と福島の隊が二つとも崩れる。全体の刻限は無い（時は目標ごと：goals5.js・AP8）。
+// 勝ち：⑨まで果たす。主人公が倒れた時は共通のやり直しへ。全体の刻限は無い（時は目標ごと：goals5.js・AP8）。
 // kaito_play AP〜AT・BU：総大将（三成・秀家・家康）は遠い本陣の幕の内で床几に座る（幕の内へは歩いて入れない）・旗はその家の物・段は時間で進めない
 // 地形：国土地理院の標高（asset_dem_sekigahara.js・dem.mjs の sekigahara）。11/6 BU「戦場が狭い」：ゲームの 1 を実の 4m に（前は 10m）、高さは 0.2 倍。
 //   中心は北緯35.3655・東経136.4720（関ヶ原の盆地の真ん中）。陣の位置は陣跡の緯度経度を写した（docs/battle_refs/k06_sekigahara.md の布陣表の座標 × 2.5）。
@@ -118,7 +118,6 @@ const WAKI = { flag: 'wakisaka', armor: WS };
 const KONI = { flag: 'konishi', armor: WS };     // 小西の中結び祇園守
 const dress = (list, lk) => list.map((s) => ({ ...s, o: { ...lk, ...(s.o || {}) } }));
 const alive = (g) => !!g && !g.routed && g.count > 0;
-const broken = (g) => !g || g.routed || g.units.filter((u) => u.alive).length < 3;
 const near = (a, b, r) => Math.hypot(a.x - b.x, a.z - b.z) < r;
 const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 // 討てない大将だけを追わず、今の段で押し返す残兵へ案内する。
@@ -654,16 +653,6 @@ const k06_sekigahara = {
       rt.award((t) => { t.main = true; t.special = { label: '関ヶ原で井伊の先に立ち、島津の退き口を受けた', pts: 60 }; }, '島津の退き口を受けた');
     } });
   },
-  lose(rt, why) {
-    const F = rt.flags;
-    if (F.ending) return;
-    F.ending = true;
-    rt.objFail('main'); rt.tracker.main = false;
-    rt.player.u.invuln = true;
-    rt.banner('果たせず', why);
-    rt.finish({ scriptedEnd: true, failureReason: why }, 6);
-  },
-
   update(rt, dt) {
     const F = rt.flags;
     // 総大将は床几に座ったまま（幕の内から出ない）
@@ -679,7 +668,7 @@ const k06_sekigahara = {
     if (!F.flipT && alive(F.otani) && F.otani.order !== 'move' &&
       (!near(F.otani.center(), HIRA, 40) || F.otani.leader?.alive && !near(F.otani.leader.pos, HIRA, 40))) goTo(F.otani, HIRA);
     const P = rt.player.u.pos;
-    if (F.step <= 4 && broken(F.ii) && broken(F.fuku)) { this.lose(rt, '井伊と福島の隊が崩れた'); return; }
+    // 味方の損耗だけで主人公の任務を失敗にしない。討たれた時の扱いは共通のやり直しへ。
     if (F.step === 1) {
       if (F.kaniWait && (near(P, FUKU, 30) || alive(F.ii) && near(F.ii.center(), FUKU, 30) || rt.t - F.s1t > 25)) {
         F.kaniWait = false;

@@ -636,7 +636,11 @@ const k05_ueda = {
     if (P.alive && !P.invuln && P.pos.x > C.x - 30 && P.pos.x < GATE.x + 46 && Math.abs(P.pos.z - GATE.z) < 34 && !foes.includes(P)) foes.push(P);
     if (!foes.length) return;
     // 本人を狙う一人は、門の正面の組（無ければ次の組）の一人だけ（11/9 見回り 徳川D：四つの組が一人ずつ狙い、⑤の門の前で三十秒で倒れた）
-    const aimG = [F.wallG, F.wallG2, F.wallN, F.wallS].find((g) => g && g.units.some((v) => v.alive && !v.gone && v.type === 'gun'));
+    let aimU = null;
+    if (foes.includes(P)) for (const g of [F.wallG, F.wallG2, F.wallN, F.wallS]) {
+      aimU = g?.units.find((v) => v.alive && !v.gone && v.type === 'gun' && dist(v.pos, P.pos) < 50);
+      if (aimU) break;
+    }
     for (const g of [F.wallG, F.wallG2, F.wallN, F.wallS]) {
       if (!g) continue;
       for (const u of g.units) {
@@ -646,7 +650,7 @@ const k05_ueda = {
         if (A.time - last < every + ((u.id || 0) % 7) * 0.4) continue;
         // 的は門の前に寄せた兵から散らして選ぶ（一人に弾が集まらない。主人公だけを狙い撃ちにしない）
         // 主人公を狙う一人以外は味方の兵を狙う。無作為の選択で全員が主人公へ撃つ抜け道も防ぐ。
-        let t = g === aimG && u === g.units.find((v) => v.alive && !v.gone && v.type === 'gun') && foes.includes(P) && dist(u.pos, P.pos) < 50 ? P : null;
+        let t = u === aimU ? P : null;
         for (let k = 0; k < 4 && !t; k++) { const o = foes[Math.floor(Math.random() * foes.length)]; if (o !== P && Math.hypot(o.pos.x - u.pos.x, o.pos.z - u.pos.z) < 50) t = o; }
         if (!t) continue;
         u.heading = Math.atan2(t.pos.x - u.pos.x, t.pos.z - u.pos.z);

@@ -47,7 +47,7 @@ export function send(rt, ctx) {
   H.g = ctx.black(() => enemyGroup(rt, { faction: 'takeda', name: '原昌胤隊', fixed: true, noGuard: true, anchor: { x: 92, z: gz - 18 }, facing: -Math.PI / 2, fleeDir: { x: 1, z: 0 }, aggro: 12, width: 18, formation: 'line', morale: 100, noRout: true, speed: 3.8 },
     [{ type: 'busho', n: 1, o: { name: '原昌胤', flag: 'takeda' } }, { type: 'samurai', n: 2, o: { flag: 'takeda' } }, { type: 'ashigaru', n: 14, o: { flag: 'takeda' } }]));
   H.g.order = 'path'; H.g.pathIdx = 0; H.g.path = [[ctx.SB.x0 + 5, gz]]; H.g.dest = null;
-  H.g.onArrive = (q) => { q.order = 'hold'; q.anchor.x = ctx.SB.x0 + 4; q.anchor.z = gz; q.facing = -Math.PI / 2; q.aggro = 18; H.arrive = rt.t; };
+  H.g.onArrive = (q) => { q.order = 'hold'; q.anchor.x = ctx.SB.x0 + 4; q.anchor.z = gz; q.facing = -Math.PI / 2; q.aggro = 18; H.arrive ??= rt.t; };
   H.n0 = ctx.ready(H.g);
   ctx.nfGuns(rt, ctx.MOUTHS[1].z);
   try { sfx('taiko', 1); } catch (e) { /* なし */ }
@@ -63,6 +63,10 @@ export function tick(rt, dt) {
   // 柳田前への到着は本体が移動中から記録している。別の持ち場へ移った後も守った事を消さない。
   if (F.nf?.defendedCenter || Math.hypot(p.x - (c.SB.x0 - c.SB.gap - 3), p.z - gz) < 30) H.there = true;
   const lord = g.units.find((u) => u.name === '原昌胤');
+  // 全列の到着待ちで先頭の斬り合いを数え落とさない。
+  if (H.arrive == null && g.units.some((u) =>
+      u.alive && !u.fleeing && !u.gone && !u.woundOut && !u.rearWound && !u.noTarget &&
+      Math.hypot(u.pos.x - (c.SB.x0 + 5), u.pos.z - gz) < 14)) H.arrive = rt.t;
   const left = c.ready(g), atGate = H.arrive != null ? rt.t - H.arrive : -1;
   const end = H.there && (!lord?.alive || left <= Math.ceil(H.n0 * 0.4) || atGate > 45 || rt.t - H.at > 160);
   if (!end) return true;
