@@ -4497,7 +4497,8 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
       if (g) {
         g.visible = !!F.water && F.step === 2 && p.alive;
         if (g.visible) {
-          const h = rt.player.yaw ?? p.heading ?? 0, sn = Math.sin(h), cs = Math.cos(h);
+          // 視点だけを回しても桶が体の周りを回らないよう、持ち手の体の向きに合わせる。
+          const h = p.heading ?? rt.player.yaw ?? 0, sn = Math.sin(h), cs = Math.cos(h);
           const swing = S.reduceMotion ? 0 : Math.sin(rt.t * 7) * 0.04 * Math.min(1, p.moving || 0);
           g.position.set(p.pos.x + sn * 0.25 - cs * 0.38, p.pos.y + 0.5 + swing, p.pos.z + cs * 0.25 + sn * 0.38);
           g.rotation.set(0, h, swing * 2);

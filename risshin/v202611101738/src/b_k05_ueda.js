@@ -296,7 +296,7 @@ const k05_ueda = {
       if (me.x < 1 && (me.x < -2 || me.z < -42)) p = me.z > -45 ? INNER_N : INNER_E;
       else if (me.x < 12) p = me.z < -23 ? INNER_S : INNER_GATE;
       else p = Math.abs(me.z - GATE.z) > 3.5 ? INNER_MOUTH : GATE_EXIT;
-    } else if (me && (F.step === 5 || F.step === 6) && me.x < 68 && dist(me, p) > 20) {
+    } else if (me && F.step >= 5 && me.x < 68 && dist(me, p) > 20) {
       p = TOWN_EXIT; route = true;
     } else if (me && F.step === 4 && !F.atFront) {
       p = lanePoint(me, F); route = p !== FRONT;
