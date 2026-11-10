@@ -1,7 +1,7 @@
 // 今の目標の場所と敵を、物陰でも見える画面上の矢印で示す。
 // 画面外では方角を指し、印と投影用の点は使い回す。
 import * as THREE from 'three';
-import { VIEW } from './viewport.js';
+import { VIEW, safeInsets } from './viewport.js';
 import { groundAt } from './floors.js';
 import { goalTarget, goalNoun } from './goals5.js';
 import { missionFollowTarget } from './mission_guide.js';
@@ -201,26 +201,38 @@ export function goalSignTick(rt, root) {
     el._twH = VIEW.h; el._twW = VIEW.w; el._twEdge = edge;
   }
   const tw = el._tw, th = el._th;
-  x = Math.max(tw / 2 + 8, Math.min(W - tw / 2 - 8, x));
-  y = Math.max(th + 8, Math.min(H - 80, y));
-  // 画面の中の▼も、右上の進み具合の札などの四角に重なる時は、札の下へずらす（全戦・fix_inaba_1105 の bot「#h-prog と ▼ が重なる」）
-  // 11/8 critic60 関ヶ原（五3）：画面の縁の▼も、縁へ寄せた後に左上の音・止める・設定の釦に重ねない（前の避けは縁へ寄せる前だけだった）
-  for (const hr of hud?.hudRects?.() || []) {
-    const top = y - th, bot = y + 5;
-    if (x + tw / 2 > hr.left && x - tw / 2 < hr.right && bot > hr.top && top < hr.bottom) {
-      const ny = hr.bottom + 6 + th;
-      if (ny <= H - 80) y = ny;
-      else x = Math.max(tw / 2 + 8, hr.left - tw / 2 - 8);
+  if (rt.def.goalSignNoEdge) {
+    // 山中城：札全体が収まらない時は縁へ押し戻さず隠す。▼は行き先の真上を保つ。
+    const sa = safeInsets(), left = x - tw / 2, right = x + tw / 2, top = y - th, bottom = y + 5;
+    if (left < sa.left + 8 || right > W - sa.right - 8 || top < sa.top + 8 || bottom > H - sa.bottom - 8 ||
+      (hud?.hudRects?.() || []).some((r) => right > r.left && left < r.right && bottom > r.top && top < r.bottom)) {
+      el._sx = el._sy = null;
+      return hide();
     }
+    // 避けた位置や前の行き先から補間すると、釦を横切ったり別の場所を指したりする。
+    el._sx = x; el._sy = y; el._sEdge = edge;
+  } else {
+    x = Math.max(tw / 2 + 8, Math.min(W - tw / 2 - 8, x));
+    y = Math.max(th + 8, Math.min(H - 80, y));
+    // 画面の中の▼も、右上の進み具合の札などの四角に重なる時は、札の下へずらす（全戦・fix_inaba_1105 の bot「#h-prog と ▼ が重なる」）
+    // 11/8 critic60 関ヶ原（五3）：画面の縁の▼も、縁へ寄せた後に左上の音・止める・設定の釦に重ねない（前の避けは縁へ寄せる前だけだった）
+    for (const hr of hud?.hudRects?.() || []) {
+      const top = y - th, bot = y + 5;
+      if (x + tw / 2 > hr.left && x - tw / 2 < hr.right && bot > hr.top && top < hr.bottom) {
+        const ny = hr.bottom + 6 + th;
+        if (ny <= H - 80) y = ny;
+        else x = Math.max(tw / 2 + 8, hr.left - tw / 2 - 8);
+      }
+    }
+    // 11/8 critic60 木津川（kaito「目標の名札が上下にめっちゃ動く」）：船の揺れ・札よけの段差で、札が一コマごとに上下へ跳ねた。
+    //   小さな動きはなめらかに追わせ、大きく跳んだ時（画面の内外の切り替え・相手の替わり）だけすぐ移す
+    if (el._sx == null || el._sEdge !== edge || Math.abs(x - el._sx) > 80 || Math.abs(y - el._sy) > 80) { el._sx = x; el._sy = y; el._sEdge = edge; }
+    else { el._sx += (x - el._sx) * .3; el._sy += (y - el._sy) * .15; }
+    // 名が長くなった時や画面幅が変わった時は、補間前の位置が札の実寸をはみ出す。
+    // なめらかに動かした後も札全体を画面内へ収め、次のコマの起点も揃える。
+    x = el._sx = Math.max(tw / 2 + 8, Math.min(W - tw / 2 - 8, el._sx));
+    y = el._sy = Math.max(th + 8, Math.min(H - 80, el._sy));
   }
-  // 11/8 critic60 木津川（kaito「目標の名札が上下にめっちゃ動く」）：船の揺れ・札よけの段差で、札が一コマごとに上下へ跳ねた。
-  //   小さな動きはなめらかに追わせ、大きく跳んだ時（画面の内外の切り替え・相手の替わり）だけすぐ移す
-  if (el._sx == null || el._sEdge !== edge || Math.abs(x - el._sx) > 80 || Math.abs(y - el._sy) > 80) { el._sx = x; el._sy = y; el._sEdge = edge; }
-  else { el._sx += (x - el._sx) * .3; el._sy += (y - el._sy) * .15; }
-  // 名が長くなった時や画面幅が変わった時は、補間前の位置が札の実寸をはみ出す。
-  // なめらかに動かした後も札全体を画面内へ収め、次のコマの起点も揃える。
-  x = el._sx = Math.max(tw / 2 + 8, Math.min(W - tw / 2 - 8, el._sx));
-  y = el._sy = Math.max(th + 8, Math.min(H - 80, el._sy));
   // 行き先は土に刺さる一本、到着後は同じ場所の輪。相手の剣と形を分ける。
   if (groundPin && (!edge || t.arrived)) {
     const r = t.arrived ? 14 : Math.max(9, Math.min(14, 220 / Math.max(1, d)));
