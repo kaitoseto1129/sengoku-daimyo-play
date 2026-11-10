@@ -2714,7 +2714,7 @@ const aneAtPost = (rt) => { const q = anePost(rt); return Math.hypot(rt.player.u
 
 // 段のファイル（anegawa/）へ渡す道具
 function aneCtx(rt, def) {
-  return { south: aneSouthBank, north: aneNorthBank, enemyGroup, allyGroup, dress, AZAI, AZAI_FLEE, HQ, mori: MORI, post: POST,
+  return { south: aneSouthBank, north: aneNorthBank, enemyGroup, allyGroup, dress, AZAI, AZAI_FLEE, HQ, nomura: NOMURA_HQ, mori: MORI, post: POST,
     canDeploy: (n) => cappedList(rt, [{ n }])[0].n === n,
     charge: () => def.charge(rt), tokugawa: () => def.tokugawa(rt), ending: () => def.ending(rt) };
 }

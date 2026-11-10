@@ -573,9 +573,10 @@ html:root body #hud#hud#hud.kashii-goals #h-prog#h-prog.goal-mode .pg-goals :is(
     const awa = F.awaU;
     if (awa?.alive) {
       // 村へ斬り込む前に、北の口で味方の槍に討たれたり手傷で退いたりさせない。
-      awa.noTarget = false; awa.mustLive = true; awa.invuln = true;
+      awa.noTarget = true; awa.mustLive = true; awa.invuln = true;
       awa.onWound = () => {};
-      if (live(F.awaG)) { F.awaG.order = 'attack'; F.awaG.anchor = { x: VILLAGE.x, z: VILLAGE.z - 6 }; F.awaG.seekRange = 40; F.awaG.aggro = 16; F.awaG.speed = 4.6; }
+      // 北の口で敵を追うと、討てないまま村へ入れず終戦も止まる。まず辻へ斬り込む。
+      if (live(F.awaG)) { F.awaG.order = 'move'; F.awaG.dest = { x: VILLAGE.x, z: VILLAGE.z - 6 }; F.awaG.onArrive = null; F.awaG.keepMoveOrder = true; F.awaG.seekRange = 0; F.awaG.aggro = 0; F.awaG.speed = 4.6; }
       rt.after(0.4, () => { if (awa.alive) rt.say('淡輪重政', '団右衛門殿が果てたか。六郎兵衛も続くぞ！', 2); });
     } else rt.after(1.2, () => rt.say('浅野の侍', '団右衛門、討ち取ったり！', 2.6));
   },
@@ -646,6 +647,10 @@ html:root body #hud#hud#hud.kashii-goals #h-prog#h-prog.goal-mode .pg-goals :is(
       const awa = F.awaU;
       // 北の口から辻までは三十歩余り。斬り込む前に倒さず、敵と接した後に永田の槍で討たせる。
       if (awa?.alive) {
+        if (awa.noTarget && dist(awa.pos, VILLAGE) < 20) {
+          awa.noTarget = false;
+          if (live(F.awaG)) { F.awaG.order = 'attack'; F.awaG.anchor = { x: VILLAGE.x, z: VILLAGE.z - 6 }; F.awaG.keepMoveOrder = false; F.awaG.seekRange = 40; F.awaG.aggro = 16; }
+        }
         if (F.awaContactT == null && dist(awa.pos, VILLAGE) < 20 &&
             rt.army.nearestEnemy(awa, 6, (u) => !u.gone && !u.fleeing && !u.noTarget)) {
           F.awaContactT = rt.t;
