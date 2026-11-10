@@ -347,7 +347,7 @@ function build(rt) {
   stages = stages.map((s) => (boss && s.text.includes(boss.slice(0, 2)) && /討/.test(s.text) ? (bossIn = true, { ...s, boss: true }) : s));
   // 段は全部並べる（史実の順。kaito 十三1「目標はいくつでもよい」）。足りない時だけ討つ数などで5つまで埋める
   const goals = [];
-  for (const s of stages) goals.push(s.boss ? { ...bossGoal(boss), k: s.k } : stageGoal(s.k, s.text));
+  for (const s of stages) goals.push(s.boss ? { ...bossGoal(boss), k: s.k, text: s.text } : stageGoal(s.k, s.text));
   if (!list) goals.push({ kind: 'main', text: '', check: won, textOf: (rt) => mainText(rt) });
   // 歴史で負ける戦は、星を討ち取りの数でなく任務（守る・救う・退く）だけで数える（battle_outcome.js・kaito 11/8）
   if (HIST_OUTCOME[key]) return (goals.length ? goals : [{ kind: 'main', text: '', check: won, textOf: (rt) => mainText(rt) }]).map(withSec);
@@ -361,9 +361,9 @@ function build(rt) {
 // 段の無い戦（豊臣編・徳川編など）の一つ目：その戦の主の任務の一行
 function mainText(rt) {
   const o = (rt.objectives || []).find((x) => x && x.kind === 'main' && x.text);
-  let t = String(o?.text || rt.def.goal || '').split(/[。（(]/)[0].trim();
-  if (t.length > 18) t = t.split('、').pop();
-  return t && t.length <= 18 ? t : '戦に勝つ';
+  // 全戦で、長さだけを理由に場所や行いを消さない。
+  const t = String(o?.text || rt.def.goal || '').split(/[。（(]/)[0].trim();
+  return t || '戦に勝つ';
 }
 
 function bossUnit(rt, name) {

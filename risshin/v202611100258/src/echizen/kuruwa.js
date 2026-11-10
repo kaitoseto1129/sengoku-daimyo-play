@@ -74,7 +74,9 @@ export function tick(rt, dt) {
   const F = rt.flags;
   if (!F.kannonFell || F.ending || F.echAdv || !F.SZ?.byId) return;
   side(rt);
-  const id = ORDER.find((k) => F.SZ.byId[k] && F.SZ.byId[k].owner !== 'friend');
+  // 勝ち・目標と同じ条件で選ぶ。制圧後に残敵が戻った郭も支援し直す。
+  const id = ORDER.find((k) => F.SZ.byId[k] &&
+    (F.SZ.byId[k].owner !== 'friend' || F.SZ.byId[k].enemies > 0));
   if (!id) return;
   const z = F.SZ.byId[id];
   const K = F.echKuruwa || (F.echKuruwa = {});

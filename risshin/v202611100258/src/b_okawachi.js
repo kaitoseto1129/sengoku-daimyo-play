@@ -4628,7 +4628,9 @@ function okSortieContact(rt, g, at, radius) {
   return false;
 }
 function okHold(o) {
-  return { kind: 'hold', max: Infinity, idleAdvance: false,
+  // 共通の四分・七分の打ち切りで未達成のまま段を閉じると、
+  // 帰陣や和睦の条件を取り戻せない。本人が守り終えるまで判定を続ける。
+  return { kind: 'hold', max: Infinity, idleAdvance: false, noHardCap: true,
     start(rt, C) {
       // 本人と番の槍が持ち場を守った時間を数える。戦全体の時計で封鎖を引き延ばさない。
       C.duration = o.dur;
