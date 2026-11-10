@@ -48,11 +48,15 @@ function start(rt, K, done) {
     k15Go(rt, 'nd-run', at, 10, '川上で、俵を運ぶ人足と護衛を止めよ', '俵の列', () => {
       k15Charge(rt, escort, at);
       rt.objProgress('main', `護衛 ${k15Live(escort)}／${N0}`);
+      const t0 = rt.t;
       const tick = () => {
         if (rt.over || F.k15stage !== 'nida') return;
         const left = k15Live(escort);
         rt.objProgress('main', `護衛 ${left}／${N0}`);
-        if (repelled(rt, left, 3, at)) return phase2();
+        // 崖の助けの兵と同じく、地形に残った護衛一人を待ち続けない。
+        // 到着後二分半、本人が岸を押さえていれば残兵は荷を捨てて退く。
+        // 持ち場の外や、到着前の待ち時間だけでは進めない。
+        if (repelled(rt, left, 3, at) || rt.t - t0 > 150 && repelled(rt, 0, 0, at)) return phase2();
         rt.after(0.5, tick, true);
       };
       tick();

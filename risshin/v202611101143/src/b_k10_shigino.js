@@ -452,8 +452,9 @@ html:root body #hud#hud#hud.shigino-goals.shigino-combat #goal-sign .gs-tag > sp
       }
       for (const [g, z] of [[F.mzN, -9], [F.mzS, 9]]) { g.order = 'move'; g.dest = { x: MIZU.x + 2, z }; g.fire = false; g.onArrive = (q) => { q.order = 'hold'; q.anchor = { x: MIZU.x + 2, z }; q.facing = -Math.PI / 2; }; }
       rt.say('須田長義', '数が違いすぎる……！　退け、一の柵の東まで退け！', 3.2);
-      rt.after(4, () => rt.say('水原親憲', '鉄砲は堤の左右へ開け。味方が抜けるまで撃つな', 3.2));
-      rt.after(9, () => rt.say('足軽', '後ろから追って来る！　止まれば囲まれるぞ！', 2.8));
+      // 先に退き終えた時は、古い「撃つな」の下知や追撃の知らせを次の段へ持ち越さない。
+      rt.after(4, () => { if (F.step === 3 && !F.ending) rt.say('水原親憲', '鉄砲は堤の左右へ開け。味方が抜けるまで撃つな', 3.2); });
+      rt.after(9, () => { if (F.step === 3 && !F.ending) rt.say('足軽', '後ろから追って来る！　止まれば囲まれるぞ！', 2.8); });
     } else if (n === 4) {
       // 水原の鉄砲は、追う敵が堤の左右の筒先へ入った所で一斉に放つ（update の F.volT）→ 安田能元が槍で突き入る
       F.volT = rt.t;

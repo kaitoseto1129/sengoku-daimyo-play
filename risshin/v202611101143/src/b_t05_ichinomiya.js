@@ -412,13 +412,14 @@ function steps(rt) {
       const tick = stage.tick;
       stage.tick = (r, C, m, ctx, el, dt) => {
         // 自動送りを止めても、岩や塀に残った一組を永久に探させない。
-        // 本人が持ち場へ来て戦った時間だけ数え、後の寄せが出尽くしてから残兵を退かせる。
+        // 本人が初めて持ち場へ着いてからの時間を数え、後の寄せが出尽くしてから残兵を退かせる。
+        // 弓兵を追う・竹束へ退くたびに時計を止めると、十八mの外で戦う人には刻限が来ない。
         // 段そのものは送らず、守備時間と小倉丸への入城は従来の判定を通す。
         if (!stage.needIn) {
           const p = r.player.u.pos;
           const near = Math.hypot(p.x - C.at.x, p.z - C.at.z) < (stage.kind === 'hold' ? C.botRadius : 18);
-          C.pressureT = (C.pressureT || 0) + (near ? dt : 0);
-          if (!C.remnantsRetreated && C.pressureT >= stage.max && !(C.later?.length || C.waves?.length)) {
+          if (near && C.pressureSince === undefined) C.pressureSince = el;
+          if (!C.remnantsRetreated && C.pressureSince !== undefined && el - C.pressureSince >= stage.max && !(C.later?.length || C.waves?.length)) {
             C.remnantsRetreated = true;
             C.nudgeT = el;   // 共通の呼び寄せで、今出した退却の下知を攻撃へ戻さない。
             let retreating = false;
