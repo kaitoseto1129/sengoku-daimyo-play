@@ -11,12 +11,23 @@ import { report } from './far.js';
 export const GATE = { x: 62, z: -164 };   // 勝竜寺城の門の前（堀の手前）
 const near = (p, q, r) => Math.hypot(p.x - q.x, p.z - q.z) < r;
 
+export function retreatToCastle(rt) {
+  const F = rt.flags, g = F.mitsuG;
+  if (!g || F.mitsuRetreat) return;
+  F.mitsuRetreat = true;
+  // 本陣から城内へ直進すると西の板塀に当たる。門の南で揃えてから土橋と門を通す。
+  // 旗本は討てない兵なので、通常の到着判定では全員が除かれてしまう。
+  g.fixed = false; g.arriveNoncombat = true; g.order = 'retreat'; g.speed = 3;
+  g.dest = { x: 64, z: -168 };
+  g.onArrive = (q) => { q.order = 'retreat'; q.dest = { x: 64, z: -200 }; };
+}
+
 export function start(rt, ctx) {
   const F = rt.flags;
   try { const W = rt.world; W.dayClock = null; W.setTime('dusk'); if (W.fade) W.fade.dur = 24; } catch (e) { /* 空はそのまま */ }
   if (rt.world.setRainTarget) rt.world.setRainTarget(0.12);
   // 光秀と近習は勝竜寺城へ（もう退き始めている）
-  if (F.mitsuG) { F.mitsuG.fixed = false; F.mitsuG.order = 'retreat'; F.mitsuG.dest = { x: 64, z: -200 }; F.mitsuG.speed = 3; }
+  retreatToCastle(rt);
   // 道に残る明智の後ろの兵（追う道の途中）
   F.rear = enemyGroup(rt, { name: '明智の後ろの兵', faction: 'akechi', anchor: { x: 40, z: -132 }, facing: 0.6, width: 10, formation: 'line', order: 'hold', aggro: 18, seekRange: 26, morale: 80, dmgMult: 0.45 },
     ctx.ak([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 6, o: { flagScale: 1 } }, { type: 'gun', n: 2 }]));

@@ -498,7 +498,7 @@ const t01_yamazaki = {
       // 光秀は御坊塚の古墳から降りて、旗本に囲まれて北東の勝竜寺城へ退く（目に見える所で。討てない）
       rt.after(6, () => {
         if (!F.mitsuG || F.ending) return;
-        F.mitsuG.fixed = false; F.mitsuG.order = 'retreat'; F.mitsuG.dest = { x: SHORYUJI.x, z: SHORYUJI.z - 12 }; F.mitsuG.speed = 2.6;
+        Pursuit.retreatToCastle(rt);
         rt.say('明智光秀', '……退け。勝竜寺へ退け', 3);
       });
       rt.after(9, () => rt.say('池田恒興', '日向が退くぞ。殿を破って追え！', 3));   // 秀吉は後ろの本陣（遅参説も）。前で叫ぶのは池田

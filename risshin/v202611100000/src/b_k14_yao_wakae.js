@@ -85,6 +85,8 @@ const sm = (a, b, v) => { const k = Math.max(0, Math.min(1, (v - a) / (b - a)));
 const stepAlive = (F) => aliveN(F.stepG) + (F.step === 1 ? aliveN(F.fuseG) : 0);   // 八尾では横の備と伏せ槍を合わせて数える
 const live = (g) => g && g.units.some((u) => u.alive && !u.gone && !u.fleeing);
 const aliveN = (g) => (g ? g.units.reduce((n, u) => n + (u.alive && !u.gone && !u.fleeing ? 1 : 0), 0) : 0);
+// 横の備の討取りで伏せ槍の分を埋めない。両隊それぞれ六割を退ける。
+const yaoLeft = (g) => Math.max(0, aliveN(g) - Math.floor(g.units.length * KEEP));
 const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 
 // ---- 地形：平らな河内の田。二本の川の堤だけが高い。国土地理院の起伏は丸めて薄く ----
@@ -495,7 +497,7 @@ const k14_yao_wakae = {
       // 着いた隊から横の備へかかる（徒の隊は着くまで駆け続ける）
       if (F.step <= 2) {
         const AT = STEP_AT[F.step];
-        if (live(kb) && kb.order === 'move' && (dist(kb.center(), AT) < 40 || dist(P.pos, AT) < 34)) { kb.order = 'attack'; kb.seekRange = 40; }
+        if (live(kb) && kb.order === 'move' && dist(kb.center(), AT) < 40) { kb.order = 'attack'; kb.seekRange = 40; }
       }
       if (F.step === 1 && F.choSide.order === 'hold' && [F.mine, F.kibaG].some((g) => live(g) && dist(g.center(), FLANK) < 36)) {
         F.choSide.order = 'attack'; F.choSide.seekRange = 30;
@@ -546,10 +548,11 @@ const k14_yao_wakae = {
     const g = F.stepG;
     if (!F.stepN) F.stepN = Math.max(1, g.units.length + (F.step === 1 ? F.fuseG.units.length : 0));
     const gone = F.stepN - stepAlive(F);
-    if (F.stepNear && gone >= Math.round(F.stepN * (1 - KEEP)) && (F.step !== 1 || !F.fuseG.ambush)) {
+    const cleared = F.step === 1 ? !F.fuseG.ambush && yaoLeft(g) === 0 && yaoLeft(F.fuseG) === 0 : gone >= Math.round(F.stepN * (1 - KEEP));
+    if (F.stepNear && cleared) {
       F.next = true;
       for (const q of g.units) if (q.alive && q.name && !q.invuln) { rt.army.kill(q); break; }   // 隊の将も崩れの中で討たれる
-      g.order = 'flee'; g.routed = true;
+      for (const q of F.step === 1 ? [g, F.fuseG] : [g]) { q.order = 'flee'; q.routed = true; }
       if (F.step === 1) { rt.award((t) => t.side.push('八尾で長宗我部の横を突いた'), '長宗我部の横を突いた'); rt.after(2.5, () => this.toStep(rt, 2)); }
       else if (F.step === 2) { rt.award((t) => t.side.push('若江で内藤長秋の隊を崩した'), '内藤長秋の隊を崩した'); rt.after(2.5, () => this.toStep(rt, 3)); }
       else if (F.step === 3) { rt.award((t) => t.side.push('若江で山口弘定の隊を崩した'), '山口弘定の隊を崩した'); rt.after(2.5, () => this.toStep(rt, 4)); }
@@ -612,6 +615,10 @@ k14_yao_wakae.history = '慶長二十年（1615）五月六日、大坂夏の陣
 KILLS.k14_yao_wakae = (rt) => {
   const F = rt.flags;
   if (F.ending || !F.step || F.step === 4 || !F.stepN) return null;
+  if (F.step === 1) {
+    const need = [F.stepG, F.fuseG].reduce((n, g) => n + g.units.length - Math.floor(g.units.length * KEEP), 0);
+    return cut(need, yaoLeft(F.stepG) + yaoLeft(F.fuseG));
+  }
   return cut(F.stepN, stepAlive(F), Math.round(F.stepN * KEEP));
 };
 // 戦の進行の札（段）：F.step の 1〜5
