@@ -1697,10 +1697,10 @@ function tottoriBoard(rt) {
 //   柵の口の守りも城道の供も徒歩。始めから馬を陣に置いて徒で出る（浅野長吉ら名のある将の馬はそのまま）。
 function tottoriOnFoot(rt) {
   const p = rt.player;
-  if (!p?.mounted) { if (p) p.canRide = false; return; }
-  rt.army.setMounted(p.u, false);
-  p.mounted = false; p.canRide = false; p.loose = null; p.horse = null; p.hspd = 0;
-  p.u.pos.y = rt.world.heightAt(p.u.pos.x, p.u.pos.z);
+  if (!p?.mounted) return;
+  // 馬を消さず、共通の下馬で陣に待たせる。必要なら再び乗れる。
+  p.mountT = 0;
+  p.toggleMount(true);
 }
 
 const tottori = {
@@ -1784,8 +1784,7 @@ const tottori = {
     } else if (F.step === 1.5) at = returnWay(rt);
     else if (F.step === 2 || F.step === 2.5) {
       at = F.guardPost; q.r = 8; q.defend = q.waiting = true;
-      // 守り場に立っている間は足元に印を出さない。坂を下る城兵の頭上の▼だけを見せる（印は一つ）。
-      if (Math.hypot(me.x - at.x, me.z - at.z) <= q.r) return null;
+      // 持ち場に着いても行き先を保つ。到着の表示は下の q.arrived に任せる。
     } else if (F.step === 3) {
       // 同じ折れの道で後に続ける時だけ、使いの頭上へ印を結ぶ。
       // 直線で近くても別の折れにいる使いへ誘わず、城道の次の曲がり角を示す。
@@ -2575,7 +2574,6 @@ const tottori = {
     installTottoriBankFooting(rt);
     installTottoriCamera(rt);
     tottoriBoard(rt);
-    tottoriOnFoot(rt);
     F.farFires = tottoriFarFires(rt);
     tottoriKiriFlags(rt);
     // 岸の土は砂色の滑らかな写真でなく、湿った河原の泥の写真（共通の絵を使い回す。CC0 の泥）。月夜でも土塊と窪みの濃淡が残る。
@@ -2583,6 +2581,7 @@ const tottori = {
     // 舟を焼きに寄る岸の手前（25秒の目線）：踏み固めた岸の土と湿った泥、半ば埋めた石と捨てた俵。建物・旗は既にある物で足りる。
     dressStage(rt, { at: { x: -46, z: -34 }, heading: 0, flag: false, huts: 0, fence: false, yagura: false, clutter: 3, rocks: 4, fire: false, wet: 0.9, trodden: 0.9, radius: 38 });
     k15Taiko(rt, K15);   // 15分の構成（docs/oda15_plan_1108.md）：太閤ヶ平の導入から始める
+    tottoriOnFoot(rt);
   },
 
   // 日の間隔を省略して次の持ち場へ。城内の正確な数を示す軍議は開かない。

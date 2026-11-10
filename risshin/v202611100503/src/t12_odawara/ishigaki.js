@@ -57,8 +57,7 @@ export function step(H) {
         C.w++;
       }
       rt.objProgress('dp', '');
-      // 物見は二人まで討たれると、知らせに戻ろうと逃げる（逃げた者は林の中で番が討つ）
-      for (const g of C.scouts) if (!g.fled && live(g) <= 1 && g.units.length > 2) { g.fled = true; for (const u of g.units) if (u.alive && !u.gone) { u.invuln = false; u.hp = 0; rt.army.kill(u, null); } }
+      // 最後の一人も実際に討つまで残す。人数だけで命を奪って達成にしない。
       const done = C.w >= WAVES.length && !C.scouts.some((g) => live(g) > 0);
       if (done && Math.hypot(rt.player.u.pos.x - H.FUSHIN.x, rt.player.u.pos.z - H.FUSHIN.z) < 18 && !C.done) {
         C.done = el;

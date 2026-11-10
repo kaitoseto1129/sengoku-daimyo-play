@@ -37,7 +37,7 @@ import { groundAt } from './floors.js';
 import { drawGroundAt } from './render_camera.js';
 import { cloneRoomNearMaterial } from './player.js';
 import { buildCastlePlan, makeLordKeep, heightOf, inPoly } from './castle_plan.js';
-import { makeSiegeZones, ZONE_STATE } from './siege_zones.js';
+import { makeSiegeZones, ZONE_STATE, siegeFighter } from './siege_zones.js';
 
 import { timeslipField } from './timeslip_field.js';
 import { SHIGISAN_PLAN, TOP, GATE, TOWER, RIDGE1, RIDGE2, RIDGE3, RIDGE4, YASHIKI, MEDAKE, TEMPLE, ROAD as SITE_ROAD, TEMPLE_ZONE, ROUTES } from './castles/shigisan.js';
@@ -1986,6 +1986,13 @@ function sgHolding(rt) {
   return F.gateWaitT != null;
 }
 const shiPlayed = (rt) => rt.stats.kills > 0 || rt.stats.dist >= 20;
+// 曲輪の制圧と同じく、地上で戦える守兵だけを数える。
+// 倒れた兵や櫓の上の兵が残っても、確保済みの南口で終幕を止めない。
+function honmaruDefendersGone(rt) {
+  return rt.flags.last.every((g) => gone(g) || !g.units.some((u) => siegeFighter(u) &&
+    Math.abs(u.pos.y - rt.world.heightAt(u.pos.x, u.pos.z)) < 3 &&
+    Math.hypot(u.pos.x - TOP.x, u.pos.z - TOP.z) < TOP.r + 12));
+}
 // 南口を離れた後に、以前の滞在時間だけで城取りを認めない。
 function honmaruPostReached(rt) {
   const F = rt.flags, P = rt.player.u.pos, z = F.SZ?.byId.shu;
@@ -1993,7 +2000,7 @@ function honmaruPostReached(rt) {
   if (rt.player.u.naka || Math.abs(P.y - rt.world.heightAt(P.x, P.z)) > 2.5) return false;
   // 南口に居る時間だけで、まだ敵の本丸を取ったことにしない。
   return F.step === 4 && F.lowerTaken && z?.owner === ZONE_STATE.FRIEND &&
-    F.last.every((g) => gone(g) || !g.units.some((u) => u.alive && !u.fleeing && !u.woundOut && Math.hypot(u.pos.x - TOP.x, u.pos.z - TOP.z) < TOP.r + 12)) &&
+    honmaruDefendersGone(rt) &&
     (z?.test(P.x, P.z) || Math.hypot(P.x - TOP.x, P.z - (TOP.z + TOP.r + 4)) < 10);
 }
 const shigisan = {
@@ -4007,7 +4014,7 @@ const shigisan = {
           this.assistAdvance(rt);
         }
       }
-      if (F.step === 4 && (F.lowerTaken || F.lowerBypass) && s.shu.owner === ZONE_STATE.FRIEND && s.shu.test(rt.player.u.pos.x, rt.player.u.pos.z) && F.last.every((g) => gone(g) || !g.units.some((u) => u.alive && !u.fleeing && !u.woundOut && Math.hypot(u.pos.x - TOP.x, u.pos.z - TOP.z) < TOP.r + 12))) this.win(rt);
+      if (honmaruPostReached(rt)) this.win(rt);
     }
     if (F.ending || rt.over) return;
     // 十五秒ごとに距離と戦果を比べる。三十秒の停滞には先手の援護を出す。

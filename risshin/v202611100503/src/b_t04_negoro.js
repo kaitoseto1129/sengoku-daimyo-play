@@ -1083,6 +1083,13 @@ const t04_negoro = {
         const defending = fighting(u) && !rt.retryOpen && Math.hypot(u.pos.x - C.at.x, u.pos.z - C.at.z) < 16;
         C.inT = held + (defending ? dt : 0);
         if (C.inT < 45) rt.objProgress('dp', `守る あと${Math.max(0, Math.ceil(45 - C.inT))}秒`);
+        // 三方の三十六人を八割以上崩して守り続けたら、長引いた残兵は退く。
+        // 岩や建物の裏の最後の一人を探し続ける全滅条件にしない。
+        if (!C.retreat && !C.waves.length && el >= 150 && C.inT >= 45 && defending && heads(C.groups) <= 7) {
+          C.retreat = true;
+          for (const g of C.groups) flee(g);
+          rt.say('組頭', '行人方が崩れた！　大塔の前から退いていくぞ！', 3);
+        }
         // 深手で退く者は除くが、一時的に倒れて起き上がる敵は残兵に数える。
         return !C.waves.length && el >= 45 && C.inT >= 45 && defending
           && !C.groups.some(alive);

@@ -2961,7 +2961,8 @@ const odani = {
   // 行き先は一つ。出発前は秀吉、合流中は今の持ち場を示し、先の坂へ誘わない。
   missionPin(rt) {
     const F = rt.flags, p = rt.player.u.pos;
-    if (F.ending || rt.over || F.fallen || F.komaDown && !F.honAttack || !rt.player.u.alive) return null;
+    // 小丸陥落後の下知待ちと、落城後の勝ち鬨にも本丸の印を残す。
+    if (F.ending || rt.over || !rt.player.u.alive) return null;
     const pin = F.odaniPin || (F.odaniPin = { always: true, silent: true });
     pin.unit = null; pin.enemy = pin.defend = pin.waiting = pin.arrived = pin.follow = pin.gate = pin.route = false;
     pin.marker = null; pin.footRing = false; pin.r = .5; pin.hide = 0; pin.gateName = '';
