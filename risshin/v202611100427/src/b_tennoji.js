@@ -47,10 +47,15 @@ import { TENNOJI_PLAN, T_GATE, T_HONGATE, SOTO_POLY, HON_POLY, T_HOUSES, T_ROADS
 //   （三歩半内の別の敵には先に応じる）。本人が深手の時と、定義が門・櫓へ向けた組は外す。共通の兵の考えは触らない。
 function huntPlayer(rt, dt) {
   const F = rt.flags;
+  const P = rt.player.u;
+  if (!P) return;
+  // 終戦・戦闘不能の直後は半秒の見回りを待たず、本人への追尾を外す。
+  if (rt.over || F.ending || !P.alive || P.dying || P.woundOut || P.fleeing) {
+    for (const g of rt.army.groups) if (g.focus === P) g.focus = null;
+    return;
+  }
   if ((F._huntT = (F._huntT || 0) - dt) > 0) return;
   F._huntT = 0.5;
-  const P = rt.player.u;
-  if (!P?.alive) return;
   const weak = P.hp < P.maxHp * 0.4;
   for (const g of rt.army.groups) {
     if (g.team !== 1 || !g.count || g.noHunt) continue;

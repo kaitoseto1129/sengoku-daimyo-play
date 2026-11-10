@@ -13,6 +13,7 @@
 import * as THREE from 'three';
 import { RANKS } from './state.js';
 import { sfx } from './audio.js';
+import { showGateBreak } from './battle_events.js';
 import { flagTexture } from './textures.js';
 import { useTerrain, BATTLE_ASSETS, assetsForBattle } from './asset_manifest.js';
 import { demSample } from './dem.js';
@@ -1105,9 +1106,8 @@ const t04_negoro = {
       rt.army.structFall(s);
     }
     sfx('taiko', 1);
-    // 11/6 描いて遊んで：「大門が破れた」の直後に共通の門の知らせ「大門の門扉、破れる」が重ねて出た。
-    //   共通の知らせは半秒後に、それより後の知らせが無い時だけ出るので、こちらを少し遅らせて一枚にする
-    rt.after(0.25, () => rt.banner('大門が破れた', '境内へ攻め入る'));
+    // 共通の門突破に見出しを渡す。別の札を予約すると、共通の保留分が後から出て二枚になる。
+    showGateBreak(rt, '大門が破れた', '境内へ攻め入る');
     rt.say('足軽', '門扉が割れたぞ！　境内へ！', 2.5);
     // 史実：坊舎の多くが焼けた。境内の子院にも火が回る（大塔と大師堂は残る）
     const W = rt.world;

@@ -1549,8 +1549,8 @@ const tonezaka = {
   resumeSteps: [[1, 'chase'], [2, 'second'], [3, 'toPass'], [4, 'toIchijodani'], [5, 'townAttack'], [6, 'townFire']],   // 戦の途中の保存（battle_checkpoint.js）：段の始まりを、段の関数を順に流して作り直す
   // 稲生の水準：任務一行・ピン・敵の▼だけで現在の一手を示す。
   missionSingleLine: true,
-  goalsAllRows: true, // 最初から場所と行いの五件を並べ、果たした目標に印を付ける。
-  goalVisibleRows: 5,
+  goalsAllRows: true, // 場所と行いの順を保ち、果たした目標に印を付ける。
+  goalsVisibleRows: 5, // 七段の構成でも、今の目標を含む五件までを表示する。
   battleDialogue: true, // 刀根坂は短い下知も使う。八秒の間引きと三枠の上限は共通処理に任せる。
   hideMissionDots: true,
   hideGuideSteps: true,
