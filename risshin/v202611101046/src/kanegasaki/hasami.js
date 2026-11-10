@@ -89,6 +89,9 @@ export function headcount(rt, exit) {
   // 最後に残る槍組も殿の人数に含める。生きているだけでは生還にせず、
   // 三将との合流と同じ退き口の範囲へ着いた者（手負いも含む）を数える。
   const groups = new Set(F.tono || []);
+  // 合流の判定に含めた主人公の組も、生還の報告から漏らさない。
+  // 殿の一覧と同じ組が入っていても、一組として数える。
+  for (const g of rt.squadGroups || []) groups.add(g);
   if (F.lastStand?.g) groups.add(F.lastStand.g);
   for (const g of groups) {
     n0 += g.initial || 0;

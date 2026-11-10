@@ -635,7 +635,9 @@ const k13_domyoji = {
     rt.army.play('volley', gunner.pos, 1.6);
     g.order = 'move'; g.dest = { x: HONDA.x + 22, z: HONDA.z - 6 }; F.pushedUntil = rt.t + 12;
     rt.say('足軽', '誉田陵の堀から撃って来る！　伊達殿が押し戻される！', 3);
-    rt.after(12, () => { if (g.count && !g.routed && g.order !== 'retreat' && g.order !== 'flee' && !F.ending && !rt.over && F.dp?.i === 5) { g.order = 'attack'; g.seekRange = 40; g.anchor = { x: HONDA.x + 4, z: HONDA.z - 4 }; rt.say('片倉重綱', '退くな！　列を立て直して撃ち返せ！', 3); } });
+    // 待ち伏せが④の終わりに起きても、⑤の殿を迎える列へ戻す。
+    // 終戦・退却の下知が出ていれば、反撃の予約で取り消さない。
+    rt.after(12, () => { if (g.count && !g.routed && g.order !== 'retreat' && g.order !== 'flee' && !F.ending && !rt.over && (F.dp?.i === 5 || F.dp?.i === 6)) { g.order = 'attack'; g.seekRange = 40; g.anchor = { x: HONDA.x + 4, z: HONDA.z - 4 }; rt.say('片倉重綱', '退くな！　列を立て直して撃ち返せ！', 3); } });
   },
   // ⑤：誉田の村の民家に火（夕暮れ）
   burnVillage(rt) {

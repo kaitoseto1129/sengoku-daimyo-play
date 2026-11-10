@@ -323,7 +323,9 @@ const k03_gifu = {
   // 11/9 三巡（織田C）：アクション好きの bot が麓で止まった池田長吉の組のそばに付いて離れず、百曲りの登り口（-127,-4）で十八分止まった。戦の頭の道を保つ。
   botOrders: true,
   //   百曲りの段（③）は深手でも共通の退き足で麓の味方へ戻らない（登る頭と退く癖が引き合い、中腹の下で十五分止まった）。
-  botEvacuating: (rt) => rt.flags.step === 3 && rt.player.u.pos.x < -100,   // 砦の前（x -100 より東）の斬り合いでは退き足を使う
+  botEvacuating: (rt) => (rt.flags.step === 3 && rt.player.u.pos.x < -100)
+    // 本丸へ向かう途中も、接敵していなければ上台所の口へ進む。深手の退き足と道案内が引き合い、⑤で麓へ戻り続けるのを防ぐ。
+    || (rt.flags.step === 5 && rt.player.u.pos.x < -26 && noMelee(rt)),
   missionPin(rt) {
     const F = rt.flags;
     if (!F.step || F.ending) return null;
@@ -757,7 +759,8 @@ const k03_gifu = {
     // 今の段の持ち場から 30 歩より遠い敵は追わない（中腹の砦の段で退く敵を追って本丸の下まで登り、段の守りに戻らなかった。11/8 bot）
     const at = STEP_AT[F.step] || u.pos;
     const near4 = (o) => Math.hypot(o.pos.x - u.pos.x, o.pos.z - u.pos.z) < 4;
-    const ok = (o) => fighting(o) && !o.invuln && (!o.group?._fallen || near4(o) && (o.atk || o.swing)) && Math.abs(o.pos.y - u.pos.y) < 3 && !((B.skip.get(o) || 0) > b.t) && (Math.hypot(o.pos.x - at.x, o.pos.z - at.z) < 30 || near4(o));   // 斬り掛かってくる敵は持ち場の外でも払う（突かれ続けて十分止まった。11/9 bot）
+    // 曲輪どうしが三十歩以内でも、次の段の守りを追って今の門を通り過ぎない。近くで斬り掛かる相手は段に関係なく払う。
+    const ok = (o) => fighting(o) && !o.invuln && (o.group === F.stepG || near4(o) && (o.atk || o.swing)) && (!o.group?._fallen || near4(o) && (o.atk || o.swing)) && Math.abs(o.pos.y - u.pos.y) < 3 && !((B.skip.get(o) || 0) > b.t) && (Math.hypot(o.pos.x - at.x, o.pos.z - at.z) < 30 || near4(o));   // 斬り掛かってくる敵は持ち場の外でも払う（突かれ続けて十分止まった。11/9 bot）
     // 石垣や柵の向こうの兵は追わず、まず道を辿って口へ回る。
     // 十二秒後の追跡打ち切りだけでは、別の兵へ狙いを替えて壁際に留まり得る。
     const e = b.army.nearestEnemy(u, 9, (o) => ok(o) && !b.army.wallBetween(u.pos, -1, o.pos));

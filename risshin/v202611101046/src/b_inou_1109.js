@@ -197,8 +197,8 @@ const ino = {
     F.nobuU = F.nobuG.units.find((u) => u.name === '織田信長') || null;
     F.nobuFlag = nobori(W, -64, 34, 'oda', 6.5); rt.scene.add(F.nobuFlag);
     F.allAlly = [F.kumi, F.mates, F.shinG, ...F.van, F.sakuma, F.nobuG];
-    // 後から来る森の手も七百の内。合流前後で一人の討死の重みを変えない。
-    F.allAllyN = aliveIn(F.allAlly) + N(9) + 2;
+    // 後から来る森の手と山田も七百の内。登場で人数を増やさず、討死は数から引く。
+    F.allAllyN = aliveIn(F.allAlly) + N(9) + 2 + 1;
     rt.obj('main', INO_GOALS.march, 'main');
     this.march(rt);
   },
@@ -393,6 +393,7 @@ const ino = {
     F.yamadaG = allyGroup(rt, { name: '山田治部左衛門', anchor: at, facing: Math.PI, width: 1, aggro: 0, speed: 3, noAI: true, noRout: true, order: 'hold', fixed: true },
       [{ type: 'samurai', n: 1, o: { name: '山田治部左衛門', keep: true, invuln: true, horse: false } }]);
     F.yamadaU = F.yamadaG.units[0];
+    F.allAlly.push(F.yamadaG);
     F.shibaG.speed = 4.2; F.shibaGo = { x: at.x, z: at.z - 3 };
   },
   // 退く（後ろから柴田勢）
