@@ -92,7 +92,7 @@ const HOLD5S = 70;      // ⑤ 宇喜多の押し返しを福島隊のそばで�
 const RLINE = { x: -272, z: 150 };   // ⑦ 藤堂・京極の脇で大谷隊（平塚・戸田）の前進を止める線
 const HOLD7S = 80;
 const CENTER9 = { x: -350, z: 66 };   // ⑨ 宇喜多の殿が踏みとどまる天満山の麓（大谷の陣が崩れた後、宇喜多・小西が横から押される）      // ⑦ 大谷隊の前を支える秒
-const FLIP_MIN_T = 500; // 寝返りは戦が始まって八分半より前には起こさない（中盤で起こすと後半ずっと東軍の勝ちに見える）
+const FLIP_MIN_T = 630; // 寝返りは戦が始まって十分半より前には起こさない（中盤で起こすと後半ずっと東軍の勝ちに見える）
 const FALL_MAX = 110;   // ⑧ 小早川が動いてから大谷隊が崩れるまでの最長の秒（押し崩せなくても進む）
 // 右上の目標（goals5・obj・setStages で同じ文）。行き先は地図で分かる名で（BU「ここ」は使わない）
 //   討てる将（明石全登・島津豊久）の名は目標の文に入れない（victory_flow の namedKill が名を含む札を済みにし、段の途中で勝ちに締まる）
@@ -306,9 +306,9 @@ const k06_sekigahara = {
 
   missionPin(rt) {
     const F = rt.flags, q = F.pin || (F.pin = { x: 0, z: 0, r: 6, hide: 6 });
-    if (!rt.player.u.alive || F.ending || !F.step) return null;
+    if (!rt.player.u.alive || F.ending) return null;
     const lead = (g, at) => (g?.leader?.alive && !g.leader.gone ? g.leader.pos : alive(g) ? g.center() : at);
-    const s = F.step, P = rt.player.u.pos;
+    const s = F.step || 1, P = rt.player.u.pos;
     // 討てない大将を追わず、今の段で押し合う相手の手前へ案内する（遠い残兵は追わせない）
     const T = s === 1 || s === 2 ? NUKE : s === 3 ? BACK : s === 4 ? front(P, UKITA_F, F.akashi, F.akaGun, F.ukita2)
       : s === 5 ? (near(P, UKITA_F, 50) ? front(P, UKITA_F, F.akashi, F.akaGun, F.ukita2, F.ukita3, F.ukita4) : UKITA_F)
@@ -538,6 +538,8 @@ const k06_sekigahara = {
         const u = F.ieyasuU;
         u.pos.x = IEYASU1.x; u.pos.z = IEYASU1.z - 5.4; u.pos.y = rt.world.heightAt(u.pos.x, u.pos.z);
         u._k06Seat = { ...u.pos };
+        u._k06Stand = false;
+        sit(u);
       }
       if (!F.jinba) {
         F.jinba = true;

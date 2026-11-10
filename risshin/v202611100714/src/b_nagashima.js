@@ -4802,7 +4802,8 @@ nagashima.force = (rt) => {
   }
   S.a0 = Math.max(S.a0, a0); S.b0 = Math.max(S.b0, b0);
   // 着火は結末の三秒後。火が広がる間に減らし、着火前に半減させない。
-  const fireProgress = rt.flags.ending ? Math.max(0, Math.min(1, (rt.t - rt.flags.endingAt - 3) / (END_SEC - 3))) : 0;
+  const fireAt = rt.flags.advEnding ? rt.flags.advEndAt : rt.flags.ending ? rt.flags.endingAt : null;
+  const fireProgress = fireAt != null ? Math.max(0, Math.min(1, (rt.t - fireAt - 3) / (END_SEC - 3))) : 0;
   const burnt = 1 - .55 * fireProgress;
   // 後続の組が加わって分母が増えても、既に減った兵数を戻さない。
   S.out.a = Math.min(S.out.a, 70000 - (S.a0 ? Math.min(1, S.aLost / S.a0) * 2500 : 0));

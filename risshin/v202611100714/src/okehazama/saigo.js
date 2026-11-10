@@ -11,7 +11,10 @@ export function tick(rt, dt) {
   if (rt.over || F.ending || F.victory || !F.koshiLeft || !F.yoshiDown || !y?.alive || rt.t - F.yoshiDownT < 50) return;
   // 毛利の手当ては本体が受け持つ。別人に討たせて毛利の首と知らせない。
   if (!ready(mor)) return;
-  const k = mor;
+  // 長引いても服部がかかる順を飛ばさない。健在なら先に同じ道で寄せる。
+  const hat = F.nobKill?.[0];
+  const hattoriFirst = !F.hattoriMet && ready(hat);
+  const k = hattoriFirst ? hat : mor;
   k.target = y;
   const d = Math.hypot(k.pos.x - y.pos.x, k.pos.z - y.pos.z);
   // 通しで止まった幕の回り込みは、本体と同じ入口の道を使う。
@@ -35,5 +38,6 @@ export function tick(rt, dt) {
       Math.abs(p.y - y.pos.y) >= 3 ||
       rt.army.wallBetween(p, -1, y.pos) || rt.army.terrainBlocks(p, y.pos) ||
       rt.army.wallBetween(k.pos, k.team, y.pos) || rt.army.terrainBlocks(k.pos, y.pos) || Math.abs(k.pos.y - y.pos.y) >= 3) return;
+  if (hattoriFirst) { F.hattoriMet = true; return; }
   y.invuln = false; y.officerSaved = true; rt.army.kill(y, k);
 }

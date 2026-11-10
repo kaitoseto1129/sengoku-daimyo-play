@@ -85,6 +85,23 @@ function plant(o) {
 // 段に右上の番号とチェックポイントを付ける
 function tag(st, k, cp, pin) {
   const start = st.start;
+  // 本人の移動・守備を、共通の放置送りや時間切れで飛ばさない。
+  if (st.kind === 'move' || st.kind === 'hold') {
+    st.idleAdvance = false; st.noHardCap = true; st.limit = Infinity;
+    const tick = st.tick;
+    st.tick = (rt, C, m, ctx, el, dt) => {
+      const u = rt.player.u;
+      const ready = u.alive && u.hp > 0 && !u.downed && !u.woundOut && !u.fleeing;
+      if (st.kind === 'move') return ready && tick(rt, C, m, ctx, el, dt);
+      const before = C.inT;
+      const done = tick(rt, C, m, ctx, el, dt);
+      // 共通の「半分ほど参加」ではなく、持ち場で守った時間を数える。
+      C.inT = before + (ready && Math.hypot(u.pos.x - C.at.x, u.pos.z - C.at.z) < C.botRadius ? dt : 0);
+      const duration = st.max - 35;
+      // 寄せの上限後は残兵を退かせる。本人が守らないまま成功にはしない。
+      return C.inT >= duration && !C.waves.length && (done || el >= Math.max(duration + 60, 200));
+    };
+  }
   if (pin) st.pin = pin;
   st.start = (rt, C, m, ctx) => {
     const F = rt.flags;

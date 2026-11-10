@@ -34,7 +34,6 @@ import { withGuard } from './toyo_bot.js';
 import { KILLS, broke } from './stages.js';
 import { KIT } from './b_nagashinojo.js';
 import { addSite } from './map_sites.js';
-import { takatabaRow } from './castle_parts.js';
 // 15分の構成（kaito 11/8 夜・docs/toyo15_plan_1108.md の 13）で足した段。中身は t10_oshi/ に一段一ファイル
 import * as chikara from './t10_oshi/chikara.js';   // 始め：力攻めで城の外の柵へ寄せ、押し返されて丸墓山へ退く
 import * as kobuneSt from './t10_oshi/kobune.js';   // 水が満ち、城の小舟が堤の岸へ寄せる
@@ -931,6 +930,12 @@ const t10_oshi = {
       // 陣の旗が流される
       for (const [i, f] of F.campFlags.entries()) { f.position.x += dt * (0.9 + i * 0.3); f.position.z += dt * 0.5; f.rotation.z = Math.min(1.2, f.rotation.z + dt * 0.08); f.position.y -= dt * 0.12; }
     }
+    // 流れる俵は毎コマ動かす。半秒ごとの調べの中では、一コマ分しか進まず水の上に留まって見えた。
+    if (F.step === 6 && F.broken) for (const m of F.debris || []) {
+      if (!m.visible) continue;
+      m.position.x += dt * 1.6; m.position.z += dt * 1.1; m.position.y = F.floodY - 0.12; m.rotation.x += dt * 0.6;
+      if (m.position.x > CAMP.x + 60) m.visible = false;
+    }
     if (F.ending) return;
     const P = rt.player.u;
     if (!rt.timeLimit?.up) for (const u of rt.army.units) {
@@ -1018,8 +1023,6 @@ const t10_oshi = {
         F.evac.push(g);
         rt.say(g.units[0]?.name || '手負いの足軽', 'かたじけない……！', 2.2);
       }
-      // 流される俵：切れ口から陣の方へ流れる（流れの向きを見せる）
-      for (const m of F.debris || []) { m.position.x += dt * 1.6; m.position.z += dt * 1.1; m.position.y = F.floodY - 0.12; m.rotation.x += dt * 0.6; if (m.position.x > CAMP.x + 60) m.visible = false; }
       // 人夫と兵は主人公の呼ぶ方へ付いて来る。離れただけで無作為に討死させない。
       let alive = 0, safe = 0;
       for (const g of F.evac) {
