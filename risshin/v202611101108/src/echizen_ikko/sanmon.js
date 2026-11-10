@@ -4,6 +4,12 @@
 //   山門に三十秒打撃が無ければ、既存の近い掛矢組を門前へ寄せ直す。実際の到着と打撃は本体の tickGateWorkers が扱う。
 // 兵は増やさない。字は台詞だけ。
 // ======================================================================
+// 討死の動作中は alive が残る。門を打てる兵だけを選び、倒れた打ち手は交代する。
+export function workerReady(u) {
+  return !!(u?.alive && u.hp > 0 && !u.dying && !u.fleeing && !u.woundOut &&
+    !u.rearWound && !u.downed && !u.keep && u.hand && u.wpn);
+}
+
 export function tick(rt) {
   const F = rt.flags, st = F.gateSanmon?.struct;
   if (F.step !== 2 || F.ending || !st?.alive || F.mode !== 'attack') return;
@@ -18,7 +24,7 @@ export function tick(rt) {
     if (w.b._routeGate !== st || w.b.real?.routed || w.b.real?._pinH) continue;
     if (w.tool.visible) return;
     for (const u of w.b.real?.units || []) {
-      if (!u.alive || u.fleeing || u.woundOut || u.rearWound || u.downed || u.keep || !u.hand || !u.wpn) continue;
+      if (!workerReady(u)) continue;
       const d = Math.hypot(u.pos.x - x, u.pos.z - z);
       // 麓の組を石段へ直行させず、石段まで着いた最寄りの打ち手を呼ぶ。
       if (u.pos.z >= -34 && d < nearest) { nearest = d; worker = w; }

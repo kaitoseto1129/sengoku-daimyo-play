@@ -256,8 +256,9 @@ function marchTo(rt, g, to, k = 0) {
   //   戻す先は、組の中で遊び手から一番遠い者のそば（目の前に湧かせない）
   const P = rt.player.u.pos, far = (u) => Math.hypot(u.pos.x - P.x, u.pos.z - P.z);
   let rear = null;
-  for (const u of g.units) if (u.alive && !u.fleeing && Math.hypot(u.pos.x - c.x, u.pos.z - c.z) < 12 && (!rear || far(u) > far(rear))) rear = u;
-  if (rear && far(rear) > 30 && unseenRejoin(rt, rear.pos.x, rear.pos.z)) for (const u of g.units) if (u.alive && !u.fleeing && !u.isPlayer && Math.hypot(u.pos.x - c.x, u.pos.z - c.z) > 18 && far(u) > 45 && unseenRejoin(rt, u.pos.x, u.pos.z)) {
+  for (const u of g.units) if (canRejoin(u) && Math.hypot(u.pos.x - c.x, u.pos.z - c.z) < 12 && (!rear || far(u) > far(rear))) rear = u;
+  // 段が変わる時も、本丸の合流と同じく戦える兵だけを戻す。重傷者・退場者を移したり、合流先に選んだりしない。
+  if (rear && far(rear) > 30 && unseenRejoin(rt, rear.pos.x, rear.pos.z)) for (const u of g.units) if (canRejoin(u) && Math.hypot(u.pos.x - c.x, u.pos.z - c.z) > 18 && far(u) > 45 && unseenRejoin(rt, u.pos.x, u.pos.z)) {
     const x = rear.pos.x + (Math.random() - 0.5) * 3, z = rear.pos.z + (Math.random() - 0.5) * 3;
     if (!unseenRejoin(rt, x, z)) continue;
     u.pos.x = x; u.pos.z = z; u.pos.y = rt.world.heightAt(x, z); u.target = null; u.aiT = 0;

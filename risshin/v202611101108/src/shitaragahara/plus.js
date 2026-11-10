@@ -94,10 +94,10 @@ export function bigVolley(rt, W, gs, z, SB, power, hit) {
     rt.after(0.45, () => hit(z + 6, power));
     // 白煙で前が見えない。晴れると柵際まで来ている
     rt.after(5.5, () => {
-      if (rt.flags.ending) return;
+      if (!W.on || rt.over || rt.flags.ending) return;
       let n = 0;
       for (const u of rt.army.units) {
-        if (u.team !== 1 || !u.alive || u.fleeing || u.gone) continue;
+        if (u.team !== 1 || !u.alive || u.fleeing || u.gone || u.noTarget || u.woundOut || u.rearWound || u.group?.shWaiting) continue;
         const dx = u.pos.x - SB.x0;
         if (dx > -2 && dx < 14 && Math.abs(u.pos.z - z) < 30) n++;
       }

@@ -588,6 +588,7 @@ const t12_odawara = {
   noGoalCount: true,
   // 全件で画面を埋めず、今の目標から五件を順番どおりに並べる。
   goalsVisibleRows: 5,
+  goalCountLabel: '退けた',   // 討死だけでなく退いた敵も数える。数字だけの札にしない。
   goalSignNameOnly: true,
   noLeaderFollow: true,
   // 雨の夜討ちの弓・雨覆いの鉄砲と、狭い出丸の徒歩の守りを共通の兵種補充で替えない。
