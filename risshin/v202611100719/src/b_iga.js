@@ -3555,7 +3555,8 @@ iga.siegeKit = {
   plan: { x: SHU_SOUTH[0], z: SHU_SOUTH[1], rot: 0, W: 30, yokoya: false, moat: false, kirigishi: 0, umadashi: false, sakamogi: false, shiyori: false },
   build: { team: 1, gate: false, walls: false, bridge: false, heads: true, fire: { hurt: 0.4, near: 85, close: 14, base: .7, peak: 3.5, arrows: .45 } },
   borrow: { r: 34, flank: true },
-  when: (rt) => { const F = rt.flags; return F.step >= 1 && F.step < 3 && F.gate?.alive && !F.ending && !rt.over; },
+  // 包囲の夜に城兵が北へ退き始めたら、借りた狭間の射撃も止める。
+  when: (rt) => { const F = rt.flags; return F.step >= 1 && F.step < 3 && !F.castleRetreatStarted && F.gate?.alive && !F.ending && !rt.over; },
 };
 export { iga };
 
