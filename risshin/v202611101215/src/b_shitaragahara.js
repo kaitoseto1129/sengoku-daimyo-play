@@ -1378,7 +1378,8 @@ function nfBroken(rt, g) {
       Math.hypot(u.pos.x - (SB.x0 + 5), u.pos.z - gz) < 14) { g.nfArrive = rt.t; break; }
   }
   const at = g.nfArrive;
-  return n <= Math.ceil(g.nfN0 * 0.4) || at != null && rt.t - Math.max(at, g.nfAt) > 40 || rt.t - g.nfAt > 150;
+  // 行軍が長引いても、柵へ来ていない将を時切れだけで討死にしない。
+  return n <= Math.ceil(g.nfN0 * 0.4) || at != null && rt.t - Math.max(at, g.nfAt) > 40;
 }
 function nfRout(rt, g, dead) {
   for (const q of [g, g.cavalry, g.missiles]) {

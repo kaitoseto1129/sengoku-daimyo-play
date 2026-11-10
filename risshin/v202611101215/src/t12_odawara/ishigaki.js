@@ -30,7 +30,7 @@ export function step(H) {
         H.warp(rt, H.FUSHIN.x + 3, H.FUSHIN.z - 6, Math.atan2(H.SCOUT_FROM[1].x - H.FUSHIN.x, H.SCOUT_FROM[1].z - H.FUSHIN.z));
         // 人夫の列：材木と石を背に、山の道を上り下りする
         C.porters = allyGroup(rt, { faction: 'oda', name: '普請の人夫', anchor: { ...H.FUSHIN }, facing: 0, width: 6, aggro: 0, noRout: true, fullStrength: true, order: 'path',
-          path: [[H.FUSHIN.x - 6, H.FUSHIN.z + 10], [H.FUSHIN.x + 4, H.FUSHIN.z - 4]], pathIdx: 0, speed: 1.6 },
+          path: [[H.FUSHIN.x - 6, H.FUSHIN.z + 10], [H.FUSHIN.x + 4, H.FUSHIN.z - 4]], pathIdx: 0, speed: 1.6, arriveNoncombat: true },
         [{ type: 'porter', n: 12, o: { flag: null, hat: 'none', armor: 0x4a4034, lace: 0x5a4e3c, cloth: 0x6a5a44, haori: null, mon: null } }]);
         for (const u of C.porters.units) u.noTarget = true;
         C.porters.onArrive = (q) => { q.path = q.path.slice().reverse(); q.pathIdx = 0; q.order = 'path'; };

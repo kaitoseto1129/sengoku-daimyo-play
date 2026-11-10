@@ -5308,9 +5308,11 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
   reinforcementMarch(rt, g) {
     const F = rt.flags;
     // 新手も既存の谷道と木戸を通る。谷から石垣下へ直進させない。
-    let path = F.onoDone ? ONO_WEST_ENTRY : ROUTE_O;
-    if (F.honAttack) path = [...ONO_WEST_ENTRY, ...F.honPath.slice(3)];
-    else if (F.komaAttack) path = [...ONO_WEST_ENTRY, ...F.komaPath];
+    // 屋敷に遅れた組は南木戸から戻す。本道だけを選ぶと庭の柵へ直進してしまう。
+    const entry = F.onoDone ? westEntryPath(g.center()) : ONO_WEST_ENTRY;
+    let path = F.onoDone ? entry : ROUTE_O;
+    if (F.honAttack) path = [...entry, ...F.honPath.slice(3)];
+    else if (F.komaAttack) path = [...entry, ...F.komaPath];
     const u = g.units.find(battleReady);
     g.path = path;
     g.pathIdx = u ? nearWay(rt, path, u.pos, u.pos.y) : 0;

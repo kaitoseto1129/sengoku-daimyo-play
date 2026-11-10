@@ -412,7 +412,8 @@ const t09_yamanaka = {
     F.toyo.push(F.yama);
     F.yama.defMult = 1.2; F.yama.dmgMult = 0.85;
     // 大将の豊臣秀次は街道の後ろの本陣の陣幕の中で床几に座り、旗本に囲まれて動かない（前に出ない。kaito AR 3・標準 一の2）
-    F.hide = allyGroup(rt, { name: '秀次の旗本', fullStrength: true, anchor: { x: SEAT.x, z: SEAT.z - 7 }, facing: Math.PI, width: 9, aggro: 0, fixed: true, noAI: true, noRout: true, order: 'hold', formation: 'line' },
+    // 後列まで動ける範囲に収め、南端から押し戻される跳びを防ぐ。
+    F.hide = allyGroup(rt, { name: '秀次の旗本', fullStrength: true, anchor: { x: SEAT.x, z: SEAT.z - 18 }, facing: Math.PI, width: 9, aggro: 0, fixed: true, noAI: true, noRout: true, order: 'hold', formation: 'line' },
       dress([{ type: 'samurai', n: 12 }, { type: 'ashigaru', n: 12 }, { type: 'gun', n: 4 }], TOYO));
     F.hideS = allyGroup(rt, { name: '秀次の本陣', fullStrength: true, anchor: SEAT, facing: Math.PI, width: 2, aggro: 0, fixed: true, noAI: true, noRout: true, order: 'hold' },
       dress([{ type: 'busho', n: 1, o: { name: '豊臣秀次', invuln: true, hat: 'kabuto_w', horse: false } }], TOYO));
@@ -426,7 +427,7 @@ const t09_yamanaka = {
     // 白地の幟が六尺の竿の上で木と同じ高さの白い板に見えた（critic60 山中 41）。人の背の倍ほどの丈へ
     for (const [x, z] of [[34, 226], [54, 226], [START.x - 14, START.z + 10]]) rt.scene.add(nobori(W, x, z, 'toyotomi', 4));
     const n = RANKS[rt.G.rank]?.squad;
-    if (n) rt.makeSquad({ x: START.x + 2, z: START.z + 8 }, Math.PI, [{ kind: 'spear', n }]);
+    if (n) rt.makeSquad({ x: START.x + 2, z: START.z - 8 }, Math.PI, [{ kind: 'spear', n }]);
     // 秀次の後ろに続く七万の本隊は、街道の坂のずっと下（動ける所の外・近づけない遠さ）にだけ置く
     const DA = (x, z, w, d, count, facing, seed) => W.addDistantArmy({ x, z, w, d, count, facing, farFill: true, armor: 0x2b2723, team: 0, flagTex: flagTexture('toyotomi'), mon: 'toyotomi', seed });
     // 外の尾根にも後続を残す。近くでは本物の兵だけを描く共通の距離制限を保つ。
@@ -494,19 +495,21 @@ const t09_yamanaka = {
       return { s, x: x + dx / d * 3, z: z + dz / d * 3, dx, dz };
     });
     const approachEast = { x: -6, z: 176 }, approachWest = { x: -32, z: 176 };
+    // 土橋に面した一枚を攻める。南の角の破れ口へ斜めに寄ると畝堀へ落ちる。
+    const bridgeMouth = mouths.reduce((a, b) =>
+      Math.hypot(b.x + 28, b.z - 176) < Math.hypot(a.x + 28, a.z - 176) ? b : a);
+    F.daiBridge = bridgeMouth.s;
     const fence = (u) => {
       // 柵を目指して斜めに進むと、東の畝堀へ落ちる。先手も本人と同じ土橋へ揃える。
       // 東岸では先に街道を北上し、堀の中では近い岸へ戻ってから渡る。
       if (u.pos.x > -30 && Math.abs(u.pos.z - 176) > 3)
         return u.pos.x > -19.5 ? approachEast : approachWest;
-      let best = null, bd = Infinity, mouth = null, md = Infinity;
-      for (const m of mouths) {
-        const s = m.s, d = Math.hypot(m.x - u.pos.x, m.z - u.pos.z);
-        if (s.alive === false || s.hp <= 0) { if (d < md) { md = d; mouth = m; } }
-        else if (d < bd) { bd = d; best = s; }
-      }
-      if (mouth) return (u.pos.x - mouth.x) * mouth.dx + (u.pos.z - mouth.z) * mouth.dz >= 0 ? inside : mouth;
-      return best && bd < 40 ? best : inside;
+      if (u.pos.x > -30) return bridgeMouth.s.alive !== false && bridgeMouth.s.hp > 0 ? bridgeMouth.s : bridgeMouth;
+      // 渡り終えた兵は出丸の中心で止まらず、見通せる残兵へ寄って本人を支える。
+      const enemy = rt.army.nearestEnemy(u, 30, (v) => !v.isStruct && !v.fleeing &&
+        !crossesDaiMoat(u.pos, v.pos) && Math.abs(v.pos.y - u.pos.y) < 3 && !rt.army.wallBetween(u.pos, -1, v.pos));
+      if (enemy) return enemy.pos;
+      return inside;
     };
     // 全員の整列を待つと、柵に阻まれた後列が着けず攻撃へ移れない。先頭から柵を攻める。
     const go = (g, x, z) => { g.formation = 'column'; g.colW = 3; g.order = 'assault'; g.assault = fence; g.anchor = { x, z }; g.speed = 3; g.onArrive = null; };
@@ -821,14 +824,12 @@ const t09_yamanaka = {
         F.dai.formation = 'column'; F.dai.colW = 3;
       }
       // 柵に誰も傷をつけられないまま本人が柵の前で戦い続ける時は、先手が柵を引き倒す（11/9 bot：出丸の前で13分止まり倒れた）
-      if (!F.daiPulled && T > 45 && Math.hypot(p.x - KURUWA.dai.x, p.z - KURUWA.dai.z) < 45 && F.toyo.some((g) => !gone(g) && Math.hypot(g.center().x - KURUWA.dai.x, g.center().z - KURUWA.dai.z) < 45) && !F.daiWall.some((s) => s.alive === false || s.hp <= 0)) {
+      if (!F.daiPulled && T > 45 && Math.hypot(p.x - KURUWA.dai.x, p.z - KURUWA.dai.z) < 45 && F.toyo.some((g) => !gone(g) && Math.hypot(g.center().x - KURUWA.dai.x, g.center().z - KURUWA.dai.z) < 45) && F.daiBridge.alive !== false && F.daiBridge.hp > 0) {
         F.daiPulled = true;
-        const c = F.naka.count ? F.naka.center() : p;
-        let best = null, bd = Infinity;
-        for (const s of F.daiWall) { const d = Math.hypot((s.seg[0] + s.seg[2]) / 2 - c.x, (s.seg[1] + s.seg[3]) / 2 - c.z); if (d < bd) { bd = d; best = s; } }
+        const best = F.daiBridge;
         if (best && best.alive) { rt.army.damage(best, best.hp + 1, null); sfx('gateBreakWood', 0.8); rt.say('中村一氏', '縄を掛けよ！　柵を引き倒せ！', 3); }
       }
-      const breached = F.daiWall.some((s) => s.alive === false || s.hp <= 0);
+      const breached = F.daiBridge.alive === false || F.daiBridge.hp <= 0;
       if (breached && F.daiSupport && !gone(F.yama)) {
         F.daiSupport(); F.daiSupport = null;
         rt.say('山内一豊', '柵が破れた！　二陣も土橋から続け！', 3);
