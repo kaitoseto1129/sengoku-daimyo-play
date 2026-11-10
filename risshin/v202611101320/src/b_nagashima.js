@@ -47,6 +47,7 @@ import { reduceMotion, S as SETTINGS } from './settings.js';
 
 const CH_Z = -32;                          // 島の手前の川筋
 const BANK_Z = -14;                        // こちらの岸（柵を結う所）
+const MONOMI_SPOT = { x: -12, z: BANK_Z + 12 }; // 最初の下知から物見の到着まで、同じ堤へ案内する。
 const RETREAT_SPOT = { x: 24, z: BANK_Z + 16 }; // 槍組が来る退き場所。傷の案内もここへそろえる。
 // 輪中の地の斑（10/30）：a＝湿った泥の低み（高い所に水たまり）、b＝葦の根の株。0〜1。周期の違う波を重ね、升目に揃えない。
 const smoothstep = (a, b, v) => { const t = Math.max(0, Math.min(1, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
@@ -2187,7 +2188,7 @@ const nagashima = {
       return q;
     }
     if (F.advEnding) { const at = !F.advSaid && F.advWalk; if (!at) return null; q.x = at.x; q.z = at.z; q.r = q.hide = 3.5; q.label = '南の堤'; q.arrived = Math.hypot(p.x - at.x, p.z - at.z) < 3.5; return q; }
-    { const at = F.ngMonomi || (F.dpOn && (F.dp?.cur?.at || F.dp?.cur?.s?.pin)) || (F.adv && F.advLastAt); if (F.adv && at && at !== F.ngMonomi) F.advLastAt = at; if (at) { const next = F.adv ? fortWay(rt.player.u, at) : at; q.x = next.x; q.z = next.z; q.r = q.hide = next.botRadius ?? 4; q.label = next !== at ? '堤の砦の木戸' : this.travelGuideLabel(rt); q.arrived = Math.hypot(p.x - next.x, p.z - next.z) < q.r; return q; } }
+    { const at = F.ngMonomi || (!F.adv && F.step === 0 ? MONOMI_SPOT : null) || (F.dpOn && (F.dp?.cur?.at || F.dp?.cur?.s?.pin)) || (F.adv && F.advLastAt); if (F.adv && at && at !== F.ngMonomi) F.advLastAt = at; if (at) { const next = F.adv ? fortWay(rt.player.u, at) : at; q.x = next.x; q.z = next.z; q.r = q.hide = next.botRadius ?? 4; q.label = next !== at ? '堤の砦の木戸' : this.travelGuideLabel(rt); q.arrived = Math.hypot(p.x - next.x, p.z - next.z) < q.r; return q; } }
     const stage = this.taskOf(rt);
     let spot = null;
     if (dangerProgress(rt)) { q.x = 24; q.z = BANK_Z + 16; q.r = q.hide = 3; return q; }
@@ -2253,9 +2254,9 @@ const nagashima = {
   guardStartText: '敵を向き、押して防ぐ',
   guardWaitText: '敵を向いて構えを保て',
   waitGuardButtonText: '押し続けて防ぐ',
-  // 川側の敵へ進ませず、岸に上がって届く相手だけに戦い方を示す。
+  // 水郷を進む間は堤・砦・在所の敵も対象にする。舟上・壁越し・結末は案内しない。
   meleeGuide(rt, enemy) {
-    return !!enemy && !enemy.boatSeat?.aboard && enemy.pos.z >= BANK_Z &&
+    return !!enemy && !enemy.boatSeat?.aboard && (rt.flags.adv ? !rt.flags.advEnding : enemy.pos.z >= BANK_Z) &&
       !rt.army.wallBetween(rt.player.u.pos, -1, enemy.pos);
   },
   // 縄の務めや目前の戦いを、共通の柵の補修札で隠さない。
@@ -2300,7 +2301,7 @@ const nagashima = {
     const F = rt.flags, stage = this.taskOf(rt);
     if (F.adv) return ['', '堤の先', '堤の砦', '舟着場', '在所の入口', '南の舟入り', '南の舟入り', '堤の上'][F.advK || 1];
     if (F.ending) return ['西の岸の柵', '中央の岸の柵', '東の岸の柵'][F.aftermathChecked] || '岸の柵';
-    if (F.ngMonomi) return '岸の堤の上';
+    if (F.ngMonomi || !F.adv && F.step === 0) return '岸の堤の上';
     if (F.dpOn && F.dp?.cur?.at) return F.dpLast ? '岸の真ん中の柵' : F.dp.i >= 2 ? '東の岸の柵' : '西の舟入り';
     if (dangerProgress(rt)) return '岸の助けの槍組';
     if (stage === 0) return '岸の横木';
@@ -3562,7 +3563,7 @@ const nagashima = {
       // 下知を早送りして見張りへ移った後は、古い作業へ呼び戻さない。
       if (F.ending || F.step > 1 || !rt.player.u.alive) return;
       // 堤から輪中と砦を見る段（nagashima/monomi.js）の後に横木の仕事
-      ngMonomi(rt, { at: { x: -12, z: BANK_Z + 12 }, bell: { x: 0, z: -80 }, ready: bankPlayerReady, next: () => {
+      ngMonomi(rt, { at: MONOMI_SPOT, bell: { x: 0, z: -80 }, ready: bankPlayerReady, next: () => {
         if (F.ending || F.step >= 1 || F.adv || !rt.player.u.alive) return;
         this.advance(rt, 0); sfx('eshout', .6);
       } });
