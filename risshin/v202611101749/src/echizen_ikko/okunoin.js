@@ -99,9 +99,11 @@ export function ambushTick(rt, ctx) {
     if (rt.t - A.at < (A.wave ? 25 : 40)) return;
     A.wave = (A.wave || 0) + 1;
     const p = rt.player.u.pos, sx = p.x >= 0 ? -1 : 1;
-    A.g = enemyGroup(rt, { faction: 'ikko', flag: 'namu', name: '森の残党', fixed: true, noGuard: true, anchor: { x: p.x + sx * 16, z: p.z + 12 }, facing: Math.PI,
-      fleeDir: { x: sx, z: 0.5 }, aggro: 40, seekRange: 45, width: 8, formation: 'loose', morale: 100, noRout: true, speed: 3.6 },
-    [{ type: 'samurai', n: 2, o: { ...ctx.look } }, { type: 'ashigaru', n: 6, o: { ...ctx.look } }]);
+    // 11/10 クラウドの正式の流し：十六歩先から侍二・足軽六が一度に囲み、本人が奥の院で倒れた（侍 117・足軽 106 の傷）。
+    //   一団を侍一・足軽五にし、二十二歩先の森の縁から来させる（構えて受ける間を残す）
+    A.g = enemyGroup(rt, { faction: 'ikko', flag: 'namu', name: '森の残党', fixed: true, noGuard: true, anchor: { x: p.x + sx * 20, z: p.z + 12 }, facing: Math.PI,
+      fleeDir: { x: sx, z: 0.5 }, aggro: 40, seekRange: 45, width: 8, formation: 'loose', morale: 100, noRout: true, speed: 3.2 },
+    [{ type: 'samurai', n: 1, o: { ...ctx.look } }, { type: 'ashigaru', n: 5, o: { ...ctx.look } }]);
     A.g.order = 'attack';
     try { sfx('toki', 0.9); } catch (e) { /* なし */ }
     rt.say('足軽', A.wave === 1 ? '森から来るぞ！　残党が斬り込んで来た！' : '奥の院の裏からも来るぞ！', 2.8);

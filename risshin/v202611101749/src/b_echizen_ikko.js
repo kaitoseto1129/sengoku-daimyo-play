@@ -3996,8 +3996,10 @@ const echizen_ikko = {
       // 奥の院を先に取っても、山道の守りが着いただけでは終戦にしない。
       // 三組とも退け、本堂の焼き討ちを見る間を残す。奥山道を守る経路と同じく四分未満では終えない。
       // 制圧後に敵が戻った場合も、堂の守りを取り戻すまで終えない。
+      // 行き先と同じく、討死の動作中・命の尽きた者・後送中の者は残敵に数えない。
       if (TEMPLE_HALL_IDS.some((id) => F.SZ.byId[id].owner !== ZONE_STATE.FRIEND) ||
           rt.army.units.some((u) => u.team !== rt.player.u.team && siegeFighter(u) &&
+            u.hp > 0 && !u.dying && !u.rearWound &&
             TEMPLE_HALL_IDS.some((id) => F.SZ.byId[id].test(u.pos.x, u.pos.z)))) return;
       if (IK_OKU.blockWin(rt)) return;   // 森の残党の斬り込みを崩すまで（echizen_ikko/okunoin.js）
       if (rt.t < 240 || rt.t - F.stepT < 15 || F.huntWavesPending > 0 || F.roadWaves.some((b) =>

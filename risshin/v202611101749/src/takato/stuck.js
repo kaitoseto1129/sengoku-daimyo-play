@@ -16,8 +16,10 @@ export function tick(rt, guideId) {
   }
   if (rt.t - S.t < 45) return;
   const m = (rt.markers || []).find((q) => q.id === guideId);
-  const q = m && (typeof m.pos === 'function' ? m.pos() : m.pos);
+  let q = m && (typeof m.pos === 'function' ? m.pos() : m.pos);
   F.tkStuck = null;
+  // 印のすぐそばで止まった時（11/10 正式の流し：本丸門の脇（-41,16）で四百秒）は、二の丸を取った後なら本丸の中へ
+  if ((!q || Math.hypot(q.x - P.x, q.z - P.z) < 8) && F.niFell && !F.honFell && F.C?.kuruwa?.hon?.centroid) q = F.C.kuruwa.hon.centroid;
   if (!q || Math.hypot(q.x - P.x, q.z - P.z) < 8) return;
   const ox = P.x, oz = P.z;
   k15Fade(rt, () => {

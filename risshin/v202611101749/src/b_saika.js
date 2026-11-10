@@ -3851,14 +3851,19 @@ const saika = {
       if (withdrew) rt.say('見張り', '寄せ手が引くぞ。追わず、東岸を守れ', 4);
       let threat = 0, deep = 0;
       for (const g of F.raiders) for (const u of g.units) {
-        if (bankReady(u) && Math.hypot(u.pos.x - BACK.x, u.pos.z - BACK.z) < 24) { threat++; if (u.pos.x > BACK.x + 6 && Math.abs(u.pos.z) < 10) deep++; }
+        if (bankReady(u) && Math.hypot(u.pos.x - BACK.x, u.pos.z - BACK.z) < 24) {
+          threat++;
+          // 退く下知を受けた兵の通過を、陣への攻め込みとして敗北まで積み上げない。
+          // 岸を離れるまでは安全の六秒を進めず、撤退そのものは歩いて終える。
+          if (!g.retreatOnly && u.pos.x > BACK.x + 6 && Math.abs(u.pos.z) < 10) deep++;
+        }
       }
       F.pressure = deep > 0 ? F.pressure + dt : 0;
       const holding = Math.hypot(p.x - BACK.x, p.z - BACK.z) < 35;
       if (F.inT > 0 && threat > 0 && rt.t >= (F.resetNoticeAt || 0) && F.raiders.some((g) => g.units.some((u) => bankReady(u) && Math.hypot(u.pos.x - BACK.x, u.pos.z - BACK.z) < 24 && sightUnit(rt, u)))) {
         F.resetNoticeAt = rt.t + 30; rt.bark('雑賀衆が東岸へ入った。竹束の陰で払え');
       }
-      for (const g of F.flanks) if (g.bankCommitted && !g.bankSeen && g.units.some((u) => u.alive && !u.fleeing && sightUnit(rt, u)) && rt.t >= (F.watchAt || 0)) {
+      for (const g of F.flanks) if (g.bankCommitted && !g.retreatOnly && !g.bankSeen && g.units.some((u) => bankReady(u) && sightUnit(rt, u)) && rt.t >= (F.watchAt || 0)) {
         g.bankSeen = true; F.watchAt = rt.t + 8; rt.say('見張り', `${g.bankSide}から敵だがね！　槍を向けろ`, 4);
       }
       // 11/6 fixc1753（九2）：④は川上・川下の二組を払えば果たす（時間待ちの守りにしない）。

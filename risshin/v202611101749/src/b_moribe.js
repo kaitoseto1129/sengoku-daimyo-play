@@ -4832,7 +4832,8 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
           if (busy || Math.hypot(c.x - aim.x, c.z - aim.z) < 10) continue;
           const d = g._moribeHatDest || (g._moribeHatDest = { x: 0, z: 0 });
           d.x = aim.x + (g === F.HM ? 3 : -3); d.z = aim.z - 4;
-          g.order = 'move'; g.dest = d; g.speed = 2.2; g.onArrive = (a) => { a.order = 'attack'; a.seekRange = 25; };
+          g.order = 'move'; g.dest = d; g.speed = 2.2;
+          g.onArrive = g._moribeHatArrive || (g._moribeHatArrive = (a) => { a.order = 'attack'; a.seekRange = 25; });
         }
       }
       // 旗本の侍は、自分が一人討つまで背を向けない（目標④の相手が戦場から消えない）。
