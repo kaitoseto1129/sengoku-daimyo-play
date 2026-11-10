@@ -15,7 +15,7 @@ export function start(rt, ctx, done) {
   const { LINE1, LOOK } = ctx;
   const from = (dx, dz) => ({ x: LINE1.x + dx, z: LINE1.z + dz });
   const stages = [
-    DP.rest({ dur: 5, heal: 0.3, banner: ['金ヶ崎の殿', '主力が退ききるまで、ここで食い止める'],
+    DP.rest({ dur: 5, heal: 0.3, banner: ['金ヶ崎の殿', '主力が退ききるまで、川の砦で食い止める'],
       say: [['木下藤吉郎', '殿はこの藤吉郎が引き受けた！　上様が朽木を越えるまで、一人も通すな！', 4.2]] }),
     DP.hold({
       at: LINE1, r: 11, dur: 95, limit: 200, noRefill: true, label: '川の砦', title: '殿の戦い', sub: '朝倉の本手が川を渡って来る',
