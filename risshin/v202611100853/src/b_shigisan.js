@@ -1992,11 +1992,13 @@ function sgHolding(rt) {
 }
 const shiPlayed = (rt) => rt.stats.kills > 0 || rt.stats.dist >= 20;
 // 曲輪の制圧と同じく、地上で戦える守兵だけを数える。
-// 倒れた兵や櫓の上の兵が残っても、確保済みの南口で終幕を止めない。
+// 倒れた兵・櫓の上・南口の持ち場の外に残る兵で、確保済みの南口の終幕を止めない。
 function honmaruDefendersGone(rt) {
+  const zone = rt.flags.SZ?.byId.shu;
+  if (!zone) return false;
   return rt.flags.last.every((g) => gone(g) || !g.units.some((u) => siegeFighter(u) &&
     Math.abs(u.pos.y - rt.world.heightAt(u.pos.x, u.pos.z)) < 3 &&
-    Math.hypot(u.pos.x - TOP.x, u.pos.z - TOP.z) < TOP.r + 12));
+    zone.test(u.pos.x, u.pos.z)));
 }
 // 南口を離れた後に、以前の滞在時間だけで城取りを認めない。
 function honmaruPostReached(rt) {
