@@ -359,7 +359,7 @@ const ino = {
         g.routing = true; g.noRout = false; g.order = 'retreat'; g.dest = { x: g.anchor.x, z: -150 }; g.fleeDir = { x: 0, z: -1 }; g.fleeSet = true; g.speed = 3.4; g.aggro = 0; g.focus = null; g.morale = 10;
         // 敗走の下知で矢と槍を止め、残っていた追撃の相手も外す。
         g.fire = false; g.onArrive = null;
-        for (const u of g.units) { u.noTarget = true; u.target = null; u.atk = null; }
+        for (const u of g.units) { u.noTarget = true; u.target = null; u.atk = null; u.swing = null; u.bind = null; u.watch = null; u.moveTo = null; }
       }
       for (const g of [...F.van, F.sakuma, F.mates]) if (live(g)) this.moveG(g, { x: g.anchor.x, z: 12 }, 2.6);
     });
@@ -417,7 +417,7 @@ const ino = {
     F.shibaGo = null;
     say(rt, '組頭', '退け！　名塚の砦まで退けい！', 2.6);
     this.go(rt, 'retreat');
-    for (const g of [...F.van, F.sakuma, F.mates]) if (live(g)) { g.order = 'hold'; this.moveG(g, { x: Math.max(20, Math.min(56, g.anchor.x + 20)), z: 116 + Math.random() * 8 }, 3.2); for (const u of g.units) u.target = null; }
+    for (const g of [...F.van, F.sakuma, F.mates]) if (live(g)) { g.order = 'hold'; this.moveG(g, { x: Math.max(20, Math.min(56, g.anchor.x + 20)), z: 116 + Math.random() * 8 }, 3.2); for (const u of g.units) { u.target = null; u.atk = null; u.swing = null; u.bind = null; u.watch = null; u.moveTo = null; } }
     for (const g of F.shibaLines) if (live(g)) this.moveG(g, { x: g.lineX, z: 70 }, 2.2, 'attack');
     this.moveG(F.shibaG, { x: 6, z: 30 }, 2.2);
     this.sayIf(rt, 'retreat', 8, '弥助', '走れ！　振り向くな！', 2.2);
@@ -485,9 +485,9 @@ const ino = {
     F.stopT = rt.t;
     say(rt, '組頭', '追うな！　ここまでじゃ。', 2.6);
     try { stopMusic(5); } catch (e) { /* 音の無い時も続ける */ }
-    for (const g of [...F.van, F.sakuma, F.mates, F.mori]) if (live(g)) {
+    for (const g of [...F.van, F.sakuma, F.mates, F.mori, F.nobuG]) if (live(g)) {
       // 前進の到着命令を残すと、追撃停止後も古い攻撃の下知が残り、持ち場を整えられない。
-      g.order = 'hold'; g.aggro = 0; g.anchor = { ...g.center() };
+      g.order = 'hold'; g.aggro = 0; g.fire = false; g.anchor = { ...g.center() };
       g.onArrive = null; g.dest = null; g.path = null; g.focus = null;
       for (const u of g.units) { u.target = null; u.atk = null; u.swing = null; u.bind = null; u.watch = null; u.moveTo = null; }
     }
