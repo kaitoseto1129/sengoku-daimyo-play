@@ -3157,7 +3157,7 @@ html:root body #hud#hud#hud.oke-goals :is(#armybar, #h-prog, #jk-vit) { z-index:
     // 混雑を救う広い合流範囲も、斜面や遮蔽物の向こう側からは果たさない。
     const nearGoal = goalP && Math.abs(me.y - rt.world.heightAt(goalP.x, goalP.z)) < 3 &&
       !rt.army.wallBetween(me, -1, goalP) && !rt.army.terrainBlocks(me, goalP);
-    const atGoal = this.squadFlagReached(rt) || nearGoal && ((host?.arrived && goalDistance <= 12) ||
+    const atGoal = nearGoal && (this.squadFlagReached(rt) || (host?.arrived && goalDistance <= 12) ||
       (F.hostArrivedAt != null && rt.t - F.hostArrivedAt >= 90 && goalDistance < 30));
     // 本人が遅れても時間だけで敗北にしない。旗の案内を残し、出口への合流を待つ。
     if (host?.arrived && rt.t >= (F.marchNoticeAt || 0)) {
