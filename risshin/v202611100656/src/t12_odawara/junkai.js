@@ -7,7 +7,7 @@
 // 入れ方：b_t12_odawara.js の depthStart の段の並び（城が現れる段の後・七月の官兵衛の段の前）に step(H) を置く。
 // ======================================================================
 import { allyGroup, nm } from '../bhelp.js';
-import { jinmaku, nobori, kobune } from '../props.js';
+import { jinmaku, nobori, kobune, tawara, kagaribi } from '../props.js';
 import { sfx } from '../audio.js';
 
 function mark(rt, C) {
@@ -21,7 +21,7 @@ export function step(H) {
     kind: 'move', key: 'junkai',
     start(rt, C) {
       const F = rt.flags, W = rt.world;
-      F.day = 2; W.setTime('day');
+      F.day = -0.5; W.setTime('day');
       rt.unmark('dp');
       C.groups = []; C.i = 0; C.t = 0;
       // 前田・上杉の陣（八王子から着いた北国勢）と、浜の長宗我部の船陣
@@ -46,10 +46,23 @@ export function step(H) {
         { at: H.MAEDA_JIN, label: '前田の陣', lines: [['前田利家', '八王子は一日で落とした。……城の中には、女や子が多かった'], ['前田利家', '早う開けば、もう誰も死なずに済むものを'], ['前田利家', '殿下とは若い頃から共に信長公に仕えた。……遠くまで来たものよ']] },
         { at: H.UJINORI, label: '北条氏規', lines: [['北条氏規', '韮山は開いた。……今は徳川殿の陣に身を寄せておる'], ['北条氏規', '城の兄者たちへ、開けよと文を書いた。これ以上、北条の者を死なせとうない'], [nm(rt), '北条の一門の方が、城を開けと……']] },
         { at: H.UESUGI_JIN, label: '上杉の陣', lines: [['上杉景勝', '越後から関東まで来たのは、謙信公以来よ'], ['直江兼続', '先代の謙信公は小田原を囲んで落とせなんだ。今度は囲むだけで落ちましょう'], ['上杉景勝', '今は殿下の一手じゃ。……世は変わった']] },
-        { at: H.BEACH, label: '浜の船陣', lines: [['長宗我部元親', '四国で殿下と戦うた者が、今は殿下の船で城の海を塞いでおる'], [nm(rt), '敵だった方々が、皆ここに']] },
+        { at: H.BEACH, label: '浜の船陣', lines: [['長宗我部元親', '四国で殿下と戦うた者が、今は殿下の船で城の海を塞いでおる'], ['九鬼の船頭', '沖は九鬼殿・脇坂殿の船で埋まっておる。北条は海へも出られぬ'], [nm(rt), '殿下はもう一つの軍ではない。日本中を連れてきておる']] },
       ];
+      // 11/10 指示書（docs/odawara_spec_1109.md 7:00〜9:30）：馬で包囲の陣を巡る。道の左右に、今まで会った大名の旗が延々と並ぶ。
+      //   包囲なのに華やか：兵糧の俵・篝火。旗は家ごとに替えて（字は出さない）
+      const FL = ['tokugawa', 'maeda', 'uesugi', 'ukita', 'kobayakawa', 'hachisuka', 'asano', 'kuroda', 'ishida', 'otani', 'hori', 'kuki', 'chosokabe', 'nobukatsu'];
+      let k = 0;
+      for (let z = -64; z > -168; z -= 7) {
+        for (const x of [135, 147.5]) { rt.scene.add(nobori(W, x, z, FL[k % FL.length], 6.5)); k++; }
+      }
+      for (const [x, z] of [[174, -70], [177, -128], [133, -112], [134, -140]]) {
+        for (const [dx, dz] of [[2, 3], [3, -2], [-2, 4]]) rt.scene.add(tawara(W, x + dx, z + dz, 0.4, 4));
+        rt.scene.add(kagaribi(W, x + 4, z));
+      }
+      // 組頭より上は自分の馬で回る（関所5）
+      if (rt.player.canRide && !rt.player.mounted) { try { rt.player.toggleMount(); } catch (e) { /* 馬が無い時は歩く */ } }
       // 七月も現在地から歩いて陣を訪ねる。前の段は山王川の岸で達成するので、井伊の陣へ移し直さない。
-      rt.banner('七月の初め', '前田・上杉の北国勢が着いた');
+      rt.banner('包囲の陣', '日本中の大名が、ひとつの城を囲む');
       rt.obj('dp', '包囲の前田の陣・北条氏規・上杉の陣・浜の船陣を順に訪ね、直政の言葉を伝える', 'main');
       rt.say('井伊直政', `${nm(rt)}殿、着いたばかりの北国勢と、浜の船陣を回って参れ。囲みを緩めるな、と伝えよ`, 4.4);
       mark(rt, C);

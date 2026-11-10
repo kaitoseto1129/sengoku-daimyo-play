@@ -43,8 +43,8 @@ const HI = (rt) => !rt.G.lord && (rt.G.rank || 0) >= 3;
 // 布を巻いた印は装いに残る。二度目の出血でも、残る布へ案内する。
 const igaNeedsTreatment = (rt) => (rt.player.u.hp < rt.player.u.maxHp * 0.5 || rt.player.u.wounds?.bleed > 0.0001) &&
   rt.player.treatmentLeft > 0;
-// 消火の組が動けない時は、札も印も残る火へそろえる。
-// 火は味方の消火の組が消す（長押しの札と案内は出さない。Simple is the best）。残った火は百秒で陣の者が消す。
+// 火は味方の消火の組が消す（長押しの札と案内は出さない。Simple is the best）。
+// 動けない組は本陣の控えが引き継ぎ、実際に軒へ着いて水を掛ける。
 const igaNeedsDousing = () => false;
 
 const CAMP = { x: 0, z: 40 };                     // 丹羽の陣
@@ -2259,6 +2259,11 @@ const iga = {
     rt.unmark('raidRecovery');
     F.honjin.guard.anchor.x = CAMP.x + 6; F.honjin.guard.anchor.z = CAMP.z + 7;
     F.honjin.guard.guardLeash = 10;
+    if (F.bucketCrew === F.honjin.guard) {
+      F.honjin.guard.order = 'hold'; F.honjin.guard.dest = null; F.honjin.guard.onArrive = null;
+      F.honjin.guard.width = 8; F.honjin.guard.seekRange = 8;
+      F.bucketCrew = null;
+    }
     for (let i = 0; i < 3; i++) { rt.uninteract('f' + i); rt.unmark('f' + i); rt.unmark('r' + i); if (F.fires[i]) igaDouseFire(rt, i); }
     retireRaid(rt, F.raiders);
     if (F.mouthRaid && !gone(F.mouthRaid)) retireRaid(rt, [F.mouthRaid]);
@@ -2565,27 +2570,35 @@ const iga = {
       }
     }
     if (F.step === 1) {
-      if (F.bucketOn && F.doused < 3 && !gone(F.ram)) {
+      if (F.bucketOn && F.doused < 3) {
+        let crew = F.bucketCrew || F.ram;
+        // 全滅や道の詰まりを、無人の消火で済ませない。本陣の控えが歩いて引き継ぐ。
+        if ((gone(crew) || F.bucketStallT >= 26) && crew !== F.honjin.guard && !gone(F.honjin.guard)) {
+          crew = F.bucketCrew = F.honjin.guard;
+          F.bucketIndex = -1; F.bucketT = 0; F.bucketStallT = 0;
+          rt.say('丹羽の組頭', '本陣の控えは燃える軒へ回れ。消火の組を助けよ', 4);
+        }
         let i = F.bucketIndex;
         if (i < 0 || !F.fires[i]) {
           i = F.fires.findIndex(Boolean); F.bucketIndex = i; F.bucketT = 0;
           if (i >= 0) {
             const h = F.huts[i];
             // 二列の縦隊では後列が軒へ届かない。軒の外で横に並び、近い敵だけ迎える。
-            F.ram.noAI = true; F.ram.fixed = false; F.ram._fitAt = 0;
-            F.ram.formation = 'line'; F.ram.width = 5;
-            F.ram.guard = true; F.ram.guardLeash = 3; F.ram.seekRange = 3;
-            F.ram.order = 'move'; F.ram.dest = { x: h.x, z: h.z + 4.2 };
-            F.ram.onArrive = (g) => { g.order = 'hold'; g.facing = Math.PI; };
+            crew.noAI = true; crew.fixed = false; crew._fitAt = 0;
+            crew.formation = 'line'; crew.width = 5;
+            crew.guard = true; crew.guardLeash = 3; crew.seekRange = 3;
+            crew.order = 'move'; crew.dest = { x: h.x, z: h.z + 4.2 };
+            crew.onArrive = (g) => { g.order = 'hold'; g.facing = Math.PI; };
           }
         }
         if (i >= 0) {
           const h = F.huts[i]; let buckets = 0;
-          for (const u of F.ram.units) if (u.alive && !u.fleeing && !u.woundOut && !u.noTarget &&
+          for (const u of crew.units) if (u.alive && !u.fleeing && !u.woundOut && !u.rearWound && !u.noTarget &&
               !u.atk && !u.swing && !u.target?.alive && Math.hypot(u.pos.x - h.x, u.pos.z - h.z) <= 5.2) buckets++;
           F.bucketAble = buckets;
-          F.bucketStallT = buckets >= 2 ? 0 : (F.bucketStallT || 0) + dt;
-          F.bucketT = buckets >= 2 ? F.bucketT + dt : 0;
+          F.bucketStallT = buckets > 0 ? 0 : (F.bucketStallT || 0) + dt;
+          // 一人でも引き継げるが、二人の時の半分の速さで水を運ぶ。
+          F.bucketT = buckets > 0 ? F.bucketT + dt * Math.min(1, buckets / 2) : 0;
           if (F.bucketT >= 8) this.douse(rt, i, false);
         }
       }
@@ -2635,8 +2648,6 @@ const iga = {
         if (!foes) rt.say('丹羽の組頭', '火は消え、陣は持ちこたえた。敵が退くぞ。追うな', 4);
         this.midA(rt); return;
       }
-      // 消火の組が崩れても負けにしない。残る火は陣の者が消し、迎え撃ちを続ける。
-      if (w >= 100 && F.doused < 3 && (igaPlayed(rt) && Math.hypot(rt.player.u.pos.x - CAMP.x, rt.player.u.pos.z - CAMP.z) < 45 || w >= 130)) F.fires.forEach((f, i) => { if (f) this.douse(rt, i, false); });
 
     }
     if (F.step === 3 && guide && rt.t - F.stepT <= 8) rt.objProgress('main', '物見が木戸と曲輪を見張る');

@@ -25,7 +25,8 @@ export function step(H) {
         W.setTime('night', true); W.setRainTarget(0); W.rainLevel = 0;
         H.clearFoes(rt);
         // 普請の城は林の向こうで出来かけている（小田原からは林に隠れて見えない）
-        if (F.ichiya) F.ichiya.castle.visible = true;
+        // 小田原の側の杉の帯（ichiyajo の wood）は普請場の北の縁に並ぶ。山の上では視点が帯の中に入り真っ暗に写ったので、夜の普請の間だけ隠す
+        if (F.ichiya) { F.ichiya.castle.visible = true; F.ichiya.wood.visible = false; }
         H.warp(rt, H.FUSHIN.x + 3, H.FUSHIN.z - 6, Math.atan2(H.SCOUT_FROM[1].x - H.FUSHIN.x, H.SCOUT_FROM[1].z - H.FUSHIN.z));
         // 人夫の列：材木と石を背に、山の道を上り下りする
         C.porters = allyGroup(rt, { faction: 'oda', name: '普請の人夫', anchor: { ...H.FUSHIN }, facing: 0, width: 6, aggro: 0, noRout: true, fullStrength: true, order: 'path',
@@ -74,6 +75,7 @@ export function step(H) {
       rt.award((t) => t.side.push('石垣山の普請を北条の物見から守った'), '石垣山の普請を守った');
       // 翌朝の井伊の陣へ（暗転。城が現れる段は、井伊の陣から南西を見る）
       k15Fade(rt, () => {
+        if (rt.flags.ichiya) rt.flags.ichiya.wood.visible = true;   // 翌朝、陣から見ると林がまだ城を隠している（伐るのは次の段）
         const view = rt.player.camYawOff;
         H.warp(rt, H.II_JIN.x - 2, H.II_JIN.z + 6, rt.player.yaw);
         rt.player.camYawOff = view;

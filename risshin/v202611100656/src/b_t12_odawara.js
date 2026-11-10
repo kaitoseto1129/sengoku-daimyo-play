@@ -24,13 +24,13 @@ import { depthStart, depthTick, depthBot } from './b_depth.js';
 import { withGuard } from './toyo_bot.js';
 // 15分の構成（kaito 11/8 夜・docs/toyo15_plan_1108.md の 15）で足した段。中身は t12_odawara/ に一段一ファイル
 import * as jinmawari from './t12_odawara/jinmawari.js';   // 始め：六月の初めの昼、陣の間を家康の本陣へ（城は攻めるな）
-import * as sortieSt from './t12_odawara/sortie.js';        // 北条の打って出を山王川で返す（深追いしない）・六月二十二日の夜へ
 import * as ishigakiSt from './t12_odawara/ishigaki.js';    // 六月二十五日の夜、石垣山の普請を物見から守る
-import * as kuzure from './t12_odawara/kuzure.js';          // 六月二十六日の朝、城から逃げて来る北条の兵を迎え、追っ手を討つ
 import * as junkai from './t12_odawara/junkai.js';          // 七月の初め、前田・上杉の陣と浜の長宗我部の船陣を回る
 import * as kaijoSt from './t12_odawara/kaijo.js';          // 官兵衛の後、槍を置いて城を出る北条の兵を見届ける
 import * as tenka from './t12_odawara/tenka.js';            // 終幕：開城・天下統一の日本地図・家康「次は、関八州か。」
-import * as hojin from './t12_odawara/hojin.js';            // 囲みの全国の大名の陣（布陣図どおりの兵数の比で遠景の軍勢）
+import * as hojin from './t12_odawara/hojin.js';
+import * as shijo from './t12_odawara/shijo.js';            // 11/10 指示書：殿下の陣の関東の図で、支城の旗が一つずつ外れる
+import * as hyojo from './t12_odawara/hyojo.js';            // 11/10 指示書：城の中の評定（敵方の短い場面）            // 囲みの全国の大名の陣（布陣図どおりの兵数の比で遠景の軍勢）
 
 // ---- 場所（ゲームの座標） ----
 const CASTLE = { x: 51, z: -131 };       // 小田原城の本丸
@@ -633,7 +633,7 @@ const t12_odawara = {
 
   setup(rt) {
     const W = rt.world, F = rt.flags;
-    F.ek = 0; F.ak = 0; F.ending = false; F.day = 0;
+    F.ek = 0; F.ak = 0; F.ending = false; F.day = 0; F.keisen = 100;   // 北条の継戦の見込み（画面には出さない。支城・石垣山・伊達・評定で下がる）
     // ---- 豊臣方：自分の手勢と、井伊直政の手（赤備え） ----
     F.mine = allyGroup(rt, { faction: 'oda', name: '手勢', anchor: { x: II_JIN.x - 4, z: II_JIN.z + 8 }, facing: -Math.PI / 2, width: 12, aggro: 9, noRout: true, formation: 'yari' },
       dress([{ type: 'samurai', n: 4 }, { type: 'ashigaru', n: 14 }, { type: 'bow', n: 3 }, { type: 'gun', n: 2 }], TOYO));   // 雨の夜討ちは寄せ手も火縄が湿る。飛び道具は弓を主に
@@ -687,44 +687,25 @@ const t12_odawara = {
       HOJO, TOYO, dress, clearFoes, warp: (rt2, x, z, h) => warpTo(rt2, x, z, h), shinoArm: (rt2, on) => this.shinoArm(rt2, on) };
     depthStart(rt, { faction: 'hojo', flag: 'hojo', armor: HOJO.armor, friends, look: (list) => dress(list, HOJO), scale: 1.4, mass: 0, backing: false, fixedSpawn: true, dmg: 0.6 }, [
       jinmawari.step(H),
-      sortieSt.step(H),
-      sortieSt.night(H),
-      // ① 山王川を渡り、篠曲輪の木戸の前へ（板塀の狭間から鉄砲が来る）
-      DP.move({ to: KIDO_F, obj: '山王川を渡り、篠曲輪の木戸の前まで寄せよ', label: '篠曲輪の木戸', r: 6, max: 90,
-        say: [['井伊直政', '赤備え、続け！　川を渡って木戸へ寄せよ！'], ['足軽', '雨で火縄が湿っておる。狭間から来るのは矢じゃ']] }),
-      // ② 木戸から打って出た北条勢を、木戸の前で迎え撃つ（付け入りの型・山中城の馬出し）
-      DP.fight({ at: KIDO_F, title: '木戸が開いた', sub: '篠曲輪の兵が打って出た', obj: '木戸から打って出た北条勢を、木戸の前で迎え撃て',
-        say: [['井伊直政', '出てきたぞ！　ここで返せ。退く敵に続いて木戸へ入る！']],
+      // 11/10 指示書（docs/odawara_spec_1109.md 2:30〜5:00）：総構えへ近づき、正面からは無理だと自分で確かめる（昼。城内へは入らない）
+      DP.move({ to: KIDO_F, obj: '北条方の防御線を確かめよ。山王川を渡り、総構えの堀の前まで寄せよ', label: '総構えの堀', r: 7, max: 90,
+        say: [['井伊直政', '殿下は城を攻めるなと仰せじゃ。されど堀と土塁を、この目で確かめて参れ'], ['足軽', '土塁の上に鉄砲が並んでおる……']],
+        ambush: { d: 30, say: ['手勢の侍', '土塁と櫓から一斉に撃って来る！　伏せよ！'], foes: () => [] } }),
+      DP.fight({ at: KIDO_F, title: '北条勢が打って出た', sub: '篠曲輪の木戸から', obj: '木戸から打って出た北条勢を、堀の前で押し返せ。城内へは入るな',
+        say: [['井伊直政', '返せ！　ただし木戸へは入るな。深入りすれば、総構えの鉄砲の的じゃ']],
         foes: () => [{ name: '篠曲輪から打って出た北条勢', from: { x: SHINO_C.x + 2, z: SHINO_C.z }, width: 6, dmg: 0.45, noGuard: true, list: [{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: 10 }] }],
         later: [{ t: 22, foes: () => [{ name: '篠曲輪の二番手', from: { x: SHINO_C.x, z: SHINO_C.z + 3 }, width: 6, dmg: 0.45, noGuard: true, list: [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 9 }] }], say: ['足軽', '木戸からまだ出て来る！'] }],
         max: 150, noRefill: true, reward: '打って出た北条勢を返した', onEnd: (rt2) => rt2.player.treatWounds(0.3) }),
-      // ③ 退く敵に紛れて木戸から篠曲輪へ（閉める前に入る）。守りの康定の手は城へ退く
-      DP.move({ to: SHINO_C, obj: '退く敵に続いて、木戸から篠曲輪の中へ入れ', label: '篠曲輪の中', r: 5, max: 70,
-        say: [['井伊直政', '木戸を閉めさせるな！　続いて入れ！']],
-        onEnd: (rt2) => {
-          const G = rt2.flags.shinoGuns;
-          if (G && !gone(G)) {
-            // 康定は生きて退く将。組頭が生きている間は士気だけ下げても崩れないので、退く下知を出す。
-            G.order = 'path'; G.path = [[SHINO_C.x, SHINO_C.z], [100, -62], [SANNO_IN.x - 7, -61]]; G.pathIdx = 0;
-            G.fixed = false; G.noAI = true; G.noRout = true; G.retreatOnly = true; G.fire = false;
-            G.formation = 'column'; G.width = 3; G.focus = null;
-            for (const u of G.units) { u.target = null; u.atk = null; u.swing = null; }
-          }
-          rt2.scene.add(nobori(rt2.world, SHINO_C.x + 1, SHINO_C.z - 2, 'ii', 7));
-          rt2.award((t) => t.side.push('篠曲輪へ付け入った'), '篠曲輪へ付け入った');
-        } }),
-      // ④ 城中から山王口を出た北条の新手から、篠曲輪の井伊の旗を守る
-      DP.hold({ at: { x: SHINO_C.x - 1, z: SHINO_C.z }, dur: 80, r: 9, label: '井伊の旗', title: '篠曲輪を取った', sub: '山王口から北条の新手が出てきた',
-        obj: '篠曲輪の井伊の旗を、山王口から来る北条の新手から守れ',
-        say: [['井伊直政', '旗を立てたぞ！　城の兵が山王口から出て来る。西の口で防げ！']],
-        waves: () => [
-          { t: 5, foes: () => [{ name: '山王口から出た北条勢', from: SANNO_IN, width: 8, list: [{ type: 'samurai', n: 4 }, { type: 'ashigaru', n: 12 }, { type: 'bow', n: 3 }] }] },
-          { t: 28, foes: () => [{ name: '北条の新手', from: { x: SANNO_IN.x, z: SANNO_IN.z + 4 }, width: 8, list: [{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: 12 }] }], say: ['足軽', '土橋をまた渡って来る！'] },
-          { t: 54, foes: () => [{ name: '山王口の三番手', from: { x: SANNO_IN.x, z: SANNO_IN.z - 4 }, width: 8, list: [{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: 10 }, { type: 'bow', n: 2 }] }], say: ['井伊直政', 'まだ来るぞ。旗を渡すな！'] },
-        ], noRefill: true, reward: '篠曲輪の旗を守った' }),
-      // ⑤ 後押しが無く、直政の下知で退く（史実）
-      DP.move({ to: { x: II_JIN.x - 4, z: II_JIN.z + 2 }, obj: '井伊直政の下知で、山王川の東の井伊の陣へ退け', label: '井伊の陣', r: 8, max: 80,
-        say: [['井伊直政', '後押しが来ぬ。旗は立てた、これまでじゃ。退け！'], ['足軽', '一番首は近藤殿と長野殿じゃ！']] }),
+      DP.move({ to: H.BANK, obj: '前衛を退かせろ。山王川の東の岸まで退け', label: '山王川の岸', r: 8, max: 80,
+        say: [['使番', '深入りするな！　殿下の下知じゃ。岸まで退け！'], ['手勢の侍', 'あの堀と土塁……正面から攻めれば、何千と死ぬ'], ['井伊直政', 'それゆえの囲みよ。城は攻めずに、心を折る']] }),
+      shijo.step(H),
+      junkai.step(H),
+      // 石垣山の普請の時の経ち（山林→普請→石垣→櫓→陣幕）。一晩で魔法のように建てない
+      DP.rest({ dur: 13, heal: 0, fn: (rt2) => {
+        rt2.banner('四月', '笠懸山の林の中で、普請が始まる');
+        rt2.after(4.3, () => rt2.banner('五月', '林に隠れて、石垣を積む'), true);
+        rt2.after(8.6, () => rt2.banner('六月', '櫓と白壁、陣幕が揃う'), true);
+      }, say: [['普請の奉行', '小田原の側の林は残せ。城の中から見えてはならぬ', 4], ['普請の奉行', '人足四万、八十日。……あと一晩で仕上げる', 4]] }),
       ishigakiSt.step(H),
       // ⑥ 六月二十六日：井伊の陣から石垣山の城を見届ける。
       // 11/6 kaito 二4：前は 12 秒で過ぎ、城が写らなかった（陣から石垣山は約三百 = 実の二・四km で、全戦で描く遠さ 150 の外だった）。
@@ -737,11 +718,19 @@ const t12_odawara = {
           // 南西の山の上の城へ行き先の印を立てる（カメラは勝手に回さない。印と目標で振り向かせる）
           rt2.marker('dp', () => ({ x: ISHI.x - 4, z: ISHI.z }), () => '石垣山の城', { h: 24 });
           sfx('horagai', 0.7);
-          rt2.award((t) => t.side.push('篠曲輪を攻めた（翌日、殿下から褒美）'), '殿下から褒美');
+          rt2.flags.keisen = Math.max(0, (rt2.flags.keisen ?? 100) - 25);
+          // 伊達政宗の参陣：北から新しい旗の列がまた豊臣方へ（戦わせない。遠くに見せるだけ）
+          rt2.after(12, () => {
+            const g = allyGroup(rt2, { faction: 'oda', name: '伊達の列', anchor: { x: 172, z: -226 }, facing: Math.PI, width: 3, formation: 'column', aggro: 0, noRout: true, noAI: true, fullStrength: true,
+              order: 'move', dest: { x: 176, z: -176 }, speed: 2 },
+            dress([{ type: 'busho', n: 1, o: { name: '伊達政宗', hat: 'kabuto_m', horse: true, invuln: true } }, { type: 'samurai', n: 4 }, { type: 'ashigaru', n: 10 }], { flag: 'date', armor: 0x1e1e22 }));
+            g.peaceful = true; for (const u of g.units) { u.invuln = true; u.noTarget = true; }
+            rt2.flags.dateCol = g;
+          });
         },
-        say: [['使番', '殿下は篠曲輪の一番首の近藤殿・長野殿を召して、褒美を下された'], ['手勢の侍', '南西の山の上を見よ。一夜で城が建ったようじゃ'], ['使番', '八王子も韮山も落ちた。松田殿の内通も露見し、城の中は割れておる']] })),
-      kuzure.step(H),
-      junkai.step(H),
+        say: [['北条の兵（土塁の上）', '山の上に城が……！　一夜で、城が建ったぞ！'], ['手勢の侍', '昨日まで林だった所に、石垣と白壁と、殿下の旗……'], ['井伊直政', '北条の者は、戦わずに見せつけられた。……もう逃げ道は無い'],
+          ['使番', '奥州の伊達政宗殿の勢、なお続々と着到！　北の道を来られる'], ['手勢の侍', 'まだ増えるのか……東北の果てまで、殿下に従うたか'], ['使番', '海は九鬼殿の船が塞いだ。陸も海も、囲みは閉じた']] })),
+      hyojo.step(H),
       // ⑦ 七月の初め：時が飛ぶ。官兵衛が井伊の陣に来て、主人公と城へ歩く
       //   官兵衛（孝高）は六月二十四日から滝川雄利と開城を説き、肩衣・袴で刀を帯びずに城へ入って氏政・氏直に会った（黒田家譜）。日は伝わらないので「七月の初め」。開城の申し出は七月五日
       DP.rest({ dur: 5, heal: 1, banner: ['七月の初め', '井伊の陣へ黒田官兵衛が来た'],
@@ -772,7 +761,7 @@ const t12_odawara = {
     rt.player.u.invuln = true;
     // 戦の後：北条の旗が下がり、天下統一の日本地図、家康の「次は、関八州か。」（t12_odawara/tenka.js）
     tenka.ending(rt, F.endH || { IE_VIEW: { x: 140, z: -100 }, CASTLE, warp: warpTo });
-    rt.finish({}, 47);
+    rt.finish({}, 54);
   },
 
   lose(rt, why = 'dead') {
@@ -814,7 +803,7 @@ const t12_odawara = {
     }
     // 木戸から味方が打って出たら、篠曲輪の鉄砲は撃ち止めて槍で守る（味方の背を撃たない）
     const G = F.shinoGuns;
-    if (G && F.dp && F.dpIx && F.dp.i >= F.dpIx.sortie + 3 && G.fire !== false) G.fire = false;   // 夜討ちの二つ目の段（木戸の前の迎え撃ち）から
+    if (G && F.dp && F.dpIx && F.dp.i >= F.dpIx.jinmawari + 3 && G.fire !== false) G.fire = false;   // 前衛を退かせる段から（退く背を撃ち続けない）
     if (F.kanU && !F.kanU.alive) this.lose(rt);
   },
 

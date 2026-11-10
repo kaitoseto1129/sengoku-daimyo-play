@@ -2813,7 +2813,8 @@ const tottori = {
           g._face = g.facing = Math.atan2(next[0] - tx, next[1] - tz);
           // 木戸内の横ずれをそのまま移さず、後列も九十九折りの道上から歩き出す。
           g._slotFit = null; g._routeCols = 0;
-          for (const u of g.units) if (u.alive) {
+          // 討死の途中・転倒・深手の者を、日が変わる時に柵へ運び直さない。
+          for (const u of g.units) if (!outOfFight(u)) {
             const at = g.slotPos(u.slot, g.initial);
             u.pos.x = at.x; u.pos.z = at.z; u.pos.y = W.heightAt(at.x, at.z); u.moveTo = null; u.target = null;
           }

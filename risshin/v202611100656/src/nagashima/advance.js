@@ -59,10 +59,10 @@ function take(o) {
   st.end = (rt, C, m, ctx) => { if (C.timeout && (C.nTot || 0) && fighters(C) <= C.nTot * 0.6) C.timeout = false; end(rt, C, m, ctx); };
   return st;
 }
-// 旗を立てる：本人が印の内に三秒、近くに武器を持つ敵がいない（四十五秒で味方が立てる）
+// 旗を立てる：本人が印の内に三秒、近くに武器を持つ敵がいない。
 function plant(o) {
   return {
-    kind: 'move', max: 60, limit: 60,
+    kind: 'move', max: 60, limit: Infinity, idleAdvance: false, noHardCap: true,
     start(rt, C) {
       C.at = o.at; C.goal = o.at; C.t = 0;
       rt.obj('dp', o.obj, 'main');
@@ -77,7 +77,7 @@ function plant(o) {
       if (calm) for (const q of rt.army.units) if (q.team !== u.team && q.alive && !q.fleeing && !q.noTarget && !q.isStruct && !q.civ &&
         (q.pos.x - p.x) ** 2 + (q.pos.z - p.z) ** 2 < 36) { calm = false; break; }
       if (calm) C.t += dt;
-      return C.t >= 3 || el > 45;
+      return C.t >= 3;
     },
     end(rt, C) { rt.unmark('dp'); rt.unzone('dp'); rt.objDone('dp'); o.done?.(rt); },
   };

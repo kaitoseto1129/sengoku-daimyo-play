@@ -241,12 +241,14 @@ const t03_komaki = {
   victoryCaption: '二重堀を守り、三河への中入りへ',
   missionPin(rt) {
     const F = rt.flags;
-    if (!F.stage || F.ending) return null;
+    if (F.ending) return null;
+    // 出陣直後の下知を待つ間も、最初の物見櫓を指す。
+    const stage = F.stage || 1;
     // 行き先は段ごとに固定（人や組の動きで動かさない。AW の 3・BK の 4）
-    const p = [null, Camp.towerAt(rt, this.ctx(rt)), GATE, FIELD, COUNCIL, MORIJIN, Night.FORD, Night.DAWN][F.stage];
+    const p = [null, Camp.towerAt(rt, this.ctx(rt)), GATE, FIELD, COUNCIL, MORIJIN, Night.FORD, Night.DAWN][stage];
     if (!p) return null;
     // 目標の文から名を抜くと、長い文は空欄になり、鉄砲組の段では敵の名が場所の代わりに出る。
-    PIN.x = p.x; PIN.z = p.z; PIN.r = 8; PIN.label = PIN_NAMES[F.stage];
+    PIN.x = p.x; PIN.z = p.z; PIN.r = 8; PIN.label = PIN_NAMES[stage];
     return PIN;
   },
   world: {

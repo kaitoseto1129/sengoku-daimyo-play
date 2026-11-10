@@ -5072,7 +5072,8 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
         F.nagaDead = true;
         this.castleFall(rt);
     }
-    if (!nu && !F.fallen) this.castleFall(rt);
+    // 長政の隊が空でも、本人の本丸到着と旗本の退却は省かない。
+    if (!nu && !F.fallen && F.honEntered && left === 0) this.castleFall(rt);
   },
 
   // 落城：本丸の旗が倒れ、御殿から火。長政は赤尾屋敷へ退く（最期は後日の知らせで）。

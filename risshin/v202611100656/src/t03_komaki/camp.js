@@ -105,7 +105,11 @@ export function tickCamp(rt, K) {
   if (F.campScout && !F.cScoutDone && (K.aliveN(F.cScout) <= 1 || rt.t - F.campScout > 50)) {
     F.cScoutDone = true;
     if (K.live(F.cScout)) { F.cScout.order = 'retreat'; F.cScout.dest = { x: K.HONJIN.x, z: 140 }; F.cScout.speed = 5; F.cScout.aggro = 0; F.cScout.seekRange = 0; }
-    rt.say('羽柴の侍', '陣の厚さを見に来たか。小牧山へ逃げ帰って、十万と申せ', 3);
+    rt.say('羽柴の侍', K.live(F.cScout)
+      ? '陣の厚さを見に来たか。小牧山へ逃げ帰って、十万と申せ'
+      : F.cScout.units.every((u) => !u.alive && u.hp <= 0)
+        ? '徳川の物見を討ち取った。陣の間を固めよ'
+        : '徳川の物見は退いた。陣の間を固めよ', 3);
   }
   const T = F.fortTower?.foot || { x: K.FORT.x + 22, z: K.GATE.z - 14 };
   if (!F.campAt && F.cScoutDone && Math.hypot(P.x - T.x, P.z - T.z) < 10 && el > 105) {

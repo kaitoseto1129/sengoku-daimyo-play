@@ -109,9 +109,11 @@ const STAGE_TEXT = ['',
 const BAN_TEXT = '三河への道で徳川方の番所を焼く', IKE_TEXT = '仏ヶ根の池田勝入様の旗本へ駆けつける';
 const textOf = (n) => (n === 0.5 ? BAN_TEXT : n === 5.5 ? IKE_TEXT : STAGE_TEXT[n]);
 // 段ごとの行き先（固定。人の動きに付いて動かさない・AW の 3）
-const GOAL = [null, { x: CAMP.x - 6, z: CAMP.z + 2 }, HIDE_STOP, { x: HINOKI.x + 12, z: HINOKI.z }, { x: HOTOKE.x + 10, z: HOTOKE.z - 4 }, { x: HOTOKE.x + 10, z: HOTOKE.z - 4 }, EXIT];
+// 仏ヶ根は森と元助の間。将が持ち場から八歩動いても、到着範囲の全体が両者の三十五歩以内に収まる。
+// 森の北で到着扱いにすると、印が消えたまま元助の最期を待ち続ける位置ができる。
+const GOAL = [null, { x: CAMP.x - 6, z: CAMP.z + 2 }, HIDE_STOP, { x: HINOKI.x + 12, z: HINOKI.z }, { x: HOTOKE.x + 6, z: HOTOKE.z + 8 }, { x: HOTOKE.x + 6, z: HOTOKE.z + 8 }, EXIT];
 // 到着と印を消す距離をそろえる。細ヶ根は退き切ったと認める距離に合わせる。
-const GOAL_R = [0, 14, 14, 14, 14, 14, 16];
+const GOAL_R = [0, 14, 14, 14, 12, 12, 16];
 const goalOf = (n) => (n === 0.5 ? March.BANSHO : n === 5.5 ? Ikeda.at(null, HOTOKE) : GOAL[n]);
 const goalR = (n) => (n === 0.5 || n === 5.5 ? 14 : GOAL_R[n]);
 const PIN = { x: 0, z: 0, r: 8, hide: 6, always: true, silent: true, enemy: false, unit: null, follow: false, fire: false, gate: false, defend: false, waiting: false, arrived: false, area: false, route: false };
