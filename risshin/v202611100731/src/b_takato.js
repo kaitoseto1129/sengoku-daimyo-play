@@ -146,7 +146,10 @@ Object.assign(takato, {
     }
     if (!point) return null;
     q.x = point.x; q.z = point.z;
-    q.arrived = q.waiting && Math.hypot(me.pos.x - q.x, me.pos.z - q.z) < (q.reach || q.r);
+    q.arrived = q.waiting && Math.hypot(me.pos.x - q.x, me.pos.z - q.z) < (q.reach || q.r) &&
+      Math.abs(me.pos.y - (point.y ?? rt.world.heightAt(q.x, q.z))) < 3 &&
+      (!F.honFell || F.C.kuruwa.hon.test(me.pos.x, me.pos.z)) &&
+      !rt.army.wallBetween(me.pos, -1, point);
     q.reach = 0;
     return q;
   },
@@ -194,10 +197,11 @@ function takatoNearestFoe(rt) {
   return closest;
 }
 // 曲輪を取るまでは、番所の中を休む場所にしない。迷い込んだら家具を避けて戸口へ戻る。
-// 本丸を取った後の城将探しと、上の階の戦いには割り込まない。
+// 本丸を取った後の城将探しには割り込まず、最期の後は戸口を通って旗へ戻す。
 function roomExit(rt) {
   const F = rt.flags, p = rt.player.u.pos;
-  if (rt.G.lord || F.honFell || F.ending || rt.over || !rt.player.u.alive) return null;
+  if (rt.G.lord || F.honFell && !(F.keep?.down || F.keepFell) ||
+      F.ending || rt.over || !rt.player.u.alive) return null;
   const room = nakaRoomAt(p.x, p.z, p.y);
   if (room && room.lv.k !== 0) { F.exitRoom = null; return null; }
   if (room) F.exitRoom = room.I;

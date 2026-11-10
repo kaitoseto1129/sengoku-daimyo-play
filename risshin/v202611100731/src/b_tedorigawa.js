@@ -1,3 +1,4 @@
+import { retreatRunFromBlade } from './bot_retreat.js';
 import { bodyGeometry } from './units_model.js';
 import { lodSwap, muddyFlag, umaGeometry } from './units_flags.js';
 import { rockShape } from './rock_shape.js';
@@ -2848,6 +2849,9 @@ const tedorigawa = {
       aggro: 4, seekRange: 0, width: 8, formation: 'line', morale: 100, noRout: true },
     dress([{ type: 'busho', n: 1, o: { name: '上杉謙信', invuln: true, horse: true } }, uS(10, { horse: true })], UESUGI));
     F.kenshinG.noHunt = true; F.kenshinG.defMult = 1.6;
+    // 11/10 指示書：謙信と馬廻は初めから斬り合わない（追撃を差し向けて見ているだけ）。闇の奥の持ち場から、本人を追って来ない。
+    F.kenshinG.aggro = 0; F.kenshinG.seekRange = 0; F.kenshinG.noWake = true;
+    for (const v of F.kenshinG.units) v.noTarget = true;
     F.ehon.general = F.kenshinG.units.find((u) => u.name === '上杉謙信') || null;
     if (F.ehon.general) F.kenshinG.leader = F.ehon.general;
     riverCampShelters(rt, [F.ehon], rt.scene.children.slice(campStart));   // 南岸（滝川）に陣屋を建てない（critic60）
@@ -3818,6 +3822,8 @@ function preparePursuit(rt, steps, bank) {
       g.dmgMult = 1; g.defMult = 1.7; g.tedoBank = bank; g.tedoFlank = /回り込む/.test(sp.name); all.push(g); g.tedoBow = sp.kind === 'bow';
       g.tedoRole = g.tedoBow ? 'ranged' : sp.list.some((q) => q.type === 'cavalry') ? 'horse' : /二の手|回り込む/.test(sp.name) ? 'second' : 'front';
       g.tedoFrom = [sp.from, other.from];
+      // 11/10：出番を待つ闇の追手は討つ的にしない（七尾の報の間に本人が斬り込み、待つ列と斬り合って倒れていた。指示書「始めはまだ敵が来ず静か」）。
+      for (const v of g.units) v.noTarget = true;
       w.groups.push(g);
     }
   }
@@ -3826,6 +3832,7 @@ function preparePursuit(rt, steps, bank) {
 function advancePursuit(g, at, push) {
   if (g.tedoActive || g.routed || !g.count) return;
   g.tedoActive = true; g.fixed = false; g.fire = true; g.aggro = 8; g.seekRange = 28;
+  for (const v of g.units) v.noTarget = false;
   // 控えは待機を保ち、出発した追手だけは前線の隙へ寄せる。
   g.frontlineMobilize = true;
   if (g.tedoFlank) {
@@ -4354,7 +4361,9 @@ function tedoHold(o) {
     //   失敗は、主人公が持ち場を離れて守らなかった時だけ。列が破られたら、そこで持ち場を捨てて渡る（史実の崩れ）。
     //   11/6 BT：上杉の大きな寄せに押し出され、川へ追われるのは主人公のせいではない。持ち場に一度でも四秒立てば守った事にする。
     //   11/9 織田F：南岸も同じ。篝火の持ち場に刻限の半ばまで立てば守った事にする（本隊や遅れた味方が渡りきらない・追手が来ないのは主人公のせいでない）。
-    const present = o.waitCross ? tedoSouthPost(rt, C) && C.inT >= o.dur * 0.5 :
+    //   11/10：終わりの瞬間に篝火の輪の外（追手を払いに数歩出た等）でも、南岸に上がっていれば守った事にする（指示書の詰まり防止）。
+    const pp = rt.player.u.pos;
+    const present = o.waitCross ? pp.z >= BANK_Z && !rt.world.inWaterAt(pp.x, pp.z) && C.inT >= o.dur * 0.5 :
       C.orderlyWithdrawal || C.broken || C.inT >= Math.min(o.dur * 0.5, 4);
     const won = !rt.flags.failedHold && present;
     if (won && C.broken) { rt.objDone('dp'); const D = rt.flags.dp; D.steps.length = D.i + 1; return; }   // 残りの火は飛ばし、done（渡河・勝ち）へ進む
@@ -4460,6 +4469,19 @@ tedorigawa.history = '天正五年（1577）、信長は柴田勝家を大将と
 // 素直な遊び手：渡り口まで退き、岸で追手と戦い、川を渡る
 // 退く下知の間は共通の退避や性格の突進で、居残る味方・敵の方へ引き戻さない。
 const NO_FRIENDS = [];
+// 本人と行き先が川の別の側にあり、渡り口の筋から外れている時は、まず自分の側の岸へ上がり、渡り口の筋へ寄る（bot だけの道順）。
+function tedoFordDetour(b, inp, goTo, at) {
+  if (!at) return false;
+  const u = b.player.u, bank = (x, z) => z - (2 + x * 0.1);
+  const pb = bank(u.pos.x, u.pos.z), tb = bank(at.x, at.z);
+  if (Math.sign(pb) === Math.sign(tb) && Math.abs(pb) > 22) return false;
+  if (Math.abs(u.pos.x - 2) <= 5 || Math.abs(pb) < 4 && Math.abs(tb) < 4) return false;
+  const side = pb >= 0 ? 1 : -1, dry = side * 31;
+  inp.guardHold = false; inp.leftPressed = false; inp.runHeld = true;
+  if (Math.abs(pb) < 24) goTo(b.player, inp, u.pos.x, 2 + u.pos.x * 0.1 + dry, 1.5);
+  else goTo(b.player, inp, 2, 2.2 + dry, 2);
+  return true;
+}
 tedorigawa.botEvacuating = (b) => {
   const C = b.flags.dp?.cur;
   return !!b.flags.paceFurikiru || b.flags.step === 1 || b.flags.step === 3 || (b.flags.step === 2 && C?.at &&
@@ -4469,6 +4491,7 @@ tedorigawa.botEvacuating = (b) => {
     (C.s.tedoLine || C.s.tedoPush) &&
     Math.hypot(b.player.u.pos.x - C.at.x, b.player.u.pos.z - C.at.z) > (C.s.tedoPush ? 9 : 6)));
 };
+tedorigawa.botBrainDepth = true;   // 段の間も下の頭で渡り口の筋を通す
 tedorigawa.botBrain = (b, inp, { goTo }) => {
   const p = b.player, u = p.u, F = b.flags;
   inp.quickCmd = null;
@@ -4477,22 +4500,23 @@ tedorigawa.botBrain = (b, inp, { goTo }) => {
   inp.k.delete('KeyS'); inp.k.delete('KeyA'); inp.k.delete('KeyD');
   if (!u.alive || F.ending) return;
   const pace = tedoPaceMarker(b);
-  // 退き口の案内中も、下の退却処理で本人への打ち込みを受ける。
-  // 案内だけを追う分岐では構えを解除し続け、追手に背をさらしてしまう。
-  if (pace && pace.id !== 'furikiru') {
+  // 荷駄を壊す赤い的だけは攻撃を保ち、道の案内は下の退却処理へ渡す。
+  if (pace?.red) {
     const at = pace.pos();
     b.botRest = false; inp.guardHold = false;
-    inp.runHeld = !pace.red; inp.leftPressed = false; inp.chargeHold = false;
-    goTo(p, inp, at.x, at.z, pace.red ? 2 : 3);
-    if (pace.red && Math.hypot(at.x - u.pos.x, at.z - u.pos.z) < 3.2) inp.leftPressed = true;
+    inp.runHeld = false; inp.leftPressed = false; inp.chargeHold = false;
+    goTo(p, inp, at.x, at.z, 2);
+    if (Math.hypot(at.x - u.pos.x, at.z - u.pos.z) < 3.2) inp.leftPressed = true;
     return;
   }
-  if (tedorigawa.botEvacuating(b)) {
+  if (pace || tedorigawa.botEvacuating(b)) {
     b.botRest = false; F.dpBack = false;
-    const q = F.paceFurikiru ? F.paceFurikiru.target : F.step === 1 ? FORD : F.step === 3 ? crossingTarget(b) : F.dp.cur.at;
-    const z = F.step === 1 ? FORD.z - 10 : q.z;
+    const q = pace ? pace.pos() : F.paceFurikiru ? F.paceFurikiru.target : F.step === 1 ? FORD : F.step === 3 ? crossingTarget(b) : F.dp.cur.at;
+    const z = !pace && F.step === 1 ? FORD.z - 10 : q.z;
     const stopRadius = F.step === 3 ? 0.75 : 2;
+    inp.axis = null;
     goTo(p, inp, q.x, z, stopRadius);
+    const walking = inp.k.has('KeyW'), retreatYaw = p.yaw;
     inp.leftPressed = false; inp.chargeHold = false;
     const e = b.army.nearestEnemy(u, 4, (o) => !o.fleeing && !o.woundOut && !o.noTarget &&
       o.type !== 'gun' && o.type !== 'bow' && !b.army.wallBetween(u.pos, -1, o.pos));
@@ -4508,24 +4532,26 @@ tedorigawa.botBrain = (b, inp, { goTo }) => {
       const d = Math.hypot(o.pos.x - u.pos.x, o.pos.z - u.pos.z);
       if (d < 4 && d < nearest) { face = o; nearest = d; }
     }
-    if (!face && e?.target === u && Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z) < 2.6) face = e;
-    inp.guardHold = !!face; inp.runHeld = !face;
+    if (!face && e?.target === u && !e.playerQueue && Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z) < (e.reach || 2.8) + 1.4) face = e;
+    inp.guardHold = !!face; inp.runHeld = !face && walking;
     if (face) {
       if (p.lock) inp.e.add('KeyQ');
       p.yaw = Math.atan2(face.pos.x - u.pos.x, face.pos.z - u.pos.z);
       inp.k.delete('KeyW'); inp.k.delete('KeyS'); inp.k.delete('KeyA'); inp.k.delete('KeyD');
-      if (Math.hypot(q.x - u.pos.x, z - u.pos.z) > stopRadius) {
-        const dx = q.x - u.pos.x, dz = z - u.pos.z;
-        const fw = dx * Math.sin(p.yaw) + dz * Math.cos(p.yaw);
-        const side = -dx * Math.cos(p.yaw) + dz * Math.sin(p.yaw);
-        if (Math.abs(fw) > 0.3) inp.k.add(fw > 0 ? 'KeyW' : 'KeyS');
-        if (Math.abs(side) > 0.3) inp.k.add(side > 0 ? 'KeyD' : 'KeyA');
-      }
+      // 構えた歩みで追手の刃に居残らず、道の曲がりと浅瀬を守って隙間へ退く。
+      inp.guardHold = !retreatRunFromBlade(b, inp, tedorigawa.dodgePointAllowed, walking ? retreatYaw : null);
     }
     return;
   }
   // 段（b_depth.js）が動いている間は、そちらの的へ向かう
-  if (F.dp && F.dp.on) { depthBot(b, inp, goTo); return; }
+  // 11/10：退いて川の向こうへ出た後、浅瀬でない所から戻ろうとして深みで止まらない。川を越える時は渡り口の筋（x≈2）を通る。
+  if (F.dp && F.dp.on) {
+    if (tedoFordDetour(b, inp, goTo, F.dp.cur?.at)) return;
+    // 南岸の持ち場では土手の上（z≥BANK_Z）に立つ。際で押されて川へ戻ったまま「持ち場を離れた」にしない。
+    const at = F.dp.cur?.at;
+    if (at && at.z > 0 && (u.pos.z < BANK_Z + 2 || b.world.inWaterAt(u.pos.x, u.pos.z))) { inp.runHeld = true; goTo(p, inp, at.x, at.z + 1, 1.5); return; }
+    depthBot(b, inp, goTo); return;
+  }
   const c = F.shiba.center();
   const e = b.army.nearestEnemy(u, 12, (o) => !o.fleeing);
   if (e && F.step >= 2) {

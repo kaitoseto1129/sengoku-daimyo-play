@@ -3122,15 +3122,19 @@ function inabaPacingWait(rt) {
     const k = (F.tsuke ? 'n' : 'k') + ((F.tsuke ? F.nanaNext : F.karaNext) || 0);
     if (F.nudgeKey !== k) { F.nudgeKey = k; F.nudgeKeyT = rt.t; }
   }
-  if (F.step === 3 && rt.player.u.alive && !rt.retryOpen && (rt.t - (F.pacingClimbT || F.stepT) > 60 || rt.t - F.nudgeKeyT > 75) && rt.t >= (F.climbNudgeAt || 0)) {
+  // 待機や斬り合いだけでは先へ移さない。歩こうとして三秒詰まった本人だけを救う。
+  if (F.step === 3 && rt.player.u.alive && rt.player.u.hp > 0 && !rt.player.u.dying && !rt.retryOpen
+    && (rt.player.blockedWalkT || 0) >= 3
+    && (rt.t - (F.pacingClimbT || F.stepT) > 60 || rt.t - F.nudgeKeyT > 75) && rt.t >= (F.climbNudgeAt || 0)) {
     const trail = F.tsuke ? NANA : KARA_TRAIL;
     const i = Math.min((F.tsuke ? F.nanaNext : F.karaNext) || 0, trail.length - 1), c = trail[i], pp = rt.player.u.pos;
     if (c && Math.hypot(pp.x - c[0], pp.z - c[1]) < 45) {   // 細道の折れ（-37,4）は次の角から三十歩余り離れていた
       F.nudgeKeyT = rt.t;
       F.climbNudgeAt = rt.t + 30; F.pacingClimbT = rt.t;
-      const put = (u, x, z) => { u.pos.x = x; u.pos.z = z; u.pos.y = rt.world.heightAt(x, z); };
+      const put = (u, x, z) => { u.pos.x = x; u.pos.z = z; u.pos.y = rt.world.heightAt(x, z); u.mesh?.position.copy(u.pos); };
       put(rt.player.u, c[0], c[1]);
-      for (const q of rt.squadGroups || []) for (const u of q.units) if (u.alive) put(u, c[0] + (Math.random() - 0.5) * 3, c[1] + (Math.random() - 0.5) * 3);
+      rt.player.blockedWalkT = 0;
+      for (const q of rt.squadGroups || []) for (const u of q.units) if (u.alive && u.hp > 0 && !u.dying && !u.gone && !u.woundOut) put(u, c[0] + (Math.random() - 0.5) * 3, c[1] + (Math.random() - 0.5) * 3);
     }
   }
   // 11/9 お客さんの声：登りの持ち時間が短く、初めての人は七曲りで打ち切られた。上限を十分・止まってから二分に

@@ -387,6 +387,13 @@ const k04_kuisegawa = {
       // 史実：岡山で見ていた家康が兵を引かせた（内府＝内大臣。大御所は後の呼び名）
       rt.after(2.5, () => rt.say('使番', '岡山より下知。深追い無用、杭瀬川を越えて引けとの内府様の仰せ', 3.2));
       for (const b of [B.shima, B.akashi, B.bait]) this.go(b, T(20, b === B.akashi ? 14 : -10), 2.2, { charge: true });
+      // 音だけの斉射ではなく、葦の鉄砲衆自身が岸へ出て退く先手を撃つ。
+      // 渡河はせず、大垣の側の岸に射撃の持ち場を固定する。
+      if (live(F.guns)) {
+        const bank = T(26, 14);
+        F.guns.fixed = true; F.guns.order = 'move'; F.guns.dest = bank; F.guns.speed = 3;
+        F.guns.onArrive = (g) => { g.order = 'hold'; g.anchor = bank; g.dest = null; };
+      }
     } else if (n === 5) {
       rt.marker('camp', ARIMA, '有馬豊氏の陣');
       rt.say('有馬豊氏', '中村の者を通せ！　鉄砲、川へ向けて構えよ', 3);
@@ -500,11 +507,8 @@ const k04_kuisegawa = {
     // 防戦の長さは実際の経過秒で数える。間引いた判定の回数で数えると、
     // 携帯でコマが遅れた時だけ百三十秒の防戦が長引いてしまう。
     if (F.step === 3 && F.defended && F.noiU?.alive && dist(F.noiU.pos, P.pos) < 12) F.nearT = (F.nearT || 0) + dt;
-    // 追撃と斉射も経過秒で数える。判定の間引きで携帯だけ間隔を延ばさない。
-    if (F.step >= 4) {
-      F.chaseT = (F.chaseT ?? 0) - dt;
-      if (PL.x <= 60) F.backFireT = (F.backFireT ?? 3) - dt;
-    }
+    // 追撃も経過秒で数える。判定の間引きで携帯だけ間隔を延ばさない。
+    if (F.step >= 4) F.chaseT = (F.chaseT ?? 0) - dt;
     if ((F.scanT = (F.scanT || 0) - dt) > 0) return;
     F.scanT = 0.25;
     const menRemain = F.mine.units.some(canReturn) || (rt.squad || []).some(canReturn);
@@ -550,9 +554,7 @@ const k04_kuisegawa = {
         g.chaseSoft = true; g.speed = 3;
         if (g.order === 'hold') { g.order = 'attack'; g.seekRange = 40; g.aggro = 12; }
       }
-      // 退き口へ入っただけでは傷を回復させない。
-      // 背の葦と川べりから西軍の鉄砲が撃ちかける（煙と音。川を渡り切るまで）
-      if (PL.x <= 60 && (F.backFireT ?? 3) <= 0) { F.backFireT = 5 + Math.random() * 3; const q = T(Math.min(PL.x, 30) - 16, PL.z + (Math.random() - 0.5) * 14); rt.army.play('volley', q, 1.1); }
+      // 鉄砲は岸へ進んだ F.guns の通常射撃に任せる。撃っていない場所で銃声を鳴らさない。
     }
   },
 
@@ -605,6 +607,7 @@ const k04_kuisegawa = {
   },
 
   botEvacuating(b) { return (b.flags.step || 0) >= 4; },
+  botGuardFlee(b) { return this.botEvacuating(b); },
 
   // bot：近い敵を突き、段の行き先へ。退く段は敵を振り切って走る
   botBrain(b, inp, { goTo, patientStrike }) {

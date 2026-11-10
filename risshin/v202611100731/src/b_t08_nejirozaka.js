@@ -404,7 +404,7 @@ const t08_nejirozaka = {
   // 猿渡の討死は名のある知らせで伝え、共通の隊崩れの札を重ねない。
   bannerAllowed: (rt, text) => !/隊が崩れた|敵の組頭が討たれた/.test(text),
   // 布陣図の地名（docs/fujin/t08_nejirozaka.md）
-  introMapPlaces: [{ x: 0, z: -14, name: '根白坂の砦' }, { x: 14, z: -110, name: '羽柴秀長の本陣' }, { x: 4, z: 172, name: '島津の陣' }],
+  introMapPlaces: [{ x: 0, z: -14, name: '根白坂の砦' }, { x: 14, z: -96, name: '羽柴秀長の本陣' }, { x: 4, z: 172, name: '島津の陣' }],
   spawn: { x: -4, z: -30, heading: 0 },
   world: {
     namedKacchu: NEJIROZAKA_MIYABE_KACCHU,
@@ -442,6 +442,8 @@ const t08_nejirozaka = {
     // ---- 砦：前の板塀（登って越えられる）・東西の塀・櫓と篝火 ----
     const front = [];
     for (let x = -WALL_X; x <= WALL_X; x += 6) front.push([x, WALL_Z]);
+    // 幅九十二は六で割り切れない。東の塀までつなぎ、端の二歩を通り抜けられなくする。
+    front.push([WALL_X, WALL_Z]);
     // 11/8 二3：杭だけの柵でなく、杭に板を張った板塀に見せる（props.js の boardScreen）
     const BOARD = { boardScreen: true };
     F.walls = wallLine(rt, front, { team: 0, hp: 1e9, name: '板塀', segLen: 6, meshOpt: BOARD });

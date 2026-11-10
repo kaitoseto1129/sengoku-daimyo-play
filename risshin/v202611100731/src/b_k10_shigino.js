@@ -121,8 +121,10 @@ function dikeWay(army, u, want) {
   return q;
 }
 
-const live = (g) => g && g.units.some((u) => u.alive && !u.gone && !u.fleeing);
-const aliveN = (g) => (g ? g.units.reduce((n, u) => n + (u.alive && !u.gone && !u.fleeing ? 1 : 0), 0) : 0);
+// 深手で戦列を離れた者は残る戦力に数えない。生死は書き換えない。
+const fighting = (u) => u.alive && !u.gone && !u.fleeing && !u.woundOut && !u.rearWound && !u.evacuatedWound && !u.dying;
+const live = (g) => g && g.units.some(fighting);
+const aliveN = (g) => (g ? g.units.reduce((n, u) => n + (fighting(u) ? 1 : 0), 0) : 0);
 const sumN = (...gs) => gs.reduce((n, g) => n + aliveN(g), 0);
 const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 // 上杉勢：黒い具足に竹に雀。豊臣方：くすんだ黒の具足に桐。榊原：無の字

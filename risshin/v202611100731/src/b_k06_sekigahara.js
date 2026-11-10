@@ -169,7 +169,16 @@ const goTo = (g, dest) => { if (!g) return; g.order = 'move'; g.dest = { ...dest
 const foe = (rt, name, at, list, lk, o = {}) => enemyGroup(rt, { name, faction: 'toyotomi', anchor: { ...at }, facing: Math.PI / 2, order: 'attack', aggro: 36, seekRange: 60, width: 10, ...o }, dress(list, lk));
 const ally = (rt, name, at, list, lk, o = {}) => allyGroup(rt, { name, faction: 'tokugawa', anchor: { ...at }, facing: -Math.PI / 2, width: 10, aggro: 14, morale: 92, noRout: true, ...o }, dress(list, lk));
 // 総大将は本陣で床几に座る（update が座り直させる）。幕の内から出ない（aggro 0・その場に留まる）
-const SEAT = (g, name) => { const u = g?.units.find((o) => o.name === name); if (u) { u._crouch = true; u.noTarget = true; u._k06Seat = { ...u.pos }; } return u; };
+const keepCommander = () => {};
+const SEAT = (g, name) => {
+  const u = g?.units.find((o) => o.name === name);
+  if (u) {
+    // 索敵から外すだけでは、巻き込まれた一撃の手傷処理で討たれる。退却・自害は戦の台本に任せる。
+    u.mustLive = true; u.onWound = keepCommander;
+    u._crouch = true; u.noTarget = true; u._k06Seat = { ...u.pos };
+  }
+  return u;
+};
 // 索敵距離が零でも共通の応戦は働く。総大将だけを床几に留め、旗本は戦わせる。
 const sit = (u) => {
   if (!u?.alive || u.gone || u.fleeing || u.group?.routed) return;
@@ -233,7 +242,7 @@ const k06_sekigahara = {
   resumeSteps: [
     [1, function (rt) { this.stage1(rt); }], [2, function (rt) { rt.flags.kaniWait = false; this.stage2(rt); }], [3, function (rt) { this.stage3(rt); }], [4, function (rt) { this.stage4(rt); }],
     [6, function (rt) { this.stage6(rt); }], [7, function (rt) { this.stage7(rt); }], [8, function (rt) { this.stage8(rt); }],
-    [9, function (rt) { this.stage9(rt); }], [10, function (rt) { this.stage10(rt); }],
+    [9, function (rt) { this.otaniFall(rt); }], [10, function (rt) { this.westFall(rt, true); }],
   ],
   resumeAt: (rt, s) => ({ 2: NUKE, 3: NUKE, 4: BACK, 6: { x: UKITA_F.x + 20, z: UKITA_F.z + 10 }, 7: { x: TODO_P.x - 10, z: TODO_P.z }, 8: RLINE, 9: { x: HIRA.x + 30, z: HIRA.z - 30 }, 10: { x: HOLD5.x + 8, z: HOLD5.z + 6 } })[s] || null,
   horseHurtMul: 0.4,   // 11/8 critic60（一8）：馬がすぐ死んで④〜⑤を一人で歩いた。馬の傷を軽く
@@ -613,19 +622,21 @@ const k06_sekigahara = {
     rt.after(14, () => rt.say('島左近', 'まだじゃ……石田の陣、一歩も退くな！', 3));
   },
   // 宇喜多・石田の退却（秀家・三成は討たせず逃がす）→ ⑩ 島津の退き口
-  westFall(rt) {
+  westFall(rt, immediate = false) {
     const F = rt.flags;
     if (F.westDown) return;
     F.westDown = rt.t;
     rout(F.shingari); rout(F.koniR); rout(F.konishi);
     rt.say('宇喜多秀家', '金吾めっ……！　刺し違えてくれる！', 3);
-    rt.after(3, () => { rt.say('宇喜多の近習', '殿、なりませぬ！　ここは落ちのびられませ！', 3); if (F.hide?.leader?.alive) rt.army.despawn(F.hide.leader); rout(F.hide); rout(F.hideG); });
-    rt.after(7, () => {
+    const hideLeaves = () => { rt.say('宇喜多の近習', '殿、なりませぬ！　ここは落ちのびられませ！', 3); if (F.hide?.leader?.alive) rt.army.despawn(F.hide.leader); rout(F.hide); rout(F.hideG); };
+    const mitsuLeaves = () => {
       rt.say('使番', '治部少輔（三成）、伊吹山の方へ落ちた！', 3.5);
       if (F.mitsuU?.alive && !F.mitsuU.gone) rt.army.despawn(F.mitsuU);
       rout(F.mitsu);
-    });
-    rt.after(9, () => this.stage10(rt));
+    };
+    // 途中再開では済んだ退却をその場で戻す。島津の目標だけを作ると、本陣に総大将が復活してしまう。
+    if (immediate) { hideLeaves(); mitsuLeaves(); this.stage10(rt); }
+    else { rt.after(3, hideLeaves); rt.after(7, mitsuLeaves); rt.after(9, () => this.stage10(rt)); }
   },
   // ⑩ 島津の退き口。朝から奥の林に構えていた島津の隊が、家康の本陣の前を突き抜ける
   stage10(rt) {
@@ -760,7 +771,7 @@ const k06_sekigahara = {
         goAttack(F.otaW2, { x: RLINE.x - 8, z: RLINE.z - 10 }, 30, 40);
         rt.say('戸田勝成', '大谷の手はまだあるぞ。押せ！', 3);
       }
-      if (F.held7 >= HOLD7S && rt.t >= FLIP_MIN_T) this.stage8(rt);
+      if (F.held7 >= HOLD7S && rt.t >= FLIP_MIN_T && near(P, RLINE, 40)) this.stage8(rt);
     } else if (F.step === 8) {
       if (F.turned && !F.n8) F.n8 = Math.max(1, nOf(F.otani, F.otaW1, F.otaW2));
       const since = F.flipT ? rt.t - F.flipT : 0;
