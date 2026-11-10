@@ -102,7 +102,8 @@ export function tick(rt, dt, C) {
 export function pin(rt, C) {
   const F = rt.flags, K = F.kai;
   if (!K || F.step !== 10) return undefined;
-  return K.jump ? { x: C.FRONT.x + 2, z: C.FRONT.z + 2, r: 8, label: '佐間口の門前' } : null;
+  // 小田原開城の知らせを待つ間も、見届ける場所を消さない。
+  return { x: C.FRONT.x + 2, z: C.FRONT.z + 2, r: 8, label: '佐間口の門前' };
 }
 
 export function bot(b, inp, T, C) {

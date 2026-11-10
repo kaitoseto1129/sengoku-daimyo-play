@@ -19,7 +19,10 @@ export function install(rt, ctx) {
   rt.setPhase('nanao');
   rt.obj('main', '北の塚へ上り、上杉の動きを見よ', 'main');
   rt.marker('nanaoLook', LOOK, '北の塚', { h: 3, guideAlways: true, guidePriority: 400 });
-  rt.say('柴田勝家', '退く前に、上杉がどこまで来ておるか見て参れ！', 4);
+  // 11/10 指示書：勝家は狼狽せず「夜のうちに兵を引く。」→ 戦わずに帰れると一瞬思わせる。
+  rt.say('柴田勝家', '……夜のうちに兵を引く。', 3.5);
+  rt.after(4, () => { if (active() && step === 0) rt.say('柴田勝家', '退く前に、上杉がどこまで来ておるか見て参れ！', 4); });
+  rt.after(9.5, () => { if (active() && step === 0) rt.say('足軽', '戦わずに済むか……', 3); });
 
   const look = () => {
     step = 1; t1 = rt.t;

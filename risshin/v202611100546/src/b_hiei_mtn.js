@@ -2645,7 +2645,7 @@ const hiei_mtn = {
     const q = F.standardPin || (F.standardPin = { x: 0, z: 0 });
     // 始まりの段：湖岸の辻、または里坊の僧兵（hieizan/sakamoto.js）
     if (SAKA.active(rt)) {
-      const S = F.hieiSaka, u = S.k === 2 && S.g?.units.find((v) => v.alive);
+      const S = F.hieiSaka, u = S.k === 2 && S.g?.units.find(hieiReady);
       q.unit = u || null; q.enemy = !!u; q.waiting = false; q.arrived = false; q.route = false;
       const at = u ? u.pos : S.k === 0 ? S.at : { x: 176, z: 6 };
       q.x = at.x; q.z = at.z; q.r = q.hide = u ? 2 : 4;

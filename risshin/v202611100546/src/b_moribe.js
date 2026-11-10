@@ -4235,6 +4235,13 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
     // 深手の退避中も、近くの敵は共通処理で戦い続ける。
     // 公記の森部は織田の大勝。本人以外の味方への打ち込みを浅くし、勝ち戦の芯が溶けないようにする。
     const damage = rt.army.damage;
+    // 共通の戦功は、本人が深手を負わせた敵を味方が討っても本人へ付け替える。
+    // 「自分で討つ」の成否には、付け替える前のとどめの主を使う。
+    const kill = rt.army.kill;
+    rt.army.kill = function (t, src, ...rest) {
+      if (t) t.moribeKiller = src;
+      return kill.call(this, t, src, ...rest);
+    };
     rt.army.damage = function (t, amount, src, ...rest) {
       // 11/6 fixc（kaito 一-1）：速回しで味方が三分の二討たれた。公記の森部は織田の大勝なので、味方の兵への打ち込みは四割に。
       //   11/7 fixc0814：本人が旗本の侍を討つまで旗本は味方の槍で倒れにくく、その間（長い時は百五十秒）に味方が 94→36 人まで減った。
@@ -5187,7 +5194,7 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
     if (v.name === '神戸将監' && k && !k.isPlayer && k.team === 0 && sightPoint(rt, v.pos)) rt.say('足軽', `${k.name ? `${k.name}殿が、` : '味方が、'}神戸将監を討ったぞ！`, 3);
     if (v.team === 1) rt.flags.ek = (rt.flags.ek || 0) + 1; else rt.flags.ak = (rt.flags.ak || 0) + 1;
     // 11/6 fixc：目標④「両将の旗本の侍を自分で討つ」。名の伝わらない侍なので名は呼ばない。
-    if (k?.isPlayer && (v.group === rt.flags.HM || v.group === rt.flags.HN) && (v.type === 'samurai' || v.type === 'busho') && !rt.flags.ownHatamoto) {
+    if (v.moribeKiller?.isPlayer && (v.group === rt.flags.HM || v.group === rt.flags.HN) && (v.type === 'samurai' || v.type === 'busho') && !rt.flags.ownHatamoto) {
       rt.flags.ownHatamoto = rt.t;
       rt.say('組頭 源八（げんぱち）', `${v.type === 'busho' ? v.name : `${v.group === rt.flags.HM ? '日比野' : '長井'}の旗本の侍`}を突き伏せたか。首を取れ、証にするぞ`, 4);
       if (rt.flags.pursuit) {

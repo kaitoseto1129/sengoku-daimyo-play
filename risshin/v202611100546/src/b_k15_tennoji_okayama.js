@@ -84,11 +84,11 @@ const DEST = {
   oka: () => ({ x: 14, z: 72, label: '秀忠本陣の西口' }),
   1: () => ({ x: SHITENNO.x, z: SHITENNO.z + 26, label: '四天王寺の南' }),
   2: () => ({ x: HONF.x, z: HONF.z, label: '本陣の前' }),
-  3: (rt) => ({ x: rt.flags.uma.position.x, z: rt.flags.uma.position.z, label: '倒れた馬印' }),
+  3: (rt) => ({ x: rt.flags.uma.position.x, z: rt.flags.uma.position.z, label: '大御所の馬印' }),
   4: () => ({ x: HONF.x, z: HONF.z, label: '本陣の前' }),   // 信繁の三の突撃は本陣の前でぶつかる（charge の行き先も同じ所）
   0.7: (rt) => (rt.flags.seen ? { x: FRONT.x - 4, z: FRONT.z + 6, label: '本多忠朝の陣' } : { x: MIRU.x, z: MIRU.z, label: '麓の畦' }),
   5: () => ({ x: YASUI.x, z: YASUI.z, label: '安居の天神' }),
-  6: () => ({ x: SHINGARI.x, z: SHINGARI.z + 6, label: '四天王寺の北' }),
+  6: (rt) => { const a = rt?.flags?.shAt || SHINGARI; return { x: a.x, z: a.z + 6, label: '毛利の殿' }; },   // 殿は退く毛利の手の後ろ（主人公の目の前）に出る
   7: () => ({ x: TOP.x, z: TOP.z, label: '茶臼山の丘の上' }),
 };
 const GOAL_LIMIT = { 1: '毛利勝永の先手に押し切られた', 2: '真田と毛利の突撃を止められなかった', 3: '真田の二の突撃に本陣を破られた', 4: '真田信繁の旗本を討ちきれなかった', 5: '真田信繁を取り逃がした', 6: '毛利の殿を崩せなかった', 7: '茶臼山に旗を立てられなかった' };
@@ -99,12 +99,12 @@ const ROADS = [
   [[CHAUSU.x, CHAUSU.z], [-104, 50], [-84, 92], [HONF.x, HONF.z]],   // 茶臼山から本陣への真田の寄せ道
 ];
 
-const TOYO = { armor: 0x221f1c, flag: 'toyotomi' };                    // 毛利勝永の隊（豊臣の旗）
+const TOYO = { armor: 0x4a4036, flag: 'toyotomi' };   // 11/9 kaito 四12：黒すぎた（0x221f1c）→ 漆の褐色が見える明るさに                    // 毛利勝永の隊（豊臣の旗）
 const SANADA = { armor: 0x8e1f16, lace: 0xb8342a, flag: 'sanada' };     // 真田の赤備え（全員赤）
-const TOKU = { armor: 0x1f1e1c, flag: 'tokugawa' };
-const HONDA = { armor: 0x1c1a18, flag: 'honda' };
+const TOKU = { armor: 0x48443e, flag: 'tokugawa' };
+const HONDA = { armor: 0x46403a, flag: 'honda' };
 const kit = (side, o = {}) => ({ flag: side.flag, armor: side.armor, ...(side.lace ? { lace: side.lace } : {}), ...o });
-const sq = (side, type, n, o) => ({ type, n, o: kit(side, o) });
+const sq = (side, type, n, o) => ({ type, n, o: { ...kit(side, o), ...((type === 'ashigaru' || type === 'gun') && !o?.name && o?.flag !== null && o?.flagScale == null ? { flagScale: 1.5 } : {}) } });   // 11/9 kaito 四11：旗を高く立てる（どの家の隊か遠くから分かる）
 const alive = (g) => g && !g.routed && g.count > 0;
 const near = (p, q, r) => Math.hypot(p.x - q.x, p.z - q.z) < r;
 const sum = (gs) => (gs || []).reduce((s, g) => s + (alive(g) ? g.count : 0), 0);
@@ -112,7 +112,7 @@ const sum = (gs) => (gs || []).reduce((s, g) => s + (alive(g) ? g.count : 0), 0)
 const hold = (g, x, z) => { if (!g || g.routed) return; g.anchor.x = x; g.anchor.z = z; g.order = 'hold'; g.dest = null; g.path = null; g.focus = null; };
 // 道の点を順に歩かせ、終わりの点で構える
 const march = (g, pts) => { if (!alive(g) || !pts.length) return; const [p, ...rest] = pts; g.order = 'move'; g.anchor = { x: p.x, z: p.z }; g.dest = { x: p.x, z: p.z }; g.onArrive = (q) => { q.onArrive = null; if (rest.length) march(q, rest); else hold(q, p.x, p.z); }; };
-const flee = (gs) => { for (const g of gs) if (alive(g)) { g.noRout = false; g.routed = true; g.order = 'flee'; } };
+const flee = (gs) => { for (const g of gs) if (alive(g)) { g.noRout = false; g.routed = true; g.order = 'flee'; g.allOutRun = true; } };   // 退く隊は走る（11/9 kaito 四8「散歩に見える」）
 
 // ---- 地形：国土地理院の標高（上町台地の西の崖・茶臼山・東の低い田）を縦に少し強めて写す ----
 // 標高の茶臼山の丘の上（実の二十六メートル。格子の (-99,-25)）をゲームの茶臼山に重ねる（DX・DZ）。安居の天神・四天王寺との向きと距離は史跡の地図どおり
@@ -241,6 +241,8 @@ const k15_tennoji_okayama = {
   // 戦の前の話の間は、近くの名のある味方（小笠原秀政）へ「ついて行く」印を出さない。人の頭の▼に字を添えない（物差し 五-1）
   goalSignOff: (rt) => !rt.flags.step,
   goalSignUnitNoLabel: true,
+  // 11/9 kaito 四4：小さな隊が崩れただけで「敵は総崩れじゃ」と出た（大軍が来る前・真田の突撃の前）。この戦の崩れの声は一手の崩れとして言う
+  battleVoices: { lines: { ally: { rout: ['一手が崩れた！', '敵の一手が退くぞ！', 'あの手は崩れた。次が来るぞ！'] } } },
   sides: { a: { name: '徳川方', mon: 'tokugawa', faction: 'tokugawa' }, b: { name: '豊臣方', mon: 'toyotomi', faction: 'toyotomi' } },
   taisho: { a: { name: '徳川家康', def: true }, b: { name: '真田信繁', def: true } },
   world: {
@@ -263,7 +265,7 @@ const k15_tennoji_okayama = {
     // 11/8 critic60 八1・九5：野の木に杉を混ぜない（遠くの杉が白く透けたお化けに見えた）。松と楠（雑木）だけ
     treeMix: { sugi: 0.04, matsu: 0.66 },
     // 11/8 critic60 八1・四1：逆光の近い味方の足軽が真っ黒な影の人形に見えた。兵の面の補光を少し上げる
-    unitCloudFill: 0.5,
+    unitCloudFill: 0.75,   // 11/9 kaito 四12「兵の色が暗すぎて黒い」
     tufts: 2600,
     treeDensity: (x, z) => {
       if (near({ x, z }, SHITENNO, 26)) return 1.2;     // 四天王寺の森
@@ -282,7 +284,8 @@ const k15_tennoji_okayama = {
     { const P = rt.player, td = P.takeDamage, k = rt.def.cutFloor, kg = rt.def.gunFloor || 1; P.takeDamage = function (a, s) { const m = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow'; if (s && !s.isStruct && a > 0) { const cap = (this.u.maxHp || 100) * 0.3; if (this._k15T !== rt.t) { this._k15T = rt.t; this._k15A = 0; } a = Math.max(0, Math.min(a * (m ? kg : k), cap, cap - this._k15A)); this._k15A += a; if (!a) { this.u.hitKind = null; return 0; } } return td.call(this, a, s); }; }   // 11/9：三方から寄せる敵に囲まれ、同じ一瞬に六人の刃で五十二から零に → 一瞬に受ける傷の合わせも命の三割まで   // 11/8：真田の騎馬が増え、馬の当たりと刃の重なりで一息に討たれた → 一つの傷は命の三割まで   // 受ける量そのものを減らす（11/8：前は減らした値を返すだけで、命には効いていなかった）   // 刃の一太刀を def.cutFloor 倍に（この戦だけ）
     const F = rt.flags, S = Math.PI;
     F.step = 0; F.ek = 0; F.ak = 0; F.ending = false;
-    if (rt.player.canRide && rt.player.mounted) rt.player.toggleMount();
+    // 11/9 kaito 四22：馬が隣にあるなら、馬に乗った状態で始める（前は乗っていても降ろしていた）
+    { const P = rt.player, L = P.loose; if (P.canRide && !P.mounted && L && L.mode !== 'fled' && P.u && Math.hypot(L.x - P.u.pos.x, L.z - P.u.pos.z) < 3.2) P.toggleMount(); }
     scenery(rt);
     installOkayama(rt, this);   // 岡山口の段（k15/okayamaguchi.js）：毛利の先手の後、真田の突撃の前に入る
     k15SoundSetup(rt);   // 音と声（k15/sound.js）
@@ -291,7 +294,7 @@ const k15_tennoji_okayama = {
     // ---- 徳川方：大御所の本陣（旗本の侍に囲まれて床几に座る。床几の主の前で近臣の正純は馬を下りる）・旗本の二の備・本多忠朝の先手・自分の手勢 ----
     F.hon = allyGroup(rt, { faction: 'tokugawa', name: '大御所の旗本', anchor: { x: HON.x, z: HON.z }, facing: S, width: 9, aggro: 16, seekRange: 20, order: 'hold', fixed: true, noRout: true, fullStrength: true, morale: 100 },
       [sq(TOKU, 'busho', 1, { name: '徳川家康', invuln: true, horse: true }), sq(TOKU, 'busho', 1, { name: '本多正純', invuln: true, horse: false, hat: 'kabuto_m', flag: 'honda' }),
-        sq(TOKU, 'samurai', 20), sq(TOKU, 'gun', 6)]);   // 本物の兵の枠（二百五十）の内で二陣を置くため少し減らし、厚みは後ろの軽い大軍で見せる
+        sq(TOKU, 'samurai', 20), sq(TOKU, 'gun', 8)]);   // 本物の兵の枠（二百五十）の内で二陣を置くため少し減らし、厚みは後ろの軽い大軍で見せる
     F.ieyasu = F.hon.units.find((u) => u.name === '徳川家康');
     if (F.ieyasu) F.ieyasu._crouch = true;   // 床几に腰を下ろす
     // 馬は後ろに引かせておき（降りて床几へ）、本陣が危うくなったら乗って退く（docs/k15_crisis_spec_1108.md「家康が実際に馬で退く」）
@@ -302,7 +305,7 @@ const k15_tennoji_okayama = {
       [sq(TOKU, 'samurai', 8), sq(TOKU, 'ashigaru', 7), sq(TOKU, 'gun', 3)]);
     // 二陣（榊原康勝・仙石忠政ら）：先手と本陣の間に陣し、先手を破った敵を受け止める（11/8 陣の厚み。本陣まで陣が何重にも）
     F.nijin = allyGroup(rt, { faction: 'tokugawa', name: '榊原康勝の二陣', anchor: { x: NIJIN.x, z: NIJIN.z }, facing: S, width: 12, aggro: 16, seekRange: 22, order: 'hold', fixed: true, noRout: true, fullStrength: true, formation: 'yari' },
-      [sq({ armor: 0x1f1e1c, flag: 'sakakibara' }, 'busho', 1, { name: '榊原康勝', hat: 'kabuto_m', horse: true }), sq({ armor: 0x1f1e1c, flag: 'sakakibara' }, 'samurai', 4), sq({ armor: 0x1f1e1c, flag: 'sakakibara' }, 'ashigaru', 10), sq({ armor: 0x1f1e1c, flag: 'sakakibara' }, 'gun', 3)]);
+      [sq({ armor: TOKU.armor, flag: 'sakakibara' }, 'busho', 1, { name: '榊原康勝', hat: 'kabuto_m', horse: true }), sq({ armor: TOKU.armor, flag: 'sakakibara' }, 'samurai', 4), sq({ armor: TOKU.armor, flag: 'sakakibara' }, 'ashigaru', 10), sq({ armor: TOKU.armor, flag: 'sakakibara' }, 'gun', 3)]);
     F.nijin.defMult = 1.2; F.nijin.dmgMult = 0.6;
     F.honda = allyGroup(rt, { faction: 'tokugawa', name: '本多忠朝の先手', anchor: { x: FRONT.x, z: FRONT.z }, facing: S, width: 12, aggro: 14, seekRange: 30, morale: 95, noRout: true, fixed: true, fullStrength: true, formation: 'yari' },
       [sq(HONDA, 'busho', 1, { name: '本多忠朝', hat: 'kabuto_m', horse: true }), sq(HONDA, 'busho', 1, { name: '小笠原秀政', hat: 'kabuto_m', horse: true, flag: null }),   // 小笠原は三階菱の家。大将は背に旗を差さず、葵の旗は持たせない
@@ -323,15 +326,26 @@ const k15_tennoji_okayama = {
 
     // ---- 豊臣方：四天王寺の南門の前の毛利勝永の先手・茶臼山の真田（初めは丘の上で待つ） ----
     F.mori = enemyGroup(rt, { fixed: true, faction: 'toyotomi', name: '毛利勝永の先手', anchor: { x: SHITENNO.x, z: SHITENNO.z + 8 }, facing: 0, width: 10, aggro: 10, seekRange: 20, order: 'hold', morale: 95, formation: 'yari' },
-      [sq(TOYO, 'busho', 1, { name: NAMES.katsunaga, invuln: true, horse: true }), sq(TOYO, 'samurai', 8), sq(TOYO, 'ashigaru', 21), sq(TOYO, 'gun', 7)]);   // 11/8 kaito：勝永が前線に立ち、大勢がまとまって中央を突破してくる
+      [sq(TOYO, 'busho', 1, { name: NAMES.katsunaga, invuln: true, horse: true }), sq(TOYO, 'cavalry', 6), sq(TOYO, 'samurai', 8), sq(TOYO, 'ashigaru', 21), sq(TOYO, 'gun', 9)]);   // 11/9 kaito 四2・10：勝永の騎馬が先に立ち、鉄砲も厚く   // 11/8 kaito：勝永が前線に立ち、大勢がまとまって中央を突破してくる
     F.sanada = enemyGroup(rt, { fixed: true, faction: 'toyotomi', name: '真田の赤備え', anchor: { x: CHAUSU.x + 2, z: CHAUSU.z - 8 }, facing: 0.6, width: 12, aggro: 4, seekRange: 6, order: 'hold', morale: 100, noRout: true },
-      [sq(SANADA, 'busho', 1, { name: NAMES.otani, horse: false, hat: 'kabuto_m' }), sq(SANADA, 'cavalry', 8), sq(SANADA, 'samurai', 5), sq(SANADA, 'ashigaru', 12), sq(SANADA, 'gun', 4)]);   // 11/8 kaito：真田は騎馬を増やす
+      [sq(SANADA, 'busho', 1, { name: NAMES.otani, horse: true, hat: 'kabuto_m' }), sq(SANADA, 'cavalry', 12), sq(SANADA, 'samurai', 5), sq(SANADA, 'ashigaru', 10), sq(SANADA, 'gun', 6)]);   // 11/9 kaito 四3・5・10：騎馬と鉄砲を増やし、大谷吉治は馬で隊と駆ける（徒で取り残され突っ立った）   // 11/8 kaito：真田は騎馬を増やす
     // 大谷吉治（大谷吉継の子）は真田の手に加わり、この日討死した（史実）。②で主人公が首を狙う将。家臣が必死に守る
     F.otaniU = F.sanada.units.find((u) => u.name === NAMES.otani);
     if (F.otaniU) F.otaniU.hp = F.otaniU.maxHp = Math.round((F.otaniU.maxHp || 100) * 1.6);
     F.nobu = enemyGroup(rt, { fixed: true, faction: 'toyotomi', name: '真田信繁の旗本', anchor: { x: CHAUSU.x - 4, z: CHAUSU.z - 14 }, facing: 0.6, width: 8, aggro: 4, seekRange: 6, order: 'hold', morale: 100, noRout: true },
-      [sq(SANADA, 'busho', 1, { name: '真田信繁', invuln: true, horse: true, hat: 'kabuto_sanada' }), sq(SANADA, 'cavalry', 10), sq(SANADA, 'samurai', 6)]);
+      [sq(SANADA, 'busho', 1, { name: '真田信繁', invuln: true, horse: true, hat: 'kabuto_sanada' }), sq(SANADA, 'cavalry', 18), sq(SANADA, 'samurai', 8)]);   // 11/9 kaito 四3：信繁の率いる最初の隊が少なすぎた（騎馬10→18）
     F.nobuU = F.nobu.units.find((u) => u.name === '真田信繁');
+    // 11/9 kaito 四7「信繁の HP が多すぎる（攻撃されても死なない）」：命を三割減らし、深手（命の三割五分）を負えば、④なら安居の天神へ退く。②③はよろめいて「浅手じゃ」と踏み止まる
+    if (F.nobuU) {
+      const D = this, N = F.nobuU;
+      N.hp = N.maxHp = Math.round((N.maxHp || 190) * 0.7);
+      N.onWound = () => {
+        if (F.ending || !N.alive) return;
+        if (F.step === 4) { rt.say('真田信繁', '……深手じゃ。天神の杜まで退け', 3); D.stage5(rt); return; }
+        N.hp = N.maxHp * 0.55; N.stagger = 0.8;
+        if (!(F.nwT > rt.t)) { F.nwT = rt.t + 10; rt.say('真田信繁', '浅手じゃ。まだ退かぬ！', 2.6); }
+      };
+    }
     for (const g of [F.sanada, F.nobu]) g.noFrontline = true;
     // 物見の主人公が寄っても、茶臼山の備えは持ち場を離れない（一緒に突っ込む ally_charge が隊ごと攻めに出した）
     for (const g of [F.sanada, F.nobu, F.mori]) g.stay = true;
@@ -387,7 +401,7 @@ const k15_tennoji_okayama = {
     sfx('horagai', 0.8); rt.after(1.2, () => sfx('taiko', 0.8));
     rt.banner('豊臣方の総出撃', '慶長二十年五月七日　正午　天王寺口');
     rt.obj('main', '四天王寺の南で毛利勝永の先手を食い止める', 'main');
-    F.s1 = [F.mori]; F.n1 = F.mori.count;
+    F.s1 = [F.mori]; F.n1 = F.mori.count; F.hondaN0 = F.honda?.count || 0;
     rt.marker('k15', DEST[1](), DEST[1]().label);   // 行き先は場所で固定（三2）
     if (!rt.markers.some((m) => m.id === 'moriMark')) rt.marker('moriMark', () => { const g = F.mori; if (!g || !g.units.some((q) => q.alive)) return null; const c = g.center(); return { x: c.x, z: c.z }; }, '毛利の先手', { red: true, h: 3 });   // 相手は頭上の赤い印（真田ではなく毛利）
     tennojiguchi.install(rt, { F, sq, FRONT, SHITENNO, HONDA, TOYO });
@@ -401,7 +415,7 @@ const k15_tennoji_okayama = {
     rt.after(3.6, () => rt.say('毛利勝永', '狙うは本多の先手じゃ。一息に突き崩せ！', 3.4));
     // 使番の報告がだんだん悪くなる（k15_crisis_spec 5）
     rt.after(22, () => { if (F.step === 1 && !F.ending) rt.say('使番', '前衛、押されております！', 2.8); });
-    rt.after(46, () => { if (F.step === 1 && !F.ending) rt.say('使番', '毛利勢、止まりませぬ！　第一陣、破られました！', 3); });
+    rt.after(46, () => { if (F.step === 1 && !F.ending) rt.say('使番', F.honda && sum([F.honda]) < (F.hondaN0 || 99) * 0.6 ? '毛利勢、止まりませぬ！　第一陣、破られました！' : '毛利勢、止まりませぬ！', 3); });
   },
   // 本多忠朝の討死と、勝永の本隊（勝永は馬上で後ろに付く。討てない）
   tadatomo(rt) {
@@ -418,7 +432,7 @@ const k15_tennoji_okayama = {
     const og = F.honda?.units.find((q) => q.name === '小笠原秀政' && q.alive);
     if (og) { og.moraleFleeDir = { x: 0.2, z: 1 }; og.fleeing = true; og.fleeT = rt.army.time; og.target = null; og.atk = null; og.swing = null; }
     F.katsu = enemyGroup(rt, { fixed: true, faction: 'toyotomi', name: '毛利勝永の本隊', anchor: { x: SHITENNO.x - 6, z: SHITENNO.z }, facing: 0, width: 10, aggro: 22, seekRange: 50, order: 'attack', morale: 95, noRout: true },
-      fit(rt, [sq(TOYO, 'samurai', 10), sq(TOYO, 'ashigaru', 12), sq(TOYO, 'gun', 2)]));
+      fit(rt, [sq(TOYO, 'cavalry', 4), sq(TOYO, 'samurai', 10), sq(TOYO, 'ashigaru', 12), sq(TOYO, 'gun', 5)]));
     // 毛利に付いた木村宗明の備（木村重成の残兵）が四天王寺の西から小笠原の横を突く（史実）
     F.kimura = enemyGroup(rt, { fixed: true, faction: 'toyotomi', name: '木村宗明の備', anchor: { x: SHITENNO.x - 22, z: SHITENNO.z + 10 }, facing: 0, width: 8, aggro: 22, seekRange: 40, order: 'attack', morale: 95, formation: 'yari' },
       fit(rt, [sq(TOYO, 'busho', 1, { name: '木村宗明', invuln: true, horse: false }), sq(TOYO, 'samurai', 3), sq(TOYO, 'ashigaru', 10), sq(TOYO, 'gun', 3)]));
@@ -437,7 +451,7 @@ const k15_tennoji_okayama = {
       if (F.step !== 1 || F.ending) return;
       if (sum(F.s1) > F.n1 * 0.6 || realN(rt) > 240) { rt.after(5, wave2); return; }   // 先の手が減ってから（重ねると先手の持ち場が百人に囲まれた）
       F.mori2 = enemyGroup(rt, { fixed: true, faction: 'toyotomi', name: '毛利の二の手', anchor: { x: SHITENNO.x + 10, z: SHITENNO.z - 6 }, facing: 0, width: 10, aggro: 22, seekRange: 46, order: 'attack', morale: 100, noRout: true, formation: 'yari' },
-        [sq(TOYO, 'samurai', 4), sq(TOYO, 'ashigaru', 13), sq(TOYO, 'gun', 4)]);
+        [sq(TOYO, 'samurai', 4), sq(TOYO, 'ashigaru', 13), sq(TOYO, 'gun', 6)]);
       F.mori2.defMult = 1.6; this.charge(rt, F.mori2, 12);
       F.s1.push(F.mori2); F.n1 += F.mori2.count; this.allyWave(rt);
       rt.say('使番', '四天王寺の北から毛利の二の手！　まだ来るぞ！', 3);
@@ -474,7 +488,7 @@ const k15_tennoji_okayama = {
     hold(F.hata2, HONF.x - 8, HONF.z + 2);
     rt.obj('main', '第二線まで退き、本陣の前で赤備えを止める', 'main');
     rt.banner('真田と毛利の突撃', '茶臼山の赤備えと毛利の手が本陣へ');
-    rt.say('使番', '第二陣も崩れました！　中央が破られました！', 3);
+    rt.say('使番', alive(F.nijin) && F.nijin.count >= 9 ? '本多の先手が崩れました！　二陣が支えております！' : '第二陣も崩れました！　中央が破られました！', 3);   // 11/9 kaito 四4：起きている事だけを言う
     rt.after(3.2, () => rt.say('使番', '毛利勢、大御所の本陣へ向かっております！　本陣の前へ戻れ！', 3.4));
     rt.after(7, () => rt.say('使番', '真田左衛門佐、動きました！', 2.8));
     rt.after(10, () => rt.say('真田信繁', '狙うは家康の首、ただ一つ！　者ども、続け！', 3.4));
@@ -495,7 +509,7 @@ const k15_tennoji_okayama = {
     const at = to || (F.ieyasu?.alive ? F.ieyasu.pos : HON);
     // 'attack' は逃げる兵を追って横へ逸れる（11/3 の流しで真田の二番手が東へ流れた）。持ち場を家康の居所に置き、走って寄せ、近い者とだけ斬り合う
     // stay：持ち場（家康の居所）から逸れて主人公や逃げる兵を追わない（ally_charge・army_think）。目の前を塞ぐ者とだけ斬り合う
-    g._chA = aggro; g.order = 'hold'; g._charge = true; g.stay = true; g._apCharge = false; g.dest = null; g.path = null; g.focus = null; g.anchor = { x: at.x, z: at.z }; g.aggro = aggro; g.seekRange = aggro + 4; g.morale = 100; g.routed = false;
+    g._chA = aggro; g.allOutRun = true; g.order = 'hold'; g._charge = true; g.stay = true; g._apCharge = false; g.dest = null; g.path = null; g.focus = null; g.anchor = { x: at.x, z: at.z }; g.aggro = aggro; g.seekRange = aggro + 4; g.morale = 100; g.routed = false;
   },
   // ③ 二の突撃：金扇の馬印が倒れ、家康は南へ退く。主人公は倒れた馬印のもとで支える
   stage3(rt) {
@@ -658,7 +672,8 @@ const k15_tennoji_okayama = {
     }
     // 本陣が襲われたら、二陣・旗本の二の備・残った先手が助けに走る（本陣の後ろでくすぶらない）
     let near = 0; for (const u of rt.army.units) if (u.alive && u.team === 1 && !u.fleeing && Math.hypot(u.pos.x - I.pos.x, u.pos.z - I.pos.z) < 22) near++;
-    if (near >= 6) {
+    if (near >= 3) {   // 11/9 kaito 四5：本陣が襲われているのに後ろで兵が突っ立っていた（六人まで待った）
+      if (alive(F.hon)) { F.hon.aggro = 24; F.hon.seekRange = 28; }
       [F.nijin, F.hata2, F.honda].forEach((g, i) => { if (alive(g) && g !== F.mine) { g._apCharge = false; hold(g, I.pos.x + (i - 1) * 8, I.pos.z - 8); g.aggro = 22; g.seekRange = 26; } });
       if (!F.helpSaid) { F.helpSaid = true; rt.say('使番', '本陣が襲われておる！　二陣、旗本、本陣へ戻れ！', 3); }
       const M = F._jin?.M; if (M && !F.helpMass) { F.helpMass = true; try { M.waki?.moveTo(I.pos.x + 12, I.pos.z + 2, 20); M.hata?.moveTo(HON.x, HON.z + 12, 24); } catch (e) { /* そのまま */ } }
@@ -707,6 +722,7 @@ const k15_tennoji_okayama = {
     rt.award((t) => t.side.push('真田信繁の旗本を討った'), '真田信繁の旗本を討った');
     rt.unmark('k15');
     flee([F.nobu2, F.nobu3, ...(F.nobuX || [])].filter(Boolean));
+    if (F.nobuU) F.nobuU.onWound = null;   // 安居の天神では討てる（onWound が残ると遊び手の止めが通らない）
     const g = F.nobu;
     // 信繁は安居の天神の杜まで退いてから討てる（途中で討てると、天神へ一度も行かずに勝ちになった。三3・九2・critic60）
     // 旗本が崩れて（routed）いても、信繁と残りの者は一つの隊として天神の杜へ退く（崩れたままでは動かず、本陣の前で討たれた）
@@ -755,22 +771,24 @@ const k15_tennoji_okayama = {
     rt.banner('真田信繁、討死', at && !near(at, YASUI, 30) ? '天王寺口にて' : '安居の天神にて');
     // 大坂城の炎は、毛利の殿を破って退かせた後（⑦）に見せる（信繁を討った途端に落城・滅亡へ飛んだ・11/9 kaito）
     // 毛利勝永の殿（勝永は馬廻に守られて討てない。史実で城へ退く）。鉄砲を並べて追手を止める
-    F.shin = enemyGroup(rt, { fixed: true, faction: 'toyotomi', name: '毛利勝永の殿', anchor: { x: SHINGARI.x, z: SHINGARI.z }, facing: 0, width: 12, aggro: 14, seekRange: 22, order: 'hold', morale: 100, noRout: true, formation: 'yari' },
+    // 11/9 kaito 四8：殿の所までわざわざ行かせない。城（北東）へ退く毛利の手の一部が、主人公の目の前（城の側へ二十四歩）で振り返って歯向かう
+    { const P = rt.player.u?.pos || rt.player.pos || SHINGARI, dx = SHINGARI.x - P.x, dz = SHINGARI.z - P.z, d = Math.hypot(dx, dz) || 1, k = Math.min(1, 24 / d); F.shAt = d > 40 ? { x: P.x + dx * k, z: P.z + dz * k } : { x: SHINGARI.x, z: SHINGARI.z }; }
+    F.shin = enemyGroup(rt, { fixed: true, faction: 'toyotomi', name: '毛利勝永の殿', anchor: { x: F.shAt.x, z: F.shAt.z }, facing: 0, width: 12, aggro: 14, seekRange: 22, order: 'hold', morale: 100, noRout: true, formation: 'yari' },
       [sq(TOYO, 'busho', 1, { name: NAMES.katsunaga, invuln: true, horse: true }), sq(TOYO, 'samurai', 8), sq(TOYO, 'ashigaru', 14), sq(TOYO, 'gun', 8)]);
     F.shin.noFrontline = true; F.shin.stay = true; F.shin.defMult = 1.4;
     F.s6 = [F.shin]; F.n6 = F.shin.count - 1;
     revealName(rt, NAMES.katsunaga);
-    if (alive(F.mine)) { F.mine.stay = false; hold(F.mine, SHINGARI.x + 4, SHINGARI.z + 20); F.mine.aggro = 22; }
-    if (alive(F.echizen)) { F.echizen.order = 'move'; F.echizen.dest = { x: SHINGARI.x - 12, z: SHINGARI.z + 18 }; F.echizen.onArrive = (q) => { q.onArrive = null; q.order = 'attack'; q.aggro = 24; q.seekRange = 40; }; }
+    if (alive(F.mine)) { F.mine.stay = false; hold(F.mine, F.shAt.x + 4, F.shAt.z + 20); F.mine.aggro = 22; }
+    if (alive(F.echizen)) { F.echizen.order = 'move'; F.echizen.dest = { x: F.shAt.x - 12, z: F.shAt.z + 18 }; F.echizen.onArrive = (q) => { q.onArrive = null; q.order = 'attack'; q.aggro = 24; q.seekRange = 40; }; }
     rt.obj('main', '四天王寺の北で毛利勝永の殿を打ち破る', 'main');   // 「崩す」は使わない（物差し 三1）
     rt.after(7.5, () => rt.say(NAMES.katsunaga, '殿はこの豊前が務める。城へ退け、一人も討たせるな！', 3.4));
     rt.after(12, () => rt.say(NAMES.ieyasu, '毛利を追え。城へ入れるな', 3));
-    rt.marker('k15', DEST[6](), DEST[6]().label);
+    rt.marker('k15', DEST[6](rt), DEST[6](rt).label);
   },
   tick6s(rt, P) {
     const F = rt.flags;
     // 殿は少しずつ北（城）へ退きながら撃つ。三割まで崩すか、時が経てば勝永は城へ入り、茶臼山へ
-    if (!(F.shT > rt.t) && alive(F.shin)) { F.shT = rt.t + 20; const c = centerOf(F.shin)(); if (c.z > SHINGARI.z - 30) hold(F.shin, SHINGARI.x, c.z - 3); }
+    if (!(F.shT > rt.t) && alive(F.shin)) { F.shT = rt.t + 20; const c = centerOf(F.shin)(); if (c.z > (F.shAt || SHINGARI).z - 30) hold(F.shin, c.x + (SHINGARI.x - c.x) * 0.2, c.z - 3); }
     const left = sum(F.s6);
     // 残り一割ほどの鉄砲が退きながら撃ち続け、討ち切れず百秒ほど止まった（11/8 通し）→ 三分の一で城へ入る
     if (left <= F.n6 * 0.34 || F.nearDone || (rt.t - F.tS > 90 && left <= F.n6 * 0.6) || rt.t - F.tS > 140) {   // 殿の鉄砲が退きながら撃ち、「討った 14／31」のまま百秒止まった（11/8 夜の通し）

@@ -97,7 +97,6 @@ const OWN = {
   //   どれも場所と行い。敵を何人討つ・「崩す」は使わない（標準 三-1・11/4 moribe）
   moribe: () => {
     const F = (rt) => rt.flags;
-    const bosses = ['長井甲斐守', '日比野下野守'];
     return [
       { kind: 'stage', k: 0, text: MG15.kishi, noun: '南岸の柳の陰', check: (rt) => !!F(rt).m15?.kishiDone || !!F(rt).signal },   // 11/8 十五分の構成（prototype/src/moribe/）
       { kind: 'stage', k: 0, text: '楡俣川を渡り、向こう岸へ上がる', noun: '向こう岸', check: (rt) => !!F(rt).pointReached || !!F(rt).signal },
@@ -108,7 +107,7 @@ const OWN = {
         groups: (rt) => [F(rt).M, F(rt).N, ...(F(rt).reserves || [])] },
       // 11/6 fixc：公記の討ち手は長井＝服部平左衛門・日比野＝恒河久蔵。名の無い足軽の自分が両将を討つのは史料に合わない。
       //   自分の手柄は両将の旗本の侍を討つ事にし、果たすまで勝ちにしない（b_moribe.js）。
-      { kind: 'stage', k: 2, text: '長井・日比野の旗本へ進み、旗本の侍を自分で討つ', noun: '旗を守る侍', check: (rt) => !!F(rt).ownHatamoto || bosses.some((n) => rt._g5?.own.has(n)),
+      { kind: 'stage', k: 2, text: '長井・日比野の旗本へ進み、旗本の侍を自分で討つ', noun: '旗を守る侍', check: (rt) => !!F(rt).ownHatamoto,
         groups: (rt) => [F(rt).HM, F(rt).HN] },
       { kind: 'stage', k: 2, text: '墨俣への道で両将の殿を討ち破る', noun: '退く敵', check: (rt) => won(rt), groups: (rt) => F(rt).shingari || [] },
     // 数や時計は添えず、告げていない期限で目標を失敗にしない。退却は戦側の下知で決める。

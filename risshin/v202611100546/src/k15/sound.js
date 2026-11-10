@@ -16,7 +16,7 @@ const CASTLE = { x: 60, z: -470 };    // 大坂城
 const OKAYAMA = { x: 80, z: 60 };     // 岡山口（東。将軍の手と大野治房の戦い。遠音だけ）
 
 // 名ごとの最短の間（秒）。これより早くは同じ音を鳴らさない
-const GAP = { horagai: 9, jindaiko: 6, farHorn: 12, farDrum: 6, volley: 5, gunEcho: 7, volleySmall: 4, toki: 8, eshout: 4, himei: 5, cry: 5,
+const GAP = { horagai: 9, jindaiko: 6, farHorn: 12, farDrum: 6, volley: 3, gunEcho: 4, volleySmall: 3, toki: 8, eshout: 4, himei: 5, cry: 5,
   hooves: 3, tramp: 3, gallop: 3.4, hoofGallop: 0.5, farClash: 4, fireSpread: 6, crack: 4, houseCollapse: 14, siegeDistant: 10, kane: 10, bellRapid: 14, kachidoki: 30 };
 const pt = { x: 0, z: 0 };
 
@@ -109,7 +109,7 @@ export function k15SoundTick(rt, dt) {
   } else if (step === 1) {
     // 天王寺口：毛利の手の鉄砲の一斉射と鬨の声。茶臼山の太鼓が遠く
     const m = mid(F.mori) || SHITENNO;
-    if (due(st, 'vol')) { at(rt, m, Math.random() < 0.7 ? 'volley' : 'gunEcho', 1, 140); next(st, 'vol', 6, 10); }
+    if (due(st, 'vol')) { at(rt, m, Math.random() < 0.7 ? 'volley' : 'gunEcho', 1, 140); next(st, 'vol', 3, 6); }
     if (due(st, 'toki')) { if (st.t > 4) at(rt, m, 'toki', 0.9, 100); next(st, 'toki', 12, 18); }
     if (due(st, 'drum')) { at(rt, CHAUSU, 'jindaiko', 0.6, 140); next(st, 'drum', 9, 13); }
   } else if (step === 2 || step === 4) {
@@ -117,12 +117,13 @@ export function k15SoundTick(rt, dt) {
     const g = step === 2 ? mid(F.sanada) : (mid(F.nobu) || mid(F.nobu2));
     if (g && due(st, 'run')) { at(rt, g, Math.random() < 0.5 ? 'hooves' : 'tramp', 1.2, 70); next(st, 'run', 3, 5); }
     if (g && due(st, 'toki')) { at(rt, g, step === 2 ? 'toki' : 'eshout', 1, 90); next(st, 'toki', 10, 15); }
-    if (due(st, 'vol')) { at(rt, FRONT, 'volleySmall', 0.8, 120); next(st, 'vol', 7, 11); }
+    if (due(st, 'vol')) { at(rt, Math.random() < 0.5 ? FRONT : HON, Math.random() < 0.6 ? 'volley' : 'volleySmall', 0.9, 130); next(st, 'vol', 3, 6); }   // 11/9 kaito 四10：鉄砲の音をもっと
     if (due(st, 'drum')) { at(rt, CHAUSU, 'jindaiko', 0.6, 140); next(st, 'drum', 8, 12); }
   } else if (step === 3) {
     // 家康の本陣の混乱：叫び・悲鳴・早鐘。真田の二番手の地鳴り
     if (due(st, 'cry')) { at(rt, HON, Math.random() < 0.5 ? 'himei' : 'cry', 0.9, 60); next(st, 'cry', 4, 7); }
     if (due(st, 'sh')) { at(rt, HON, 'eshout', 0.9, 60); next(st, 'sh', 5, 8); }
+    if (due(st, 'vol')) { at(rt, HON, Math.random() < 0.6 ? 'volley' : 'gunEcho', 0.9, 120); next(st, 'vol', 4, 7); }
     if (due(st, 'bell')) { at(rt, HON, 'bellRapid', 0.6, 90); next(st, 'bell', 16, 22); }
     const g = mid(F.sanada2);
     if (g && due(st, 'run')) { at(rt, g, Math.random() < 0.5 ? 'hooves' : 'tramp', 1.1, 70); next(st, 'run', 3, 5); }

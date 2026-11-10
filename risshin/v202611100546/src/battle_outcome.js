@@ -9,7 +9,7 @@ export const HIST_OUTCOME = {
   mikatagahara: { battle: '会戦 敗北', mission: '家康を生きて帰す' },
   t06_hetsugi: { battle: '会戦 敗北', mission: '生きて退く' },
   t03b_nagakute: { battle: '長久手 羽柴軍敗北', mission: '細ヶ根まで退く' },
-  tedorigawa: { battle: '会戦 敗北', mission: '手取川を渡る' },
+  tedorigawa: { battle: '織田軍 敗北', mission: '手取川を渡り、退く' },
 };
 // 結果の二行（字は短く。合戦・任務の順）
 export function outcomeLines(id, missionDone) {

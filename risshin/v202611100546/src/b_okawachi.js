@@ -803,7 +803,13 @@ const okawachi = {
     let at;
     if (F.step === 3) at = CAMP_LINE;
     else if (F.step === 4) { at = SOUTH_BLOCK; q.r = 18; q.defend = q.waiting = true; }
-    else if (F.step >= 2) { at = FRONT; q.r = 18; q.defend = q.waiting = true; }
+    else if (F.step >= 2) {
+      at = FRONT;
+      // 打って出が先に始まっても、②の九歩以内へ着くまでは寄せる案内を残す。
+      // 十八歩で到着扱いにすると、②が未達成のまま旗の手前で待たせてしまう。
+      q.r = F.gateReached ? 18 : 9;
+      q.defend = q.waiting = !!F.gateReached;
+    }
     else {
       q.waiting = F.step === 0 || !F.assaultMoving;
       at = q.waiting ? F.waitCover || okAdvanceGoal(rt) : okAdvanceGoal(rt);

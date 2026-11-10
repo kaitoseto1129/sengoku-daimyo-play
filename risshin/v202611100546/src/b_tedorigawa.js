@@ -36,6 +36,7 @@ import { liteMat, sway } from './world_vegetation_materials.js';
 import { TEDORIGAWA_KACCHU } from './kacchu_data.js';
 import { NAMED_GEAR } from './named_gear.js';
 import { dressStage } from './stage_dress.js';
+import { sfx } from './audio.js';
 import { install as installNanao } from './tedorigawa/nanao.js';   // 0〜3分：物見と荷駄を焼き捨てる退き始め
 import { install as installKonzatsu } from './tedorigawa/konzatsu.js';   // 3〜6分：増水と渡り口の混雑・横から来る騎馬
 import { install as installYoin, YOIN_SEC } from './tedorigawa/yoin.js';
@@ -2878,14 +2879,18 @@ const tedorigawa = {
     ink.fillText('毘', 64, 145);
     const bi = new THREE.CanvasTexture(cloth); bi.colorSpace = THREE.SRGBColorSpace;
     F.pursuitSigns = [];
+    F.biMat = null;   // 謙信の毘の大旗（kenshinRide の2）に使い回す
     for (const role of ['front', 'second', 'horse']) {
       const g = F.pursuit.find((q) => q.tedoBank === 0 && q.tedoRole === role);
       if (!g) continue;
       const u = g.units[Math.floor(g.units.length / 2)];
       const flag = nobori(W, u.pos.x, u.pos.z, 'uesugi', 5.6);
-      const old = flag.userData.flag.material, mat = old.clone();
-      mat.map = bi; mat.emissive.setHex(0x383021);
-      mat.onBeforeCompile = old.onBeforeCompile; mat.customProgramCacheKey = old.customProgramCacheKey;
+      const old = flag.userData.flag.material, mat = F.biMat || old.clone();
+      if (!F.biMat) {
+        mat.map = bi; mat.emissive.setHex(0x383021);
+        mat.onBeforeCompile = old.onBeforeCompile; mat.customProgramCacheKey = old.customProgramCacheKey;
+        F.biMat = mat;
+      }
       flag.userData.flag.material = mat;
       rt.scene.add(flag);
       flag.visible = false;
@@ -2928,7 +2933,7 @@ const tedorigawa = {
     rt.marker('shiba', unitPos(F.shibaU), '柴田勝家', {});
     rt.after(6, () => {
       if (F.ending || rt.over || F.step !== 0) return;
-      messengerNews(rt, F.shibaU, '七尾城は落ちた！　上杉が来ます！');
+      messengerNews(rt, F.shibaU, '七尾城、落城。上杉謙信、すでに南下！');
     });
     // kaito 11/1 の紙：秀吉は必ず出す。勝家と意見が合わず、手勢を連れて南へ去る姿を見せる（離陣）。
     F.hideyoshiG = allyGroup(rt, { fixed: true, noHunt: true, name: '羽柴秀吉の手', anchor: { x: 16, z: -64 }, facing: Math.PI, width: 4, aggro: 0, noRout: true, formation: 'column', colW: 2 },
@@ -2973,6 +2978,16 @@ const tedorigawa = {
     tedoSignal(rt, 'nobiki', F.shibaU.pos, 0.8, F.shibaU,
       ['柴田勝家', retreatOrder, 4]);
     rt.obj('main', 'しんがりとして、組頭に続いて北岸の火のそばまで退く', 'main');
+    // 11/10 指示書：上杉が動いた事を、姿より先に音で知らせる（遠い法螺・早鐘・馬蹄・雷）。
+    if (!rt.G.lord) {
+      const far = (t, fn) => rt.after(t, () => { if (!F.ending && !rt.over && rt.player.u.alive) fn(); });
+      far(5, () => sfx('horagai', 0.3));
+      far(8, () => sfx('kane', 0.25));
+      far(10, () => sfx('kane', 0.22));
+      far(12, () => sfx('hooves', 0.35));
+      far(13.5, () => tedoAside(rt, '足軽', '……来たぞ。', 2.5));
+      far(18, () => sfx('thunder', 0.5));
+    }
     // 組の行き先・印・到着の判定を、最初に守る持ち場へそろえる。
     rt.marker('ford', RG, '北岸の殿の持ち場', { h: 2, guideRadius: 7 });
     rt.zone('ford', RG.x, RG.z, 7);
@@ -3060,7 +3075,7 @@ const tedorigawa = {
     rt.unmark('shiba');
     for (let i = 0; i < RETREAT_LINES.length; i++) rt.unmark('line' + i);
     releaseShibata(rt, true);
-    // kaito 11/1 の紙・11/6 十二4：謙信が自ら馬廻の先頭で、背を向けて渡る織田へ渡り口まで突っ込む。
+    // 11/10 指示書：謙信は北岸の高みで止まり、渡る織田をただ見る（川へは来ない）。
     kenshinRide(rt, 2);
     // 背を向けて渡る恐ろしさ（十二4）：北岸に残った追手も、渡り口から川の中まで追いすがる。
     //   11/6 BT：一番近い二組は浅瀬を渡りきって南岸の篝火まで追い、ほかは増水の川の手前の水際で止まって喚く（上杉の大軍は濁流を越えない）。
@@ -3089,6 +3104,12 @@ const tedorigawa = {
     const crossOrder = F.woundedRetreat ? '持ち場へ戻るな。組と浅瀬を渡れ！' : F.lineBroken ? '列が切れた！　押し返すな。組と幟の間へ退け！' : F.failedHold ? '支えきれぬ！　持ち場へ戻らず、組と浅瀬を渡れ！' : F.crossRemaining ? '殿も渡れ。南岸で遅れた者を迎えよ！' : 'よう支えた。殿も渡れ、互いに腕を取れ！';
     tedoSignal(rt, 'nobiki', FORD, 0.8, F.shibaU,
       ['組頭', '退き太鼓じゃ！　' + crossOrder, 4]);
+    // 11/10 指示書：濁流を前に味方が止まる→後ろから上杉の鬨→「これを渡るしかない。」
+    if (!rt.G.lord) {
+      tedoAside(rt, '足軽', 'これを……渡るのか。', 2.5);
+      rt.after(7, () => { if (!F.ending && !rt.over) { rt.army.play?.('toki', { x: FORD.x, z: FORD.z - 34 }, 1.2); sfx('toki', 0.5); } });
+      rt.after(8.5, () => tedoAside(rt, '組頭', 'これを渡るしかない。', 3));
+    }
     // 負傷や包囲の案内もこの退き道へそろえ、北岸へ戻さない。
     rt.marker('crossing', () => crossingTarget(rt), () => {
       crossingTarget(rt);
@@ -3194,10 +3215,9 @@ const tedorigawa = {
       if (g && F.kenshinPhase >= 1 && rt.t >= (F.kenClampAt || 0)) {
         F.kenClampAt = rt.t + 0.5;
         for (const u of g.units) if (u.alive && u.group === g && (u.pos.z > FORD.z + 18 || Math.abs(u.pos.x - 2) > 40)) {
-          const back = F.kenshinPhase === 2 ? { x: 2, z: FORD.z + 10 } : { x: RG.x + 4, z: RG.z - 6 };
-          g.order = 'move'; g.aggro = 2; g.seekRange = 4; g.dest = back;
-          g.onArrive = F.kenshinPhase === 2 ? (q) => { q.order = 'hold'; q.facing = 0; q.aggro = 10; q.seekRange = 8; }
-            : (q) => { q.order = 'attack'; q.aggro = 10; q.seekRange = 14; q.anchor.x = RG.x + 2; q.anchor.z = RG.z - 2; };
+          const back = KENSHIN_WATCH[F.kenshinPhase === 2 ? 1 : 0];
+          g.order = 'move'; g.aggro = 0; g.seekRange = 0; g.dest = { ...back };
+          g.onArrive = (q) => { q.order = 'hold'; q.facing = 0; };
           for (const v of g.units) if (v.alive) { v.target = v.atk = null; v.charging = false; }
           break;
         }
@@ -3643,25 +3663,35 @@ function kenshinRide(rt, phase) {
   F.kenshinPhase = phase;
   g.fixed = false; g.retreatOnly = false; g.noHunt = true; g.noRout = true; g.speed = 3;
   g.signalSerial = (g.signalSerial || 0) + 1;
+  // 11/10 docs/tedorigawa_spec_1109.md：謙信は前線で斬り合わない。高所から追撃を差し向け、最後は北岸の高みで渡る織田を見ているだけ。
+  g.aggro = 0; g.seekRange = 0; g.noRun = false; g.path = null; g.formation = 'line';
+  for (const v of g.units) { v.noTarget = true; v.target = v.atk = null; v.charging = false; }
   if (phase === 1) {
-    // 馬は走る兵よりはっきり速い（一8）。縦列の path は後ろの遅れを待って歩みになるので、隊の要を直に駆けさせる。
-    // 11/6 BT：陣の前で止まらず、殿の火（RG）の列へそのまま馬で突っ込み、先頭で斬り合う。
-    g.order = 'move'; g.formation = 'line'; g.aggro = 10; g.seekRange = 14; g.speed = 5.5; g.noRun = false;
-    g.dest = { x: RG.x + 4, z: RG.z - 6 }; g.path = null;
-    g.onArrive = (q) => { q.order = 'attack'; q.anchor.x = RG.x + 2; q.anchor.z = RG.z - 2; };
+    // 中盤＝大旗：殿の火の北の闇（先手の列の後ろ）で馬を止め、追手を差し向ける。
+    g.order = 'move'; g.speed = 4.5; g.dest = { ...KENSHIN_WATCH[0] };
+    g.onArrive = (q) => { q.order = 'hold'; q.facing = 0; };
+    // 追撃の AI の④：一揆勢が横へ回り、渡り口の西の脇から逃げ道を狭める（渡り口そのものは塞がない）。
+    const ik = F.kagaIkki;
+    if (ik?.count) { ik.fixed = false; ik.order = 'move'; ik.speed = 2.6; ik.dest = { x: -44, z: -48 }; ik.onArrive = (q) => { q.order = 'hold'; q.facing = Math.PI / 2; }; }
     rt.after(10, () => {
       if (rt.over || F.ending || F.step > 2) return;
-      rt.say('上杉謙信', '者ども、我に続け！　川を背にした織田を一人も渡すな！', 4.5);
-      rt.after(5, () => { if (!rt.over && !F.ending && F.step <= 2) tedoAside(rt, '足軽', '先頭の馬上は謙信じゃ！　謙信が自ら来よる！', 3.5); });
+      rt.say('上杉謙信', '崩れた備えを突け。川へ追い籠めよ', 4.5);
+      rt.after(5, () => { if (!rt.over && !F.ending && F.step <= 2) tedoAside(rt, '足軽', 'あの大旗……謙信じゃ。動かずに、こちらを見ておる', 3.5); });
     });
   } else {
-    // 謙信は水際の浅瀬まで。濁流を越えて南岸までは追わない（上杉の大軍は川の北に残る）。
-    g.order = 'move'; g.formation = 'line'; g.aggro = 10; g.seekRange = 8; g.speed = 6;
-    g.dest = { x: 2, z: FORD.z + 12 }; g.path = null;   // 水際から浅瀬へ馬を入れる
-    g.onArrive = (q) => { q.order = 'hold'; q.facing = 0; q.anchor.x = 2; q.anchor.z = FORD.z + 12; };
-    rt.after(3, () => { if (!rt.over && !F.ending) rt.say('上杉謙信', '背を見せたぞ、追い落とせ！　手取川へ叩き込め！', 4.5); });
+    // 最後＝馬上の謙信を一度だけしっかり：渡り口の北の岸の高み。濁流へは入らず、ただ見ている（上杉の大軍は川の北に残る）。
+    g.order = 'move'; g.speed = 5; g.dest = { ...KENSHIN_WATCH[1] };
+    g.onArrive = (q) => { q.order = 'hold'; q.facing = 0; };
+    if (F.biMat && !F.kenshinFlag) {
+      const at = KENSHIN_WATCH[1], flag = nobori(rt.world, at.x - 4, at.z - 3, 'uesugi', 7.5);
+      flag.userData.flag.material = F.biMat;
+      rt.scene.add(flag); F.kenshinFlag = flag;
+    }
+    rt.after(9, () => { if (!rt.over && !F.ending) tedoAside(rt, '組頭', '……謙信は川へは来ぬ。岸の上から、ただ見ておる', 4); });
   }
 }
+// 謙信の見る場所：中盤は殿の火の北の闇、最後は渡り口の北の岸（川の外）。
+const KENSHIN_WATCH = [{ x: 24, z: -76 }, { x: -18, z: -33 }];
 
 function releaseShibata(rt, crossing = false) {
   const F = rt.flags, g = F.shiba;

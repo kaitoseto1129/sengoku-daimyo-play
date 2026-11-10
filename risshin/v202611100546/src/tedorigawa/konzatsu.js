@@ -22,9 +22,12 @@ export function install(rt, ctx) {
   const W = allyGroup(rt, { fixed: true, name: '流された足軽', anchor: DROWN, facing: 0, width: 3, aggro: 0, noRout: true, order: 'hold' },
     dress([{ type: 'ashigaru', n: 3 }], ODA));
   for (const u of W.units) u.hp = Math.min(u.hp, u.maxHp * 0.5);
-  sfx('wade', 0.8);
-  rt.say('足軽', '川が増えてきた！　足が持っていかれる……助けてくれ！', 3.5);
-  rt.after(4, () => { if (active()) rt.say('組頭', '下流で流されておる！　水際へ走って引き上げよ！', 4); });
+  // 11/10 指示書：前から戻った使番の「渡れませぬ」で、初めて川の問題が分かる。誰も答えない。
+  sfx('messenger', 0.9);
+  rt.say('使番', '手取川、渡れませぬ！　水が出ています！', 3.5);
+  rt.after(4, () => { if (active()) rt.say('足軽', '……渡れるのか？', 2.5); });
+  rt.after(7.5, () => { if (!active()) return; sfx('wade', 0.8); rt.say('足軽', '川が増えてきた！　足が持っていかれる……助けてくれ！', 3.5); });
+  rt.after(11.5, () => { if (active()) rt.say('組頭', '下流で流されておる！　水際へ走って引き上げよ！', 4); });
   rt.obj('konzatsu', '下流の水際で、流された足軽を引き上げよ', 'order');
   rt.marker('konzatsuW', DROWN, '流された足軽', { h: 3, guideAlways: true, guidePriority: 420 });
 
