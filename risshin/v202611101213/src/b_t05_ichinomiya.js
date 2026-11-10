@@ -326,7 +326,7 @@ function steps(rt) {
     fight({ at: WATER_FRONT, noRefill: true, title: '水の手', sub: '城へ水を引く谷の湧き水', obj: GOALS[2],
       foes: () => [{ name: '水の手の番兵', from: { x: WATER.x + 4, z: WATER.z + 6 }, list: [uS(2), uA(12), uB(3)], mass: 130, width: 8 }],
       // 番兵は湧き水の脇で番をし、寄せ手が来てから討って出る（前は一人で坂を上る本人を斜面で横一列に待った。11/6 critic60）
-      onShout: (rt, C) => lurk(C, 9, 25),
+      onShout: (rt, C) => lurk(C, 9),
       later: [{ t: 24, say: ['足軽', '尾根の陰から伏兵じゃ！'], foes: () => [{ name: '尾根の伏兵', from: { x: WATER.x - 26, z: WATER.z - 10 }, list: [uS(1), uA(9)], mass: 80 }] }],
       max: 120, reward: '水の手の番兵を追い払った', onEnd: () => { F.step = 3; } }),
     // 新手の継ぎ足し（b_depth の AB）はしない：本人が二人討つまで新手が来続け、坂の上で止まる新手を待って守る段が七分に延びた（11/6 流し）
@@ -464,8 +464,7 @@ function steps(rt) {
 }
 
 // 潜む敵：段の始めは潜んだ所に留め、本人か味方の組が近づくか、時が過ぎてから討って出る（update の lurkTick）
-function lurk(C, aggro, wait = 45) {
-  C.lurkWait = wait;
+function lurk(C, aggro) {
   // 潜む間は身を低く屈める（斜面に二十人が横一列に突っ立ったまま動かなかった。11/8 critic60 一3）。討って出る時に立つ
   for (const g of C.groups) { const c = g.center(); g.order = 'hold'; g.anchor = { x: c.x, z: c.z }; g._lurkAt = g.anchor; g._lurkAI = g.noAI; g.noAI = true; g.aggro = aggro; g._lurk = true; for (const u of g.units) if (u.type !== 'busho') u._crouch = true; }
 }
@@ -476,7 +475,7 @@ function lurkTick(rt) {
   for (const g of C.groups) {
     // 退く下知が出た組を、潜伏解除の処理で再び攻撃へ戻さない。
     if (!g._lurk || !g.count || g.routed) continue;
-    const c = g.center(), el = rt.t - C.t0;
+    const c = g.center();
     let near = Math.hypot(p.x - c.x, p.z - c.z) < 22;
     if (!near) for (const friend of rt.flags.allies) {
       if (!friend?.count || friend.routed) continue;
@@ -484,7 +483,9 @@ function lurkTick(rt) {
       if (Math.hypot(f.x - c.x, f.z - c.z) < 28) { near = true; break; }
     }
     // 共通の采配と段の呼び寄せより、林に潜む下知を優先する。
-    if (!near && el < (C.lurkWait ?? 45)) { g.order = 'hold'; g.anchor = g._lurkAt; continue; }
+    // 時間だけで林を出ると、寄せ手が谷へ着く前に伏兵が丸見えになる。
+    // 本人か味方の組が実際に近づくまで、潜む下知を保つ。
+    if (!near) { g.order = 'hold'; g.anchor = g._lurkAt; continue; }
     for (const u of g.units) u._crouch = false;
     g.noAI = g._lurkAI; g._lurk = false; g.order = 'attack'; g.anchor = { x: C.at.x, z: C.at.z }; g.seekRange = 60; g.aggro = 14;
     if (/伏兵/.test(g.name || '') && !C.lurkSaid) { C.lurkSaid = true; rt.say('足軽', '林から伏兵じゃ！左右から来るぞ！', 3); }
