@@ -98,14 +98,9 @@ export function tick(rt, ctx) {
     once('won', () => rt.award((t2) => { if (!t2.side.includes('城の出撃から平田の付城を守った')) t2.side.push('城の出撃から平田の付城を守った'); }, '付城を守った'));
     S.done = true; return true;
   }
-  // 詰まらない決まり8：三の手から二分、段の始めから六分を過ぎたら、残る城兵は城へ退き段を終える（11/10 bot：残兵を待ち七分止まって負けた）。
-  // 残兵による足止めだけを救い、木戸へ戻っていない本人の守備を達成にしない。
-  if (S.arrived && S.w3 && S.waves.length >= 3 && rt.t - S.w3T >= 120 && t >= DESHIRO_LEN + 60 && rt.player.u.alive) {
-    if (!S.retreatOrdered) {
-      S.retreatOrdered = true;
-      for (const g of S.waves) if (!ctx.gone(g)) ctx.flee(g);
-      rt.say('物見', '城兵が三木城へ退いてゆくぞ！　平田の付城は持ちこたえた！', 4);
-    }
+  // 主力を退け、四人以下の残兵へ退却を命じた後だけ、退場待ちの足止めを解く。
+  // 木戸へ一度戻っただけで、多数が残る守備を時間だけで達成にしない。
+  if (S.arrived && S.retreatOrdered && S.w3 && S.waves.length >= 3 && rt.t - S.w3T >= 120 && t >= DESHIRO_LEN + 60 && rt.player.u.alive) {
     once('won', () => rt.award((t2) => { if (!t2.side.includes('城の出撃から平田の付城を守った')) t2.side.push('城の出撃から平田の付城を守った'); }, '付城を守った'));
     S.done = true; return true;
   }

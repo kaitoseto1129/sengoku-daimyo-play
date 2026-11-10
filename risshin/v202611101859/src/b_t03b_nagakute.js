@@ -463,7 +463,6 @@ html:root body #hud:has(#h-prog[data-battle="t03b_nagakute"]) #center-call .cc {
       // 仏ヶ根で戦った徳川の組は、主人公から離れた者を去らせ、追手（赤備え）の枠を空ける
       const P = rt.player.u.pos;
       for (const g of F.waves) if (live(g)) for (const u of g.units) if (u.alive && !u.gone && (g.general || dist(u.pos, P) > 30)) rt.army.despawn(u);
-      for (const g of F.waves) if (live(g) && !g.general) { g.order = 'attack'; g.seekRange = 40; }
       F.nextPursuit = rt.t + 2;
       Retreat.start(rt, this.ctx(rt));
     }
@@ -683,9 +682,10 @@ html:root body #hud:has(#h-prog[data-battle="t03b_nagakute"]) #center-call .cc {
         this.stage(rt, 3);
       }
     } else if (F.stage === 3) {
-      // 堀の陣を破られる：徳川の兵が丘の上の鉄砲の列の後ろ（西）に十二人
+      // 堀の陣を破られる：戦える徳川の兵が鉄砲の列の後ろ（西）に十二人。
+      // 倒れた兵や退く兵が残っていても、陣を突破した人数には数えない。
       let inside = 0;
-      for (const g of F.w3) if (g) for (const u of g.units) if (u.alive && !u.gone && u.pos.x < HINOKI.x - 2 && Math.abs(u.pos.z - HINOKI.z) < 26) inside++;
+      for (const g of F.w3) if (g && !g.routed && g.order !== 'retreat' && g.order !== 'flee') for (const u of g.units) if (u.alive && !u.gone && !u.fleeing && !u.woundOut && !u.rearWound && !u.downed && !u.noTarget && u.pos.x < HINOKI.x - 2 && Math.abs(u.pos.z - HINOKI.z) < 26) inside++;
       if (inside >= 12) return this.lose(rt, '堀様の陣を破られた');
       const left = F.w3.reduce((s, g) => s + aliveN(g), 0);
       if (atGoal && ((F.defended && ((el > 90 && left <= F.w3N * 0.4) || el > 130)) || F.guardTime >= 130)) {

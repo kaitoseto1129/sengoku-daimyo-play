@@ -47,9 +47,15 @@ export function install(rt, ctx) {
     T.fixed = false; T.ai = true;
     F.oda.push(T);
     march(rt, T, ROAD.slice(gate, lower + 1));
-    T.onArrive = (q) => { q.order = 'attack'; };
+    T.onArrive = (q) => {
+      q.order = 'attack';
+      // 門外で出発しただけでは、曲輪への着到を知らせない。
+      if (!F.ending && !rt.over && rt.player.u.alive && q.units.some(siegeFighter)) {
+        rt.say('筒井の侍', '筒井の後続、ただいま着到！　梅鉢の旗に続け！', 3.5);
+      }
+    };
     sfx('horagai', 0.6);
-    rt.say('筒井の侍', '筒井の後続、ただいま着到！　梅鉢の旗に続け！', 3.5);
+    rt.say('筒井の侍', '筒井の後続、木戸から曲輪へ向かうぞ！', 3.5);
   });
   return {
     update(dt) {
@@ -66,7 +72,8 @@ export function install(rt, ctx) {
         rt.unmark('kaeshiK');
         if (!n) { rt.objDone('kaeshi'); rt.award((t) => t.side.push('曲輪へ打って出た松永の侍衆を押し返した'), '松永の逆寄せを押し返した'); }
         else { rt.objRemove('kaeshi'); for (const u of K.units) if (u.alive) { u.fleeing = true; u.moraleFleeDir = { x: 0, z: -1 }; } }
-        rt.say('筒井順慶', '押し返したぞ！　本丸はもう目の前じゃ！', 3.5);
+        rt.say('筒井順慶', !n ? '押し返したぞ！　本丸はもう目の前じゃ！'
+          : '松永勢が退くぞ！　先手よ、本丸へ寄せよ！', 3.5);
         rt.after(3, () => { if (!F.ending && !rt.over && rt.player.u.alive) next(); });
       }
     },

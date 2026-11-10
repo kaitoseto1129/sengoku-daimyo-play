@@ -285,6 +285,17 @@ function matabeiCharge(rt) {
   }
 }
 
+// 物語の射撃も実弾・硝煙・弾込めを共通の戦闘とそろえる。銃声だけでは成立させない。
+function storyShot(rt, u, target) {
+  if (u.reload || u.atk || u.cd > 0 || rt.army.allyInLine(u, target,
+      Math.hypot(u.pos.x - target.pos.x, u.pos.z - target.pos.z))) return false;
+  u.heading = Math.atan2(target.pos.x - u.pos.x, target.pos.z - u.pos.z);
+  const fired = rt.army.fireGun(u, target);
+  rt.army.startReload(u);
+  rt.army.gunRotate(u);
+  return fired;
+}
+
 // 片倉重綱の鉄砲が又兵衛を撃つ（伊達家の記録。胸を撃たれて家臣に介錯させた）。本人が先に討てばそれが手柄
 function matabeiShot(rt) {
   const F = rt.flags;
@@ -302,8 +313,10 @@ function matabeiShot(rt) {
     for (const g of groups) {
       if (g.routed || g.order === 'retreat' || g.order === 'flee') continue;
       for (const u of g.units) if (active(u) && u.weapon === 'gun' && !u.sidearm && !u.mounted && (u.gunAmmo ?? 20) > 0 &&
+          !u.reload && !u.atk && !(u.cd > 0) &&
           Math.hypot(u.pos.x - v.pos.x, u.pos.z - v.pos.z) <= 60 &&
-          rt.army.coverBetween(u.pos, v.pos, u.team) > 0 && !rt.army.shotBlocked(u, v.pos)) return u;
+          rt.army.coverBetween(u.pos, v.pos, u.team) > 0 && !rt.army.shotBlocked(u, v.pos) &&
+          !rt.army.allyInLine(u, v, Math.hypot(u.pos.x - v.pos.x, u.pos.z - v.pos.z))) return u;
     }
     return null;
   };
@@ -325,8 +338,7 @@ function matabeiShot(rt) {
     if (F.matabei || F.ending || rt.over) return;
     // 下知の後に本人が離れたり鉄砲兵が倒れたりした時は、射撃を待ち直す。
     const shooter = ready();
-    if (!shooter) { rt.after(1, () => matabeiShot(rt)); return; }
-    rt.army.play('volley', shooter.pos, 1.4);
+    if (!shooter || !storyShot(rt, shooter, v)) { rt.after(1, () => matabeiShot(rt)); return; }
     if (v && v.alive) { v.hp = 1; v.stagger = 1.2; }
     rt.after(1.2, () => {
       if (F.matabei || F.ending || rt.over) return;
@@ -719,9 +731,10 @@ const k13_domyoji = {
       }
     }
     // 台詞から一定時間で押し戻さず、生きた鉄砲兵へ伊達勢が寄り、射線が通るまで伏せて待つ。
-    const gunner = sanada.units.find((u) => armed(u) &&
+    const gunner = sanada.units.find((u) => armed(u) && !u.reload && !u.atk && !(u.cd > 0) &&
       g.units.some((v) => active(v) && Math.hypot(u.pos.x - v.pos.x, u.pos.z - v.pos.z) <= 42 &&
-        rt.army.coverBetween(u.pos, v.pos, u.team) > 0 && !rt.army.shotBlocked(u, v.pos)));
+        rt.army.coverBetween(u.pos, v.pos, u.team) > 0 && !rt.army.shotBlocked(u, v.pos) &&
+        !rt.army.allyInLine(u, v, Math.hypot(u.pos.x - v.pos.x, u.pos.z - v.pos.z))));
     if (!gunner) {
       // 堀や丘で射線が通らない時は、伏せたまま待ち続けず槍と共に寄せる。
       if (rt.t - sanada._dmAmbushAt >= 20) {
@@ -732,11 +745,16 @@ const k13_domyoji = {
       }
       rt.after(1, () => this.datePushed(rt, sanada)); return;
     }
+    const target = g.units.find((v) => active(v) && Math.hypot(gunner.pos.x - v.pos.x, gunner.pos.z - v.pos.z) <= 42 &&
+      rt.army.coverBetween(gunner.pos, v.pos, gunner.team) > 0 && !rt.army.shotBlocked(gunner, v.pos) &&
+      !rt.army.allyInLine(gunner, v, Math.hypot(gunner.pos.x - v.pos.x, gunner.pos.z - v.pos.z)));
+    if (!target || !storyShot(rt, gunner, target)) {
+      rt.after(1, () => this.datePushed(rt, sanada)); return;
+    }
     sanada.ambush = false; sanada.order = 'attack'; sanada.seekRange = 55;
     sanada.anchor = { x: HONDA.x, z: HONDA.z };
     for (const u of sanada.units) u._crouch = false;
     rt.say('真田信繁', '今じゃ、放て！', 2);
-    rt.army.play('volley', gunner.pos, 1.6);
     g.order = 'move'; g.dest = { x: HONDA.x + 22, z: HONDA.z - 6 }; F.pushedUntil = rt.t + 12;
     rt.say('足軽', '誉田陵の堀から撃って来る！　伊達殿が押し戻される！', 3);
     // 待ち伏せが④の終わりに起きても、⑤の殿を迎える列へ戻す。

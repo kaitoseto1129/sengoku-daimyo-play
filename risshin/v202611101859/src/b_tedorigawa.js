@@ -3213,7 +3213,8 @@ const tedorigawa = {
     // 決着後は戦の更新と rt.t が止まる。待機中の太鼓は終幕の時計へ渡す。
     // 本陣へ遠ざけず、渡り終えた殿と同じ南岸の兵から最後の下知を継ぐ。
     const endSignalWait = tedoEndSignal(rt, SOUTH, 0.5, '手負いを連れ、南へ退け！');
-    rt.banner('手取川を渡った', F.crossStranded > 0 ? '北岸に渡れない味方が残った。殿の列は南へ退く' : F.crossed < Math.ceil(F.crossInitial * 0.6) || F.crossRemaining > 0 ? '討たれた味方は多い。それでも生きて退いた。北の岸には上杉の旗が残る' : '殿の列は南へ退く。北の岸には上杉の旗が残る');
+    // 八割の渡河で後続へ任せる時も、まだ渡っている生存者を討死と知らせない。
+    rt.banner('手取川を渡った', F.crossStranded > 0 ? '北岸に渡れない味方が残った。殿の列は南へ退く' : F.crossRemaining > 0 ? `渡る味方はあと${F.crossRemaining}人。後続に任せ、殿の列は南へ退く` : F.crossed < Math.ceil(F.crossInitial * 0.6) ? '戻らぬ味方は多い。それでも生きて退いた。北の岸には上杉の旗が残る' : '殿の列は南へ退く。北の岸には上杉の旗が残る');
     // 退く下知は最後の太鼓が届いてから。ここで同じ下知を先に重ねない。
     // 戦功と織田軍の勝敗を分ける。史実の札は台詞と時間をずらす。
     // 決着の後は戦の時計が止まるので、謙信の声はすぐに出す（上杉が戦場を制す）。
@@ -3444,9 +3445,11 @@ const tedorigawa = {
     if (F.step >= 1 && rt.t >= (F.crossCheckT || 0)) {
       F.crossCheckT = rt.t + 1; F.crossRemaining = 0; F.crossed = 0; F.crossStranded = 0;
       fordTick(rt);
-      for (const g of F.crossGroups) for (const u of g.units) if (u.alive && !u.gone) {
+      // 倒れる最中は alive が残る。南岸の位置だけで生還に数えず、
+      // 八割の渡河条件にも、渡れない味方の人数にも加えない。
+      for (const g of F.crossGroups) for (const u of g.units) if (u.alive && !u.dying && u.hp > 0 && !u.gone) {
         if (u.pos.z >= BANK_Z && !rt.world.inWaterAt(u.pos.x, u.pos.z)) F.crossed++;
-        else if (u.dying || u.woundOut || u.fleeing || u.rearWound || u.downed || u.dragging || u.noTarget || g.routed) F.crossStranded++;
+        else if (u.woundOut || u.fleeing || u.rearWound || u.downed || u.dragging || u.noTarget || g.routed) F.crossStranded++;
         else F.crossRemaining++;
       }
     }
