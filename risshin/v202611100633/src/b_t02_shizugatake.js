@@ -23,7 +23,7 @@ import { liteMat } from './world_vegetation_materials.js';
 import { victoryMoment } from './victory_moment.js';
 import { sfx } from './audio.js';
 import { withGuard } from './toyo_bot.js';
-import { KILLS, STAGES, downTo, cut } from './stages.js';
+import { KILLS, STAGES, cut } from './stages.js';
 import { KIT } from './b_nagashinojo.js';
 import { KACCHU } from './kacchu_data.js';
 import { goalsTick } from './hud_goals.js';
@@ -169,7 +169,8 @@ const foeList = (n, o = {}) => {
   return [{ type: 'ashigaru', n: Math.max(1, n - s - g), o: { flagScale: 1, ...o } }, { type: 'samurai', n: s, o }, { type: 'gun', n: g, o }];
 };
 const live = (g) => !!g && g.units.some((u) => u.alive && !u.gone);
-const nLive = (g) => (g ? g.units.filter((u) => u.alive && !u.gone).length : 0);
+// 救援・守備・夜討ちで同じ戦力を数える。倒れた負傷兵を探し回らせない。
+const nLive = nightRaidLeft;
 // 逃げた兵・戦えなくなった兵を、まだ道を塞ぐ殿として数えない。
 const shoreLeft = (groups) => (groups || []).reduce((n, g) => n + (g.routed || g.order === 'retreat' ? 0 : g.units.reduce((s, u) => s + (u.alive && !u.gone && !u.fleeing && !u.noTarget && !u.downed && !u.woundOut && !u.rearWound ? 1 : 0), 0)), 0);
 const nearCount = (rt, team, p, r) => rt.army.units.reduce((n, u) => n + (u.alive && !u.gone && u.team === team && Math.hypot(u.pos.x - p.x, u.pos.z - p.z) < r ? 1 : 0), 0);
@@ -225,18 +226,24 @@ html:root body #hud#hud#hud.shizu-goals[data-shizu-window="0"] #h-prog#h-prog.go
 html:root body #hud#hud#hud.shizu-goals[data-shizu-window="1"] #h-prog#h-prog.goal-mode .pg-goals li:first-child,
 html:root body #hud#hud#hud.shizu-goals[data-shizu-window="1"] #h-prog#h-prog.goal-mode .pg-goals li:nth-child(n+7),
 html:root body #hud#hud#hud.shizu-goals[data-shizu-window="2"] #h-prog#h-prog.goal-mode .pg-goals li:nth-child(-n+2) { display:none !important; }
-html:root body #hud#hud#hud.shizu-goals #h-prog#h-prog.goal-mode .pg-goals li::before { content:var(--shizu-number) !important; }
-.shizu-goals .pg-goals li:nth-child(1) { --shizu-number:'①'; }
-.shizu-goals .pg-goals li:nth-child(2) { --shizu-number:'②'; }
-.shizu-goals .pg-goals li:nth-child(3) { --shizu-number:'③'; }
-.shizu-goals .pg-goals li:nth-child(4) { --shizu-number:'④'; }
-.shizu-goals .pg-goals li:nth-child(5) { --shizu-number:'⑤'; }
-.shizu-goals .pg-goals li:nth-child(6) { --shizu-number:'⑥'; }
-.shizu-goals .pg-goals li:nth-child(7) { --shizu-number:'⑦'; }
 html:root body #hud#hud#hud.shizu-goals #h-prog#h-prog.goal-mode .pg-goals li span { color:inherit !important; background:none !important; }
 html:root body #hud#hud#hud.shizu-goals #h-prog#h-prog.goal-mode .pg-goals li.now { color:#fff !important; }
 html:root body #hud#hud#hud.shizu-goals #h-prog#h-prog.goal-mode .pg-goals li.done { color:#cfc9bc !important; }
-html:root body #hud#hud#hud.shizu-goals #h-prog#h-prog.goal-mode .pg-goals h3 { display:none !important; }`;
+html:root body #hud#hud#hud.shizu-goals #h-prog#h-prog.goal-mode .pg-goals h3 { display:none !important; }
+/* 番号は共通の本文に含まれる。二重の番号で本文の幅を削らない。 */
+html:root body #hud#hud#hud#hud.shizu-goals #h-prog#h-prog.goal-mode .pg-goals li::before { content:none !important; }
+@media (max-height:500px) {
+ html:root body #hud#hud#hud#hud.shizu-goals #h-prog#h-prog.goal-mode {
+  top:calc(8px + env(safe-area-inset-top,0px)) !important; bottom:auto !important;
+  width:min(300px,36vw) !important; max-width:36vw !important; padding:6px 8px !important;
+ }
+ html:root body #hud#hud#hud#hud.shizu-goals #h-prog#h-prog.goal-mode .pg-goals li {
+  font-size:13px !important; line-height:1.25 !important; gap:5px !important;
+ }
+ html:root body #hud#hud#hud#hud.shizu-goals #h-prog#h-prog.goal-mode .pg-goals li.now {
+  font-size:16px !important; line-height:1.3 !important; padding:2px 0 !important;
+ }
+}`;
 function shizuBoard(rt) {
   const hud = rt.hud;
   if (!hud?.root || typeof document === 'undefined') return;
@@ -559,7 +566,7 @@ const t02_shizugatake = {
     };
     // 11/4 jin：盛政の勢は賤ヶ岳の手の数倍（八千対千ほど）。寄せ手を厚くし、桑山が退きかけた苦しさを出す（AQ10）
     // 11/6 critic60（九2・三2）：寄せ手が口へ来るまで百二十秒かかり、主人公が棒立ちだった。物見の肩（口まで五十歩）から三度登って来る
-    rt.after(12, () => wave(-6, 262, 16));
+    rt.after(12, () => { if (F.phase === 2) wave(-6, 262, 16); });
     //   11/6 九度目：寄せ手が口まで来るようにした後、②が二百二十秒続き、戦が九分を超えた。三度の間を二十秒に詰める
     rt.after(34, () => { if (F.phase === 2) wave(-2, 256, 16); });
     rt.after(56, () => { if (F.phase === 2) wave(-10, 252, 18); });
@@ -951,7 +958,7 @@ STAGES.t02_shizugatake = STAGE_TEXT.map((t, i) => (i ? [t, st(STAGE_AT[i])] : [t
 // 倒す数（kaito 11/2 O）：右上の任務の一行に「（倒した数／倒す数）」。段が進む判定と同じ数え方（stages.js）
 KILLS.t02_shizugatake = (rt) => {
   const F = rt.flags;
-  return F.ending ? null : F.phase === 1 ? downTo([F.chaseG], 3) : F.phase === 2.3 ? cut(F.yochiG?.units.length, nightRaidLeft(F.yochiG), 2) : F.phase === 3 ? [F.kmU && !F.kmU.alive ? 1 : 0, 1] : F.phase === 4 ? cut(F.chase5?.reduce((n, g) => n + g.units.length, 0), shoreLeft(F.chase5), 4) : null;
+  return F.ending ? null : F.phase === 1 ? cut(F.chaseG?.units.length, nLive(F.chaseG), 3) : F.phase === 2.3 ? cut(F.yochiG?.units.length, nightRaidLeft(F.yochiG), 2) : F.phase === 3 ? [F.kmU && !F.kmU.alive ? 1 : 0, 1] : F.phase === 4 ? cut(F.chase5?.reduce((n, g) => n + g.units.length, 0), shoreLeft(F.chase5), 4) : null;
 };
 withGuard(t02_shizugatake);
 

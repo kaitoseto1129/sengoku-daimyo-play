@@ -35,9 +35,14 @@ export function install(rt, ctx) {
   // 別働隊：東の尾根から本丸の脇へ
   rt.after(20, () => {
     if (rt.over || F.ending) return;
+    // 郭の控えと同じ実兵の上限を守り、空き人数だけ東の手から加勢する。
+    let soldiers = 0;
+    for (const u of rt.army.units) if (u.alive && !u.isStruct) soldiers++;
+    const count = Math.min(9, Math.max(0, 250 - soldiers));
+    if (!count) return;
     // 東の口は丹羽、西の谷は浅井。追加の攻め手も既存の四手と同じく崩れて戻らなくならない。
     const g = allyGroup(rt, { fixed: true, name: '丹羽長秀の別働隊', anchor: { x: EAST.x - 8, z: EAST.z }, facing: -Math.PI / 2, width: 4, aggro: 14, seekRange: 30, order: 'move', formation: 'yari', noRout: true },
-      dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 8 }], { flag: 'oda' }));
+      dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: count - 1 }], { flag: 'oda' }));
     g.dest = { x: HON.x + 6, z: HON.z }; g.speed = 3.2;
     g.onArrive = (gg) => { gg.order = 'attack'; gg.anchor = { x: HON.x, z: HON.z }; };
     H.flank = g;

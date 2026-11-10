@@ -4644,7 +4644,7 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
     if (!F.nTransition) {
       F.nTransition = true; rt.scene.visible = false;
       // 11/6 critic60：一瞬で二条へ飛んだように見えた。寺から二条は十町（約一キロ）・一刻ほど後の事なので、暗い間を三秒取り、時が過ぎた事を見せる
-      rt.banner('裏通りを抜け、二条へ', '十町ほど北東の二条新御所へ走った。一刻ほどの後、信忠の手は御所に籠った');
+      rt.banner('裏通りを抜け、二条御所へ', '十町ほど北東の二条御所へ走った。一刻ほどの後、信忠の手は御所に籠った');
       rt.after(2.5, () => this.toNijo(rt)); return;
     }
     F.step = 3; F.stepT = rt.t; F.pkNijo = F.pk || 0;
@@ -4660,7 +4660,7 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
     F.foes.length = 0;
     teleport(rt, NIJO_GATE.x + 5, NIJO_GATE.z + 2);
     rt.after(1.2, () => { rt.scene.visible = true; });
-    rt.banner('二条御所の西の門を守れ', '信忠様は妙覚寺から二条の新御所へ移り、明智を迎え撃つ');   // 時が飛ぶので、真ん中に次の目標を出す（kaito AT7）
+    rt.banner('二条御所の西の門を守れ', '信忠様は妙覚寺から二条御所へ移り、明智を迎え撃つ');   // 時が飛ぶので、真ん中に次の目標を出す（kaito AT7）
     // 門番のすぐ後ろに控える。御所の奥へ固まると、傷を負った本人が門前で孤立する。
     F.tada = allyGroup(rt, { fixed: true, name: '織田信忠の手', anchor: { x: NIJO_GATE.x + 10, z: NIJO_GATE.z - 6 }, facing: -Math.PI / 2, width: 5, aggro: 4, noRout: true, fullStrength: true },
       dress([{ type: 'busho', n: 1, o: { name: '織田信忠', hat: 'kabuto_m', haori: 0, horse: false } }, { type: 'samurai', n: 1, o: { name: '村井貞勝', hat: 'kabuto_w', horse: false } }, { type: 'samurai', n: 1, o: { name: '斎藤利治', hat: 'kabuto_m', horse: false } }, { type: 'samurai', n: 1, o: { name: '菅屋長頼', hat: 'kabuto_w', horse: false } }, { type: 'samurai', n: 6 }, { type: 'ashigaru', n: 6 }], ODA));   // 信忠の周りは馬廻の侍（kaito O）
@@ -6298,7 +6298,7 @@ honnoji.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
 
 // 15分の構成（docs/oda15_plan_1108.md 32）：段は prototype/src/honnoji/ に一段一ファイル
 k15Shizuka(honnoji); k15Shuen(honnoji);
-{ const K15 = { akechi, uS, uA, nbSet }; k15Omote(honnoji, K15); k15Kairo(honnoji, K15); k15Saigo(honnoji, K15); k15Uradori(honnoji, K15); }
+{ const K15 = { akechi, uS, uA, nbSet, nbWeapon }; k15Omote(honnoji, K15); k15Kairo(honnoji, K15); k15Saigo(honnoji, K15); k15Uradori(honnoji, K15); }
 honnoji.botBrain = k15WrapBot(honnoji.botBrain);
 honnoji.depth = (rt) => (rt.G?.lord ? null : HONNOJI_DEPTH);   // 寺を囲む明智一万三千（軽い備）
 export { honnoji };
