@@ -4126,7 +4126,12 @@ const inabayama = {
   goals5: () => {
     const F = (rt) => rt.flags, won = (rt) => !!rt.tracker?.main;
     return [
-      { kind: 'stage', k: 0, text: '井口の町の家三軒に火を放つ', noun: '井口の町', check: (rt) => won(rt) || (F(rt).step || 0) >= 2 },
+      { kind: 'stage', k: 0, text: '井口の町の家三軒に火を放つ', noun: '井口の町',
+        // 集合・火付け・町の守兵で、今の行いと数をそろえる。達成条件は保つ。
+        textOf: (rt) => !F(rt).step ? '木下藤吉郎に近づいて話す'
+          : F(rt).lit < NEED && !rt.G.lord ? '井口の町で家に火をつける' : rt.def.taskText(rt, '井口の町の家三軒に火を放つ'),
+        count: (rt) => F(rt).step === 1 && F(rt).lit < NEED && !rt.G.lord ? [F(rt).lit || 0, NEED] : null,
+        countUnit: '軒', check: (rt) => won(rt) || (F(rt).step || 0) >= 2 },
       { kind: 'stage', k: 1, text: '麓の鹿垣で、打って出た城兵を退ける', noun: '麓の鹿垣', check: (rt) => won(rt) || (F(rt).step || 0) >= 3, groups: (rt) => [F(rt).ote, F(rt).ote2].filter(Boolean) },
       { kind: 'stage', k: 2, text: '七曲りを登り、大手の木戸へ', noun: '七曲り', check: (rt) => won(rt) || !!F(rt).tsukeGate || (F(rt).step || 0) >= 4 },
       { kind: 'stage', k: 2, text: '大手の木戸の守りを破る', noun: '大手の木戸', check: (rt) => won(rt) || (F(rt).step || 0) >= 4, groups: (rt) => (F(rt).oteGate ? [F(rt).oteGate] : []) },

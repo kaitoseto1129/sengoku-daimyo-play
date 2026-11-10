@@ -19,6 +19,17 @@ export function active(rt) { const Y = rt.flags.ikYama; return !!Y && !Y.done; }
 export function pin(rt) {
   const Y = rt.flags.ikYama;
   if (!Y || Y.done) return null;
+  // 斬り合いの間も残る敵を指す。離れた弓兵が索敵の外へ出ても、本人の足元で止まらない。
+  if (Y.s === 1 || Y.s === 3) {
+    const p = rt.player.u.pos;
+    let target = null, nearest = Infinity;
+    if (Y.g) for (const u of Y.g.units) {
+      if (!siegeFighter(u)) continue;
+      const d = Math.hypot(u.pos.x - p.x, u.pos.z - p.z);
+      if (d < nearest) { target = u.pos; nearest = d; }
+    }
+    return target || (Y.s === 1 ? A : B);
+  }
   return Y.s === 0 ? A : Y.s === 2 ? B : Y.s === 4 ? BACK : null;
 }
 

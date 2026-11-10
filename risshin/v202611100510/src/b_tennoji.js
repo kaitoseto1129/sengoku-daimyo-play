@@ -2221,6 +2221,8 @@ const tennoji = {
     const F = rt.flags;
     if (F.ending || rt.over) return rt.tracker.main ? '追撃を止めよ' : '味方へ退け';
     if (F.shelterShown) return F.shelterArrived ? '護衛の後ろで止まり、傷を休めよ' : '味方の後ろへ';
+    if (F.step === 3 && !sortieWaypoint(rt) && !tennojiEnemy(rt))
+      return '砦の東から北の味方へ進み、構えて列に加われ';
     return this.missions[this.missionOf(rt)];
   },
   // 頼廉は城戸口の後方で退く史実の役。討取り対象にせず、大将の印だけを出す。
@@ -2391,7 +2393,7 @@ const tennoji = {
     if (rt.flags.step < 3) return '南の門内へ';
     if (rt.flags.step === 3 || rt.flags.step === 4 && !rt.flags.kidoCut) {
       const way = sortieWaypoint(rt);
-      return way === SORTIE_EXIT ? '南門の外へ' : way === SORTIE_NORTH ? '堀の外を北へ' : way ? '砦の東へ' : rt.flags.step === 4 ? '味方と北へ進め' : '北の敵の旗へ';
+      return way === SORTIE_EXIT ? '南門の外へ' : way === SORTIE_NORTH ? '堀の外を北へ' : way ? '砦の東へ' : rt.flags.step === 4 ? '味方と北へ進め' : tennojiEnemy(rt) ? '北の敵の旗へ' : '北の味方の列へ';
     }
     return rt.flags.step === 4 && !rt.flags.kidoCut ? '味方と北へ進め' : '木戸の手前の印へ';
   },
@@ -3575,7 +3577,7 @@ body:has(#hud.tennoji-tasks) #tc .tb[data-b=guard] .name {
     for (let i = 0; i < F.last.length; i++) rt.unmark('sortieEnemy' + i);
     for (let i = 1; i <= 3; i++) rt.unmark('l' + i);
     battleEvent(rt, EVENT_RETREAT, KIDO, null, 1, true, '本願寺勢の旗が北の城戸口へ退く');
-    if (F.sortieHelp) rt.award((t) => t.side.push('二段の攻めに加わり、本願寺勢の本隊を崩した'), '自分の働きで本隊を押し崩した');
+    if (F.sortieHelp) rt.award((t) => t.side.push('砦の東から北へ進み、二段の攻めに加わった'), '北の囲みを破る列に加わった');
     sfx('horagai', 0.9);
     rt.banner('本願寺勢、崩れる', '石山の城戸口へ退いていく');
     rt.say('足軽', '門徒が崩れたぞ！　石山へ逃げていく！', 3);
@@ -3593,6 +3595,9 @@ body:has(#hud.tennoji-tasks) #tc .tb[data-b=guard] .name {
       }
       if (q.anchor.z > -112) points.push([42 + x, -112]);
       points.push([KIDO.x + x, KIDO.z + 26]);
+      // 馬上の本人だけが先着し、徒歩の後詰を城戸口で何分も待たない。
+      // 徒歩の武将の駆け足（毎秒四メートル）より少し遅く、兵の速さは変えない。
+      q.speed = 3.8; q.allOutRun = true;
       march(q, points, 'hold', Math.PI, 4); q.aggro = 24;
     }
     // 退く群れを一つの地点へ重ねない。木戸の両脇と後ろへ退く。
@@ -3751,19 +3756,23 @@ body:has(#hud.tennoji-tasks) #tc .tb[data-b=guard] .name {
       if (!gone(q) && !q.sortieMarked && sightPoint(rt, q.anchor)) { q.sortieMarked = true; rt.marker('sortieEnemy' + i, () => q.center(), '北の本隊の旗', { red: true, group: q }); }
     }
     // 城戸口では集合印でなく、実際の殿との間合いで参戦を記録する。
+    // 北の囲みでも同じ条件で本人の参戦を記録する。
     // 半秒の見回りより短い槍の振りも取りこぼさず、敵のいない印で構えただけでは果たさない。
-    if (F.step === 4 && F.kidoCut && !F.kidoHelp) {
+    if ((F.step === 3 && !F.sortieHelp) || (F.step === 4 && F.kidoCut && !F.kidoHelp)) {
       const me = rt.player.u;
-      if (me.atk || me.swing || me.guard) for (const g of F.kidoG) {
+      const groups = F.step === 3 ? F.last : F.kidoG;
+      if (me.atk || me.swing || me.guard) for (const g of groups) {
         if (g.kidoRetreat) continue;
         for (const enemy of g.units) {
           if (!enemy.alive || enemy.fleeing || enemy.woundOut) continue;
           if (Math.hypot(enemy.pos.x - me.pos.x, enemy.pos.z - me.pos.z) <= 8 &&
               Math.abs(enemy.pos.y - me.pos.y) < 3 && !rt.army.wallBetween(me.pos, -1, enemy.pos, false)) {
-            F.kidoHelp = true; break;
+            if (F.step === 3) F.sortieHelp = true;
+            else F.kidoHelp = true;
+            break;
           }
         }
-        if (F.kidoHelp) break;
+        if (F.step === 3 ? F.sortieHelp : F.kidoHelp) break;
       }
     }
     F.scanT = (F.scanT || 0) - dt;
@@ -3966,7 +3975,13 @@ body:has(#hud.tennoji-tasks) #tc .tb[data-b=guard] .name {
       rt.objProgress('main', way ? `${gateDirection(rt, way)} ${way === SORTIE_EXIT ? '南門を出て土橋を渡れ' : way === SORTIE_NORTH ? '逆茂木を避け、堀の外を北へ' : '東の印へ。堀の外を回れ'}`
         : seen ? `${gateDirection(rt, seen.anchor)} 敵の旗まで約${Math.ceil(Math.hypot(seen.anchor.x - p.x, seen.anchor.z - p.z) / 5) * 5}歩。味方と進め`
           : '砦の東を北へ進め。味方と敵を押し返せ');
-      if (broken) this.chase(rt);
+      // 味方が先に囲みを崩しても、砦に残る本人の任務を勝手に果たさない。
+      // 敵を探し直す必要はなく、東の堀を回って戦場へ着き、構えて列に加わればよい。
+      const onField = !way && !inPoly(SOTO_POLY, p.x, p.z) &&
+        Math.hypot(p.x - SORTIE_NORTH.x, p.z - SORTIE_NORTH.z) < 45;
+      if (broken && !F.sortieHelp && onField && u.guard) F.sortieHelp = true;
+      if (broken && onField && F.sortieHelp) this.chase(rt);
+      else if (broken && !way) rt.objProgress('main', '砦の東から北の味方へ進み、構えて列に加われ');
     } else if (F.step === 4) {
       // 道中を省かず、本人が城戸口へ近づくまで追撃を続ける。
       if (!F.kidoCut && Math.hypot(p.x - F.kz.x, p.z - F.kz.z) <= 120) this.toKido(rt);
@@ -4620,6 +4635,13 @@ tennoji.botBrain = (b, inp, { goTo, patientStrike }) => {
     // 持ち場に着いたら、門の外で組み合う門前の斬り合いへ向き直る（10/30：西の小屋の壁を見たまま待っていた）。
     if (Math.hypot(GATE_REAR.x - u.pos.x, GATE_REAR.z - u.pos.z) < 2.6) { inp.k.delete('KeyW'); p.yaw = Math.atan2(0.5 - u.pos.x, -33 - u.pos.z); }   // 味方の列に阻まれて二歩手前で止まる事がある
     if (inp.quickCmd === 'yari') p.yaw = 0;
+    return;
+  }
+  // 北の囲みを味方が先に払った時も、本人は印へ進んで列へ加わる。
+  if (F.step === 3 && F.last.every(spent)) {
+    if (Math.hypot(u.pos.x - SORTIE_NORTH.x, u.pos.z - SORTIE_NORTH.z) >= 12)
+      botWalk(p, inp, SORTIE_NORTH.x, SORTIE_NORTH.z, 3, goTo);
+    else inp.guardHold = true;
     return;
   }
   // 城戸口の敵が払われた後は、深手でも印へ進んで口を押さえる。

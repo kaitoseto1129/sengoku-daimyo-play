@@ -109,9 +109,7 @@ export function start(rt, def, C) {
 export function pin(rt) {
   const F = rt.flags, K = F.kumiU;
   if (!K?.alive) return pinAt(rt, null);
-  const P = rt.player.u.pos;
-  if (Math.hypot(K.pos.x - P.x, K.pos.z - P.z) < 10) { F.farPin = null; return null; }
-  return pinAt(rt, { x: K.pos.x, z: K.pos.z + 2 }, '稲生の街道', null, 10);
+  return pinAt(rt, K.pos, '組頭', K, 10);
 }
 
 export function tick(rt) {

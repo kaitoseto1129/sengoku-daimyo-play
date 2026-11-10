@@ -105,6 +105,15 @@ Object.assign(takato, {
     q.unit = null; q.enemy = false; q.marker = null; q.key = ''; q.label = '';
     q.defend = q.waiting = q.approach = q.follow = q.gate = false;
     q.arrived = false; q.r = q.hide = 2;
+    // 包囲の段では、城門への道順より物見・竹束の行き先を先に示す。
+    if (F.k15stage === 'kakoi' && F.k15on && !F.retreatTo && !roomExit(rt)) {
+      const at = F.k15at?.at();
+      if (!at) return null;
+      q.x = at.x; q.z = at.z; q.key = 'k15';
+      q.marker = rt.markers.find(m => m.id === 'k15') || null;
+      q.reach = F.k15at.r;
+      return q;
+    }
     const stage = this.missionOf(rt);
     if (stage === 2 && !F.retreatTo && !roomExit(rt)) {
       const enemy = takatoNearestFoe(rt);
@@ -148,6 +157,12 @@ const TK_STAGE_TEXT = ['①　東の大手道を進み、大手門へ寄せよ',
   '④　二の丸の土橋を渡り、二の丸の門から入れ', '⑤　本丸門を破り、主殿の奥の間へ進め', '⑥　本丸の旗の下に集まり、味方と旗を守れ'];
 function takatoStageText(rt) {
   const F = rt.flags, g = F.gates || {};
+  if (F.k15stage === 'kakoi' && F.k15on) {
+    if (F.k15at?.id === 'tk-look') return '物見の土手から、高遠城を見よ';
+    if (F.k15at?.id === 'tk-tabaya') return '陣の脇の竹束置き場へ進め';
+    if (F.k15at?.id === 'tk-taba') return '竹束の列へ進め';
+    return '物見の土手で、使いの僧の返事を待て';
+  }
   let lv = F.honFell && (F.keep.down || F.lordDying) ? 5 : F.niFell ? 4 : F.sanFell ? 3
     : F.sallyOut || F.sallyUntil ? 1 : F.sallyReturning || F.sallyBegun || g.oteInner?.opened ? 2 : 0;
   // 旧い表示の読み口も、城兵の全滅だけで②を済ませない。

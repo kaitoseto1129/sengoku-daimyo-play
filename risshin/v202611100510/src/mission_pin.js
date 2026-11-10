@@ -29,11 +29,13 @@ function make() {
     // 命・任務・操作の三枚に収め、押せる間は小地図と兵力の札を畳む。
     '#hud:has(#mission-goal:is(.fire-action,.talk-action):not([hidden])) :is(#armybar,#minimap,#maphint,.field-names){display:none!important}' +
     // 行き先と行動を一枚へ集め、離れた任務札や人名を重ねない。
-    '#hud:has(#mission-goal:is(.fire-guide,.talk-guide):not([hidden])) :is(#h-prog,#objectives:not(.expand),.field-names){display:none!important}' +
+    '#hud:has(#mission-goal.talk-guide:not([hidden])) :is(#h-prog,#objectives:not(.expand),.field-names){display:none!important}' +
     '#mission-goal .goal-label{touch-action:none;user-select:none;box-sizing:border-box}' +
     // 行き先の札は一つ。地図・いのち・行き先の三枚に収める。
-    '#hud:has(#mission-goal.destination-focus:not([hidden])) :is(.field-names,#markers,#goal-sign,#h-prog,#objectives,#jk-chap,#jk-prog,#armybar,#tugbar,#h-retainers,.jk-rest){display:none!important}' +
+    '#hud:has(#mission-goal.destination-focus:not(.fire-guide):not([hidden])) :is(.field-names,#markers,#goal-sign,#h-prog,#objectives,#jk-chap,#jk-prog,#armybar,#tugbar,#h-retainers,.jk-rest){display:none!important}' +
     '#hud:has(#mission-goal.destination-focus:not([hidden])):has(#battle-message:not([hidden])) #jk-map{display:none!important}' +
+    // 火付け中は命・右上の数・家の操作の三枚。人数は任務の札に残す。
+    '#hud:has(#mission-goal.fire-guide:not([hidden])) :is(#goal-sign,#battle-notices,#jk-map,#minimap,#maphint,.field-names,#jk-chap,#jk-prog,#tugbar,#h-retainers,.jk-rest){display:none!important}' +
     '#mission-goal .goal-label:focus-visible{outline:3px solid #fff;outline-offset:3px}' +
     '#mission-goal .fire-progress{position:absolute;bottom:4px;left:8px;right:8px;height:5px;background:#615745}' +
     '#mission-goal .fire-progress i{display:block;height:100%;background:#fff3ba;width:var(--fire-progress,0%)}';
@@ -207,7 +209,7 @@ function drawMissionPin(rt) {
   if (!destination?.defend || destination.unit || rt.over || rt.choice || rt.hud.introWaiting || !rt.player.u.alive)
     rt.hud.root.classList.remove('ground-defense');
   // 足軽が組頭から離れた時は、組頭の頭上のひし形と組頭への矢印（kumi_lead.js）。行き先のピンは畳む
-  const following = updateFollowGuide(rt, (pinGuideOn(rt) && kumiFollow(rt)) || destination);
+  const following = updateFollowGuide(rt, destination?.fire ? destination : (pinGuideOn(rt) && kumiFollow(rt)) || destination);
   drawJoinGround(rt, destination, !!destination?.guardBoundary &&
     !rt.over && !rt.choice && !rt.hud.introWaiting && rt.player.u.alive &&
     !rt.hud.root.classList.contains('photo') && !rt.hud.root.classList.contains('ending') &&
@@ -220,7 +222,7 @@ function drawMissionPin(rt) {
   const taskFirst = following || destination && (destination.waiting || destination.guardBoundary || destination.defend || destination.fire || destination.treatment || destination.dodge ||
     destination.unit?.team === rt.player.u.team);
   // 森部は共通の頭上▼で間合い・命中まで示す。別の大きな▼と「敵」の札で覆わない。
-  const enemyMarked = updateEnemyTarget(rt, rt.def.missionStyle !== 'ford' && (!moving || destination?.route) && !taskFirst);
+  const enemyMarked = updateEnemyTarget(rt, rt.def.missionStyle !== 'ford' && !destination?.fire && (!moving || destination?.route) && !taskFirst);
   rt.hud.missionPinLabelShown = false;
   rt.hud.missionPinOutside = false;
   rt.hud.missionFlagFrame = null;
@@ -229,7 +231,7 @@ function drawMissionPin(rt) {
   if (pin?._groundCue) pin._groundCue.style.display = 'none';
   if (following) { if (pin) pin.hidden = true; return; }
   // 行き先を頭上の金の▼（goal_sign.js）一つで示す戦は、ピン・輪・旗を重ねない（kaito 11/3 AL「印はいつも一つだけ」）
-  if (rt.def.goalSignOnly) { if (pin) pin.hidden = true; return; }
+  if (rt.def.goalSignOnly && !destination?.fire) { if (pin) pin.hidden = true; return; }
   // 森部は描画面のピン一本で示す。旗と到着のチェックを同じ場所へ重ねない。
   if (rt.def.missionStyle === 'ford') { if (pin) pin.hidden = true; return; }
   const want = pinGuideOn(rt) && !rt.over && !rt.choice && !rt.hud.introWaiting && rt.player?.u?.alive ? target(rt) : null;
@@ -250,7 +252,7 @@ function drawMissionPin(rt) {
     return;
   }
   // 次に攻撃する時は頭上の▼（画面外では向きの矢印）に一本化する。
-  if (enemyMarked && !want?.route) {
+  if (enemyMarked && !want?.route && !want?.fire) {
     if (pin) pin.hidden = true;
     return;
   }
@@ -766,7 +768,7 @@ function drawMissionPin(rt) {
   pin._guardSign.style.display = 'none';
   // 守備はその場所・本人のそばへ、火付けは押せる札へまとめる。
   const fireIcon = !!want.fire;
-  const text = want.defend ? '' : talk ? 'この人と話す' : want.fire ? 'この家へ' : '';
+  const text = want.defend ? '' : talk ? 'この人と話す' : want.fire ? working ? action.hold ? '長押しで火をつける' : '火をつける' : 'この家へ' : '';
   if (pin._words.textContent !== text) pin._words.textContent = text;
   const fireShow = fireIcon ? 'inline-block' : 'none';
   pin._fireIcon.style.cssText = `display:${fireShow};width:24px;height:32px;margin:0 0 0 8px;vertical-align:middle`;
@@ -810,7 +812,7 @@ function drawMissionPin(rt) {
   }
   label.style.pointerEvents = working ? 'auto' : 'none';
   label.style.minHeight = talk || want.fire ? '52px' : working ? '52px' : '0';
-  label.style.width = talk ? '176px' : want.fire ? '152px' : working ? '208px' : 'max-content';
+  label.style.width = talk ? '176px' : want.fire ? working && action.hold ? '208px' : '152px' : working ? '208px' : 'max-content';
   label.style.whiteSpace = 'nowrap';
   label.style.border = talking ? '3px solid #fff3ba' : working ? '2px solid #fff3ba' : '0';
   label.style.borderRadius = talking ? '12px' : '4px';

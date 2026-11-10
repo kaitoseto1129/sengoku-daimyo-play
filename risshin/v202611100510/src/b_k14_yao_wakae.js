@@ -143,6 +143,7 @@ const k14_yao_wakae = {
   goalVisibleRows: 4,        // 現在の四段を最初から全部並べる（共通の札の既定は一行）
   goalRowsAhead: true,
   goalSignNoLabel: true,     // ▼の上に「印へ進め」を出さない（何の印か分からない。三の1・AR1。n6 X7）
+  goalSignDistanceAlways: true, // 十歩以内でも行き先の距離を消さない（critic60 五3）。
   goalSignTriangle: true,    // 共通の行き先案内も、画面の端で回転する矢印に替えず▼で示す。
   noTaishoRaid: true,
   noCouriers: true,
