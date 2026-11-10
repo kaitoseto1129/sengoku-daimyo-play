@@ -457,14 +457,19 @@ const t03_komaki = {
       // 六秒ごとに射撃の機会をそろえる。発射・射線の確認・弾込めは共通の構えの処理へ渡す。
       if ((F.volT = (F.volT ?? 2) - dt) <= 0) {
         F.volT = 6;
-        const tg = [P, ...(F.sortie?.units || [])].filter((u) => u.alive && !u.gone);
+        const tg = [P, ...(F.sortie?.units || [])].filter((u) => u.alive && !u.gone && !u.woundOut && !u.noTarget);
         let shot = 0;
         for (const g of [F.guns, F.guns2]) {
           if (!resistingN(g)) continue;
           for (const u of g.units) {
             if (u.type !== 'gun' || !u.alive || u.gone || u.fleeing || u.woundOut || u.noTarget || u.sidearm || u.atk || u.swing || u.reload || u.cd > 0 || u.stagger > 0) continue;
-            const t = tg.reduce((b, q) => (!b || dist(q.pos, u.pos) < dist(b.pos, u.pos) ? q : b), null);
-            if (!t || dist(t.pos, u.pos) > 55 || dist(t.pos, u.pos) < 4) continue;
+            // 戦列を離れた者や槍の間合いの者に射撃を塞がれず、筒で狙える相手を選ぶ。
+            let t = null, nearest = 55;
+            for (const q of tg) {
+              const d = dist(q.pos, u.pos);
+              if (d >= 4 && d <= nearest) { t = q; nearest = d; }
+            }
+            if (!t) continue;
             u.heading = Math.atan2(t.pos.x - u.pos.x, t.pos.z - u.pos.z);
             u.atk = { t: 1.2, dur: 1.2, target: t, ranged: true };
             if (t.isPlayer) u.shotWarnUntil = Math.max(u.shotWarnUntil || 0, rt.army.time + 1.2);

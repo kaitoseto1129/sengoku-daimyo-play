@@ -37,7 +37,11 @@ export function start(rt, K) {
   F.engunPushedBack = false;
   F.engunN = F.engun ? F.engun.count : 0;
   const S = (t, fn) => rt.after(t, () => { if (F.step === 4 && !F.ending) fn(); });
-  S(18, () => { sfx('horagai', 0.45); rt.say('足軽', '北に桐の旗！　城の方から加勢が来るぞ！', 3); });
+  S(18, () => {
+    // 出撃前に崩れた加勢を、これから来る敵として知らせない。
+    if (!remaining(rt)) return;
+    sfx('horagai', 0.45); rt.say('足軽', '北に桐の旗！　城の方から加勢が来るぞ！', 3);
+  });
   S(20, () => {
     // 出撃の時刻までに加勢が崩れていても、迎える段を済ませる。
     // 生存確認の後に立てると、残兵が零でも④が終わらない。
