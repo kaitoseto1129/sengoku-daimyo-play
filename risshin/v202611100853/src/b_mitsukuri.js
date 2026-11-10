@@ -2771,7 +2771,10 @@ const mitsukuri = {
   footFlagGuides: true, // 布の背丈いっぱいの囲みをやめ、到着点の小旗へそろえる。
   openingFootSignOnly: true, // 開幕の本人を縦長の枠で囲まず、足元の操作の輪だけ残す。
   compactGuardDestination: true, // 近い守り場は小さな旗と輪にし、味方の足元を隠さない。
-  distanceUnit: 'steps', // 退く印と攻める印で、距離の単位を変えない。
+  distanceUnit: 'metres', // 行き先は場所の名と距離だけ。「すぐ近く」「あと」を添えない。
+  goalSignTriangle: true, // 画面内も画面外も▼。共通の既定の矢印へ戻さない。
+  goalSignDistanceAlways: true, // 十ｍ以内でも場所の名に距離を添える。
+  keepBattleSigns: true, // 行き先を示す間も両軍の数と武将の名を残す。
   compactDestinationSign: true, // 大きな旗の印で柵の口と槍を隠さない。
   singleRetreatArrow: true, // 退く先への短い矢印一本にし、輪・点線・大矢じりを重ねない。
   compactRetreatArea: true,
