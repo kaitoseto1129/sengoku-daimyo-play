@@ -212,6 +212,8 @@ const t06_hetsugi = {
     else if (F.step === 4) at = shingari.pin(rt, K);   // 殿の間は北の口、皆が渡ったら南の岸
     else { at = SAFE; r = 9; }   // ⑤：渡り切った西の岸の土手
     q.x = at.x; q.z = at.z; q.r = q.hide = r;
+    // 防戦・救援は着いてから続く。共通の六 m 内の省略で目標の▼を消さない。
+    q.hideDistance = 0;
     q.arrived = Math.hypot(p.x - at.x, p.z - at.z) < r;
     return q;
   },
@@ -505,7 +507,7 @@ const t06_hetsugi = {
       // 11/9 七：フロイス「他国の者は浅瀬を知らず、多くが溺れた」。浅瀬を外れて深みへ入る土佐の者（本人の渡る浅瀬の川下、四十 m 余り）
       F.deep = allyGroup(rt, { name: '浅瀬を外れた者', anchor: { x: -30, z: -16 }, facing: 0, width: 4, aggro: 0, seekRange: 0, speed: 2.4, order: 'move', noRout: true },
         fl([{ type: 'ashigaru', n: 5, o: { flagScale: 1 } }], 'chosokabe'));
-      F.deep.mon = 'chosokabe'; F.deep.dest = { x: -30, z: 40 }; F.drown = 0;
+      F.deep.mon = 'chosokabe'; F.deep.historicalOrders = true; F.deep.dest = { x: -30, z: 40 }; F.drown = 0;
       // 包みの島津は河原まで追う
       for (const b of [B.niiro, B.honjo, B.ieh, B.ijuin]) this.go(b, { x: FORD.x + (b === B.honjo ? 30 : b === B.niiro ? -20 : 0), z: -18 }, 2.2, { charge: true });
     } else if (n === 5) {

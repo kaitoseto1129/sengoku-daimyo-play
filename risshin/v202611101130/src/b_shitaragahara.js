@@ -1737,7 +1737,8 @@ function nfPinPoint(rt) {
   if (ST_BREACH.active(rt)) return ST_BREACH.pin(rt) || rt.flags.shBreach.IN;
   // 波が退いた後も、未確認の破れ目への案内を消さない。
   if (N.step === 2 && !N.breachDone && rt.flags.shBreach && !rt.flags.shBreach.there) return rt.flags.shBreach.IN;
-  if (N.step === 3 && rt.flags.shSoko?.call && !rt.flags.shSoko.there) return rt.flags.shSoko.IN;
+  // 着いただけで柳田前へ戻すと、破れ目での交戦時間が増えず救援が終わらない。
+  if (N.step === 3 && rt.flags.shSoko?.call && (!rt.flags.shSoko.done || !rt.flags.shSoko.there)) return rt.flags.shSoko.IN;
   if (N.step <= 1) return NF_NORTH;
   if (N.step <= 3) return NF_CENTER;
   if (N.step === 4) return N.crossWest ? NF_BANK : NF_CENTER;

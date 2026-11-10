@@ -4250,8 +4250,14 @@ function kgFoeSigns(rt) {
   const off = rt.over || F.ending || !me.alive || rt.hud.introWaiting || rt.player.camShot || rt.hud.bigmap || root.classList.contains('photo');
   let n = 0;
   if (!off) {
-    if (rt.t >= F.foeSignAt || rt.t < F.foeSignAt - .25) {
+    // 視点が岩や坂の陰へ動いた時は、前の見通しの一覧を使わない。
+    // 静止中は従来どおり五分の一秒ごと。座標だけを控え、毎コマの配列は増やさない。
+    const a = cam.position;
+    const moved = F.foeSignX === undefined ||
+      (a.x - F.foeSignX) ** 2 + (a.y - F.foeSignY) ** 2 + (a.z - F.foeSignZ) ** 2 > .25;
+    if (moved || rt.t >= F.foeSignAt || rt.t < F.foeSignAt - .25) {
       F.foeSignAt = rt.t + .2;
+      F.foeSignX = a.x; F.foeSignY = a.y; F.foeSignZ = a.z;
       const list = F.foeSignList; list.length = 0;
       for (const u of rt.army.units) {
         if (u.team === me.team || u.team > 1 || !u.alive || u.dying || u.gone || u.downed || u.woundOut || u.isStruct || u.civ ||

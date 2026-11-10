@@ -804,7 +804,8 @@ const k06_sekigahara = {
       const since = F.flipT ? rt.t - F.flipT : 0;
       // 桃配山などへ離れたまま、寝返りと大谷の最期を見ずに任務が済むのを防ぐ。
       // 残兵が地形に詰まっても、本人が右翼へ戻れば最長時間の条件で進める。
-      if (F.turned && near(P, RLINE, 80) && (since >= 70 && nOf(F.otani, F.otaW1, F.otaW2) <= Math.round(F.n8 * 0.5) || since >= FALL_MAX)) this.otaniFall(rt);
+      // 赤座勢の離反は下山開始から七十六秒。先に兵が減っても、四家が離反する前に大谷を自害させない。
+      if (F.turned && near(P, RLINE, 80) && (since >= 80 && nOf(F.otani, F.otaW1, F.otaW2) <= Math.round(F.n8 * 0.5) || since >= FALL_MAX)) this.otaniFall(rt);
     } else if (F.step === 9) {
       const left = nOf(F.shingari, F.koniR);
       F.ek = (F.akaN || 0) + (F.c9N || 0) - left;
