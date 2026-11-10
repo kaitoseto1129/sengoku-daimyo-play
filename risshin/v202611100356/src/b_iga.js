@@ -947,7 +947,7 @@ const NAGAOKA = { x: -215, z: 55 };
 import { jinkeiBuild } from './jinkei.js';
 import { timeslipField } from './timeslip_field.js';
 import { rainVolley } from './arrow_rain.js';
-import { projectileCover } from './projectile_cover.js';
+import { projectileCover, addMissileCover } from './projectile_cover.js';
 // 大手の道は南の土橋を必ず通り、曲輪の口と同じ中心線を使う。
 const ROAD = [...APPROACH, ...RIDGE.slice(1)];
 
@@ -1857,10 +1857,13 @@ const iga = {
       for (const [x, z] of footFires) W.addFire(x, z, { torch: true, h: 1.5, lightRadius: 16, lightStrength: 9 });
     }
     // 陣の前（南の柵の内）に竹束を並べ、俵と幟を置く（持ち場から最初に見える所。取りまとめ 10/28）。
-    // 当たりは外して兵の道と夜討ちの筋を変えない。形と材質は共通の竹束・俵・幟。
+    // 歩く当たりは外し、竹束が矢弾を止める当たりだけ残す。
     {
       const s0 = SOLIDS.length;
-      for (const x of [-34, -31.6, -29.2, -26.8, -24.4, -18, -15.6, 15.6, 18, 24.4, 26.8, 29.2, 31.6, 34]) rt.scene.add(takataba(W, x, 15.5, Math.PI));
+      for (const x of [-34, -31.6, -29.2, -26.8, -24.4, -18, -15.6, 15.6, 18, 24.4, 26.8, 29.2, 31.6, 34]) {
+        rt.scene.add(takataba(W, x, 15.5, Math.PI));
+        addMissileCover(rt.army, { x, z: 15.5, rot: Math.PI, hw: 0.95, hd: 0.3, h: 1.7 });
+      }
       for (const [x, z, r] of [[-22, 22, .3], [22, 21, -.2], [-30, 46, .1], [30, 47, 1.4]]) rt.scene.add(tawara(W, x, z, r, 6));
       for (const [x, z] of [[-21, 17], [-12, 17], [12, 17], [21, 17], [-28, 38], [28, 38]]) rt.scene.add(igaNobori(W, x, z, 'sujikai', 5.5));
       SOLIDS.splice(s0);
@@ -3232,7 +3235,8 @@ function igaHold(o) {
       }
       // 槍を合わせて敵を押し返す時間も、持ち場を守った時間に含める。
       const sameLevel = Math.abs(p.y - postY) < 3;
-      if (sameLevel && d <= o.r && friend >= 2 && friend >= enemy) C.inT += dt;
+      const holding = sameLevel && d <= o.r && friend >= 2 && friend >= enemy && !igaNeedsTreatment(rt);
+      if (holding) C.inT += dt;
       C.outT = sameLevel && d <= o.r + 6 || igaNeedsTreatment(rt) ? 0 : C.outT + dt; // 短い押し出しと、下知どおりの手当ては離脱にしない。
       // 敵が陣へ入っていない間は、味方の集合待ちだけで「押し負け」を数えない。
       // 離脱・時間切れは別に判定し、敵が入った時の三十秒の猶予は保つ。
@@ -3243,10 +3247,10 @@ function igaHold(o) {
       if (C.outT > 60) { iga.lose(rt, '陣の口を離れ、組を支えられなかった'); return false; }
       const clear = !C.waves.length && C.groups.every(C.raidGone);
       // 最後の敵が退いたコマを時間切れで敗戦にしない。
-      if (clear && C.inT >= o.dur * 0.6) return true;
+      if (clear && holding && C.inT >= o.dur * 0.6) return true;
       // 期限だけで、手当て中や未帰陣の本人が守った扱いにしない。
       // 残敵の全滅は求めず、持ち場を守った時間は撃退時と同じだけ必要にする。
-      if (el > deadline && !C.waves.length && C.inT >= o.dur * 0.6) { C.held = true; return true; }
+      if (el > deadline && !C.waves.length && holding && C.inT >= o.dur * 0.6) { C.held = true; return true; }
       C.guideT = (C.guideT || 0) - dt;
       if (C.guideT <= 0) {
         C.guideT = 0.5;
