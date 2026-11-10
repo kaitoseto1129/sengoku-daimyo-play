@@ -3556,6 +3556,8 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
             ax >= 2.6 && ax <= 5.6 && Math.abs(u.pos.z) < 12.6) {
           const sd = Math.sign(u.pos.x);
           p.set(sd * 2.75, u.pos.y + 2.6, u.pos.z - 3);
+          // 最後に置く構図も軒の外へ戻す。先に済ませた壁よけを上書きしない。
+          kizugawa.clampCamera(rt, p);
           cameraLook.set(u.pos.x + sd * 2.5, u.pos.y + 0.9, u.pos.z + 5);   // 本人は画面の下の真ん中寄り、外の沖が右（西は左）に入る
           camera.lookAt(cameraLook);
         }

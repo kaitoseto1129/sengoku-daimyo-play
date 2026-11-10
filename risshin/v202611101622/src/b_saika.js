@@ -3081,8 +3081,16 @@ const saika = {
     const cameraFences = [];
     const wall = (pts, name, h = 2.5) => {
       const river = name === '川底の杭';
+      // 11/10 重さ：壊れない西岸の竹矢来は区画（三十余り）を一つずつ描かず、六区画ずつ一つの形にまとめる（当たりは区画のまま）
+      const bankGeos = [];
+      const bankOne = (world, seg, o) => { const m = bankFence(world, seg, o); bankGeos.push(m.geometry); const e = new THREE.Object3D(); e.isBatchedPart = true; return e; };
       const segs = wallLine(rt, pts, { team: 1, hp: 1e9, name, segLen: 6,
-        mesh: river ? riverFence : bankFence, meshOpt: { h } });
+        mesh: river ? riverFence : bankOne, meshOpt: { h } });
+      for (let i = 0; i < bankGeos.length; i += 6) {
+        const part = bankGeos.slice(i, i + 6), mesh = new THREE.Mesh(mergeGeometries(part), bambooMat);
+        for (const g of part) g.dispose();
+        mesh.castShadow = true; mesh.receiveShadow = true; rt.scene.add(mesh);
+      }
       for (const s of segs) { s.noTarget = true; s.wall = true; }
       if (river) cameraFences.push(...segs);
       return segs;

@@ -66,19 +66,21 @@ export function install(rt, ctx) {
     if (S.k === 1) snipers();
     if (S.k === 2) {
       const left = S.g.units.filter(fighting).length;
+      const atBank = Math.hypot(p.x - MI.x, p.z - MI.z) < 16;
       // 岸で実際に撃ち合ってから数える。遠くで待っただけでは追い払った事にしない。
-      if (S.contestedAt == null && Math.hypot(p.x - MI.x, p.z - MI.z) < 16 &&
+      if (S.contestedAt == null && atBank &&
           S.g.units.some(u => fighting(u) && Math.abs(u.pos.y - p.y) < 3 &&
             Math.hypot(u.pos.x - p.x, u.pos.z - p.z) < 40 &&
             !rt.army.wallBetween(p, -1, u.pos) && !rt.army.terrainBlocks(p, u.pos))) S.contestedAt = rt.t;
       // 葦や水際に残った数人の全滅待ちをしない。交戦が長引けば砦へ退く。
-      if (S.contestedAt != null && rt.t - S.contestedAt > 120 && !S.g.routed && left > 2) {
+      if (atBank && S.contestedAt != null && rt.t - S.contestedAt > 120 && !S.g.routed && left > 2) {
         withdraw();
         S.k = 3; S.backT = rt.t;
         rt.unmark('nodaSnipe');
         rt.say('前田利家', '三好の鉄砲が退くぞ。追うな、堤へ戻れ！', 3.5);
       }
-      if (S.k === 2 && (left <= 2 || S.g.routed)) {
+      // 岸を離れた間に味方が倒しても、本人が戻るまで任務を果たした事にしない。
+      if (S.k === 2 && atBank && (left <= 2 || S.g.routed)) {
         S.k = 3; S.backT = rt.t;
         rt.unmark('nodaSnipe');
         withdraw();
@@ -117,6 +119,8 @@ export function bot(b, goTo, p, inp, strike) {
       return true;
     }
   }
-  goTo(p, inp, 0, -2, 3);
+  // 敵を追って岸から離れた時は、持ち場へ戻ってから下知を受けに行く。
+  if (S.k === 2) goTo(p, inp, S.at.x, S.at.z, 3);
+  else goTo(p, inp, 0, -2, 3);
   return true;
 }

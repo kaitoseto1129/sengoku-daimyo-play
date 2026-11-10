@@ -146,6 +146,15 @@ function crossesDaiMoat(a, b) {
   }
   return false;
 }
+// 堀へ押し出された兵は先に岸へ戻す。岸と土橋を斜めに結ぶと法に当たり続ける。
+function daiApproach(u) {
+  const p = u.pos;
+  if (p.x <= -30 || Math.abs(p.z - 176) <= 3) return null;
+  const q = u._daiApproach || (u._daiApproach = { x: 0, z: 0 });
+  q.x = p.x > -19.5 ? -6 : -32;
+  q.z = p.x > -29 && p.x < -10 ? p.z : 176;
+  return q;
+}
 function height0(x, z) {
   let h = kuruwaH(x, z, NAT(x, z)) + SP_H(x, z);
   for (const S of ALL_HORI) h += shojiH(x, z, S);
@@ -292,7 +301,8 @@ const t09_yamanaka = {
     if (F.step === 1) {
       // 出丸の中心へ斜めに誘わず、先手が攻める土橋と柵を順に指す。
       if (p.x > -30 && Math.abs(p.z - 176) > 3) {
-        x = p.x > -19.5 ? -6 : -32; z = 176; label = '出丸の土橋';
+        const a = daiApproach(rt.player.u);
+        x = a.x; z = a.z; label = '出丸の土橋';
       } else if (p.x > -30) {
         const s = F.daiBridge;
         if (s && s.alive !== false && s.hp > 0) {
@@ -348,6 +358,7 @@ const t09_yamanaka = {
     terrainTriangles: true,
     // 人の背の何倍もある切岸（54°より急な所）には兵も主人公も立たない（critic60 山中 21「崖に兵が張り付いて宙に立つ」）。道と坂は通れる
     climbTan: 1.4,
+    strictFireOrders: true,   // 鉄砲の撃ち止みを近距離でも守り、突入する隙を残す。
     // 11/8 critic60 山中 29：斬り合いで片足を高く上げた跳ねた形のまま止まって見えた。急な坂で腿を上げすぎないよう歩幅の上限を抑える
     strideLimit: 0.85,
     seed: 15900,
@@ -380,6 +391,20 @@ const t09_yamanaka = {
 
   setup(rt) {
     const W = rt.world, F = rt.flags;
+    // 五件の並びは保ち、中央の知らせを任務の札と重ねない。この戦だけに効かせる。
+    if (typeof document !== 'undefined') {
+      const st = document.createElement('style');
+      st.textContent = `
+html:root body #hud:has(#h-prog[data-battle="t09_yamanaka"]) #center-call { left:34vw; right:auto; top:calc(48px + env(safe-area-inset-top,0px)); width:28vw; }
+html:root body #hud:has(#h-prog[data-battle="t09_yamanaka"]) #center-call .cc.blue { display:none !important; }
+html:root body #hud:has(#h-prog[data-battle="t09_yamanaka"]) #center-call .cc { max-width:100%; box-sizing:border-box; padding:4px 6px; font-size:16px; line-height:1.35; letter-spacing:0; }
+@media(max-height:500px) {
+ html:root body #hud#hud#hud.battle-order #h-prog#h-prog[data-battle="t09_yamanaka"].goal-mode { padding:4px 6px !important; }
+ html:root body #hud#hud#hud.battle-order #h-prog#h-prog[data-battle="t09_yamanaka"].goal-mode .pg-goals li.now { font-size:max(16px,calc(16px * var(--text-scale,1))) !important; }
+}`;
+      document.head.appendChild(st);
+      rt.cleanupTasks?.add(() => st.remove());
+    }
     F.step = 0; F.ek = 0; F.ak = 0; F.daiEk = 0;
     const D = KURUWA.dai, HN = KURUWA.hon, NS = KURUWA.nishi;
     // ---- 岱崎出丸の柵（南と東へ向く。柵の内から間宮の鉄砲が撃つ。煙と弾は下の城攻めの部品が出す） ----
@@ -427,6 +452,7 @@ const t09_yamanaka = {
       dress([{ type: 'busho', n: 1, o: { name: '山内一豊', invuln: true, hat: 'kabuto_w', haori: 0x33302a, mon: 'kashiwa' } }, { type: 'samurai', n: 4 }, { type: 'ashigaru', n: 20 }, { type: 'gun', n: 6 }], YAMA));
     F.toyo.push(F.yama);
     F.yama.defMult = 1.2; F.yama.dmgMult = 0.85;
+    for (const g of F.toyo) g.historicalOrders = true;   // 案内の使番に控えの隊や渡堀中の列を転用させない。
     // 大将の豊臣秀次は街道の後ろの本陣の陣幕の中で床几に座り、旗本に囲まれて動かない（前に出ない。kaito AR 3・標準 一の2）
     // 後列まで動ける範囲に収め、南端から押し戻される跳びを防ぐ。
     F.hide = allyGroup(rt, { name: '秀次の旗本', fullStrength: true, anchor: { x: SEAT.x, z: SEAT.z - 18 }, facing: Math.PI, width: 9, aggro: 0, fixed: true, noAI: true, noRout: true, order: 'hold', formation: 'line' },
@@ -468,12 +494,12 @@ const t09_yamanaka = {
       }
     }
     F.daiN = F.dai.units.length;
-    F.dai.noRout = true;   // 出丸は手勢を討ち取る目標。間宮の最期の後も敗走だけで完了にしない。
+    F.dai.noRout = true;   // 間宮が生きている間は踏みとどまり、討死の後は手勢が動揺する。
     // 城攻めの段（siege_stages.js・docs/siege_honjin_spec_1107.md 5・13章）：岱崎出丸 → 障子堀 → 三の丸の虎口 → 二の丸 → 本丸。
     //   段の守りは段に入ってから出て来るので、組は getter で渡す。今の段の守りだけが打って出て、奥は持ち場で構えて待つ
     const alive = (...gs) => gs.filter((g) => g && g.count > 0 && !g.routed);
     F.stages = siegeStages(rt, [
-      { get groups() { return alive(F.dai); }, done: () => F.step >= 2, report: '岱崎出丸の鉄砲、まだ止みませぬ！', reportAfter: 200 },
+      { get groups() { return alive(F.dai); }, done: () => F.step >= 2, report: '岱崎出丸の守り、まだ崩れませぬ！', reportAfter: 200 },
       { get groups() { return alive(F.pit, F.rim); }, done: () => F.step >= 3, report: '障子堀の畝で、味方が足を取られております！', reportAfter: 70 },
       { get groups() { return alive(F.uma, F.san); }, done: () => F.step >= 4, report: '三の丸の虎口、まだ破れず！', reportAfter: 70 },
       { get groups() { return alive(F.ni); }, done: () => !alive(F.ni).length || F.ni.count < (F.ni._stN || 1) * 0.4, report: '二の丸の守り、しぶとく粘っております！', reportAfter: 70 },
@@ -510,16 +536,26 @@ const t09_yamanaka = {
       const dx = D.x - x, dz = D.z - z, d = Math.hypot(dx, dz) || 1;
       return { s, x: x + dx / d * 3, z: z + dz / d * 3, dx, dz };
     });
-    const approachEast = { x: -6, z: 176 }, approachWest = { x: -32, z: 176 };
     // 土橋に面した一枚を攻める。南の角の破れ口へ斜めに寄ると畝堀へ落ちる。
     const bridgeMouth = mouths.reduce((a, b) =>
       Math.hypot(b.x + 28, b.z - 176) < Math.hypot(a.x + 28, a.z - 176) ? b : a);
     F.daiBridge = bridgeMouth.s;
+    const bridgeWest = { x: -32, z: 176 }, bridgeEast = { x: -6, z: 176 };
+    // 打って出る守兵も堀を斜めに横切らず、開いた土橋を通って寄せ手へ向かう。
+    F.dai.assault = (u) => {
+      const enemy = rt.army.nearestEnemy(u, 60, (v) => !v.isStruct && !v.fleeing &&
+        !crossesDaiMoat(u.pos, v.pos) && Math.abs(v.pos.y - u.pos.y) < 3 && !rt.army.wallBetween(u.pos, -1, v.pos));
+      if (enemy) return enemy.pos;
+      if (bridgeMouth.s.alive !== false && bridgeMouth.s.hp > 0) return inside;
+      if (u.pos.x < -30 && Math.abs(u.pos.z - 176) > 3) return bridgeWest;
+      return daiApproach(u) || bridgeEast;
+    };
+    F.dai.historicalOrders = true;
     const fence = (u) => {
       // 柵を目指して斜めに進むと、東の畝堀へ落ちる。先手も本人と同じ土橋へ揃える。
       // 東岸では先に街道を北上し、堀の中では近い岸へ戻ってから渡る。
-      if (u.pos.x > -30 && Math.abs(u.pos.z - 176) > 3)
-        return u.pos.x > -19.5 ? approachEast : approachWest;
+      const approach = daiApproach(u);
+      if (approach) return approach;
       if (u.pos.x > -30) return bridgeMouth.s.alive !== false && bridgeMouth.s.hp > 0 ? bridgeMouth.s : bridgeMouth;
       // 渡り終えた兵は出丸の中心で止まらず、見通せる残兵へ寄って本人を支える。
       const enemy = rt.army.nearestEnemy(u, 30, (v) => !v.isStruct && !v.fleeing &&
@@ -528,10 +564,10 @@ const t09_yamanaka = {
       return inside;
     };
     // 全員の整列を待つと、柵に阻まれた後列が着けず攻撃へ移れない。先頭から柵を攻める。
-    const go = (g, x, z) => { g.formation = 'column'; g.colW = 3; g.order = 'assault'; g.assault = fence; g.anchor = { x, z }; g.speed = 3; g.onArrive = null; };
-    go(F.ichi, D.x + 26, D.z + 4); go(F.naka, D.x + 34, D.z - 4);  // 出丸の東の土橋の口へ
+    const go = (g) => { g.formation = 'column'; g.colW = 3; g.order = 'assault'; g.assault = fence; g.anchor = { x: -6, z: 176 }; g.speed = 3; g.onArrive = null; };
+    go(F.ichi); go(F.naka);  // 持ち場も堀の中へ置かず、東岸の土橋の口へ。
     // 破れ口が開いたら二陣も同じ土橋から援護する。新しい兵は増やさない。
-    F.daiSupport = () => go(F.yama, D.x + 26, D.z + 4);
+    F.daiSupport = () => go(F.yama);
     // 二陣まで柵に押し込まず、出丸を抜いた後に障子堀へ続く兵を残す。
     const reserve = (g, x, z) => { g.order = 'move'; g.dest = { x, z }; g.speed = 3; g.onArrive = (q) => { q.order = 'hold'; q.anchor = { x, z }; }; };
     reserve(F.yama, 12, 194);
@@ -799,6 +835,13 @@ const t09_yamanaka = {
     if (F.toyo.every((g) => g.count === 0) && (!rt.canFailMission || rt.canFailMission())) { this.lose(rt, '先手の隊がみな崩れた'); return; }
     if (F.step === 1) {
       rt.objProgress('main', '');
+      // 十六挺が交互に本人を撃ち続けない。射撃六秒・弾込め十二秒の隙に先手が寄る。
+      const firing = T % 18 < 6;
+      if (F.dai.fire !== firing) {
+        F.dai.fire = firing;
+        if (!firing && T < 19 && Math.hypot(p.x - KURUWA.dai.x, p.z - KURUWA.dai.z) < 60)
+          rt.say('中村一氏', '鉄砲が止んだ！　土橋から出丸へ掛かれ！', 3);
+      }
       if (!F.daiOn && Math.hypot(p.x - KURUWA.dai.x, p.z - KURUWA.dai.z) < 60) { F.daiOn = true; F.dai.order = 'attack'; F.dai.seekRange = 30; }
       // 一柳直末は出丸の鉄砲に当たって討ち死に（史実。『一柳家記』）。本当に倒れ、隊は旗を守って攻め続ける
       // 主人公が一柳の旗の近く（45m）にいる時に撃たれる。時間だけでは遠くで討たない。
@@ -826,22 +869,24 @@ const t09_yamanaka = {
       // 時間だけで突き入らせると、後から近づいた一柳が間宮の最期の後に撃たれてしまう。
       if ((F.ichiShot || F.ichiLost || T > 150 && !ichiShooter) && !F.mamiya && mu && mu.alive && F.dai.count > 0 && muNear && (F.dai.count < F.daiN * 0.6 || T > 25)) {
         F.mamiya = true; F.mamiyaT = rt.t;
-        F.dai.noRout = true; F.dai.morale = 100; F.dai.order = 'attack'; F.dai.seekRange = 60; F.dai.aggro = 40; F.dai.fixed = false;
+        F.dai.noRout = true; F.dai.morale = 100; F.dai.order = 'assault'; F.dai.seekRange = 60; F.dai.aggro = 40; F.dai.fixed = false;
         // 横陣の後列は敵が三〜六mへ来るまで持ち場を守る。突き入りの下知では後列も前へ出す。
         F.dai.formation = 'column'; F.dai.colW = 3;
         rt.say('間宮康俊', '氏勝殿も直元も落とした。白髪首を渡すは恥ぞ、墨で染めたわ。者ども、続け！', 5);
       }
       // 最期は実際の攻撃で決める。柵の向こうで待つだけで四十秒後に命を尽かせない。
-      // 突き入り前に本人が討った場合も記録し、残兵は敗走だけで討ち取り扱いにしない。
+      // 突き入り前に本人が討った場合も記録し、討死と隊の崩壊を分けて数える。
       if (!F.mamiyaDead && mu && !mu.alive) {
         F.mamiyaDead = true;
+        // 将を失った手勢は実際に動揺して退く。討死の人数は増やさない。
+        F.dai.noRout = false; F.dai.morale = Math.min(F.dai.morale, 35);
         rt.banner('間宮康俊、討ち死に');
       }
       // 味方だけが出丸を抜いても、主人公が寄るまでは次の目標を達成扱いにしない。
       // 残兵を探し回らせず、間宮を失った手勢が近くの寄せ手へ突き入る。
       // 時間だけで敗走・柵の破壊・討ち取りの達成を起こさない。
-      if (!F.daiLast && (F.mamiyaDead ? T > 180 : T > 240) && Math.hypot(p.x - KURUWA.dai.x, p.z - KURUWA.dai.z) < 60) {
-        F.daiLast = true; F.dai.order = 'attack'; F.dai.fixed = false; F.dai.seekRange = 60; F.dai.aggro = 40;
+      if (!F.daiLast && !F.dai.routed && (F.mamiyaDead || T > 240) && Math.hypot(p.x - KURUWA.dai.x, p.z - KURUWA.dai.z) < 60) {
+        F.daiLast = true; F.dai.order = 'assault'; F.dai.fixed = false; F.dai.seekRange = 60; F.dai.aggro = 40;
         F.dai.formation = 'column'; F.dai.colW = 3;
       }
       // 柵に誰も傷をつけられないまま本人が柵の前で戦い続ける時は、先手が柵を引き倒す（11/9 bot：出丸の前で13分止まり倒れた）
@@ -855,9 +900,9 @@ const t09_yamanaka = {
         F.daiSupport(); F.daiSupport = null;
         rt.say('山内一豊', '柵が破れた！　二陣も土橋から続け！', 3);
       }
-      // 間宮の討死・四分の三の損耗・出丸への到達で制圧。堀に残った一兵を探させない。
+      // 間宮の討死・四分の三の戦力喪失・出丸への到達で制圧。退く兵を追い回させない。
       // 討った人数は水増しせず、残りは崩れて退く。
-      const remaining = F.dai.units.reduce((n, u) => n + (cnt(u) ? 1 : 0), 0);
+      const remaining = daiStanding(F.dai);
       if (F.mamiyaDead && remaining <= F.daiN * 0.25 && Math.hypot(p.x - KURUWA.dai.x, p.z - KURUWA.dai.z) < 30 && breached) this.shoji(rt);
     }
     if (F.step === 2) {
@@ -1041,6 +1086,7 @@ t09_yamanaka.botBrain = (b, inp, { goTo, patientStrike }) => {
 // bot は打ち込みを見て構えてから、この戦の頭へ（toyo_bot.js）
 // 倒す数（kaito 11/2 O）：右上の任務の一行に「（倒した数／倒す数）」。段が進む判定と同じ数え方（stages.js）
 const cnt = (u) => u.alive && !u.dying && !u.evacuatedWound;   // 敗走しただけの兵は討ち取りに含めない。
+const daiStanding = (g) => g.routed ? 0 : g.units.reduce((n, u) => n + (cnt(u) && !u.gone && !u.fleeing ? 1 : 0), 0);
 const daiLoss = (rt) => {
   const units = rt.flags.dai?.units, n = units?.length || 0;
   if (!n) return 0;
@@ -1052,10 +1098,10 @@ KILLS.t09_yamanaka = (rt) => {
   if (F.ending || F.step !== 1) return null;
   const n = F.daiN || F.dai?.units.length || 0;
   if (!n) return null;
-  // 制圧は四分の三の損耗。手勢二百の全滅を要求する表示にしない。
+  // 制圧は四分の三の戦力喪失。討死と退いた兵を数え、手勢二百の全滅を要求しない。
   // 端数も段の判定（残りが n の四分の一以下）と同じ人数で揃える。
   const need = Math.floor((n - Math.floor(n * 0.25)) * 200 / n);
-  return [Math.min(daiLoss(rt), need), need];
+  return [Math.min(Math.floor((n - daiStanding(F.dai)) * 200 / n), need), need];
 };
 withGuard(t09_yamanaka);
 
