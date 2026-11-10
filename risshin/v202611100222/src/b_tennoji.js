@@ -4452,6 +4452,16 @@ tennoji.botBrain = (b, inp, { goTo, patientStrike }) => {
   inp.runHeld = false;
   inp.k.delete('KeyW'); inp.k.delete('KeyS'); inp.k.delete('KeyA'); inp.k.delete('KeyD'); inp.k.delete('KeyE');
   if (!u.alive || F.ending) return;
+  // 先着した味方が殿を払った時も、口で構えて押さえる。馬上では構えられないので先に降りる。
+  if (F.step === 4 && F.kidoCut && !F.kidoHelp && F.kz &&
+      Math.hypot(u.pos.x - F.kz.x, u.pos.z - F.kz.z) < 8 &&
+      !b.army.nearestEnemy(u, 10, (o) => o.alive && !o.fleeing && !o.woundOut && !o.noTarget)) {
+    inp.guardHold = false; inp.leftPressed = false; inp.chargeHold = false;
+    if (p.mounted) {
+      if (!(p.mountT > 0)) inp.e.add('KeyR');
+    } else inp.guardHold = true;
+    return;
+  }
   // 息切れの休みと傷の手当ては、互いの終了条件で打ち切らない。
   if (p.sta < p.maxSta * 0.25) F.botStaminaRest = true;
   if (F.botStaminaRest && p.sta > p.maxSta * 0.75) F.botStaminaRest = false;
