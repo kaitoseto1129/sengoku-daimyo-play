@@ -1568,7 +1568,8 @@ function anegawaHqPressure(rt, dt) {
   let intruder = null, intruderDistance = Infinity;
   F.hqEnemy = null;
   for (const u of rt.army.units) {
-    if (!u.alive || u.gone || u.noTarget || u.isStruct || u.fleeing || u.group?.routed ||
+    if (!u.alive || u.hp <= 0 || u.gone || u.noTarget || u.isStruct || u.fleeing || u.group?.routed ||
+        u.group?.order === 'retreat' || u.group?.order === 'flee' ||
         u.woundOut || u.rearWound || u.downed || u.dropped) continue;
     const dx = u.pos.x - HQ.x, dz = u.pos.z - HQ.z, d2 = dx * dx + dz * dz;
     if (u.team !== team) {

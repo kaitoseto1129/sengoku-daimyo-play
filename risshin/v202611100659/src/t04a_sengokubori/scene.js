@@ -32,6 +32,20 @@ export function senHeight(x, z) {
 // 北の土橋を出てから、東の二重堀の北を回る（火矢の射手へ行く時）
 export function route(u, want) {
   const p = u.pos, q = u._kishuWay || (u._kishuWay = { x: 0, z: 0, botRadius: 2 });
+  // 東の堀外へ出る時は、城内の行き先と取り違えず北の門まで戻る。
+  // 先に元の行き先で虎口を判定すると、門の内外を往復して堀外へ出られない。
+  if (want.x > 40) {
+    if (p.x >= 42) return want;
+    if (p.z > 6 && Math.abs(p.x) < 25) { q.x = 0; q.z = p.z > 8 && Math.abs(p.x) > 2.5 ? 14 : 3; }
+    else if (p.z > -28.5 && Math.abs(p.x) < 25) { q.x = 2; q.z = -30.5; }
+    else { q.x = p.z > -39 ? 0 : 47; q.z = -44; }
+    return q;
+  }
+  if (want.x < 10 && p.x > 28) { q.x = p.z > -39 ? 47 : 0; q.z = -44; return q; }
+  // 本丸から二の丸へ戻る兵も、北の開いた門を通す。
+  if (want.z < 7 && p.z > 6 && Math.abs(p.x) < 25) {
+    q.x = 0; q.z = p.z > 8 && Math.abs(p.x) > 2.5 ? 14 : 3; return q;
+  }
   // 虎口（北の門）：塀を抜けず、門の口（x が ±2.5 の内）を通る。内の食い違いの塀（x −7〜−1）は右から回る
   if (want.z > -30 && p.z < -31) { if (Math.abs(p.x) > 2.5) { q.x = 0; q.z = -41; } else { q.x = 2.5; q.z = -27; } return q; }
   if (want.z < -33 && p.z > -31 && p.z < -4) { if (p.z > -28.5) { q.x = 2; q.z = -30.5; } else if (Math.abs(p.x) > 2.5) { q.x = 0; q.z = -29; } else { q.x = 0; q.z = -38; } return q; }
@@ -40,8 +54,6 @@ export function route(u, want) {
   if (want.z < -5 && p.z > -5 && p.z < 7) { q.x = 0; q.z = Math.abs(p.x) > 2.5 ? 0 : -8; return q; }
   // 本丸の門（焼け落ちた後）：塀を抜けず、門の口を通る
   if (want.z > 9 && p.z < 7 && p.z > -4) { if (Math.abs(p.x) > 2.5) { q.x = 0; q.z = 3; } else { q.x = 0; q.z = 11; } return q; }
-  if (want.x > 40 && p.x < 42) { q.x = p.z > -39 ? 0 : 47; q.z = -44; return q; }
-  if (want.x < 10 && p.x > 28) { q.x = p.z > -39 ? 47 : 0; q.z = -44; return q; }
   return want;
 }
 function fence(rt, seg, h = 2.4) {

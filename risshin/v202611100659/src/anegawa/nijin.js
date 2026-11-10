@@ -46,10 +46,19 @@ export function install(rt, ctx) {
       rt.army.play('eshout', { x: 10, z: -20 }, 1.4);
       F.clash?.[1]?.push?.('B', 0.15);
       if (i === 0) rt.say('組頭', '川向こうから新手じゃ！　浅井はまだ渡って来る！', 3.6);
-      // 届くまでに討ち尽くされた隊や、退く下知を受けた隊の古い急報は出さない。
-      if (i >= 2) rt.after(4, () => live() && g.count > 0 && !g.routed &&
-        g.order !== 'retreat' && g.order !== 'flee' &&
-        rt.say('使番', '浅井の新手が段を抜けて、本陣へ向かう！　本陣の前で止めよ！', 3.6));
+      // 北岸へ出て四秒では、まだ段を抜けていない。本陣前へ来た兵を見て知らせる。
+      // 討ち尽くされた隊や、退く下知を受けた隊の古い急報は出さない。
+      if (i >= 2) {
+        const report = () => {
+          if (!live() || F.inabaT || !g.count || g.routed || g.order === 'retreat' || g.order === 'flee') return;
+          const reached = g.units.some((u) => u.alive && u.hp > 0 && !u.gone && !u.fleeing &&
+            !u.dying && !u.downed && !u.woundOut && !u.rearWound && !u.noTarget &&
+            Math.hypot(u.pos.x - ctx.HQ.x, u.pos.z - ctx.HQ.z) < 65);
+          if (reached) rt.say('使番', '浅井の新手が段を抜けて、本陣へ向かう！　本陣の前で止めよ！', 3.6);
+          else rt.after(1, report);
+        };
+        rt.after(4, report);
+      }
     };
     rt.after(at, deploy);
   });
