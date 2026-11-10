@@ -100,7 +100,7 @@ export function tick(rt) {
     if (standing(Y.g) > 2) return;
     rout(Y.g);
     Y.s = 4; Y.at = rt.t;
-    rt.say('組頭', '生け捕った者が言うには、千余りが大滝寺に籠ったそうじゃ', 3.6);
+    rt.say('組頭', '生け捕った者が言うには、残党が大滝寺に籠ったそうじゃ', 3.6);
     rt.after(4, () => rt.say('組頭', '麓の参道へ戻れ。滝川様の先手が寺へ寄せる', 3.2));
     rt.award((t) => { t.side.push('雨の森と谷筋で一揆の残党を狩った'); }, '山の残党を狩った', B);
     return;

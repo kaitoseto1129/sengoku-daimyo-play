@@ -6,6 +6,7 @@ import { allyGroup } from '../bhelp.js';
 import { addSite } from '../map_sites.js';
 import { rippleWater } from '../world_water.js';
 import { liteMat } from '../world_vegetation_materials.js';
+import { dirtTex } from '../nature.js';
 import { troops } from '../toyo15/kit.js';
 import { sentries } from '../t04a_sengokubori/scene.js';
 
@@ -60,9 +61,12 @@ export function build(rt) {
   F.water.rotation.x = -Math.PI / 2; F.water.position.y = -1; rt.scene.add(F.water);
   F.waterY = -1; F.waterTo = -1;
   // 築く堤（盛り土）：段が進むと高くなる
-  F.mound = new THREE.Mesh(new THREE.BoxGeometry(16, 1, 5), new THREE.MeshLambertMaterial({ color: 0x5b4a36 }));
+  // 11/10 関所1：箱の盛り土は縁が斜面から浮いた平たい板に見えた。裾の広い台形の土盛りにし、裾は地面へ埋める。
+  const mg = new THREE.BoxGeometry(16, 1, 5, 8, 1, 2), uv = mg.attributes.uv;
+  for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * 4, uv.getY(i) * 1.5);
+  F.mound = new THREE.Mesh(mg, new THREE.MeshLambertMaterial({ color: 0xa39178, map: dirtTex() }));
   F.mound.position.set(P.work.x, W.heightAt(P.work.x, P.work.z), P.work.z); F.mound.rotation.y = Math.atan2(P.work.x, P.work.z) + Math.PI / 2;
-  F.mound.scale.y = 0.2; rt.scene.add(F.mound);
+  rt.scene.add(F.mound); shapeMound(F.mound, 0.2, W);
   F.posts = sentries(rt, '城の塀の鉄砲衆', [{ x: -13, z: -24 }, { x: -7, z: -24 }, { x: 7, z: -24 }, { x: 13, z: -24 }], 0.04);
   F.friends = troops(rt, true, '築堤の護衛', { x: -30, z: -96 }, [{ type: 'ashigaru', n: 20 }, { type: 'gun', n: 6 }, { type: 'busho', n: 1, o: { name: '羽柴秀長', horse: true } }], HASHIBA);
   F.friends.stay = true;
@@ -77,4 +81,17 @@ export function waterTick(rt, dt) {
   const k = F.waterTo > F.waterY ? 0.03 : 0.12;
   F.waterY += Math.sign(F.waterTo - F.waterY) * Math.min(Math.abs(F.waterTo - F.waterY), dt * k);
   F.water.position.y = F.waterY;
+}
+
+// 築く堤の土盛りの高さ h（地面から）。上は細く、裾は広げて地面の下まで下ろす。各頂点は真下の地面に沿わせ、
+// 堤の輪の斜面でも片側が宙に浮いた箱に見えないようにする（11/10 関所1）。
+export function shapeMound(m, h, W) {
+  const pos = m.geometry.attributes.position, b = m.userData.base || (m.userData.base = Float32Array.from(pos.array));
+  const c = Math.cos(m.rotation.y), s = Math.sin(m.rotation.y), y0 = m.position.y;
+  for (let i = 0; i < pos.count; i++) {
+    const top = b[i * 3 + 1] > 0, x = b[i * 3] * (top ? 0.82 : 1.15), z = b[i * 3 + 2] * (top ? 0.3 : 1.3);
+    const wx = m.position.x + x * c + z * s, wz = m.position.z - x * s + z * c, g = W ? W.heightAt(wx, wz) : y0;
+    pos.setXYZ(i, x, (top ? g + h : g - 0.5) - y0, z);
+  }
+  pos.needsUpdate = true; m.geometry.computeVertexNormals(); m.geometry.computeBoundingSphere();
 }
