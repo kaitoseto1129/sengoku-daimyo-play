@@ -18,7 +18,6 @@ import { dirtTex, stoneTex } from './nature.js';
 import { RANKS } from './state.js';
 import { sfx } from './audio.js';
 import { goalsTick } from './hud_goals.js';
-import { sightUnit } from './battle_sight.js';
 import { enemyGroup, allyGroup, nm, unitPos, wallLine, attachSama } from './bhelp.js';
 import { applyLook, NIGHT, dress, gone as groupGone } from './b_inabayama.js';
 // 深手で戦えない兵だけが残っても、敵の寄せが続くとは数えない。
@@ -1467,44 +1466,8 @@ function ariGoalBoard(rt) {
     }
     return out;
   };
-  // 11/5 kaito 九3「敵の兵には一人残らず頭上に赤い▼」：共通の印は近い四人まで。四十メートル内の見える敵の残りにも同じ赤い▼を付ける。
-  //   印は使い回し、見通しは兵ごとに三分の一秒おき。
-  const foeMarks = hud.foeMarks, tris = [], box = document.createElement('div'), v = new THREE.Vector3();
-  // 11/6 fix61：画面全体の透明な箱にせず、大きさ0の入れ物に（札の重なりの見張りが、戦場を覆う札と数えていた）。
-  box.style.cssText = 'position:absolute;left:0;top:0;width:0;height:0;overflow:visible;pointer-events:none';
-  box.setAttribute('aria-hidden', 'true');
-  hud.root.appendChild(box);
-  hud.foeMarks = function (battle) {
-    const out = foeMarks.call(this, battle);
-    if (battle !== rt) return out;
-    const me = rt.player.u;
-    const on = me.alive && !rt.over && !rt.choice && !this.introWaiting && !rt.player.camShot && !this.bigmap && !this.root.classList.contains('photo');
-    let n = 0;
-    // 近くで見える敵全員に付ける。印の要素は従来どおり使い回す。
-    if (on) for (const u of rt.army.units) {
-      if (!u.alive || u.gone || u.dying || u.woundOut || u.noTarget || u.isStruct || u.civ || u.team === me.team || u.team > 1 || u._nearSignOn ||
-          u.mesh?.visible === false || u.camHidden || (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2 > 1600) continue;
-      if (!(u._ariSeenAt > rt.t - .34 && u._ariSeenAt <= rt.t)) { u._ariSeen = sightUnit(rt, u); u._ariSeenAt = rt.t; }
-      if (!u._ariSeen) continue;
-      v.set(u.pos.x, u.pos.y + (u.mounted ? 3.2 : 2.25), u.pos.z).project(rt.camera);
-      if (v.z < -1 || v.z > 1 || Math.abs(v.x) > 1 || Math.abs(v.y) > 1) continue;
-      let el = tris[n];
-      if (!el) {
-        el = tris[n] = document.createElement('span');
-        el.textContent = '▼';
-        el.style.cssText = 'position:absolute;left:0;top:0;color:#ff4a2e;font-size:18px;line-height:1;-webkit-text-stroke:1px #2a0d06;text-shadow:0 1px 2px #000;pointer-events:none';
-        box.appendChild(el);
-      }
-      n++;
-      el.hidden = false;
-      el.style.transform = `translate(${((v.x + 1) * innerWidth / 2).toFixed(1)}px,${((1 - v.y) * innerHeight / 2).toFixed(1)}px) translate(-50%,-100%)`;
-    }
-    for (let i = n; i < tris.length; i++) tris[i].hidden = true;
-    return out;
-  };
   const dispose = rt.dispose;
   rt.dispose = function () {
-    hud.foeMarks = foeMarks; box.remove();
     hud.progress = progress;
     if (hud.prog) hud.prog.classList.remove('goal-mode');
     hud.root.classList.remove('arioka-goals', 'arioka-kanbe'); style.remove();
@@ -1515,7 +1478,8 @@ const arioka = {
   missionSingleLine: true,
   goalsAllRows: true, // 九1・十1：最初から五件を並べ、済んだ目標と現在の目標を示す。
   hideMissionDots: true,
-  enemyTriangleSigns: true,
+  // 敵全員の赤い▼は共通の頭上印に任せ、字の▼を重ねない。
+  enemyTriangleSigns: false,
   nearbyAllySignLimit: 0,
   hideNameTag: (u) => u.name === '滝川の組頭',   // 名の伝わらない役に名札を出さない（AY7。頭上に「滝川のかしら」と出ていた）
   // 11/6 描いて遊ぶ：命・小地図・目標の三枚で共通の「札は三つまで」が埋まり、名札が一度も出なかった（五2・九3）。

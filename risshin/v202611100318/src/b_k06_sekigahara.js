@@ -236,8 +236,8 @@ const k06_sekigahara = {
   // 11/6 BU：目標はいくつでもよい（九つ）。画面には今の五つ（hud_goals.js）。場所と行いだけで、討てる将の名は入れない
   goals5(rt) {
     const at = (q) => k06_sekigahara.missionPin(q);
-    const SEC = [200, 120, 150, 300, 420, 240, 420, 360, 300];
-    return G.map((text, k) => ({ kind: 'stage', k, text, noun: NOUN[k], check: k === 8 ? (q) => !!q.flags.won : (q) => !!q.flags.won || (q.flags.step || 0) > k + 1, place: at, sec: SEC[k] }));
+    // 刻限を知らせない任務は、移動や押し合いが長引いても失敗にしない。
+    return G.map((text, k) => ({ kind: 'stage', k, text, noun: NOUN[k], check: k === 8 ? (q) => !!q.flags.won : (q) => !!q.flags.won || (q.flags.step || 0) > k + 1, place: at }));
   },
   closeCombatAssist: true,
   compactIntro: true,

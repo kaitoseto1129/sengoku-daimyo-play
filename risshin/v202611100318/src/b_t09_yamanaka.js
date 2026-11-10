@@ -488,6 +488,17 @@ const t09_yamanaka = {
     F.rimWall = wallLine(rt, [[-4, SHOJI.z0 - 3], [7, SHOJI.z0 - 3], [13, SHOJI.z0 - 3], [28, SHOJI.z0 - 3]], { team: 1, hp: 180, name: '障子堀の柵', gaps: [2], segLen: 6 });
     for (const s of F.rimWall) { s.noClimb = true; s.bodyPadding = 0.3; }
     F.rimFire = makeSamaFire(rt, [{ structs: F.rimWall, inside: { x: 10, z: SHOJI.z0 - 12 } }], { heads: false, near: 70, close: 15, base: 1.2, peak: 5, arrows: 0.45, hurt: 0.25, rain: 0.6 });
+    // 一箇所開けば破れ口から渡る。残る柵を順に全部壊させると後続が対岸へ来ない。
+    const mouths = F.rimWall.map((s) => ({ s, x: (s.seg[0] + s.seg[2]) / 2, z: SHOJI.z0 - 5 }));
+    const assault = (u) => {
+      let wall = null, wd = Infinity, mouth = null, md = Infinity;
+      for (const m of mouths) {
+        const d = Math.hypot(m.x - u.pos.x, m.z - u.pos.z);
+        if (m.s.alive === false || m.s.hp <= 0) { if (d < md) { mouth = m; md = d; } }
+        else if (d < wd) { wall = m.s; wd = d; }
+      }
+      return mouth ? (u.pos.z > mouth.z ? mouth : F.cross) : wall || F.cross;
+    };
     const path = (g, dx) => {
       if (gone(g)) return;
       g.formation = 'column'; g.colW = 1; g.march = false; g.order = 'path';
@@ -498,7 +509,7 @@ const t09_yamanaka = {
       // 対岸の柵は z0−3。柵の向こうを到着点にすると、攻撃へ切り替わる前に列が柵へ詰まる。
       g.path.push([CROSS_X + dx, SHOJI.z1 + 10], [CROSS_X + dx, SHOJI.z0 + 2]);
       g.pathIdx = 0; g.speed = 3;
-      g.onArrive = (q) => { q.order = 'assault'; q.assault = () => F.rimWall.find((s) => s.alive !== false) || F.cross; q.seekRange = 30; };
+      g.onArrive = (q) => { q.order = 'assault'; q.assault = assault; q.seekRange = 30; };
     };
     path(F.ichi, -SHOJI.cell); path(F.naka, SHOJI.cell); if (!gone(F.yama)) path(F.yama, 0);
     if (!gone(F.hori)) path(F.hori, SHOJI.cell * 4);
