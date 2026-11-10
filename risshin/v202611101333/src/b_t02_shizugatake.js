@@ -869,19 +869,23 @@ const t02_shizugatake = {
     // 盛政の退く旗本や倒れた負傷兵を、奪還を阻む守備兵に数えない。
     return rt.army.units.reduce((n, u) => n + (u.team === 1 && u.alive && !u.gone && !u.fleeing && !u.noTarget && !u.downed && !u.woundOut && !u.rearWound && !u.isStruct && !u.civ && dist(u.pos, OI) < OI.r + 5 ? 1 : 0), 0);
   },
-  // ⑪ 佐久間を押し返す：盛政はすぐ逃げず、大岩山の北で備を立て直して抗う
-  pushSaku(rt) {
+  // 大岩山の残る守備兵へ退く下知を出す。奪還の打ち切りでも同じ退路を使う。
+  withdrawOiwa(rt) {
     const F = rt.flags;
-    this.enter(rt, 3.5);
-    // 遠景の取り合いにも奪還を伝え、佐久間の兵だけが砦へ攻め続けないようにする。
-    F.sfar?.oiwa?.rout?.('B', { from: 0, hideAfter: 30 });
-    // 奪還を認めたら残る守備兵も北へ退く。旗だけ替えて砦内の斬り合いを残さない。
+    // 旗だけ替えて砦内の斬り合いを残さない。
     for (const g of [F.wA, F.wB, F.wC, F.gar]) if (live(g)) {
       g.order = 'retreat'; g.focus = null; g.onArrive = null; g.path = null;
       g.dest = { x: SAKU_LINE.x, z: SAKU_LINE.z - 20 }; g.speed = 3.4;
       g.aggro = 0; g.seekRange = 0; g.kind4 = 'flee';
       for (const u of g.units) u.noTarget = true;
     }
+    F.sfar?.oiwa?.rout?.('B', { from: 0, hideAfter: 30 });
+  },
+  // ⑪ 佐久間を押し返す：盛政はすぐ逃げず、大岩山の北で備を立て直して抗う
+  pushSaku(rt) {
+    const F = rt.flags;
+    this.enter(rt, 3.5);
+    this.withdrawOiwa(rt);
     this.oiFlags(rt, 'hashiba');
     rt.award((t) => t.side.push('大岩山を取り返した'), '大岩山を取り返した');
     rt.army.play('toki', { ...OI }, 1.3);
@@ -1028,7 +1032,17 @@ const t02_shizugatake = {
         return;
       }
       case 3:
-        if (near(OI, OI.r + 4) && this.inFortFoes(rt) <= 3 && st > 15) this.pushSaku(rt);
+        if (near(OI, OI.r + 4) && st > 15) {
+          if (F.oiRetreat) {
+            if (rt.t - F.oiRetreat > 4) this.pushSaku(rt);
+          } else if (this.inFortFoes(rt) <= 3) this.pushSaku(rt);
+          // 柵に詰まった残兵だけで奪還を止めない。備も着いてから退く下知を出す。
+          else if (st > 110 && nearCount(rt, 0, OI, OI.r + 12) >= 4) {
+            F.oiRetreat = rt.t;
+            this.withdrawOiwa(rt);
+            rt.say('物見', '大岩山の佐久間勢、北へ退きまする！', 3);
+          }
+        }
         return;
       case 3.5:
         if (!F.maedaGo && near(SAKU_LINE, 30) && (nLive(F.saku) <= 14 || st > 100)) this.watchMaeda(rt);

@@ -532,9 +532,10 @@ function destOf(rt) {
   const F = rt.flags;
   if (F.ending) return null;
   const k = Math.min(5, F.step || 0);
-  if (k < 4) return { ...DEST[k] };
+  // 着いてからも戦闘・守備が続く。共通の六mで印を消さない。
+  if (k < 4) return { ...DEST[k], hideDistance: 0 };
   // ⑤押し戻しの段は、山道の今の持ち場（下がる・また上る）
-  if (k === 4) { const g = F.dp?.cur?.goal || NG.MID; return { x: g.x, z: g.z, label: '搦手の山道' }; }
+  if (k === 4) { const g = F.dp?.cur?.goal || NG.MID; return { x: g.x, z: g.z, label: '搦手の山道', hideDistance: 0 }; }
   const u = rt.player.u.pos;
   if (inOgura(u.x, u.z)) return { ...OGURA_IN, label: '小倉丸', hideDistance: 2 };
   // 門の正面まで来たら、守兵が残っていても曲輪の中を示す。
@@ -588,6 +589,8 @@ export const t05_ichinomiya = {
   goalSignTarget: destOf,
   // 行き先は矢印でなく▼一つ。画面の外でも矢印へ戻したり回したりしない。
   goalSignTriangle: true,
+  // 門や守備地点の近くでも、場所の名と距離を一緒に出す。
+  goalSignDistanceAlways: true,
   // 行き先の▼があっても、六人の将の名を近い一〜二人だけに絞らない。
   // 重なり・塀の遮り・画面の外は共通の名札の判定に任せる。
   nameTagLimit: 6,
