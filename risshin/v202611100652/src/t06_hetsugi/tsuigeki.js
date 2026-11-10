@@ -6,6 +6,7 @@
 // ======================================================================
 import { hut, nobori, tawara } from '../props.js';
 import { sfx } from '../audio.js';
+import { nm } from '../bhelp.js';
 
 export const SIEGE = { x: 48, z: -70 };   // 島津の囲みの陣（伊集院の先手の後ろ。退く道の x=20 の筋から外す）
 
@@ -33,7 +34,7 @@ export function feign(rt, K) {
   K.go(B.nobu, { x: 24, z: -70 }, 2.6, { charge: true });
   K.go(B.sogo, { x: 44, z: -58 }, 2.4, { charge: true });
   rt.say('長宗我部の侍', '敵、崩れたぞ！　追え、追え！', 2.6);
-  rt.after(3.2, () => rt.say('長宗我部元親', '追うな！　それは島津の釣りじゃ', 3));
+  rt.after(3.2, () => rt.say('長宗我部元親', '深追いはならぬ！　隊を崩すな', 3));   // 罠の名を先に言わない（docs/hetsugigawa_spec_1109.md）
   // 島津は囲みの陣に火を掛けて退き、城の坂の囲みも解ける（同じ時に城の下でも島津が動く）
   rt.after(5, () => {
     const W = rt.world;
@@ -56,7 +57,9 @@ function legB(rt, K) {
   rt.unmark('go');
   rt.marker('go', { x: K.RING.x, z: K.RING.z + 6 }, '中津留の河原');
   rt.say('長宗我部信親', '島津は総崩れじゃ。中津留の河原まで追い討て！', 3);
-  rt.after(12, () => { if (F.step === 2) rt.say('手勢の侍', '静かすぎる……。両の林に、旗が見えた気がいたす', 3); });
+  rt.after(6, () => { if (F.step === 2) rt.say('長宗我部の足軽', '島津も大したことないぞ！', 2.6); });
+  rt.after(16, () => { if (F.step === 2) rt.say(nm(rt), '……振り返ると、戸次川がもうあんなに遠い', 3); });
+  rt.after(34, () => { if (F.step === 2) rt.say('手勢の侍', '静かすぎる……。両の林が、やけに近い', 3); });
   rt.after(26, () => { if (F.step === 2) rt.say('十河存保', '島津の足が速い。まるで退き慣れておるようじゃ', 3); });
 }
 

@@ -57,7 +57,7 @@ export function tick(rt, dt) {
   if (B.s === 0) {
     // 柵に取り付いたら（三十五秒で必ず）二つの柵を押し倒して中へ
     if (B.arrived || T > 35 || g.center().x < c.SB.x0 + 10) {
-      B.s = 1; B.at1 = rt.t;
+      B.s = 1; B.at1 = rt.t; B.capT = rt.t;
       breakFence(rt, B);
       rt.say('山県昌景', '柵を引き倒せ！　赤備え、中へ入れ！', 2.8);
       rt.after(3, () => rt.say('組頭', '柵が破られた！　破れ目で押し返せ！', 3));
@@ -82,15 +82,19 @@ export function tick(rt, dt) {
   const fighting = g.units.some((u) => {
     const target = u.atk?.target || u.swing?.target || u.target;
     return u.alive && !u.fleeing && !u.gone && !u.woundOut && !u.rearWound && !u.noTarget &&
-      target?.alive && target.team !== u.team && !target.fleeing && !target.gone &&
+      target?.alive && target.pos && target.team !== u.team && !target.fleeing && !target.gone &&
       !target.woundOut && !target.rearWound && !target.noTarget &&
       Math.hypot(u.pos.x - target.pos.x, u.pos.z - target.pos.z) < 8 &&
       !rt.army.wallBetween(u.pos, -1, target.pos);
   });
   if (fighting && Math.hypot(p.x - B.IN.x, p.z - B.IN.z) < 32) B.fight = (B.fight || 0) + dt;
   // 将が味方の鉄砲に倒れても、本人が破れ目へ来るまでは任務達成にしない。
-  const end = B.there && ((!lord?.alive) || left <= Math.ceil(B.n0 * 0.35) || B.fight > 110);
+  // 波の最大の長さ（docs/sunomata_spec_1109.md の bot が詰まらない決まり 7・8）：柵を破って四分たてば、
+  //   向き直った鉄砲の斉射で山県が倒れ、赤備えは退く（本人が破れ目で討ち取れなかった時。手柄は付けない）
+  const cap = B.capT != null && rt.t - B.capT > 240;
+  const end = cap || B.there && ((!lord?.alive) || left <= Math.ceil(B.n0 * 0.35) || B.fight > 110);
   if (!end) return true;
+  if (cap && !B.there) B.noAward = true;
   B.done = true;
   if (lord?.alive) { lord.invuln = false; rt.army.kill(lord, null); }
   g.noRout = false; g.morale = 0; g.routed = true; g.order = 'retreat'; g.dest = { x: 500, z: BZ }; g.fleeDir = { x: 1, z: 0 };
@@ -98,7 +102,7 @@ export function tick(rt, dt) {
   try { sfx('volley', 0.9); } catch (e) { /* なし */ }
   rt.banner('山県昌景、討死', '赤備えの大旗が倒れた');
   rt.say('組頭', '破れ目は守った！　柵の内の道を、組と柳田前へ移るぞ！', 3.8);
-  rt.award((t) => { t.side.push('柵の破れ目で山県昌景の赤備えを押し返した'); t.special = { label: '赤備えの柵破りを止めた', pts: 14 }; }, '破れ目を守った', B.IN);
+  if (!B.noAward) rt.award((t) => { t.side.push('柵の破れ目で山県昌景の赤備えを押し返した'); t.special = { label: '赤備えの柵破りを止めた', pts: 14 }; }, '破れ目を守った', B.IN);
   const R = c.reserve();
   if (R && !R.routed) { R.order = 'hold'; R.anchor.x = B.IN.x; R.anchor.z = BZ; R.facing = Math.PI / 2; }
   return false;

@@ -1,11 +1,12 @@
 // ======================================================================
 // 徳川編 6　関ヶ原の戦い（慶長五年九月十五日 1600）。筋書きの正：docs/chapter3_tokugawa.md の「6. 関ヶ原」
 // 主人公は東軍（徳川方）の侍大将。井伊直政・松平忠吉の手に付き、抜け駆けで開戦の口火を切る。
-// 段（11/6 kaito BU で九つに）：①霧の中、井伊に続いて宇喜多の先手の前へ ②井伊の鉄砲衆が宇喜多の先手へ撃ちかける（挑発）
-//     ③井伊の手と福島隊の後ろへ一旦退く（怒った福島正則が突撃） ④福島隊に続いて藤下で宇喜多の先手と槍を合わせる
-//     ⑤宇喜多の先手を天満山の麓へ押し返す ⑥北の岡山の麓で黒田の隊に加わる ⑦笹尾山の麓の柵を越え島左近の隊を陣の内へ退かせる
-//     ⑧小早川の寝返り（必ず）の後、笹尾山を登り石田の旗本を追い落とす ⑨陣場野の家康の本陣の前で島津の退き口を受ける
-// 勝ち：⑨まで果たす。主人公が倒れた時は共通のやり直しへ。全体の刻限は無い（時は目標ごと：goals5.js・AP8）。
+// 段（11/9 kaito docs/sekigahara_spec_1109.md で十に）：①霧の中、井伊に続いて宇喜多の先手の前へ ②井伊の鉄砲衆が撃ちかける（抜け駆け）
+//     ③福島隊の後ろへ一旦退く（怒った福島正則が突撃） ④前線へ進め：福島隊に続き宇喜多の先手と槍を合わせる
+//     ⑤宇喜多の押し返しを福島隊のそばで持ちこたえる（前半は西軍が強い） ⑥中央右翼を救援：藤堂・京極の隊へ回る
+//     ⑦大谷隊の前進を止める（膠着。松尾山は動かない。十分半より前には寝返らない） ⑧小早川が山を下り大谷へ（一分半）→大谷隊を押し崩す
+//     ⑨西軍中央を突破：宇喜多の殿を押し破る（秀家・三成は逃がす） ⑩島津の突入を本陣の前で食い止める（義弘は討たせない）
+// 勝ち：⑩まで果たす。主人公が倒れた時は共通のやり直しへ。全体の刻限は無い（時は目標ごと：goals5.js・AP8）。
 // kaito_play AP〜AT・BU：総大将（三成・秀家・家康）は遠い本陣の幕の内で床几に座る（幕の内へは歩いて入れない）・旗はその家の物・段は時間で進めない
 // 地形：国土地理院の標高（asset_dem_sekigahara.js・dem.mjs の sekigahara）。11/6 BU「戦場が狭い」：ゲームの 1 を実の 4m に（前は 10m）、高さは 0.2 倍。
 //   中心は北緯35.3655・東経136.4720（関ヶ原の盆地の真ん中）。陣の位置は陣跡の緯度経度を写した（docs/battle_refs/k06_sekigahara.md の布陣表の座標 × 2.5）。
@@ -84,23 +85,30 @@ const NAKASENDO = sc([[240, 70], [130, 54], [40, 16], [0, 6], [-80, 8], [-150, 3
 const HOKKOKU = sc([[-60, 6], [-110, -30], [-150, -70], [-180, -150], [-200, -230]]);
 const ISE = sc([[-6, 8], [2, 60], [12, 130], [30, 240]]);
 const SHIMA_PATH = [{ x: -300, z: -70 }, { x: -200, z: -48 }, { x: -112, z: -36 }, { x: -60, z: 40 }, { x: -10, z: 170 }, { x: 20, z: 360 }, { x: 60, z: 560 }];
-const FOG_T0 = 12, FOG_T1 = 80;
+const FOG_T0 = 8, FOG_T1 = 40;   // 11/9 kaito：最初の三十秒で「見渡す限り軍勢」が見えるよう、霧は早く晴れる
 const HOLD_S = 32;
-const FLIP_AT = 46;   // ⑧に入ってから小早川が動くまでの秒（11/8 kaito「松尾山の小早川が動かず家康側が焦る」）   // ⑨ 島津が本陣の前へ来てから受け続ける秒
+// 11/9 kaito（docs/sekigahara_spec_1109.md）：前半十分は西軍が強い。寝返りは十分半ごろ。主人公は福島隊のそばから右翼へ、最後に島津の進路へ
+const HOLD5S = 70;      // ⑤ 宇喜多の押し返しを福島隊のそばで持ちこたえる秒
+const RLINE = { x: -272, z: 150 };   // ⑦ 藤堂・京極の脇で大谷隊（平塚・戸田）の前進を止める線
+const HOLD7S = 80;
+const CENTER9 = { x: -350, z: 66 };   // ⑨ 宇喜多の殿が踏みとどまる天満山の麓（大谷の陣が崩れた後、宇喜多・小西が横から押される）      // ⑦ 大谷隊の前を支える秒
+const FLIP_MIN_T = 500; // 寝返りは戦が始まって八分半より前には起こさない（中盤で起こすと後半ずっと東軍の勝ちに見える）
+const FALL_MAX = 110;   // ⑧ 小早川が動いてから大谷隊が崩れるまでの最長の秒（押し崩せなくても進む）
 // 右上の目標（goals5・obj・setStages で同じ文）。行き先は地図で分かる名で（BU「ここ」は使わない）
 //   討てる将（明石全登・島津豊久）の名は目標の文に入れない（victory_flow の namedKill が名を含む札を済みにし、段の途中で勝ちに締まる）
 const G = [
   '霧の中、井伊の赤備えに続いて宇喜多の先手の前へ出る',
   '井伊の鉄砲衆の脇に槍を立て、宇喜多の先手へ撃ちかける間を守る',
   '井伊の手と共に、福島隊の後ろの春日神社の前まで退く',
-  '怒って突っ込む福島隊に続き、藤下で宇喜多の先手と槍を合わせる',
-  '宇喜多の先手を天満山の麓へ押し返す',
-  '北の岡山の麓へ回り、黒田長政の隊に加わる',
-  '笹尾山の麓の柵を越え、島左近の隊を陣の内へ退かせる',
-  '笹尾山を登り、石田三成の旗本を山から追い落とす',
-  '陣場野の家康の本陣の前に立ち、島津の退き口を受ける',
+  '前線へ進め。福島隊に続き、宇喜多の先手と槍を合わせる',
+  '押し返してくる宇喜多勢を、福島隊のそばで持ちこたえる',
+  '中央右翼を救援せよ。藤堂・京極の隊へ回る',
+  '大谷隊の前進を止めろ',
+  '大谷隊を押し崩す',
+  '西軍中央を突破せよ',
+  '島津の突入を食い止めろ',
 ];
-const NOUN = ['宇喜多の先手', '井伊の鉄砲衆', '春日神社', '宇喜多の先手', '宇喜多の先手', '黒田長政の隊', '島左近の隊', '石田の旗本', '陣場野'];
+const NOUN = ['宇喜多の先手', '井伊の鉄砲衆', '春日神社', '宇喜多の先手', '宇喜多勢', '藤堂・京極の隊', '大谷隊', '大谷隊', '宇喜多・小西の殿', '島津の隊'];
 
 // ---- 兵の装い ----
 const TK = 0x24221f, WS = 0x2c2a2a;
@@ -165,7 +173,7 @@ const SEAT = (g, name) => { const u = g?.units.find((o) => o.name === name); if 
 // 索敵距離が零でも共通の応戦は働く。総大将だけを床几に留め、旗本は戦わせる。
 const sit = (u) => {
   if (!u?.alive || u.gone || u.fleeing || u.group?.routed) return;
-  if (u.group?.order === 'move') { u._crouch = false; return; }
+  if (u.group?.order === 'move' || u._k06Stand) { if (u._k06Stand && u._k06Seat && u.group?.order !== 'move') { u.pos.x = u._k06Seat.x; u.pos.z = u._k06Seat.z; u.moveTo = null; } u._crouch = false; return; }
   const p = u._k06Seat;
   if (!p) return;
   u.pos.x = p.x; u.pos.y = p.y; u.pos.z = p.z;
@@ -225,9 +233,9 @@ const k06_sekigahara = {
   resumeSteps: [
     [1, function (rt) { this.stage1(rt); }], [2, function (rt) { rt.flags.kaniWait = false; this.stage2(rt); }], [3, function (rt) { this.stage3(rt); }], [4, function (rt) { this.stage4(rt); }],
     [6, function (rt) { this.stage6(rt); }], [7, function (rt) { this.stage7(rt); }], [8, function (rt) { this.stage8(rt); }],
-    ['flip', function (rt) { this.flip(rt); const F = rt.flags; F.flipT = rt.t - 40; F.mitsuGate = false; }], [9, function (rt) { this.stage9(rt); }],
+    [9, function (rt) { this.stage9(rt); }], [10, function (rt) { this.stage10(rt); }],
   ],
-  resumeAt: (rt, s) => ({ 2: NUKE, 3: NUKE, 4: BACK, 6: { x: KURODA.x - 10, z: KURODA.z + 30 }, 7: { x: KURODA.x - 10, z: KURODA.z + 24 }, 8: { x: SASAO.x + 44, z: SASAO.z + 14 }, 9: { x: HOLD5.x + 8, z: HOLD5.z + 6 } })[s] || null,
+  resumeAt: (rt, s) => ({ 2: NUKE, 3: NUKE, 4: BACK, 6: { x: UKITA_F.x + 20, z: UKITA_F.z + 10 }, 7: { x: TODO_P.x - 10, z: TODO_P.z }, 8: RLINE, 9: { x: HIRA.x + 30, z: HIRA.z - 30 }, 10: { x: HOLD5.x + 8, z: HOLD5.z + 6 } })[s] || null,
   horseHurtMul: 0.4,   // 11/8 critic60（一8）：馬がすぐ死んで④〜⑤を一人で歩いた。馬の傷を軽く
   // 行田市郷土博物館の合戦屏風解説・左隻四扇。ほかの戦の宇喜多旗へは遡らせない。
   flagEra: { ukita: 'sashi:字兒:#243e62:#ece6d6' },
@@ -239,20 +247,20 @@ const k06_sekigahara = {
   goals5(rt) {
     const at = (q) => k06_sekigahara.missionPin(q);
     // 刻限を知らせない任務は、移動や押し合いが長引いても失敗にしない。
-    return G.map((text, k) => ({ kind: 'stage', k, text, noun: NOUN[k], check: k === 8 ? (q) => !!q.flags.won : (q) => !!q.flags.won || (q.flags.step || 0) > k + 1, place: at }));
+    return G.map((text, k) => ({ kind: 'stage', k, text, noun: NOUN[k], check: k === 9 ? (q) => !!q.flags.won : (q) => !!q.flags.won || (q.flags.step || 0) > k + 1, place: at }));
   },
   closeCombatAssist: true,
   compactIntro: true,
   prelude: false,      // 霧の中の会話が開戦の溜め。共通の溜め（十五秒）を重ねると、三十秒近く立ち尽くす（newbie60）
   introText: () => '慶長五年九月十五日の朝。霧の関ヶ原で、東西およそ十五万が向き合う。井伊直政の手に付き、天下分け目の口火を切る。',
-  minutes: 17,
+  minutes: 15,
   spawn: { x: START.x, z: START.z, heading: -Math.PI / 2 },
   sides: { a: { name: '東軍', mon: 'tokugawa', faction: 'tokugawa' }, b: { name: '西軍', mon: 'ishida', faction: 'toyotomi' } },
   date: () => '慶長五年（1600）九月十五日　朝・霧　美濃国 関ヶ原',
   force(rt) {
     const F = rt.flags;
     const turned = F.flipT ? 15000 + (F.wakiT ? 4000 : 0) : 0;
-    const k = [0, 0, 0, 0.02, 0.05, 0.1, 0.14, 0.2, 0.5, 0.85][F.step || 0] || 0;
+    const k = [0, 0, 0, 0.02, 0.05, 0.05, 0.06, 0.07, 0.3, 0.6, 0.85][F.step || 0] || 0;
     return { a: 74000 + turned - Math.round(74000 * k * 0.12) - (F.ak || 0) * 30, a0: 74000, b: Math.max(0, Math.round((82000 - turned) * (1 - k)) - (F.ek || 0) * 30), b0: 82000 };
   },
   world: {
@@ -301,22 +309,13 @@ const k06_sekigahara = {
     if (!rt.player.u.alive || F.ending || !F.step) return null;
     const lead = (g, at) => (g?.leader?.alive && !g.leader.gone ? g.leader.pos : alive(g) ? g.center() : at);
     const s = F.step, P = rt.player.u.pos;
-    // 左近との接近が済むまでは本人へ。旗本を退かせ終えたら、残兵を追わず笹尾山へ登る。
-    const climbing = s === 8 && !F.mitsuGate && nAt(SASAO, F.mitsu2, F.mitsu3) <= Math.round(F.mitN * 0.2);
-    // 必要な数を押し返した後は藤下へ。遠くの残兵を指し続けると、完了に必要な先手の陣前へ戻れない。
-    const pushed = s === 5 && F.wave2b && nOf(F.akashi, F.akaGun, F.ukita2, F.ukita3, F.ukita4) <= Math.round(F.akaN * 0.4);
-    // 実際の開口の幅に揃える。斜めから十二歩の輪へ入っただけでは、まだ柵の内へ向けない。
-    // 口から押し出された時も手前へ案内し直し、横断を果たせないまま内側の印で止まるのを防ぐ。
-    // 横断済みで柵の内にいる間は、横へ動いても外へ案内し直さない。
-    if (s === 7 && F.sakBack) F.gapAt = (!!F.crossed && P.x < FENCE_X - 1) || (Math.abs(P.z - GAP.z) < GAP_HALF && (near(P, GAP, 12) || !!F.gapAt));
-    const T = s === 1 || s === 2 ? NUKE : s === 3 ? BACK : s <= 5 ? (pushed ? UKITA_F : front(P, UKITA_F, F.akashi, F.akaGun, F.ukita2, F.ukita3, F.ukita4)) : s === 6 ? lead(F.kuroda, KURODA)
-      : s === 7 ? (!F.sakonSeen ? lead(F.sakon, SAKON) : !F.sakBack ? front(P, SAKON, F.sakon, F.shima3, F.ishida3) : F.gapAt ? { x: GAP.x - 12, z: GAP.z } : { x: GAP.x + 8, z: GAP.z }) : s === 8 ? (climbing ? SASAO : front(P, SASAO, F.mitsu2, F.mitsu3)) : HOLD5;
-    // ⑧で柵の外（東）へ戻ってしまった時は、まず柵の口へ導く（11/8 流し：柵に向かって真っ直ぐ押し、九分立ち往生した）
-    if (s === 8 && P.x > FENCE_X - 1 && P.z > -214 && P.z < -128) {
-      // 口の前（東へ八歩）に着いたら、そのまま口をくぐって内へ（前は九歩の輪に入れず、口の前で止まった・11/9 流し）
-      const g = near(P, { x: GAP.x + 8, z: GAP.z }, 4) || near(P, GAP, 9) ? { x: GAP.x - 12, z: GAP.z } : { x: GAP.x + 8, z: GAP.z };
-      q.x = g.x; q.z = g.z; return q;
-    }
+    // 討てない大将を追わず、今の段で押し合う相手の手前へ案内する（遠い残兵は追わせない）
+    const T = s === 1 || s === 2 ? NUKE : s === 3 ? BACK : s === 4 ? front(P, UKITA_F, F.akashi, F.akaGun, F.ukita2)
+      : s === 5 ? (near(P, UKITA_F, 50) ? front(P, UKITA_F, F.akashi, F.akaGun, F.ukita2, F.ukita3, F.ukita4) : UKITA_F)
+      : s === 6 ? lead(F.todo, TODO_P)
+      : s === 7 ? (near(P, RLINE, 34) ? front(P, RLINE, F.otani, F.otaW1, F.otaW2) : RLINE)
+      : s === 8 ? (near(P, RLINE, 80) ? front(P, RLINE, F.otani, F.otaW1, F.otaW2) : RLINE)
+      : s === 9 ? (near(P, CENTER9, 60) ? front(P, CENTER9, F.shingari, F.koniR) : CENTER9) : HOLD5;
     q.x = T.x; q.z = T.z;
     return q;
   },
@@ -457,24 +456,80 @@ const k06_sekigahara = {
     rt.say('井伊直政', '福島殿が当たった。我らも横から押せ！', 3);
     rt.after(8, () => rt.say('明石全登', '宇喜多の槍は一万七千。押し返せ、福島を川まで追え！', 3.5));
   },
-  // ⑥ 北の岡山の麓へ。黒田の隊に加わる
+  // ⑤ 宇喜多は数が多く正面に強い。福島隊が押し返される中、そばで持ちこたえる（11/9 kaito：前半は東軍が押し切れない）
+  stage5(rt) {
+    const F = rt.flags;
+    if (F.step >= 5) return;
+    F.step = 5; F.s5t = rt.t; F.held5 = 0;
+    rt.objDone('main'); rt.obj('main', G[4], 'main');
+    rt.say('福島正則', '押せ押せ！　宇喜多を天満山へ追い返せ！', 3);
+    // 宇喜多の本隊から新手が出て、福島隊を押し返す（明石の先手は崩れない）
+    room(rt, 34);
+    F.ukita3 = foe(rt, '宇喜多の本隊', { x: UKITA_H.x + 50, z: UKITA_H.z + 6 }, [{ type: 'samurai', n: 5 }, { type: 'gun', n: 6 }, { type: 'bow', n: 3 }, { type: 'ashigaru', n: 14 }], UKITA, { morale: 95, noRout: true });
+    goAttack(F.ukita3, { x: FUKU.x - 30, z: FUKU.z + 4 });
+    for (const g of [F.akashi, F.ukita2, F.ukita3]) if (alive(g)) { g.noRout = true; g.morale = 100; }
+    if (alive(F.fuku)) { F.fuku.dmgMult = 0.5; goTo(F.fuku, { x: FUKU.x - 8, z: FUKU.z + 2 }); }   // 福島隊は押し戻される
+    rt.after(3, () => rt.say('使番', '天満山から宇喜多の新手！', 3));
+    rt.after(12, () => rt.say('使番', '宇喜多勢、崩れませぬ！', 3));
+    rt.after(26, () => rt.say('使番', '黒田・細川の手、石田の大筒に押されております！　島左近が打って出た由！', 4));
+    rt.after(40, () => rt.say('使番', '南宮山の毛利勢、なお動かず！', 3));
+  },
+  // ⑥ 福島隊が持ち直す。主人公は中央右翼（藤堂・京極）の救援へ回る。左に石田、右に大谷、山に小早川が見える道
   stage6(rt) {
     const F = rt.flags;
     if (F.step >= 6) return;
     F.step = 6; F.s6t = rt.t;
     rt.objDone('main'); rt.unmark('foe');
-    rt.award((t) => t.side.push('宇喜多の先手を押し返した'), '宇喜多の先手を押し返した');
-    for (const g of [F.akashi, F.akaGun, F.ukita2, F.ukita3, F.ukita4]) rout(g);
-    goAttack(F.fuku, { x: UKITA_H.x + 50, z: UKITA_H.z + 4 }, 30, 40);   // 福島はそのまま宇喜多の陣を押す
+    rt.award((t) => t.side.push('宇喜多の押し返しを持ちこたえた'), '宇喜多の押し返しを持ちこたえた');
+    rt.say('福島正則', 'まだまだ！　福島の槍、退きはせぬぞ！', 3);
+    if (alive(F.fuku)) { F.fuku.dmgMult = 1; goAttack(F.fuku, { x: UKITA_F.x + 14, z: UKITA_F.z + 4 }, 30, 40); }
+    // 宇喜多の先手はその場で踏みとどまる（崩れるのは寝返りの後）
+    for (const g of [F.akashi, F.akaGun, F.ukita2, F.ukita3, F.ukita4]) if (alive(g)) { goTo(g, { x: UKITA_F.x - 6, z: UKITA_F.z + 4 }); g.aggro = 10; g.seekRange = 14; }
+    rt.after(2, () => rt.say('使番', '藤堂・京極の手、大谷勢に押されております！　右へ回られよ！', 3.5));
     rt.obj('main', G[5], 'main');
-    rt.say('井伊直政', '南は福島殿に任せた。我らは北へ回り、黒田殿と治部（三成）の陣を突く', 3.5);
-    room(rt, 40);
-    F.kuroda = ally(rt, '黒田長政の隊', KURODA, [{ type: 'busho', n: 1, o: { name: '黒田長政', invuln: true, horse: true } }, { type: 'samurai', n: 3 }, { type: 'gun', n: 8 }, { type: 'ashigaru', n: 10 }], KUR, { order: 'hold', formation: 'yari' });
-    F.hoso = ally(rt, '細川忠興の隊', HOSOKAWA, [{ type: 'busho', n: 1, o: { name: '細川忠興', invuln: true, horse: true } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 8 }], HOSO, { order: 'hold' });
-    goTo(F.ii, { x: KURODA.x - 10, z: KURODA.z + 22 });
-    goTo(F.iiGun, { x: KURODA.x - 4, z: KURODA.z + 30 });
-    // 家康が本陣を前へ（桃配山から陣場野へ）。歩いて進み、着いたら陣場野に幕を張る
-    rt.after(6, () => rt.say('使番', '殿が本陣を桃配山から陣場野へ進められる！', 3));
+    goTo(F.ii, { x: TODO_P.x - 16, z: TODO_P.z - 10 });
+    goTo(F.iiGun, { x: TODO_P.x - 8, z: TODO_P.z - 18 });
+    // 家康の本陣にも焦り：床几から立つ（中盤）
+    if (F.ieyasuU) F.ieyasuU._k06Stand = true;
+    rt.after(10, () => rt.say('使番', '殿、床几からお立ちになりました！', 3));
+  },
+  // ⑦ 膠着：藤堂・京極の脇で、平塚・戸田（大谷隊）の前進を止める。松尾山の小早川はまだ動かない
+  stage7(rt) {
+    const F = rt.flags;
+    if (F.step >= 7) return;
+    F.step = 7; F.s7t = rt.t; F.held7 = 0;
+    rt.objDone('main'); rt.obj('main', G[6], 'main');
+    room(rt, 36);
+    F.otaW1 = foe(rt, '大谷吉治の隊', { x: HIRA.x - 16, z: HIRA.z + 14 }, [{ type: 'busho', n: 1, o: { name: '大谷吉治', horse: true, invuln: true, mustLive: true, onWound: () => {} } }, { type: 'samurai', n: 4 }, { type: 'gun', n: 4 }, { type: 'ashigaru', n: 12 }], OTANI_LK, { morale: 100, noRout: true, formation: 'yari' });
+    goAttack(F.otaW1, { x: RLINE.x - 6, z: RLINE.z + 4 }, 30, 40);
+    goAttack(F.otani, { x: RLINE.x - 10, z: RLINE.z - 6 }, 24, 30);
+    goAttack(F.todo, { x: RLINE.x + 6, z: RLINE.z + 2 }, 24, 30);
+    goAttack(F.ii, { x: RLINE.x + 4, z: RLINE.z - 10 }, 24, 30);
+    goAttack(F.iiGun, { x: RLINE.x + 16, z: RLINE.z - 12 }, 24, 30);
+    for (const g of [F.otani, F.otaW1]) { g.dmgMult = 0.6; g.defMult = 1.4; }
+    rt.marker('foe', () => (F.otani.leader?.alive ? F.otani.leader.pos : F.otani.center()), '平塚為広', { red: true, group: F.otani });
+    // 膠着の使番が次々。味方は何度も松尾山を見上げる
+    rt.after(3, () => rt.say('平塚為広', '刑部さまの陣へは一歩も寄せさせぬ！', 3));
+    rt.after(12, () => rt.say('藤堂高虎', '小早川は何をしている……', 3));
+    rt.after(22, () => rt.say('使番', '福島勢、宇喜多となお交戦！', 3));
+    rt.after(32, () => rt.say('使番', '石田隊、なお健在！', 3));
+    rt.after(44, () => rt.say('京極高知', '松尾山の旗……動かぬな', 3));
+    rt.after(56, () => rt.say('使番', '大谷勢、退きませぬ！　このままでは右が破られまする！', 3.5));
+    rt.after(68, () => rt.say('使番', '毛利勢、南宮山からなお動かず！', 3));
+  },
+  // ⑧ 小早川の寝返り（いきなり字幕にしない）：山上の旗が動き出す→どちらへ来るか分からない→大谷の方へ→接触→確定→周りも連鎖
+  stage8(rt) {
+    const F = rt.flags;
+    if (F.step >= 8) return;
+    F.step = 8; F.s8t = rt.t;
+    rt.objDone('main'); rt.unmark('foe');
+    rt.award((t) => t.side.push('大谷隊の前進を止めた'), '大谷隊の前進を止めた');
+    // 問鉄砲（一説）：断定しない。家康の方から松尾山の方へ鉄砲の音
+    rt.army.play('volley', { x: MATSUO.x + 60, z: MATSUO.z - 120 }, 1.2);
+    rt.after(1.5, () => rt.say('藤堂高虎', '本陣の方から鉄砲……催促の鉄砲か？', 3));
+    rt.after(7, () => this.flip(rt));
+    // 小早川が動くと本陣全体が動く：家康は桃配山から陣場野へ歩いて進み、着いたら幕を張る（遠い道を島津の前に歩き終える）
+    rt.after(10, () => rt.say('使番', '殿が本陣を陣場野へ進められる！', 3));
     F.ieyasu.order = 'move'; F.ieyasu.dest = { ...IEYASU1 };
     F.ieyasu.onArrive = (g) => {
       g.order = 'hold'; g.anchor = { ...IEYASU1 }; g.onArrive = null;
@@ -491,131 +546,101 @@ const k06_sekigahara = {
       }
     };
   },
-  // ⑦ 笹尾山の麓の柵。島左近の隊
-  stage7(rt) {
-    const F = rt.flags;
-    if (F.step >= 7) return;
-    F.step = 7; F.s7t = rt.t; F.crossed = false; F.sakonSeen = false;
-    F.prevSakonX = rt.player.u.pos.x; F.prevSakonZ = rt.player.u.pos.z;
-    rt.objDone('main');
-    rt.obj('main', G[6], 'main');
-    room(rt, 40);
-    // 左近は柵の前へ打って出て、黒田・細川を幾度も押し返した（史実）。減ると柵の口から陣の内へ退く
-    // 左近の手傷と帰陣はこの戦で扱う。共通の討取り・戦場外への退場では虎口の目標が途中で済み、本人の帰陣も待てなくなる。
-    F.sakon = foe(rt, '島左近の隊', { x: FENCE_X + 14, z: -170 }, [{ type: 'busho', n: 1, o: { name: '島左近', invuln: true, mustLive: true, onWound: () => {}, horse: true } }, { type: 'busho', n: 1, o: { name: '蒲生郷舎', horse: true } }, { type: 'samurai', n: 6 }, { type: 'gun', n: 4 }, { type: 'ashigaru', n: 14 }], ISHIDA, { morale: 95, aggro: 30, seekRange: 40, order: 'attack', formation: 'yari', noRout: true });
-    F.sakN = F.sakon.count;
-    goAttack(F.kuroda, { x: FENCE_X + 6, z: -186 });
-    goAttack(F.hoso, { x: FENCE_X + 8, z: -150 });
-    goAttack(F.kato, { x: FENCE_X + 12, z: -142 });
-    goAttack(F.ii, { x: FENCE_X + 6, z: -168 }, 30, 40);
-    goAttack(F.iiGun, { x: FENCE_X + 26, z: -172 }, 30, 40);
-    rt.marker('foe', () => (F.sakon.leader?.alive ? F.sakon.leader.pos : F.sakon.center()), '島左近', { red: true, group: F.sakon });
-    rt.after(5, () => rt.say('島左近', 'かかれ、かかれぇっ！　ここは一歩も通さぬ', 3.5));
-    rt.after(11, () => rt.say('黒田長政', '左近の鬼の顔……兵が怯んでおる。鉄砲で横から撃ちすくめよ', 4));
-  },
-  // ⑧ 小早川の寝返りを待ち、笹尾山の石田の旗本を山から追い落とす
-  stage8(rt) {
-    const F = rt.flags;
-    if (F.step >= 8) return;
-    F.step = 8; F.s8t = rt.t;
-    rt.objDone('main'); rt.unmark('foe');
-    rt.award((t) => t.side.push('島左近の隊を退かせた'), '島左近の隊を退かせた');
-    rt.say('使番', '島左近、黒田の鉄砲に撃たれ、陣の内へ退いた由！', 3.5);
-    for (const g of [F.sakon, F.shima3, F.ishida3]) rout(g);
-    for (const g of [F.akashi, F.ukita2, F.ukita3, F.ukita4]) KIT.markRecyclable(g);
-    rt.obj('main', G[7], 'main');
-    room(rt, 30);
-    // 石田の旗本：笹尾山の坂に段を組んで構える（三成は幕の内の床几から動かない）
-    F.mitsu2 = foe(rt, '石田の旗本', { x: SASAO.x + 18, z: SASAO.z + 6 }, [{ type: 'samurai', n: 10 }, { type: 'gun', n: 5 }, { type: 'ashigaru', n: 10 }], ISHIDA, { aggro: 18, seekRange: 24, morale: 95, noRout: true, order: 'hold', formation: 'yari', width: 16 });
-    F.mitN = F.mitsu2.count;
-    // 11/9 徳川C（見回り）：寝返りまで崩れない旗本の槍で、本人が⑧で倒れた（bot 中学生：石田の旗本 230）。崩れない間の傷は半分に
-    F.mitsu2.dmgMult = Math.min(F.mitsu2.dmgMult ?? 1, 0.5);
-    F.mitsuGate = true;   // 寝返りの前は崩れない
-    goAttack(F.ii, { x: SASAO.x + 30, z: SASAO.z + 8 }, 30, 40);
-    goAttack(F.kuroda, { x: SASAO.x + 28, z: SASAO.z - 10 }, 30, 40);
-    goAttack(F.iiGun, { x: SASAO.x + 44, z: SASAO.z + 12 }, 30, 40);
-    rt.after(3, () => rt.say('徳川家康', '金吾（秀秋）はまだ動かぬか……', 3));
-    rt.after(15, () => rt.say('使番', '松尾山の旗、いまだ動きませぬ！', 3));
-    // 問鉄砲（一説）：家康が松尾山へ鉄砲を撃ちかけさせた
-    rt.after(22, () => {
-      rt.say('使番', '松尾山の方で鉄砲の音……小早川への催促でござろうか', 4);
-      rt.army.play('volley', { x: MATSUO.x + 60, z: MATSUO.z - 120 }, 1.2);
-    });
-    rt.after(FLIP_AT, () => this.flip(rt));   // 松尾山が動かない焦り（jindate の野の声もこの間に）
-  },
-  // 小早川の寝返り（必ず）。大谷隊が崩れ、脇坂らも東軍へ
   flip(rt) {
     const F = rt.flags;
     if (F.flipT || F.ending) return;
     F.flipT = rt.t;
-    sfx('horagai', 1);
+    // 山の上の一万五千が動き出す（jindate.flip：はじめは北の野へ。どちらへ来るか分からない）
     rt.army.play('eshout', { x: MATSUO.x, z: MATSUO.z - 60 }, 2.5);
-    rt.say('使番', '松尾山の旗が動いた！　小早川が山を下りて来る！', 3.5);
-    rt.after(jindate.TURN.aim, () => {
-      rt.say('使番', '小早川が大谷の陣へ向かった！', 3.5);
-      rt.banner('小早川秀秋　寝返り');
-    });   // 11/8 critic60（二4・九2）：笹尾山にいても戦の見せ場が分かるように
-    rt.after(4, () => rt.say('小早川秀秋', '……狙うは大谷刑部の陣じゃ。山を下れ！', 3.5));
-    turnover(rt, F.kobaE);
-    for (const g of [F.mitsu2, F.akashi, F.konishi, F.otani, F.hideG]) if (alive(g)) g.morale -= 12;
-    room(rt, 18);
-    F.kobaG = ally(rt, '小早川秀秋の兵', MATSUO, [{ type: 'busho', n: 1, o: { name: '小早川秀秋', invuln: true, horse: true } }, { type: 'busho', n: 1, o: { name: '平岡頼勝', horse: true } }, { type: 'gun', n: 2 }, { type: 'ashigaru', n: 6 }], KOBA, { facing: -Math.PI * 0.8, aggro: 40, seekRange: 60 });
-    goAttack(F.kobaG, HIRA);
-    rt.after(jindate.TURN.aim + 3, () => rt.say('大谷吉継', '金吾め、やはり裏切ったか……。備えはしてある。押し返せ！', 4));
-    rt.after(jindate.TURN.support, () => {
-      F.wakiT = rt.t;
-      rt.say('使番', '脇坂・朽木・小川・赤座も寝返った！', 3);
-      turnover(rt, F.wakiE);
-      room(rt, 10);
+    rt.say('京極高知', '松尾山の旗が動いた！', 3);
+    rt.after(6, () => rt.say(nm(rt), '……こちらへ攻め下ってくるのか？', 3));
+    rt.after(12, () => rt.say('藤堂高虎', '備えよ、槍を揃えよ！', 2.5));
+    rt.after(20, () => rt.say('使番', '小早川勢、大谷へ向かっております！', 3.5));
+    rt.after(26, () => {
+      if (F.ending) return;
+      F.turned = true;
+      turnover(rt, F.kobaE);
+      room(rt, 14);
+      F.kobaG = ally(rt, '小早川秀秋の兵', { x: OTANI.x + 60, z: OTANI.z + 50 }, [{ type: 'busho', n: 1, o: { name: '平岡頼勝', invuln: true, horse: true } }, { type: 'samurai', n: 3 }, { type: 'gun', n: 2 }, { type: 'ashigaru', n: 8 }], KOBA, { facing: -Math.PI * 0.8, aggro: 40, seekRange: 60 });
+      goAttack(F.kobaG, HIRA);
+      rt.obj('main', G[7], 'main');
+      rt.banner('小早川勢、寝返り');
+      for (const g of [F.akashi, F.konishi, F.otani, F.otaW1, F.hideG]) if (alive(g)) g.morale -= 12;
+      // 大谷吉継は寝返りに備えていた：隊を返して小早川を一度押し返す
+      if (alive(F.otaW1)) goAttack(F.otaW1, { x: OTANI.x + 64, z: OTANI.z + 40 }, 40, 50);
+      rt.marker('foe', () => (F.otani.leader?.alive ? F.otani.leader.pos : F.otani.center()), '平塚為広', { red: true, group: F.otani });
+    });
+    rt.after(32, () => rt.say('大谷吉継', '金吾め、やはり裏切ったか……。備えはしてある。押し返せ！', 4));
+    rt.after(44, () => rt.say('使番', '大谷勢、小早川を押し返しております！', 3));
+    // 麓の四家が数十秒かけて一つずつ離反する（一斉の大演出にしない）
+    rt.after(56, () => { F.wakiT = rt.t; rt.say('使番', '脇坂安治も東軍に付いた！', 3); turnover(rt, F.wakiE); room(rt, 8);
       F.wakiG = ally(rt, '脇坂安治らの兵', WAKI_P, [{ type: 'busho', n: 1, o: { name: '脇坂安治', invuln: true, horse: true } }, { type: 'ashigaru', n: 5 }], WAKI, { facing: -Math.PI * 0.7, aggro: 40, seekRange: 60 });
-      goAttack(F.wakiG, HIRA);
-      if (alive(F.otani)) F.otani.morale -= 30;
-    });
-    rt.after(jindate.TURN.collapse, () => {
-      // 討死の知らせと実際の最期を揃える。無敵を外すだけでは二人とも敗走してしまう。
-      for (const u of F.otani?.units || []) if (u.alive && !u.gone && u.type === 'busho') {
-        u.invuln = false; u.hp = 0; rt.army.kill(u, null);
-      }
-      rout(F.otani); rout(F.otaniH);
-      if (F.otaniU?.alive && !F.otaniU.gone) {
-        F.otaniU.invuln = false; F.otaniU.hp = 0;
-        rt.army.kill(F.otaniU, null);   // 自害した吉継も陣の内で倒れる
-      }
-      rt.say('使番', '大谷刑部殿、陣中にて自害！　平塚・戸田も討ち死に！', 4);
-      rt.banner('大谷吉継　自害');
-      rt.after(jindate.TURN.spread - jindate.TURN.collapse, () => {
-        for (const g of [F.akashi, F.ukita2, F.ukita3, F.ukita4, F.hideG]) rout(g);
-        rt.say('宇喜多秀家', '金吾めっ……！　刺し違えてくれる！', 3);
-        rt.after(3, () => { rt.say(F.akashiU?.alive ? '明石全登' : '宇喜多の近習', '殿、なりませぬ！　ここは落ちのびられませ！', 3); if (F.hide?.leader?.alive) rt.army.despawn(F.hide.leader); rout(F.hide); });
-        rout(F.konishi);
-      });
-      F.mitsuGate = false; for (const g of [F.mitsu2, F.mitsu3]) if (g) { g.noRout = false; g.morale -= 25; }
-      rt.after(4, () => rt.say('井伊直政', '今ぞ！　笹尾山を攻め上れ！', 3));
-    });
+      goAttack(F.wakiG, HIRA); if (alive(F.otani)) F.otani.morale -= 20; });
+    rt.after(66, () => rt.say('使番', '朽木・小川も寝返りましたぞ！', 3));
+    rt.after(76, () => rt.say('使番', '赤座勢も大谷へかかる！', 3));
   },
-  // ⑨ 島津の退き口。朝から奥の林に構えていた島津の隊が、家康の本陣の前を突き抜ける
+  // 大谷隊の崩れ：吉継は陣中で自害、平塚・戸田は討ち死に。旗が倒れ、小西・宇喜多の脇が空く
+  otaniFall(rt) {
+    const F = rt.flags;
+    if (F.otaniDown) return;
+    F.otaniDown = rt.t;
+    rt.say('使番', '大谷勢、崩れました！', 3);
+    rt.after(3, () => rt.say('使番', '刑部殿、陣中にて自害の由！', 3));
+    for (const u of F.otani?.units || []) if (u.alive && !u.gone && u.type === 'busho') { u.invuln = false; u.hp = 0; rt.army.kill(u, null); }
+    rout(F.otani); rout(F.otaniH); rout(F.otaW1); rout(F.otaW2);
+    if (F.otaniU?.alive && !F.otaniU.gone) { F.otaniU.invuln = false; F.otaniU.hp = 0; rt.army.kill(F.otaniU, null); }
+    this.stage9(rt);
+  },
+  // ⑨ 西軍中央を突破：宇喜多・小西が左右から押される。宇喜多の殿を押し破る（秀家は討たせず、旗と伝令と敗走で見せる）
   stage9(rt) {
     const F = rt.flags;
     if (F.step >= 9) return;
     F.step = 9; F.s9t = rt.t;
     rt.objDone('main'); rt.unmark('foe');
-    rt.award((t) => t.side.push('石田の旗本を山から追い落とした'), '笹尾山の石田の旗本を追い落とした');
-    rt.say('使番', '治部少輔（三成）、伊吹山の方へ落ちた！', 3.5);
-    rt.obj('main', G[8], 'main');   // 目標はすぐ出す（空く間があると全部済んだ扱いで閉じる）
+    rt.award((t) => t.side.push('小早川の寝返りを見届け、大谷隊を崩した'), '大谷隊を崩した');
+    rt.obj('main', G[8], 'main');
+    rt.after(4, () => rt.say('使番', '小西勢が危うい！　宇喜多の脇が空きましたぞ！', 3.5));
+    room(rt, 40);
+    for (const g of [F.akashi, F.akaGun, F.ukita2, F.ukita3, F.ukita4]) rout(g);
+    F.shingari = foe(rt, '宇喜多の殿', CENTER9, [{ type: 'samurai', n: 6 }, { type: 'gun', n: 4 }, { type: 'ashigaru', n: 12 }], UKITA, { morale: 80, aggro: 24, seekRange: 30, formation: 'yari', width: 16 });
+    F.koniR = foe(rt, '小西の後備', { x: CENTER9.x - 12, z: CENTER9.z - 40 }, [{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: 8 }], KONI, { morale: 70, aggro: 20, seekRange: 26 });
+    F.c9N = nOf(F.shingari, F.koniR);
+    for (const g of [F.fuku, F.todo, F.ii, F.iiGun, F.kobaG, F.wakiG]) if (alive(g)) goAttack(g, { x: CENTER9.x + (g === F.fuku ? 8 : 0), z: CENTER9.z + (g === F.kobaG || g === F.wakiG ? 30 : 0) }, 30, 40);
+    rt.marker('foe', () => F.shingari.center(), '宇喜多の殿', { red: true, group: F.shingari });
+    rt.after(6, () => rt.say('徳川家康', '今ぞ！　皆かかれ！', 3));
+    rt.after(14, () => rt.say('島左近', 'まだじゃ……石田の陣、一歩も退くな！', 3));
+  },
+  // 宇喜多・石田の退却（秀家・三成は討たせず逃がす）→ ⑩ 島津の退き口
+  westFall(rt) {
+    const F = rt.flags;
+    if (F.westDown) return;
+    F.westDown = rt.t;
+    rout(F.shingari); rout(F.koniR); rout(F.konishi);
+    rt.say('宇喜多秀家', '金吾めっ……！　刺し違えてくれる！', 3);
+    rt.after(3, () => { rt.say('宇喜多の近習', '殿、なりませぬ！　ここは落ちのびられませ！', 3); if (F.hide?.leader?.alive) rt.army.despawn(F.hide.leader); rout(F.hide); rout(F.hideG); });
+    rt.after(7, () => {
+      rt.say('使番', '治部少輔（三成）、伊吹山の方へ落ちた！', 3.5);
+      if (F.mitsuU?.alive && !F.mitsuU.gone) rt.army.despawn(F.mitsuU);
+      rout(F.mitsu);
+    });
+    rt.after(9, () => this.stage10(rt));
+  },
+  // ⑩ 島津の退き口。朝から奥の林に構えていた島津の隊が、家康の本陣の前を突き抜ける
+  stage10(rt) {
+    const F = rt.flags;
+    if (F.step >= 10) return;
+    F.step = 10; F.s10t = rt.t;
+    rt.objDone('main'); rt.unmark('foe');
+    rt.award((t) => t.side.push('西軍の中央を押し破った'), '西軍の中央を押し破った');
+    rt.obj('main', G[9], 'main');   // 目標はすぐ出す（空く間があると全部済んだ扱いで閉じる）
     // 11/8 critic60（十1・五2「陣場野に本陣の幕も旗も家康も見えない」）：家康がまだ歩いている時も、ここで陣場野に着けて幕を張る
     if (!F.jinba && F.ieyasu) {
       const c = F.ieyasu.center(), cx = c.x, cz = c.z;
       for (const u of F.ieyasu.units) if (u.alive && !u.gone) { u.pos.x = IEYASU1.x + (u.pos.x - cx) * 0.5; u.pos.z = IEYASU1.z + (u.pos.z - cz) * 0.5; u.pos.y = rt.world.heightAt(u.pos.x, u.pos.z); }
       F.ieyasu.onArrive?.(F.ieyasu);
     }
-    rout(F.mitsu2); rout(F.mitsu3);
-    if (F.mitsuU?.alive && !F.mitsuU.gone) rt.army.despawn(F.mitsuU);   // 三成は幕の奥から山の裏へ落ちる（野へは下りない）
-    rout(F.mitsu);
-    for (const g of [F.kanamori, F.otani, F.otaniH, F.kobaG, F.wakiG, F.akashi, F.ukita2, F.sakon, F.mitsu, F.mitsu2, F.todo, F.hide, F.hideG, F.konishi, F.hoso]) KIT.markRecyclable(g);
+    for (const g of [F.kanamori, F.otani, F.otaniH, F.otaW1, F.kobaG, F.wakiG, F.akashi, F.ukita2, F.ukita3, F.ukita4, F.mitsu, F.todo, F.hide, F.hideG, F.konishi, F.shingari, F.koniR, F.fuku]) KIT.markRecyclable(g);
     // 本陣の前で待ち受ける（遠くへ追って出ない）
-    // 黒田・細川は笹尾山の陣に残る（島津を横から追って出ない）
-    goTo(F.kuroda, { x: SASAO.x + 40, z: SASAO.z + 10 }); goTo(F.hoso, { x: SASAO.x + 44, z: SASAO.z + 30 });
-    for (const g of [F.kuroda, F.hoso]) if (g) { g.aggro = 6; g.seekRange = 8; }
     goAttack(F.ii, { x: HOLD5.x + 8, z: HOLD5.z - 26 }, 10, 12);
     goAttack(F.iiGun, { x: HOLD5.x + 24, z: HOLD5.z - 34 }, 20, 20);
     goAttack(F.honda, { x: HOLD5.x + 14, z: HOLD5.z + 8 }, 10, 12);
@@ -639,6 +664,8 @@ const k06_sekigahara = {
       F.shiI = 0;   // 野へ出た所から（道の一つ目は林の出口なので飛ばす）
       this.shimaStep(rt);
       rt.marker('foe', () => (F.shima.leader?.alive ? F.shima.leader.pos : F.shima.center()), '島津義弘', { red: true, group: F.shima });
+      rt.after(5, () => rt.say('福島の兵', '島津が来る！', 2.5));
+      rt.after(9, () => rt.say(nm(rt), '敗走しているはずなのに……こっちに来る！', 3));
       rt.after(16, () => rt.say('本多忠勝', '島津の捨て奸じゃ。殿の陣へは一歩も入れるな！', 3.5));
     });
   },
@@ -666,7 +693,7 @@ const k06_sekigahara = {
     //   主の任務の済みと手柄は締めの直前に（共通の goalsDoneTick が二秒半で勝ちに締め、余韻を切らないように）
     yoin.start(rt, { UKITA_F, SAKON, KONISHI, done: () => {
       rt.objDone('main');
-      rt.award((t) => { t.main = true; t.special = { label: '関ヶ原で井伊の先に立ち、島津の退き口を受けた', pts: 60 }; }, '島津の退き口を受けた');
+      rt.award((t) => { t.main = true; t.special = { label: '関ヶ原で寝返りを目の前で見届け、島津の突入を食い止めた', pts: 60 }; }, '島津の退き口を受けた');
     } });
   },
   update(rt, dt) {
@@ -681,8 +708,10 @@ const k06_sekigahara = {
     if (F.ending || !F.step) return;
     // 平塚・戸田は藤川台の前を守る。応戦で敵を追っても、笹尾山への道まで出て行かない。
     // 寝返り後の討死・敗走には帰陣の下知を重ねない。
-    if (!F.flipT && alive(F.otani) && F.otani.order !== 'move' &&
-      (!near(F.otani.center(), HIRA, 40) || F.otani.leader?.alive && !near(F.otani.leader.pos, HIRA, 40))) goTo(F.otani, HIRA);
+    // ⑦からは藤堂・京極の脇の線まで押し出し、そこで押し合う
+    const OA = (F.step || 0) >= 7 ? { x: RLINE.x - 14, z: RLINE.z } : HIRA;
+    if (!F.turned && alive(F.otani) && F.otani.order !== 'move' &&
+      (!near(F.otani.center(), OA, 40) || F.otani.leader?.alive && !near(F.otani.leader.pos, OA, 40))) { if (OA === HIRA) goTo(F.otani, HIRA); else goAttack(F.otani, OA, 24, 30); }
     const P = rt.player.u.pos;
     // 味方の損耗だけで主人公の任務を失敗にしない。討たれた時の扱いは共通のやり直しへ。
     if (F.step === 1) {
@@ -700,112 +729,45 @@ const k06_sekigahara = {
       if (F.vol >= 3 && rt.t - F.s2t > 16 && near(P, NUKE, 36)) this.stage3(rt);
     } else if (F.step === 3) {
       if (near(P, BACK, 14) && rt.t - F.s3t > 6) this.stage4(rt);
-    } else if (F.step === 4 || F.step === 5) {
+    } else if (F.step === 4) {
       const left = nOf(F.akashi, F.akaGun, F.ukita2);
       F.ek = (F.akaN || 0) - left;
       // 春日神社に残ったまま味方が敵を減らしても、藤下へ続いた目標は済ませない。
-      if (F.step === 4 && near(P, UKITA_F, 55)) F.joined4 = true;
-      if (F.step === 4 && F.joined4 && left <= Math.round(F.akaN * 0.8)) {
-        F.step = 5; rt.objDone('main'); rt.obj('main', G[4], 'main');
-        rt.say('福島正則', '押せ押せ！　宇喜多を天満山へ追い返せ！', 3);
-      }
-      if (F.step !== 5) return;
-      // 先手が三分の一ほど減ると、宇喜多の本隊から新手が出る（数で押してくる）。段は敵の数で進め、時間では進めない
-      if (!F.wave2 && left <= Math.round(F.akaN * 0.65)) {
-        F.wave2 = true; room(rt, 34);
-        F.ukita3 = foe(rt, '宇喜多の本隊', { x: UKITA_H.x + 50, z: UKITA_H.z + 6 }, [{ type: 'samurai', n: 5 }, { type: 'gun', n: 6 }, { type: 'bow', n: 3 }, { type: 'ashigaru', n: 14 }], UKITA, { morale: 90 });
-        F.akaN += F.ukita3.count;
-        rt.say('使番', '天満山から宇喜多の新手！', 3);
-        rt.after(2, () => rt.say('明石全登', '殿の旗本の手が来たぞ！　東軍を押し返せ！', 3.5));
-      }
-      const left2 = left + nOf(F.ukita3);
-      if (F.wave2 && !F.wave2b && left2 <= Math.round(F.akaN * 0.55)) {
+      if (near(P, UKITA_F, 55)) F.joined4 = true;
+      if (F.joined4 && left <= Math.round(F.akaN * 0.85)) this.stage5(rt);
+    } else if (F.step === 5) {
+      // 宇喜多は崩れない。福島隊のそばで押し返しを受けた時間だけを数える（討ち減らしの数でなく持ちこたえ）
+      if (near(P, UKITA_F, 55)) F.held5 += dt;
+      if (!F.wave2b && F.held5 > 28) {
         F.wave2b = true; room(rt, 24);
-        F.ukita4 = foe(rt, '宇喜多の二の備', { x: UKITA_F.x - 24, z: UKITA_F.z - 30 }, [{ type: 'samurai', n: 4 }, { type: 'gun', n: 4 }, { type: 'ashigaru', n: 14 }], UKITA, { morale: 90 });
-        F.akaN += F.ukita4.count;
-        rt.say('井伊直政', '宇喜多はまだ厚い。退くな、押し込め！', 3);
+        F.ukita4 = foe(rt, '宇喜多の二の備', { x: UKITA_F.x - 24, z: UKITA_F.z - 30 }, [{ type: 'samurai', n: 4 }, { type: 'gun', n: 4 }, { type: 'ashigaru', n: 12 }], UKITA, { morale: 100, noRout: true });
+        goAttack(F.ukita4, { x: FUKU.x - 24, z: FUKU.z - 6 });
+        rt.say('明石全登', '宇喜多の槍は一万七千。押し返せ、福島を川まで追え！', 3.5);
       }
-      const left2b = left2 + nOf(F.ukita4);
-      // 全戦の通しで十四分：全滅に近い討ち減らしを要求せず、六割を失った先手を退かせる。
-      // 二度の新手と藤下での主人公の接近は、引き続き必須。
-      const need = Math.round(F.akaN * 0.4);
-      F.ek = F.akaN - left2b;
-      // 遠景への切替などで明石が退場した時も、史実に反する討死の知らせは出さない。
-      if (F.akashiU && (!F.akashiU.alive || F.akashiU.gone) && !F.akashiDown) {
-        F.akashiDown = true; F.akashi.noRout = false;
-        for (const g of [F.akashi, F.ukita2, F.ukita3, F.ukita4]) if (alive(g)) g.morale -= 20;
-        rt.say('井伊直政', '明石掃部が退いていく。宇喜多の先手が揺らいだぞ、押せ！', 3.5);
-      }
-      // 先手と槍を合わせた後に遠くへ離れても、味方の戦果だけでは押し返した事にしない。
-      if (F.wave2b && left2b <= need && near(P, UKITA_F, 55)) {
-        if (!F.akashiDown && F.akashiU?.alive) rt.say('井伊直政', '明石掃部が退いていく。宇喜多の先手は崩れたぞ！', 3);
-        this.stage6(rt);
-      }
+      if (F.held5 >= HOLD5S) this.stage6(rt);
     } else if (F.step === 6) {
-      // 黒田の隊に本人が加わるまで、時間だけで済ませない。
-      if (alive(F.kuroda) && near(P, F.kuroda.center(), 22)) this.stage7(rt);
+      // 藤堂・京極の隊に本人が加わるまで、時間だけで済ませない。
+      if (alive(F.todo) && near(P, F.todo.center(), 26) || near(P, RLINE, 20)) this.stage7(rt);
     } else if (F.step === 7) {
-      // 左近本人の近くで戦い、虎口を東から西へ通った時だけ数える。
-      if (F.sakon?.leader?.alive && near(P, F.sakon.leader.pos, 26)) F.sakonSeen = true;
-      // 左近の隊は柵の前の野に留まる（追って東の野の奥まで走り、主人公が六百歩東まで追った・11/9 流し）
-      if (!F.sakBack && alive(F.sakon) && F.sakon.order !== 'move' &&
-        (!near(F.sakon.center(), SAKON_FRONT, 55) || F.sakon.leader?.alive && !near(F.sakon.leader.pos, SAKON_FRONT, 55))) {
-        F.sakon.order = 'move'; F.sakon.dest = { ...SAKON_FRONT };
-        F.sakon.onArrive = (q) => { q.order = 'attack'; q.aggro = 30; q.seekRange = 40; q.onArrive = null; };
+      // 線の近くで大谷隊を受けた時間を数える。寝返りは十分半ごろ（早く着いても、線を支え続ける）
+      if (near(P, RLINE, 40)) F.held7 += dt;
+      if (!F.otaW2 && F.held7 > 36) {
+        room(rt, 20);
+        F.otaW2 = foe(rt, '戸田勝成の手', { x: HIRA.x - 10, z: HIRA.z - 20 }, [{ type: 'samurai', n: 3 }, { type: 'gun', n: 3 }, { type: 'ashigaru', n: 10 }], OTANI_LK, { morale: 100, noRout: true });
+        F.otaW2.dmgMult = 0.6;
+        goAttack(F.otaW2, { x: RLINE.x - 8, z: RLINE.z - 10 }, 30, 40);
+        rt.say('戸田勝成', '大谷の手はまだあるぞ。押せ！', 3);
       }
-      // 移動の終点だけでなく、柵の線を横切った場所が虎口の内かを確かめる。
-      if (F.prevSakonX >= FENCE_X - 1 && P.x < FENCE_X - 1) {
-        const k = (F.prevSakonX - (FENCE_X - 1)) / (F.prevSakonX - P.x);
-        const z = F.prevSakonZ + (P.z - F.prevSakonZ) * k;
-        if (Math.abs(z - GAP.z) < GAP_HALF) F.crossed = true;
-      }
-      F.prevSakonX = P.x; F.prevSakonZ = P.z;
-      const left = nOf(F.sakon);
-      if (!F.wave3 && left <= Math.round(F.sakN * 0.6)) {
-        F.wave3 = true; room(rt, 30);
-        F.shima3 = foe(rt, '小西行長の援兵', { x: KONISHI.x + 10, z: KONISHI.z - 60 }, [{ type: 'samurai', n: 3 }, { type: 'gun', n: 6 }, { type: 'ashigaru', n: 12 }], KONI, { morale: 92, aggro: 30, seekRange: 50 });
-        F.sakN += F.shima3.count;
-        rt.say('使番', '北天満山から小西の手が、左近の救いに来る！', 3);
-        rt.after(4, () => rt.say('使番', '島津は陣から動きませぬ！　治部殿の使いを追い返した由', 3.5));
-      }
-      const left3 = left + nOf(F.shima3);
-      if (F.wave3 && !F.wave3b && left3 <= Math.round(F.sakN * 0.45)) {
-        F.wave3b = true; room(rt, 22);
-        F.ishida3 = foe(rt, '石田の鉄砲衆', { x: SAKON.x - 24, z: SAKON.z - 14 }, [{ type: 'samurai', n: 2 }, { type: 'gun', n: 5 }, { type: 'ashigaru', n: 8 }], ISHIDA, { morale: 90, aggro: 30, seekRange: 50 });
-        F.sakN += F.ishida3.count;
-        rt.say('島左近', '大筒と鉄砲を前へ！　黒田を寄せつけるな！', 3);
-      }
-      const left3b = left3 + nOf(F.ishida3);
-      F.ek = (F.akaN || 0) + F.sakN - left3b;
-      // 段は柵を越えて、左近の隊が減った所で進む（時間では進めない・AB）。黒田の鉄砲が左近を撃つ（史実）
-      // 左近も備の半ばを失えば柵へ退く。接近・虎口の横断・本人の帰陣は省かない。
-      if (F.wave3b && !F.sakBack && left3b <= Math.round(F.sakN * 0.45)) {
-        F.sakBack = true;
-        for (const g of [F.sakon, F.shima3]) if (alive(g)) {
-          g.order = 'move'; g.dest = { x: GAP.x + 8, z: GAP.z }; g.aggro = 0; g.seekRange = 0;
-          g.onArrive = (q) => {
-            q.dest = { x: GAP.x - 12, z: GAP.z };
-            q.onArrive = (r) => { r.order = 'hold'; r.anchor = { ...r.dest }; r.aggro = 8; r.seekRange = 8; r.onArrive = null; };
-          };
-        }
-        rt.say('島左近', '退け、柵の内で立て直す！', 3);
-        rt.after(3, () => rt.say('黒田長政', '左近が退くぞ。柵を越えて追え！', 3));
-      }
-      // 退く下知を出した同じ瞬間に済ませず、左近が実際に柵の内へ戻るまで見届ける。
-      const sakonInside = F.sakon?.leader?.alive && !F.sakon.leader.gone && F.sakon.leader.pos.x < FENCE_X - 1;
-      if (F.sakBack && F.crossed && F.sakonSeen && sakonInside) this.stage8(rt);
+      if (F.held7 >= HOLD7S && rt.t >= FLIP_MIN_T) this.stage8(rt);
     } else if (F.step === 8) {
-      const n = nOf(F.mitsu2, F.mitsu3);
-      const need = Math.round(F.mitN * 0.2);
-      // 寝返りの前は旗本が固い（兵が減っても崩れず、幕の内から次の兵が出る）
-      if (F.mitsuGate && n <= Math.round(F.mitN * 0.5) && !F.refill) {
-        F.refill = true;
-        room(rt, 12);
-        F.mitsu3 = foe(rt, '石田の旗本の二の手', { x: SASAO.x + 8, z: SASAO.z - 8 }, [{ type: 'samurai', n: 6 }, { type: 'gun', n: 4 }], ISHIDA, { aggro: 24, seekRange: 30, formation: 'yari' });
-        F.mitN += F.mitsu3.count;
-      }
-      if (!F.mitsuGate && nAt(SASAO, F.mitsu2, F.mitsu3) <= need && rt.t - F.flipT > 30 && near(P, SASAO, 45)) this.stage9(rt);
-    } else if (F.step === 9 && F.shima) {
+      if (F.turned && !F.n8) F.n8 = Math.max(1, nOf(F.otani, F.otaW1, F.otaW2));
+      const since = F.flipT ? rt.t - F.flipT : 0;
+      if (F.turned && (since >= 70 && nOf(F.otani, F.otaW1, F.otaW2) <= Math.round(F.n8 * 0.5) || since >= FALL_MAX)) this.otaniFall(rt);
+    } else if (F.step === 9) {
+      const left = nOf(F.shingari, F.koniR);
+      F.ek = (F.akaN || 0) + (F.c9N || 0) - left;
+      if (near(P, CENTER9, 60) && (left <= Math.round(F.c9N * 0.45) || rt.t - F.s9t > 150)) this.westFall(rt);
+    } else if (F.step === 10 && F.shima) {
       const n = nOf(F.shima);
       if (alive(F.shima)) F.shima.morale = 100;   // 島津は退き口の間、崩れて逃げ戻らない（前へ抜けるだけ）
       F.shiK = F.shiN - n;
@@ -844,6 +806,13 @@ const k06_sekigahara = {
       // 味方が島津を減らしただけでは果たさない。本陣の前で主人公が受けた時間だけを数える。
       // 主人公の到着が遅れても、受け終えるまでは島津を伊勢路へ進めない。
       if (F.shiAt && F.shiMet && (receiving || repelled) && near(P, HOLD5, 40)) F.shiHeld = (F.shiHeld || 0) + dt;
+      // 豊久は義弘を逃がすため残って戦う殿。追った井伊直政は鉄砲で傷を負う（史実）
+      if (F.shiMet && !F.toyoSaid) { F.toyoSaid = true; rt.say('島津豊久', '叔父上を落とせ！　ここは豊久が引き受け申す！', 3.5); }
+      if ((F.shiHeld || 0) > HOLD_S * 0.6 && !F.iiHurt) {
+        F.iiHurt = true;
+        rt.say('使番', '井伊さま、島津の鉄砲に撃たれ手負い！', 3);
+        if (alive(F.ii)) goTo(F.ii, { x: HOLD5.x + 20, z: HOLD5.z - 30 });
+      }
       if (F.shiMet && (receiving || repelled) && (F.shiHeld || 0) >= HOLD_S && near(P, HOLD5, 40)) this.win(rt);
     }
   },
@@ -875,17 +844,15 @@ k06_sekigahara.botBrain = (b, inp, { goTo: go, patientStrike }) => {
   inp.quickCmd = null;
   if (!u.alive || F.ending) return;
   const q = b.def.missionPin(b);
-  // ⑤は押し返した後、完了に必要な藤下へ戻る。近くの残兵を追い続けて帰路を止めない。
-  const returning = F.step === 5 && F.wave2b && nOf(F.akashi, F.akaGun, F.ukita2, F.ukita3, F.ukita4) <= Math.round(F.akaN * 0.4) && !near(u.pos, UKITA_F, 55);
-  // 退く段・虎口の横断・登頂・本陣への移動を、脇の敵への寄り道で止めない。
-  // ⑧で柵の外（東）にいる間も寄り道しない（柵越しに斬り合い、騎馬に討たれた・11/9 流し）
-  const moving = F.step === 8 && u.pos.x > FENCE_X - 1 && u.pos.z > -214 && u.pos.z < -128 || F.step === 1 || F.step === 3 || F.step === 6 || F.step === 7 && F.sakBack && F.sakonSeen || F.step === 8 && !F.mitsuGate && nAt(SASAO, F.mitsu2, F.mitsu3) <= Math.round(F.mitN * 0.2) || F.step === 9 && !near(u.pos, HOLD5, 35);
+  // 持ちこたえる段は線の近くにいる事が大事。遠くの残兵を追わず、線から離れたら戻る。
+  const returning = F.step === 5 && !near(u.pos, UKITA_F, 45) || F.step === 7 && !near(u.pos, RLINE, 32) || F.step === 8 && !near(u.pos, RLINE, 70) || F.step === 9 && !near(u.pos, CENTER9, 55);
+  // 退く段・移動の段・本陣への移動を、脇の敵への寄り道で止めない。
+  const moving = F.step === 1 || F.step === 3 || F.step === 6 || F.step === 10 && !near(u.pos, HOLD5, 35);
   // 目標と無関係な本陣・別の持ち場へ斬り込み、通しが長引く寄り道を避ける。
-  // 隊を毎コマ並べ直さず、今の段で押し返す隊だけを選ぶ。
   const onTask = (g) => !!g && (F.step <= 5 ? g === F.akashi || g === F.akaGun || g === F.ukita2 || g === F.ukita3 || g === F.ukita4
-    : F.step === 7 ? g === F.sakon || g === F.shima3 || g === F.ishida3
-    : F.step === 8 ? g === F.mitsu2 || g === F.mitsu3
-    : F.step === 9 && g === F.shima);
+    : F.step === 7 || F.step === 8 ? g === F.otani || g === F.otaW1 || g === F.otaW2
+    : F.step === 9 ? g === F.shingari || g === F.koniR
+    : F.step === 10 && g === F.shima);
   const ok = (o) => !moving && !returning && onTask(o.group) && !o.gone && !o.fleeing && !o.invuln && !o.campProtected && !o.noTarget && !o.isStruct && Math.abs(o.pos.y - u.pos.y) < 4;
   const prev = pl.botStrikeFoe;
   const r = F.step === 1 || F.step === 3 || F.step === 6 ? 3 : F.step === 2 ? 6 : 9;
@@ -907,12 +874,10 @@ k06_sekigahara.botBrain = (b, inp, { goTo: go, patientStrike }) => {
 KILLS.k06_sekigahara = (rt) => {
   const F = rt.flags;
   if (F.ending) return null;
-  if (F.step === 5) return cut(F.akaN, nOf(F.akashi, F.akaGun, F.ukita2, F.ukita3, F.ukita4), Math.round(F.akaN * 0.4));
-  if (F.step === 7) return cut(F.sakN, nOf(F.sakon, F.shima3, F.ishida3), Math.round(F.sakN * 0.45));
-  if (F.step === 8) return F.mitsuGate ? null : cut(F.mitN, nAt(SASAO, F.mitsu2, F.mitsu3), Math.round(F.mitN * 0.2));
+  if (F.step === 9) return cut(F.c9N, nOf(F.shingari, F.koniR), Math.round(F.c9N * 0.45));
   return null;   // 島津の退き口は討つ人数でなく、本陣の前で受けた時間で果たす
 };
-// 戦の進行の札（段）：F.step の 1〜9
+// 戦の進行の札（段）：F.step の 1〜10
 setStages('k06_sekigahara', G.map((t, k) => (k ? [t, k + 1] : [t])));
 
 export { k06_sekigahara };

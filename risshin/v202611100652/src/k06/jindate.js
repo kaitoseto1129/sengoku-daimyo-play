@@ -6,7 +6,7 @@
 //     ・松尾山の小早川一万五千と麓の脇坂ら（寝返りで側が替わるので表に入れない）
 //     ・段ごとの下知：⑤宇喜多の二の備が押し出し福島の二陣が乱れる（西軍の粘り）→ ⑧松尾山が動かない焦り
 //       → 寝返り：小早川が山を下り、はじめ北へ（どちらへ来るか分からない）、急に大谷の陣へ。脇坂らも続き、大谷・宇喜多・小西の備が崩れる
-//       → ⑨石田の陣が崩れ、島津だけが固まって中央を突き抜ける（本物の島津の後ろに付いて走る）→ 勝てば西軍の残りが皆逃げる（南宮山は動かない）
+//       → ⑨大谷が崩れ宇喜多・小西も崩れる → ⑩石田の陣が崩れ、島津だけが固まって中央を突き抜ける（本物の島津の後ろに付いて走る）→ 勝てば西軍の残りが皆逃げる（南宮山は動かない）
 //   兵力の数・当たり・勝ち負け・bot には入れない（farFill・host:false。本物に替えない）。
 // 入れ方：setup で install(rt, P) を一度。update で tick(rt) を毎コマ（段の移りは F.step と F.flipT を見て自分で気づく）。
 // ======================================================================
@@ -16,7 +16,7 @@ import { clash } from '../b_sekigahara.js';
 import { depthOrder, depthRout, depthShock } from '../army_depth.js';
 
 // 本物の兵・遠景・使番の知らせで同じ時刻を使う。下山の完了（三十六秒）より前に大谷を崩さない。
-export const TURN = Object.freeze({ aim: 12, support: 36, collapse: 60, spread: 65 });
+export const TURN = Object.freeze({ aim: 18, confirm: 26, support: 56 });   // 寝返りの時（秒）：大谷へ向く・確定・麓の離反の始め。大谷の崩れは b_k06 の otaniFall
 
 const E = -Math.PI / 2;   // 東軍は西（-x）を向く
 const TK = 0x24221f, WS = 0x2c2a2a;
@@ -88,11 +88,15 @@ export function tick(rt) {
   } else if (step === 6) {
     // 家康が本陣を前へ。福島の二陣は持ち直し、松平忠吉の備も前へ
     tryDo(() => { C.s?.push?.('A', 0.15); order('A', 'fuku2', 'advance'); order('A', 'tadayoshi', 'advance'); order('A', 'tanaka', 'advance'); });
-  } else if (step === 8) {
-    // 松尾山が動かない焦り（本陣の会話は stage8。こちらは野の様子）
-    later(30, () => rt.say('本多忠勝', '金吾の一万五千が敵に回れば、この戦は負けまするぞ', 3.5));
-    later(38, () => rt.say('徳川家康', 'ええい、金吾め……！', 2.5));
+  } else if (step === 7) {
+    // 膠着：松尾山が動かない焦り（野の使番は stage7。こちらは本陣の様子）
+    later(50, () => rt.say('本多忠勝', '金吾の一万五千が敵に回れば、この戦は負けまするぞ', 3.5));
+    later(76, () => rt.say('徳川家康', 'ええい、金吾め……！', 2.5));
   } else if (step === 9) {
+    // 大谷が崩れ、宇喜多・小西の備が左右から押されて崩れる。戦線全体の旗が西へ押し出される
+    tryDo(() => { C.o?.rout?.('B', { from: 1, minFight: 1 }); routB('otani2'); C.s?.push?.('A', 0.6); order('A', 'fuku2', 'advance'); });
+    later(10, () => { C.s?.rout?.('B', { from: 1, minFight: 1 }); routB('ukita2', 'konishi2'); });
+  } else if (step === 10) {
     // 石田の陣が崩れる。島津だけが固まって中央を突き抜ける（本物の島津の後ろに付いて走る）
     tryDo(() => { C.n?.rout?.('B', { from: -1, minFight: 2 }); routB('gamou'); });
     later(5, () => {
@@ -107,24 +111,22 @@ export function tick(rt) {
   }
 }
 
-// 小早川の寝返り：一万五千が山を下る。はじめは北の野へ（東軍か西軍か分からない）、十二秒ほどで急に西の大谷の陣へ向きを変える
+// 小早川の寝返り（11/9 kaito：一分から一分半）：一万五千がゆっくり山を下る。はじめは北の野へ（東軍へ来るのか分からない）、
+//   二十秒ほどで西の大谷の陣へ向きを変える。麓の四家は数十秒かけて一つずつ離反する。大谷の崩れは b_k06 の otaniFall（step 9）で
 function flip(rt, st, later, routB) {
   const M = st.M, C = st.C, P = st.P;
-  // 本物の隊と同じ時に東軍へ替える。移動だけでは遠景が西軍扱いのまま残る。
-  for (const g of [M.koba, M.koba2]) if (g?.army) g.army.team = 0;
-  M.koba?.moveTo(P.MATSUO.x + 10, P.MATSUO.z - 110, 14, { charge: true });
-  M.koba2?.moveTo(P.MATSUO.x - 20, P.MATSUO.z - 90, 16, { charge: true });
-  later(TURN.aim, () => {
+  M.koba?.moveTo(P.MATSUO.x + 10, P.MATSUO.z - 110, 6);
+  M.koba2?.moveTo(P.MATSUO.x - 20, P.MATSUO.z - 90, 7);
+  // 本物の隊と同じ時（寝返りの確定・b_k06 の flip の二十六秒）に東軍へ替える。移動だけでは遠景が西軍扱いのまま残る。
+  later(26, () => { for (const g of [M.koba, M.koba2]) if (g?.army) g.army.team = 0; });
+  later(18, () => {
     M.koba?.moveTo(P.HIRA.x - 10, P.HIRA.z + 40, 22, { charge: true });
     M.koba2?.moveTo(P.OTANI.x + 60, P.OTANI.z + 50, 24, { charge: true });
     C.o?.shake?.('B', 30);
   });
-  later(TURN.support, () => {
-    for (const g of [M.waki, M.akaza, M.ogawa, M.kutsuki]) if (g?.army) g.army.team = 0;
-    M.waki?.moveTo(P.HIRA.x + 30, P.HIRA.z + 20, 20, { charge: true }); C.o?.push?.('A', 0.6);
-    M.akaza?.moveTo(P.HIRA.x - 20, P.HIRA.z + 34, 22, { charge: true }); M.ogawa?.moveTo(P.HIRA.x, P.HIRA.z + 30, 21, { charge: true }); M.kutsuki?.moveTo(P.HIRA.x + 46, P.HIRA.z + 26, 23, { charge: true });
-  });
-  // 大谷の陣が崩れ、宇喜多・小西も崩れる（西軍右翼の総崩れ）
-  later(TURN.collapse, () => { C.o?.rout?.('B', { from: 1, minFight: 1 }); routB('otani2'); });
-  later(TURN.spread, () => { C.s?.rout?.('B', { from: 1, minFight: 1 }); routB('ukita2', 'konishi2'); });
+  later(44, () => C.o?.push?.('B', 0.3));   // 大谷勢が一度押し返す
+  const side = (...gs) => { for (const g of gs) if (g?.army) g.army.team = 0; };
+  later(56, () => { side(M.waki); M.waki?.moveTo(P.HIRA.x + 30, P.HIRA.z + 20, 20, { charge: true }); C.o?.push?.('A', 0.6); });
+  later(66, () => { side(M.kutsuki, M.ogawa); M.kutsuki?.moveTo(P.HIRA.x + 46, P.HIRA.z + 26, 23, { charge: true }); M.ogawa?.moveTo(P.HIRA.x, P.HIRA.z + 30, 21, { charge: true }); });
+  later(76, () => { side(M.akaza); M.akaza?.moveTo(P.HIRA.x - 20, P.HIRA.z + 34, 22, { charge: true }); });
 }

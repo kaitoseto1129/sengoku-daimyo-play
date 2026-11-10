@@ -75,7 +75,9 @@ const ino = {
     if (!F?.allAlly) return FORCE;
     const a = aliveIn(F.allAlly), a0 = F.allAllyN || 1;
     const h = aliveIn(F.haya), h0 = F.hayaN || 1, s = aliveIn(F.shiba), s0 = F.shibaN || 1;
-    FORCE.a = round10(Math.max(a ? 10 : 0, 700 * a / a0));
+    // 後詰も七百の内訳。合流で分母を増やして、それまでの討死を戻さない。
+    const total = F.allAlly.reduce((n, g) => n + (g?.units.length || 0), 0);
+    FORCE.a = round10(Math.max(0, 700 * (1 - (total - a) / a0)));
     FORCE.b = round10(700 * h / h0 + 1000 * s / s0);
     return FORCE;
   },
@@ -152,7 +154,7 @@ const ino = {
     // 林勢（四組・三十余り）：前衛の三十m 先。林美作守は列の後ろで馬上、大旗を立てる
     F.haya = [-10, 6, 22, 38].map((x) => {
       const g = enemyGroup(rt, { faction: 'nobukatsu', name: '林勢', anchor: { x, z: 6 }, facing: 0, fleeDir: { x: 0, z: -1 }, width: 5, noRout: true, noAI: true, formation: 'line', morale: 80, dmgMult: 0.4, order: 'hold', aggro: 0, speed: 3, fixed },
-        HAYA([{ type: 'ashigaru', n: N(6), o: { flagScale: 1 } }, { type: 'ashigaru', n: N(2) }, { type: 'samurai', n: 1 }]));
+        HAYA([{ type: 'ashigaru', n: N(6), o: { flagScale: 1 } }, { type: 'ashigaru', n: N(2) - 1 }, { type: 'bow', n: 1 }, { type: 'samurai', n: 1 }]));
       F.groups.push(g); return g;
     });
     F.hayaBoss = enemyGroup(rt, { faction: 'nobukatsu', name: '林美作守', anchor: { x: 16, z: -12 }, facing: 0, width: 2, noRout: true, noAI: true, order: 'hold', aggro: 0, morale: 100, fixed },
@@ -166,7 +168,7 @@ const ino = {
     // 柴田勢（横の奥・東）：初めは百m 余り奥。林勢が崩れた後に鬨とともに寄せる。林勢より多く、列が厚い
     F.shibaLines = [-40, -24, -8, 8, 24, 40].map((x, i) => {
       const g = enemyGroup(rt, { faction: 'nobukatsu', name: '柴田勢', anchor: { x: x - 20, z: -110 - (i % 2) * 3 }, facing: 0, fleeDir: { x: -1, z: -1 }, width: 6, noRout: true, noAI: true, formation: 'line', morale: 100, dmgMult: 0.5, defMult: 1.2, order: 'hold', aggro: 0, speed: 2.6, fixed },
-        SHIBA_SET([{ type: 'ashigaru', n: N(8) }, { type: 'ashigaru', n: N(2), o: { flagScale: 1 } }, { type: 'samurai', n: 1 }]));
+        SHIBA_SET([{ type: 'ashigaru', n: N(8) - 1 }, { type: 'bow', n: 1 }, { type: 'ashigaru', n: N(2), o: { flagScale: 1 } }, { type: 'samurai', n: 1 }]));
       g.lineX = x; F.groups.push(g); return g;
     });
     F.shibaG = enemyGroup(rt, { faction: 'nobukatsu', name: '柴田勝家', anchor: { x: -10, z: -124 }, facing: 0, fleeDir: { x: -1, z: -1 }, width: 3, noRout: true, noAI: true, order: 'hold', aggro: 0, morale: 100, dmgMult: 0.8, fixed },
@@ -174,7 +176,7 @@ const ino = {
     F.shibaU = F.shibaG.units.find((u) => u.name === '柴田勝家');
     F.groups.push(F.shibaG);
     F.shibaFlag = nobori(W, -8, -126, 'kari', 7.5); rt.scene.add(F.shibaFlag);
-    F.shiba = [...F.shibaLines];
+    F.shiba = [...F.shibaLines, F.shibaG];
     F.shibaN = aliveIn(F.shiba);
     // 信長の一団：遠く（七十m 余り西）を通るだけ。後で名塚の前へ駆けつける
     F.nobuG = allyGroup(rt, { name: '信長の旗本', fullStrength: true, anchor: { x: -66, z: 30 }, facing: Math.PI, width: 4, aggro: 0, speed: 3.2, noAI: true, noRout: true, order: 'hold', fixed },
@@ -400,7 +402,7 @@ const ino = {
     // 別の隊が合流する（新しい組が西から来て並ぶ）
     F.mori = allyGroup(rt, { name: '森可成の手', fullStrength: true, anchor: { x: -40, z: 128 }, facing: Math.PI, width: 6, aggro: 0, speed: 3.6, noAI: true, noRout: true, order: 'hold', formation: 'line', dmgMult: 0.6, defMult: 1.2, fixed: true },
       [{ type: 'ashigaru', n: N(9), o: { flagScale: 1 } }, { type: 'samurai', n: 2 }]);
-    F.allAlly.push(F.mori); F.allAllyN += aliveIn([F.mori]);
+    F.allAlly.push(F.mori);
     this.moveG(F.mori, { x: 4, z: 112 }, 3.6);
     rt.after(6, () => { if (!F.ending) { say(rt, rt.G.lord ? '自分' : '織田信長', '者ども、返せ！　敵は主に槍を向ける者ぞ！', 3.2); sfx('taiko', 1); rt.army.play('toki', P, 1.6); } });
     rt.after(10, () => { F.nobuFlag && (F.nobuFlag.position.set(at.x + 2, rt.world.heightAt(at.x + 2, at.z), at.z)); });
@@ -446,8 +448,12 @@ const ino = {
     say(rt, '組頭', '追うな！　ここまでじゃ。', 2.6);
     try { stopMusic(5); } catch (e) { /* 音の無い時も続ける */ }
     for (const g of [...F.van, F.sakuma, F.mates, F.mori]) if (live(g)) { g.order = 'hold'; g.aggro = 0; g.anchor = g.center(); for (const u of g.units) u.target = null; }
-    for (const g of F.shibaLines) if (live(g)) for (const u of g.units) { u.noTarget = true; u.target = null; }
-    F.shibaG && (F.shibaG.aggro = 0);
+    // 退く旗本も攻撃を止める。到着時に古い攻撃命令へ戻さない。
+    for (const g of F.shiba) if (live(g)) {
+      g.aggro = 0; g.focus = null; g.fire = false;
+      g.onArrive = (q) => { q.order = 'hold'; q.aggro = 0; };
+      for (const u of g.units) { u.noTarget = true; u.target = null; }
+    }
     F.ending = true;
     rt.objDone('main'); rt.tracker.main = true;
     rt.player.u.invuln = true;
@@ -463,7 +469,8 @@ const ino = {
     const F = rt.flags;
     if (F.codaT) return;
     F.codaT = rt.t;
-    if (live(F.shibaG)) { this.moveG(F.shibaG, { x: -50, z: -60 }, 1.4); }
+    // 柴田は退いた先から戻らず、同じ街道の奥へ去る。
+    if (live(F.shibaG)) { this.moveG(F.shibaG, { x: -50, z: -140 }, 1.4); }
     F.lead = F.sakumaU?.alive ? F.sakumaU : F.lead;
     say(rt, '弥助', '柴田権六……あれで負けたのか。', 3);
     rt.after(3.6, () => say(rt, '源太', '恐ろしい男だ。', 2.4));
@@ -533,7 +540,7 @@ const ino = {
     if (F.ph === 'hayashi' && !F.capDead && F.contactT && rt.t - F.contactT > 75 && aliveIn(F.haya) <= F.hayaN * 0.45) this.capDown(rt);
     // 柴田は主人公から五十m より近づかない（軍勢の向こう側にいる人）。山田を討つ時だけ三十m まで
     const S = F.shibaU;
-    if (S?.alive && F.shibaG && F.shibaOn && !F.codaT) {
+    if (S?.alive && F.shibaG && F.shibaOn && !F.shibaBackT && !F.codaT) {
       const minD = F.shibaGo ? 28 : 50, d = near(S.pos, P.pos);
       if (F.shibaGo) {
         const Y = F.yamadaU;

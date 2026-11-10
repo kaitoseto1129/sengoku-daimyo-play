@@ -9,6 +9,9 @@ import { allyGroup, enemyGroup } from '../bhelp.js';
 import { sfx } from '../audio.js';
 
 const DROWN = { x: 22, z: -14 };   // 流された足軽（渡り口の下流の水際）
+// 後送・転倒・消えた兵を「払うべき騎馬」に残さず、印も実際の追手へ付ける。
+const pursuing = (u) => u.alive && !u.dying && !u.gone && !u.fleeing && !u.woundOut &&
+  !u.rearWound && !u.downed && !u.noTarget && !u.group?.routed;
 
 export function install(rt, ctx) {
   const F = rt.flags;
@@ -51,7 +54,7 @@ export function install(rt, ctx) {
       sfx('hooves', 0.9);
       rt.say('組頭', '西から騎馬じゃ！　詰まった列を横から突く気だ。槍を向けよ！', 4);
       rt.obj('konzatsu2', '渡り口の列へ横から来る、上杉の騎馬を払え', 'order');
-      rt.marker('konzatsuR', () => (R.units.some((u) => u.alive && !u.fleeing && !u.woundOut) ? R.center() : null), '上杉の騎馬', { red: true, group: R });
+      rt.marker('konzatsuR', () => R?.units.find(pursuing)?.pos || null, '上杉の騎馬', { red: true, group: R });
     });
   };
 
@@ -72,7 +75,7 @@ export function install(rt, ctx) {
       }
       if (!R) return;
       let n = 0;
-      for (const u of R.units) if (u.alive && !u.fleeing && !u.woundOut) n++;
+      for (const u of R.units) if (pursuing(u)) n++;
       rt.objProgress('konzatsu2', n ? `上杉の騎馬 ${n}騎` : '');
       if (!n || el > 110) {
         rt.unmark('konzatsuR');

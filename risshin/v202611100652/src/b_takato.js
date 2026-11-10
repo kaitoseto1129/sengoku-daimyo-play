@@ -1240,6 +1240,8 @@ const F_MELEE = { list: [] };
 // 塀際の城兵を討ち果たした先手は、塀の下で立ち尽くさず、道の脇へ退いて門の破れを待つ。門が開けば三の丸へなだれ込む。
 function gateBrawlTick(rt) {
   const F = rt.flags; F.brawlT = 1;
+  // 落城の札の間は、勝利処理で止めた味方へ進軍の下知を出し直さない。
+  if (F.ending || rt.over || !rt.player.u.alive) return;
   const open = F.gates.oteOuter.opened || F.gates.oteInner.opened || F.sanFell;
   // 門が開いたら、門前の土橋の口の軽い乱戦（takatoFieldMelee の一つ目）は城方が崩れて退く（門をくぐる道に残さない）
   if (open && !F.gateClashGone && F_MELEE.list[0]) { F.gateClashGone = true; F_MELEE.list[0].rout?.('B', { hideAfter: 20, from: 0 }); }

@@ -43,6 +43,7 @@ import * as ST_WALL from './shitaragahara/teppo_wall.js';
 import * as ST_TAME from './shitaragahara/tameshi.js';
 import * as ST_MEISHO from './shitaragahara/meisho.js';
 import * as ST_SOKO from './shitaragahara/sokogeki.js';
+import * as ST_PLUS from './shitaragahara/plus.js';
 // 地面を作る前に標高を読み終える。後から届いても地面の格子は作り直されない。
 let DEM = null;
 useTerrain('dem_shitaragahara', (data) => { DEM = data; });
@@ -1426,16 +1427,10 @@ function nfTick(rt, dt) {
   // 導入の段（柵の見回り・物見の誘い出し）が済むまで夜明けの寄せを待つ
   if (N.step === 0 && ST_INTRO.tick(rt, dt)) return;
   if (N.step === 0 && !N.t0) { N.t0 = rt.t; N.at = rt.t; ST_WALL.start(rt); }
+  if (N.t0) ST_PLUS.tobiTick(rt, N.t0);   // 酒井忠次の鳶ヶ巣山（追加改善 4）
   // ― 0：夜明け。鳶ヶ巣山の知らせ（未明に落ちた砦の煙）と、南の山県の寄せ ―
   if (N.step === 0) {
-    if (!N.tobi && rt.t > N.t0 + 2) {
-      N.tobi = true;
-      // 夜明けの落城を先に知らせ、背後を断たれた武田の寄せへ続ける。
-      rt.say('使番', '鳶ヶ巣山の砦、陥落！　酒井殿の別手が長篠の囲みを解きました！', 4);
-      F.tobiSmoke = [[880, 620], [930, 660], [850, 700]].map(([x, z], i) =>
-        rt.world.addSmokeColumn?.(x, rt.world.heightAt(x, z) + 8, z, { size: 4 - i * 0.6, black: true }));
-      for (const g of rt.army.groups) if (g.team === 1 && !g.routed) g.morale = Math.max(0, (g.morale ?? 100) - 12);
-    }
+    // 鳶ヶ巣山は開戦の報で済ませず、戦の途中で音・煙・陥落の順に効かせる（shitaragahara/plus.js tobiTick）
     if (!N.south && rt.t > N.t0 + 2) { N.south = true; nfSend(rt, F.south, SB.gates[2]); F.jinkeiBound.shitara_yamagata?.advance(25, 12);
       for (const fc of F.far) if (!fc.v && Math.abs(fc.z - MOUTHS[2].z) < 50) { fc.v = 1; fc.m.advance(80, 16, { charge: true }); } sfx('taiko', 1); }
     // 第一波：試しの寄せ（shitaragahara/tameshi.js）。崩れてから真田の本隊を寄せる
@@ -1589,13 +1584,15 @@ function nfTick(rt, dt) {
     for (const u of R.units) {
       const target = u.atk?.target || u.swing?.target || u.target;
       if (u.alive && !u.fleeing && !u.gone && !u.woundOut && !u.rearWound && !u.noTarget &&
-          target?.alive && !target.fleeing && !target.gone && !target.woundOut && !target.rearWound && !target.noTarget &&
+          target?.alive && target.pos && !target.fleeing && !target.gone && !target.woundOut && !target.rearWound && !target.noTarget &&
           target.team !== u.team &&
           Math.hypot(u.pos.x - target.pos.x, u.pos.z - target.pos.z) < 8 &&
           !rt.army.wallBetween(u.pos, -1, target.pos)) { fighting = true; break; }
     }
     if (fighting && Math.hypot(p.x - NF_REAR.x, p.z - NF_REAR.z) < 60) N.babaFight = (N.babaFight || 0) + dt;
-    if (!N.babaDead && baba?.alive && (nfRearReady(rt) <= Math.ceil(N.babaN0 * 0.6) || N.babaFight > 60)) rt.army.kill(baba, null);
+    // 波の最大の長さ（docs/sunomata_spec_1109.md の決まり 7）：本人が退き口へ来て二分半たてば、殿は組の槍に崩れる
+    const babaCap = rt.t - N.at > 150 && Math.hypot(p.x - NF_REAR.x, p.z - NF_REAR.z) < 60;
+    if (!N.babaDead && baba?.alive && (nfRearReady(rt) <= Math.ceil(N.babaN0 * 0.6) || N.babaFight > 60 || babaCap)) rt.army.kill(baba, null);
     if (R.order !== 'hold' || R.anchor.x !== NF_REAR.x) { R.order = 'hold'; R.path = null; R.dest = null; R.anchor.x = NF_REAR.x; R.anchor.z = NF_REAR.z; R.focus = null; }
     // 味方だけが殿を討っても、本人が退き口へ来るまでは最後の目標を果たさない。
     // 馬場本人が生きている間は、残兵が二人でも討死と勝利を先取りしない。
@@ -1755,6 +1752,8 @@ function shCp2(rt) {
   const g = F.waveGroups[0];
   for (const q of [g, g.cavalry]) for (const u of q.units) if (u.alive && u.type !== 'busho') u.fleeing = true;
   N.defendedNorth = true; g.nfAt = g.nfAt || rt.t; g.nfArrive = rt.t - 60;
+  // CP2 は酒井隊の成功の後（追加改善の CP）。鳶ヶ巣山がまだなら、次のコマで陥落させる
+  if ((F.shTobi?.s || 0) < 2) F.shTobi = { s: 1, at: rt.t - 41, last: rt.t, next: 99 };
   nfTick(rt, 0.05);
 }
 function shCp3(rt) {

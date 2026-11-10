@@ -56,7 +56,7 @@ export function tick(rt, dt, ctx) {
   // 九十秒たっても動く荷船は、追った味方の大船が撃ち止める（主人公の手柄にはしない）
   for (const b of S.ships) if (b.alive && !b.damageStage && !b.passed && rt.t - (b.bornAt ?? S.t0) >= 90) {
     sinkByAlly(rt, b);
-    rt.say('九鬼嘉隆', '味方の大船が荷船を止めた！', 3);
+    rt.say('九鬼嘉隆', '味方の大船が荷船へ撃ち込んだ！', 3);
   }
   const settled = S.ships.length > 0 && S.ships.every((b) => !b.alive || b.passed || b.stopped);
   if ((S.second && settled && t >= 60) || t >= HYORO_LEN) {

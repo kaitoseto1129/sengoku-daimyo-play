@@ -2983,7 +2983,12 @@ function sendAriFriends(rt, at, hold) {
 const ARI_STREET = [[GATE.x - 6, GATE.z], [GATE.x + 4, GATE.z], [TOWN_X - 24, GATE.z], [TOWN_X - 12, -70], [TOWN_X, -14]];
 const ARI_TOWN_WAY = ARI_STREET.slice(1), ARI_TOWN_WAY_BACK = ARI_TOWN_WAY.slice().reverse();
 function ariStreetWay(c, dest, back) {
-  const road = back ? ARI_STREET.slice().reverse() : ARI_STREET;
+  // 焼け跡と奥の木戸は辻から北へ続く通り。斜めの町筋から直接向かうと町屋を横切る。
+  // 北の通りにいる組が木戸側へ戻る時も、辻を経て同じ町筋を戻す。
+  const north = (p) => Math.abs(p.x - TOWN_X) <= 8 && p.z < ARI_JUNCTION.z;
+  let road = ARI_STREET;
+  if (north(c) || north(dest)) road = [...road, [TOWN_X, Math.min(north(c) ? c.z : ARI_JUNCTION.z, north(dest) ? dest.z : ARI_JUNCTION.z)]];
+  if (back) road = road.slice().reverse();
   let k = 0, end = 0, best = Infinity, destBest = Infinity;
   road.forEach(([x, z], i) => { const d = Math.hypot(x - c.x, z - c.z); if (d < best) { best = d; k = i; } });
   road.forEach(([x, z], i) => { const d = Math.hypot(x - dest.x, z - dest.z); if (d < destBest) { destBest = d; end = i; } });
