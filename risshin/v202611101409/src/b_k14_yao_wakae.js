@@ -261,7 +261,8 @@ const k14_yao_wakae = {
     paddy(x, z) {
       // 11/9 重さ：兵の足元の水の深さのたびに呼ばれる。安い外し（端・畦の升）を先にし、線は四角の外なら測らない（答えは同じ）
       if (Math.abs(x) > 230 || Math.abs(z) > 230) return 0;
-      if ((Math.floor(x / 14) + Math.floor(z / 12)) % 4 === 1) return 0;
+      const cell = Math.floor(x / 14) + Math.floor(z / 12);
+      if (((cell % 4) + 4) % 4 === 1) return 0;
       if (Math.min(nearDist(x, z, TAMA), nearDist(x, z, NAGASE)) < 12 || nearDist(x, z, WAKAE_DIKE) < 6 || nearDist(x, z, ROAD) < 5) return 0;
       const ex = Math.min(((x % 14) + 14) % 14, 14 - ((x % 14) + 14) % 14), ez = Math.min(((z % 12) + 12) % 12, 12 - ((z % 12) + 12) % 12);
       return Math.max(0, Math.min(1, (Math.min(ex, ez) - 0.8) / 0.6)) * 0.95;
@@ -472,6 +473,9 @@ const k14_yao_wakae = {
     const u = g.units.find((q) => q.name === name && q.alive);
     if (!u) return;
     u.invuln = false; rt.army.kill(u);
+    if (name === '藤堂高刑') { F.takanoriFell = true; F.takanoriFellAt = rt.t; }
+    if (name === '桑名吉成') F.kuwanaFell = true;
+    F.yaoFallAt = rt.t;
     if (line) rt.say('使番', line, 3.2);
     if (!g.routed) { g.order = 'retreat'; g.dest = { x: YAO_FRONT.x + 50, z: g.anchor.z }; }
     // 長宗我部の先手は堤の前へ戻って構え直す（横の備と先手を、主人公が来てから崩す）
@@ -580,7 +584,7 @@ const k14_yao_wakae = {
     const pin = this.missionPin(rt);
     if (dist(P.pos, STEP_AT[F.step]) < 34 || (pin && dist(P.pos, pin) < pin.r)) F.stepNear = true;
     const left = STEP_T[F.step] - (rt.t - F.stepT);
-    if (F.step === 1 && dist(P.pos, YAO_FRONT) < 60) {
+    if (F.step === 1 && !F.next && dist(P.pos, YAO_FRONT) < 60) {
       if (!F.takanoriFell && rt.t - F.t0 >= 50) {
         F.takanoriFell = true;
         F.takanoriFellAt = rt.t;
@@ -637,7 +641,9 @@ const k14_yao_wakae = {
         rt.award((t) => t.side.push('八尾で長宗我部の横を突いた'), '長宗我部の横を突いた');
         // 早く横の備を退けても、八尾の討死を飛ばして若江へ戻らない。
         // 時刻だけに任せると二将が生きたまま終戦し、弔う台詞だけが出る。
-        let delay = 0;
+        // 直前の討死の知らせを読み終えてから次を伝える。
+        // 達成待ちの間は上の時刻判定を止め、予約した順を守る。
+        let delay = Math.max(0, 3.6 - (rt.t - (F.yaoFallAt ?? -Infinity)));
         for (const [q, name, line] of [[F.takanoriG, '藤堂高刑', '八尾で藤堂高刑様、お討死！'],
           [F.kuwanaG, '桑名吉成', '桑名吉成様もお討死！　藤堂勢、崩れかかっております']]) {
           if (!q.units.some((u) => u.name === name && u.alive)) continue;
