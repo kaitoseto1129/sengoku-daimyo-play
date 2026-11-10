@@ -752,7 +752,7 @@ export function yaguraGate(rt, x, z, w = 5, rot = 0, o = {}) {
   const { hp = 620, name = '櫓門' } = o;
   const s = gateStruct(rt, x, z, w, rot, o, hp, name);
   const inside = o.inside !== false;
-  const frame = yaguramon(rt.world, x, z, w, rot, { doors: false, earth: o.earth, stone: o.stone, inside });
+  const frame = yaguramon(rt.world, x, z, w, rot, { doors: false, earth: o.earth, stone: o.stone, inside, noKit: o.noKit });
   const door = tobira(rt.world, x, z, w, rot, { h: o.h });
   s.mesh = door;
   const mesh = new THREE.Group(); mesh.add(frame, door);

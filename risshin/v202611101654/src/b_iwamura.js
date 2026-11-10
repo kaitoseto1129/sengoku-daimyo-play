@@ -926,6 +926,7 @@ const iwamura = {
   resumeSteps: [[1, 'prepare'], [2, 'raid'], [3, 'chase']],   // 戦の途中の保存（battle_checkpoint.js）：段の始まりを、段の関数を順に流して作り直す
   // 稲生と同じ入口で任務・地図・頭上の印・一時停止をそろえる。
   missionSingleLine: true,
+  goalsAllRows: true, goalsVisibleRows: 5, // 昼から開城までの七目標を、今の段を含む五件ずつ順に並べる。
   hideMissionDots: true, hideGuideSteps: true,
   noPlayerFoot: true, quietMiss: true,
   enemyTriangleSigns: true, nearbyAllySignLimit: 0, noDodgeCard: true,

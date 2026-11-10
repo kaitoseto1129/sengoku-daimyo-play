@@ -406,6 +406,10 @@ html:root body #hud:has(#h-prog[data-battle="t09_yamanaka"]) #center-call .cc { 
       rt.cleanupTasks?.add(() => st.remove());
     }
     F.step = 0; F.ek = 0; F.ak = 0; F.daiEk = 0;
+    // 11/10 クラウド：矢と鉄砲の傷は playerTaken が効かず（鉄砲は一発に命の一割半の床）、act の bot が出丸の土橋で二百秒あまりで撃ち倒され続けた。
+    //   この戦の矢弾だけ半分にする（刃の傷は今のまま。堀の縁・三の丸の口の鉄砲でも倒れた）
+    { const P = rt.player; if (P && !P._t09Missile) { P._t09Missile = true; const td = P.takeDamage;
+      P.takeDamage = function (a, s) { const m = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow'; const r = td.call(this, a, s); return m && r > 0 ? r * (0.5) : r; }; } }
     const D = KURUWA.dai, HN = KURUWA.hon, NS = KURUWA.nishi;
     // ---- 岱崎出丸の柵（南と東へ向く。柵の内から間宮の鉄砲が撃つ。煙と弾は下の城攻めの部品が出す） ----
     F.daiWall = wallLine(rt, [[D.x - 16, D.z + 14], [D.x + 4, D.z + 18], [D.x + 18, D.z + 6], [D.x + 18, D.z - 10]], { team: 1, hp: 300, name: '出丸の柵', segLen: 8 });
@@ -663,6 +667,15 @@ html:root body #hud:has(#h-prog[data-battle="t09_yamanaka"]) #center-call .cc { 
     rt.setPhase('koguchi'); rt.unmark('cross');
     tahoumen.step(rt, 3);
     for (const g of [F.pit, F.rim]) if (!gone(g)) { g.noRout = false; g.morale = 0; }
+    // 11/10 クラウド：堀の縁の鉄砲は持ち場に固く据えた（fixed）ため士気が尽きても退かず、渡り終えた本人を五m 先から狙い続けた。
+    //   bot は狙いを避け続けて堀の手前（20,88）で九分止まった。渡り切ったら馬出しの裏から三の丸へ退かせ、城の内で消す
+    if (!gone(F.rim)) {
+      const g = F.rim, A = SP.at;
+      g.fixed = false; g.historicalOrders = true; g.noPursue = true; g.order = 'path'; g.speed = 2.8;
+      g.path = [[CROSS_X + 4, SHOJI.z0 - 14], [A.uma.x, A.uma.z], [A.gate.x, A.gate.z], [A.plaza.x, A.plaza.z]]; g.pathIdx = 0;
+      for (const u of g.units) if (u.type === 'gun') u.dmg = 0;
+      g.onArrive = (q) => { for (const u of q.units) if (u.alive && !u.gone) rt.army.despawn(u); };
+    }
     rt.award((t) => t.side.push('障子堀を渡った'), '障子堀を渡った');
     rt.obj('main', '馬出しから出た北条の隊を迎え撃つ', 'main');
     F.hostUp(18, 30);
@@ -722,6 +735,15 @@ html:root body #hud:has(#h-prog[data-battle="t09_yamanaka"]) #center-call .cc { 
     const pts = [M.lane, M.outer, M.inner, A.uma, A.bridgeOut, A.bridgeIn, A.gateOut].map((p) => [p.x, p.z]);
     F.oteRoute = [...pts, [A.gate.x, A.gate.z], [A.plaza.x, A.plaza.z]]; F.oteSign = 0;
     for (const g of F.toyo) if (!gone(g)) { continuePath(g, pts); g.speed = 2.8; g.onArrive = (q) => { q.colW = 2; q.order = 'assault'; q.assault = () => { const s = F.K.gate && F.K.gate.struct; return s && s.alive && !s.opened ? s : A.plaza; }; }; }
+    // 11/10 クラウド：馬出しへ戻った槍組が持ち場に固く据わったまま柵越しに突き続け、bot は構えたまま馬出しの北（16,85）で九分動けなかった。
+    //   二十秒で馬出しの残りも土橋から門の内へ退き、三の丸で消える（「退く兵に続いて」入る形）
+    rt.after(20, () => {
+      const g = F.uma;
+      if (F.step !== 3 || !g || gone(g)) return;
+      g.fixed = false; g.historicalOrders = true; g.noPursue = true; g.order = 'path'; g.speed = 2.6;
+      g.path = [[A.uma.x, A.uma.z], [A.bridgeOut.x, A.bridgeOut.z], [A.bridgeIn.x, A.bridgeIn.z], [A.gateOut.x, A.gateOut.z], [A.gate.x, A.gate.z], [A.plaza.x, A.plaza.z]]; g.pathIdx = 0;
+      g.onArrive = (q) => { for (const u of q.units) if (u.alive && !u.gone) rt.army.despawn(u); };
+    });
   },
   openGate(rt, tsuke) {
     const F = rt.flags;
@@ -958,6 +980,12 @@ html:root body #hud:has(#h-prog[data-battle="t09_yamanaka"]) #center-call .cc { 
         for (const q of F.toyo) if (!gone(q)) { continuePath(q, UP_ROUTE.slice(7)); q.speed = 2.4; q.onArrive = (r) => { r.order = 'attack'; r.seekRange = 40; }; }
       }
       if (F.ni && !gone(F.ni) && F.ni.count < 6) F.ni.morale = Math.min(F.ni.morale, 20);
+      // 11/10 クラウド：二の丸の守りと斬り合い・手当てを繰り返し、本丸の段だけで七分を越えて刻限に掛かった（act 1080秒）。
+      //   三分を過ぎたら二の丸の守りは本丸へ退き、道を空ける
+      if (F.ni && !gone(F.ni) && !F.niGive && rt.t - F.stepT > 180) {
+        F.niGive = true; F.ni.noRout = false; F.ni.morale = Math.min(F.ni.morale, 10);
+        rt.say('中村一氏', '二の丸の兵が本丸へ退くぞ！　追って上れ！', 3.5);
+      }
       // 旗本が崩れ始めると康郷が脱出する。康長は初めから本人の攻撃で討てる。
       if (F.honOn && !F.kogoOut && F.kogo?.units.some((u) => u.type === 'busho' && cnt(u) && !u.gone) && (g.count < F.honN * 0.65 || (F.honU && !F.honU.alive))) {
         F.kogoOut = true; F.kogo.fixed = false; F.kogo.noRout = true; F.kogo.morale = 100;
@@ -970,7 +998,9 @@ html:root body #hud:has(#h-prog[data-battle="t09_yamanaka"]) #center-call .cc { 
       }
       // 旗本は退かせず、松田康長が討たれるまで本丸で戦う（critic60 山中 37「退いただけで落城・康長の討たれる所が見えない」）
       // 旗本が崩れなくても、三分余りで康長が自ら打って出る（討つのは本人と寄せ手。時間で討ち死にはさせない。11/9 見回り：本丸で十分止まった）
-      if (F.honOn && !F.honOut && T > 200 && F.honU?.alive) { F.honOut = true; g.fixed = false; g.order = 'attack'; g.aggro = 40; g.seekRange = 60; rt.say('松田康長', '者ども、討って出るぞ！', 3); }
+      if (F.honOn && !F.honOut && T > 200 && F.honU?.alive) { F.honOut = true; g.fixed = false; g.order = 'attack'; g.aggro = 40; g.seekRange = 60; rt.say('松田康長', '者ども、討って出るぞ！', 3);
+        // 11/10 クラウド：打って出た旗本の鉄砲と槍に背から撃たれ、本丸の段で倒れた（act 982秒）。打って出た後は旗本の打ち込みを半分・鉄砲を三割に
+        g.dmgMult = (g.dmgMult || 1) * 0.5; for (const q of g.units) if (q.type === 'gun') q.dmg *= 0.3; }
       if (F.honOn && g.count < F.honN * 0.4 && F.honU?.alive && !F.honLast) { F.honLast = true; g.aggro = Math.max(g.aggro || 0, 20); rt.say('松田康長', '本丸を枕に討ち死にいたす。かかれ！', 3.5); }
       // 康長の討死は実際の攻撃で決める。近くで待った時間だけで命を尽かせない。
       // 隊の戦力の数だけで討死を決めず、終幕の知らせと康長本人の生死を合わせる。
@@ -1015,7 +1045,8 @@ t09_yamanaka.botBrain = (b, inp, { goTo, patientStrike }) => {
   if (!u.alive || F.ending) return;
   if (!F.step) { goTo(p, inp, shutsujin.LINE.x, shutsujin.LINE.z, 2); return; }
   // 一太刀で命の半分を失うため、半分のまま二太刀目を待たず味方の後ろへ退く。
-  if (u.hp < u.maxHp * 0.65) b.botRest = true;
+  // 下がる先は十四m 後ろ。大手門の段では障子堀へ落ちないよう、堀の手前（南の縁）までに留める
+  if (u.hp < u.maxHp * 0.65) { if (!b.botRest) b.botRestAt = { x: u.pos.x, z: F.step === 3 ? Math.min(u.pos.z + 14, SHOJI.z0 - 3) : u.pos.z + 14 }; b.botRest = true; }
   if (b.botRest && u.hp > u.maxHp * 0.85) b.botRest = false;
   const c = (F.toyo.find((g) => !gone(g)) || F.ichi).center();
   if (b.botRest && F.step !== 2) {
@@ -1027,14 +1058,19 @@ t09_yamanaka.botBrain = (b, inp, { goTo, patientStrike }) => {
         if (Math.abs(u.pos.z - 176) > 4) goTo(p, inp, Math.min(u.pos.x, -32), 176, 1.5);
         else goTo(p, inp, -6, 176, 1.5);
       } else goTo(p, inp, 12, 194, 2);
-    } else goTo(p, inp, c.x, c.z + 18, 2);
+    } else if (F.step >= 3 && b.botRestAt) goTo(p, inp, b.botRestAt.x, b.botRestAt.z, 2);   // 大手門・本丸の段は十四m 下がって息を継ぐ（先手の中心まで四十〜百m 下っては戻るのを繰り返し、七〜九分を使った。11/10）
+    else goTo(p, inp, c.x, c.z + 18, 2);
     return;
   }
   // 堀の中では寄り道をせず、畝の筋をまっすぐ渡る
   //   （目の前に来た敵だけは斬り払う）
   // 切岸の上や柵の向こうへ斬り掛からず、味方と同じ虎口・土橋を通る。
   const inUne = (q) => q.x > -28 && q.x < -11 && q.z > 138 && q.z < 212 && (q.z < 170 || q.z > 182);   // 出丸の脇の畝堀の中
+  // 11/10 クラウド：大手門の段で、渡り終えた障子堀の中（底の槍・縁の鉄砲の残り）に十二歩内で掛かり続け、堀の手前（20,88）で九分止まった。
+  //   堀を渡った後は堀の中の敵を相手にせず、十秒寄れない敵は三十秒見限る
+  const ign = b.botIgn ||= new Map();
   const e = b.army.nearestEnemy(u, F.step === 2 ? 3.5 : 12, (o) => !o.fleeing && !o.isStruct && !(F.step === 1 && inUne(o.pos)) &&
+    !(F.step >= 3 && o.pos.z > SHOJI.z0 - 1 && o.pos.z < SHOJI.z1 + 1) && !(ign.get(o) > b.t) &&
     !(F.step === 1 && Math.hypot(o.pos.x - u.pos.x, o.pos.z - u.pos.z) > 2.4 && crossesDaiMoat(u.pos, o.pos)) &&
     Math.abs(o.pos.y - u.pos.y) < 3 && !b.army.wallBetween(u.pos, -1, o.pos, p.weapon === 'spear'));
   if (F.step === 2 && !e) {
@@ -1051,6 +1087,12 @@ t09_yamanaka.botBrain = (b, inp, { goTo, patientStrike }) => {
   }
   if (e) {
     const d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
+    const k = b.botChase ||= { e: null, t: 0, t0: 0, hp: 0, x: 0, z: 0 };
+    if (k.e !== e) { k.e = e; k.t = k.t0 = b.t; k.hp = e.hp; k.x = u.pos.x; k.z = u.pos.z; }
+    else if (Math.hypot(u.pos.x - k.x, u.pos.z - k.z) > 1.5) { k.t = b.t; k.x = u.pos.x; k.z = u.pos.z; }
+    // 寄れない敵（十秒）と、柵越しに突いても傷の付かない敵（十二秒）は三十秒見限る（馬出しの柵越しに七分突き続けた。11/10）
+    if (k.e === e && ((d > 2.4 && b.t - k.t > 10) || (b.t - k.t0 > 12 && e.hp >= k.hp - 0.5))) { ign.set(e, b.t + 30); k.e = null; }
+    else if (e.hp < k.hp - 0.5) { k.hp = e.hp; k.t0 = b.t; }
     p.yaw = Math.atan2(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
     // 振りを受けてから返す（共通の patientStrike）。くじの突きと構えでは、騎馬と侍に削られて二度とも倒れた（11/8）
     if (d > 2.4) goTo(p, inp, e.pos.x, e.pos.z, 2.2);

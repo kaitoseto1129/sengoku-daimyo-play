@@ -407,7 +407,7 @@ function mikiCoverMaterial(base, kind) {
 function mikiFinishBatch(rt, batch) {
   // 両面の草土の法面だけにかける。土の絵を貼る既存の処理も残す。
   for (const [mat, list] of Array.from(batch.byMat)) {
-    if (!mat.vertexColors || mat.side !== THREE.DoubleSide) continue;
+    if (!mat.vertexColors || mat.side !== THREE.DoubleSide || mat.userData.camNearSolid === false) continue;
     batch.byMat.delete(mat); batch.byMat.set(mikiCoverMaterial(mat, 'earth'), list);
   }
   finalizeSimpleBatch(rt, batch);
@@ -956,7 +956,8 @@ function mikiFarFort(rt, q) {
     palisade(W, seg, { h: q.tall ? 3.8 : q.big ? 3.2 : 2.4, batch });
     dorui(W, seg, -Math.sin(am), -Math.cos(am), { h: q.big ? 1.4 : .9, w: 2.4, capEnds: true, closeBack: true, batch });
   }
-  for (const [x, z, w, d] of [[-6, -2, 7, 4], ...(q.big ? [] : [[5, 4, 6, 4]]), [-3, 7, 5, 3.5], [4, -6, 5, 3.5]]) hut(W, q.x + x, q.z + z, w, d, 0, { ita: true, batch, boardRoof: true, weatheredBoards: true });
+  // 接近できる奥の番所にも、平田と同じ土台と視界確保を使う。
+  for (const [x, z, w, d] of [[-6, -2, 7, 4], ...(q.big ? [] : [[5, 4, 6, 4]]), [-3, 7, 5, 3.5], [4, -6, 5, 3.5]]) mikiHut(W, q.x + x, q.z + z, w, d, 0, { ita: true, batch });
   mikiFinishBatch(rt, batch);
   // 大きな付城の口に板の櫓門（冠木門の上に板壁の渡櫓・板葺きの屋根）。柵と井楼だけの囲いが箱と棒に見えた（10/31 採点 近道1・形は推定）。
   if (q.big) {
