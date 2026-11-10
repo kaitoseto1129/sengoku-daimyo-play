@@ -180,12 +180,12 @@ function waterMeshes(rt) {
 }
 
 // ---- 兵の装い ----
-// 柴田方は二つ雁金の旗。羽柴方の旗は 'oda' の兵も含めて全部 'toyotomi' に染め替える（world.armyFlagKinds。豊臣編に織田の旗を出さない・kaito AQ4）
+// 柴田方は二つ雁金の旗。羽柴方の旗は 'oda' の兵も含めて全部、天正十一年の五三桐に染め替える（world.armyFlagKinds。豊臣編に織田の旗を出さない・kaito AQ4）
 // 11/5 check60：佐久間盛政の手は佐久間の丸に三引両、丹羽長秀の隊は直違（家ごとの旗。柴田の旗は勝家の一門と勝政の手だけ）
 const SHIBATA = { faction: 'nobukatsu', flag: 'kari' };
 const SAKUMA = { faction: 'nobukatsu', flag: 'sakuma' };
 const NIWA = 'sujikai';
-const HASHIBA = 'toyotomi';
+const HASHIBA = 'kiri53';
 // 陣形の塊：槍の足軽を主に、鉄砲・徒歩侍を混ぜる（兵の割合の決まりに寄せる）
 const foeList = (n, o = {}) => {
   const s = Math.max(1, Math.round(n * 0.12)), g = Math.max(1, Math.round(n * 0.14));
@@ -444,7 +444,7 @@ const t02_shizugatake = {
     groundMistScale: 0.15, groundHalf: 400, moveLim: 392,
     namedKacchu: SHIZU_KACCHU,   // 先懸けの衆は天正十一年の小姓の姿（上の SHIZU_KACCHU）
     height,
-    armyFlagKinds: { oda: HASHIBA },
+    armyFlagKinds: { oda: HASHIBA, toyotomi: HASHIBA },
     paths: [{ pts: KAIDO, w: 3.5 }, { pts: CUT, w: 2.5 }, { pts: UPHILL, w: 2.5 }, { pts: SHORE_W, w: 2.5 }, { pts: OIWA_WAY, w: 2.5 }, { pts: NORTH_OUT, w: 2.5 }, { pts: NORTH_BACK, w: 2.5 }],
     clear: (x, z) => Math.hypot(x - FORT.x, z - FORT.z) < FORT.r + 6 || distToPolyline(x, z, KAIDO) < 6 || distToPolyline(x, z, CUT) < 4
       || distToPolyline(x, z, SHORE_W) < 5 || distToPolyline(x, z, UPHILL) < 4 || dist({ x, z }, KINOMOTO) < 22 || distToPolyline(x, z, [[FORT.x, FORT.z], [LOOK.x, LOOK.z], [26, 218]]) < 9
