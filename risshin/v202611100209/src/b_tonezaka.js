@@ -1779,7 +1779,7 @@ const tonezaka = {
     // 退く案内に、元の前進先の曲がりまでの距離を添えない。
     if (retreatRequired(rt)) {
       if (!toneShelter(rt)) return '敵を見て、味方の後ろへ';
-      return distance < 3 ? '退き先まですぐ近く' : `退き先まであと${Math.ceil(distance / 0.75)}歩`;
+      return `退き先 ${Math.ceil(distance)}メートル`;
     }
     // 輪に着いてから中央までの距離を出すと、守る兵のそばを離れさせてしまう。
     if (F.step === 6 && near(rt.player.u.pos, INNER, 12) && !F.innerAlly)
@@ -1793,7 +1793,7 @@ const tonezaka = {
       : F.guideJoin ? '味方まで' : F.guideVisible ? '敵の列まで'
       : F.step === 6 ? '奥の道まで' : F.step === 5 ? '城下まで'
       : F.step === 3 ? '峠まで' : '道の先まで';
-    return distance < 3 ? `${place}すぐ近く` : `${place}あと${Math.ceil(distance / 0.75)}歩`;
+    return `${place.replace(/まで$/, '')} ${Math.ceil(distance)}メートル`;
   },
   // どの画面でも札には今の一手だけ残す。詳しい下知は任務を開いて読める。
   taskDetail(rt, title, progress) {

@@ -187,6 +187,7 @@ function start(rt, K, done) {
     if (stop()) return;
     k15Fade(rt, () => {
       applyLook(rt, DAWN); rt.world.lookDark = false;
+      if (F.farFires) F.farFires.visible = false;
       placePlayer(rt, G.x + 4, FZ + 12, Math.PI);
     }, '明け方', '城の坂を、白い布を掲げた使者が下りて来る');
     const man = evPerson(rt, 1, '吉川の使者', { x: G.x, z: FZ - 18 }, 0, { calm: true });

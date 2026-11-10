@@ -193,7 +193,11 @@ export function tick(rt, hidden = []) {
 // 昼の段の bot：近い敵を突き、いなければ金の▼へ
 export function bot(b, inp, { goTo, patientStrike }) {
   const p = b.player, u = p.u;
-  const e = b.army.nearestEnemy?.(u, 18, (o) => !o.isStruct && !o.fleeing && !o.noTarget && o.alive);
+  // 夜の追撃と同じく、柵や切岸の向こうへ斬りかかり続けない。
+  const e = b.army.nearestEnemy?.(u, 18, (o) => !o.isStruct && !o.fleeing && !o.noTarget && o.alive &&
+    !o.woundOut && !o.rearWound && !o.invuln &&
+    Math.abs(o.pos.y - u.pos.y) < 3 && !b.army.wallBetween(u.pos, -1, o.pos) &&
+    !b.army.terrainBlocks(u.pos, o.pos));
   if (e) {
     const d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
     inp.runHeld = d > 6;

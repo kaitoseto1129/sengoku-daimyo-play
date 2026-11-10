@@ -3475,6 +3475,8 @@ const saika = {
     // 複数の組を同じ持ち場へ重ねず、竹束の後ろで段を分ける。
     let squadRow = 0;
     for (const g of rt.squadGroups || []) if (g.count && !g.routed) {
+      // 以前の集合・使番・狙いを残すと、整列直後に追従や古い下知へ戻ってしまう。
+      g.pending = null; g._gather = false; g.focus = null; g.onArrive = null;
       g.order = 'hold'; g.anchor = { x: COVER.x + 4 + squadRow++ * 5, z: COVER.z };
       g.facing = WEST; g.formation = 'yari'; g.width = Math.max(g.width || 0, 10); g.seekRange = 8;
     }
