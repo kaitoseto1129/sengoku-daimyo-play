@@ -2249,6 +2249,7 @@ const shiga = {
   noWake: true,
   // 稲生の型。退却の道と守兵の動きは、この戦の下知をそのまま使う。
   missionSingleLine: true,
+  goalsVisibleRows: 5, // 今の目標を含む五件を並べ、物見を加えた六段も順に送る。
   hideMissionDots: true,
   enemyTriangleSigns: true,
   nearbyAllySignLimit: 0,

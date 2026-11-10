@@ -216,7 +216,12 @@ function ichiyaView(rt) {
 function sogamae(rt) {
   const W = rt.world;
   for (const [x, z] of [[-24, -2], [-31, -48], [-38, -90], [-44, -128]]) rt.scene.add(nobori(W, x + 2, z, 'hojo', 5));
-  for (const [x, z, r] of [[-6, -48, 0.2], [4, -58, -0.3], [-2, -74, 0.4], [10, -70, 0.1], [16, -88, -0.2], [-10, -88, 0.3], [6, -40, 0.5], [22, -66, 0]]) rt.scene.add(hut(W, x, z, 7, 5, r, { roof: 0x6a5c44 }));
+  for (const [x, z, r] of [[-6, -48, 0.2], [4, -58, -0.3], [-2, -74, 0.4], [10, -70, 0.1], [16, -88, -0.2], [-10, -88, 0.3], [6, -40, 0.5], [22, -66, 0]]) {
+    const house = hut(W, x, z, 7, 5, r, { roof: 0x6a5c44 });
+    // 本丸前の西側も、屋根だけでなく板壁でカメラを止める。
+    house.traverse((o) => { if (o.isMesh) o.userData.camBlock = true; });
+    rt.scene.add(house);
+  }
   // 開城の時に下げる北条の旗（t12_odawara/tenka.js）
   rt.flags.hojoFlags = [nobori(W, KGATE.x + 4, KGATE.z - 3, 'hojo', 7), nobori(W, KGATE.x - 4, KGATE.z - 3, 'hojo', 7)].filter(Boolean);
   for (const f of rt.flags.hojoFlags) rt.scene.add(f);

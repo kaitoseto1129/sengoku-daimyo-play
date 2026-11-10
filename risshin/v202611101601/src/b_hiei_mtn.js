@@ -3379,7 +3379,13 @@ const hiei_mtn = {
       for (let i = 0; i < pos.count; i++) pos.setY(i, W.heightAt(pos.getX(i), pos.getZ(i)) - fields.y0 + .03);
       g.computeVertexNormals(); G.add(fields, 'plain', paintGeo(g, 0x8b8749));
       for (const offset of [-3.5, 0, 3.5]) {
-        const ridge = new THREE.BoxGeometry(12, .12, .18); ridge.translate(184, W.heightAt(184, z + offset) - fields.y0 + .06, z + offset);
+        // 中央一点の高さで水平に置くと、斜面側の畦が浮き、反対側は土に埋まる。
+        // 一メートルごとの断面を同じ足場へ沿わせ、設営時に既存の束へまとめる。
+        const ridge = new THREE.BoxGeometry(12, .12, .18, 12, 1, 1);
+        ridge.translate(184, .06, z + offset);
+        const rp = ridge.attributes.position;
+        for (let i = 0; i < rp.count; i++) rp.setY(i, rp.getY(i) + W.heightAt(rp.getX(i), rp.getZ(i)) - fields.y0);
+        ridge.computeVertexNormals();
         G.add(fields, 'plain', paintGeo(ridge, 0x665c3b));
       }
     }

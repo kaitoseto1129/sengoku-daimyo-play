@@ -2549,7 +2549,7 @@ const kanegasaki = {
     const hit = (k) => F.contactAt?.[k] != null && F.heldLines?.[k] === true;
     return [
       { kind: 'stage', k: 0, text: '金ヶ崎の麓の一の備で、朝倉の先手を止める', noun: '一の備', action: '一の備で先手を止めよ', place: at(LINES[0]), check: () => (F.line || 0) >= 1 && hit(0) },
-      { kind: 'stage', k: 1, text: '笙の川を渡り、南岸の川の砦へ退く', noun: '川の砦', action: '川の砦へ退け', place: at(LINES[1]), check: () => (F.step || 0) >= 3 || (F.line || 0) >= 2 },
+      { kind: 'stage', k: 1, text: '笙の川を渡り、南岸の川の砦へ退く', noun: '川の砦', action: '川の砦へ退け', place: at(LINES[1]), check: () => F.in1 === true },
       { kind: 'stage', k: 1, text: '川の砦で、池田勢と騎馬の追手を受ける', noun: '川の砦', action: '砦の柵で騎馬の追手を受けよ', place: at(LINES[1]), check: () => (F.line || 0) >= 2 && hit(1) },
       // 退却中の損害で合流に失敗しても、すでに守り切った砦の達成は残す。
       { kind: 'stage', k: 2, text: '狭路の砦で、明智の鉄砲と朝倉の後続を止める', noun: '狭路の砦', action: '狭路の砦で後続を止めよ', place: at(LINES[2]), check: () => !!F.fleeing && hit(2) },
@@ -4557,7 +4557,10 @@ function kgHold(line, dur, waves, ambush = false) {
       // 退去が遅れ続けても、この段自身の期限で撤退へ進む。
       if (el >= (line === 2 ? dur + RETREAT_T : 80 + dur * 1.5)) { m.kgFailed = true; return true; }
       // 接触前の待ち時間で守備を済ませない。寄せを退けた後も、接触後の秒が一倍半を越えたら退く。
-      return contacted && kgAidReady(rt, line) && (C.fightT >= dur || C.contactT >= dur * 1.5) && (line !== 2 || (rt.flags.prog || 0) >= RETREAT_T);
+      // 組が持ちこたえた秒だけで締めず、本人も必要な時間を守ってから退く。
+      // 足りない時は戻って務めを果たせるよう、段の期限までは続ける。
+      return contacted && kgAidReady(rt, line) && C.inT >= dur * 0.6 &&
+        (C.fightT >= dur || C.contactT >= dur * 1.5) && (line !== 2 || (rt.flags.prog || 0) >= RETREAT_T);
     },
     end(rt, C, m) {
       rt.unmark('dp'); rt.unzone('dp');

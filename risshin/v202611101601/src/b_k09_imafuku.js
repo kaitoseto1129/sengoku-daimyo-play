@@ -270,7 +270,8 @@ const k09_imafuku = {
     // 脛より深い水には入れない（前は胸まで入れ、砦の後は本人も組の足軽も川に浸かって立っていた。一8・十一2）
     // 11/6 描いて遊んで：脛まで（0.3）でも、砦の北の縁で本人と組が川面の上に立って見えた（砦の段 125 秒。一8）→ 足の甲まで
     wadeDepth: 0.12,
-    streams: [{ pts: SOUTH, w: 22, depth: 3.4, buryBanks: true }, { pts: NORTH, w: 22, depth: 3.4, buryBanks: true }],
+    // 水の板の直線が草地へ露出しないよう、浅い岸は泥の凹凸になじませる（通し確認の指摘）。
+    streams: [{ pts: SOUTH, w: 22, depth: 3.4, buryBanks: true, softBanks: true }, { pts: NORTH, w: 22, depth: 3.4, buryBanks: true, softBanks: true }],
     paths: [[[240, 0], [150, 0], [60, 0], [-40, 0], [-70, 0]]],
     tint(x, z, h, c) {
       // 冬の枯れ葦の湿地。堤の上は土の色

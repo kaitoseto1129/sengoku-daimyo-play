@@ -146,6 +146,25 @@ function sallyContactTick(rt, dt) {
   }
 }
 
+// 控えが討たれて別の組が出る時も、同じ迎撃先の印を引き継ぐ。
+function markSally(rt) {
+  const F = rt.flags;
+  const receiving = [F.oteSpear, F.reserve];
+  rt.marker('sally', () => {
+    const p = rt.player.u.pos;
+    let nearest = null, best = Infinity;
+    for (const b of receiving) {
+      if (!b.real || b.real.routed) continue;
+      for (const u of b.real.units) {
+        if (!u.alive || u.fleeing || u.woundOut || u.noTarget) continue;
+        const d = (u.pos.x - p.x) ** 2 + (u.pos.z - p.z) ** 2;
+        if (d < best) { best = d; nearest = u; }
+      }
+    }
+    return nearest ? nearest.pos : null;
+  }, '味方の槍の列');
+}
+
 // 控えが先に討たれた時も、既存の三の丸の槍を大手へ出す。
 // 人を足したり、待つだけで迎撃を果たした扱いにはしない。
 function sallyReliefTick(rt) {
@@ -155,6 +174,9 @@ function sallyReliefTick(rt) {
   if (deadB(b)) return;
   if (!F.sallyRelief) {
     F.sallyRelief = b;
+    F.sallyN = b.real.units.filter(siegeFighter).length;
+    F.sallyOut = true; F.sallyUntil = 0; F.sallyReturning = false; F.sallyBegun = true;
+    markSally(rt);
     for (const q of F.sallyGates) {
       if (q.gate === F.gates.gateNi) continue;
       q.passed = true;
@@ -163,7 +185,6 @@ function sallyReliefTick(rt) {
     setRoute(b, [...ROAD_OTE.slice(1, 8).reverse(), [97, 0]]);
     rt.say('森長可', '三の丸から城兵が打って出るぞ！　大手門の前で受けよ', 4);
   }
-  F.sallyOut = true; F.sallyBegun = true;
 }
 
 function mainObj(rt, stage) {
@@ -1634,20 +1655,7 @@ const takato_siege = {
       F.sallyContact ??= 0;
       mainObj(rt, 1);
       rt.say('森長可', '城兵が出たぞ！　味方の槍の列で受けよ。崖へ散るな！', 4);
-      const receiving = [F.oteSpear, F.reserve];
-      rt.marker('sally', () => {
-        const p = rt.player.u.pos;
-        let nearest = null, best = Infinity;
-        for (const b of receiving) {
-          if (!b.real || b.real.routed) continue;
-          for (const u of b.real.units) {
-            if (!u.alive || u.fleeing || u.woundOut || u.noTarget) continue;
-            const d = (u.pos.x - p.x) ** 2 + (u.pos.z - p.z) ** 2;
-            if (d < best) { best = d; nearest = u; }
-          }
-        }
-        return nearest ? nearest.pos : null;
-      }, '味方の槍の列');
+      markSally(rt);
     });
     rt.after(45, () => {
       if (F.ending || rt.over || F.niFell || deadB(F.nobutada)) return;
@@ -1993,21 +2001,23 @@ const takato_siege = {
           setRoute(F.dan2, ROAD_OTE.slice(0, 8));
         }
       }
-      if ((F.sallyOut || F.sallyUntil || F.sallyReturning) && deadB(F.reserveDef)) {
+      if ((F.sallyOut || F.sallyUntil || F.sallyReturning) && deadB(F.sallyRelief || F.reserveDef)) {
         F.sallyOut = false; F.sallyUntil = 0; F.sallyReturning = false;
         if (!F.tsukeiri) for (const q of F.sallyGates) if (!q.gate.breached && !F.DA.usingGate(q.gate)) q.gate.close();
         rt.unmark('sally');
       }
       sallyReliefTick(rt);
+      // 出撃後の追い直し・損耗・帰城も、代わって出た組を使う。
+      const sallyTroops = F.sallyRelief || F.reserveDef;
       // 門へ着く前から半平面の向こうにいる兵もいる。曲がった道の該当の門を抜けてから閉める。
-      if (F.sallyOut && !F.reserveDef._route && !deadB(F.reserveDef)) {
+      if (F.sallyOut && !sallyTroops._route && !deadB(sallyTroops)) {
         F.sallyOut = false; F.sallyUntil = rt.t + 90;
       }
       if (F.sallyOut || F.sallyUntil || F.sallyReturning) for (const q of F.sallyGates) {
         if (q.passed || q.gate.breached || F.DA.usingGate(q.gate)) continue;
-        if (F.reserveDef._route && F.reserveDef._i < (F.sallyReturning ? q.backAfter : q.outAfter)) continue;
+        if (sallyTroops._route && sallyTroops._i < (F.sallyReturning ? q.backAfter : q.outAfter)) continue;
         const s = q.gate.struct; let passed = true;
-        for (const u of F.reserveDef.real?.units || []) {
+        for (const u of sallyTroops.real?.units || []) {
           if (!u.alive || u.fleeing || u.woundOut) continue;
           if (((u.pos.x - q.x) * s.nx + (u.pos.z - q.z) * s.nz) * q.side < 2) { passed = false; break; }
         }
@@ -2033,19 +2043,19 @@ const takato_siege = {
         q.gate.close();
       }
       // 11/6 critic60：打って出た城兵は主人公の居る所へ寄せ直し、主人公と斬り合った秒を数える（② は主人公が受けて済む）。
-      if ((F.sallyOut || F.sallyUntil) && !F.sallyReturning && !deadB(F.reserveDef)) {
+      if ((F.sallyOut || F.sallyUntil) && !F.sallyReturning && !deadB(sallyTroops)) {
         const pp = rt.player.u.pos;
         let far = true;
-        for (const u of F.reserveDef.real.units) {
+        for (const u of sallyTroops.real.units) {
           if (!u.alive || u.fleeing || u.woundOut) continue;
           const d = Math.hypot(u.pos.x - pp.x, u.pos.z - pp.z);
           if (d < 9) far = false;
         }
-        if (far && !F.reserveDef._route && F.sallyUntil) setRoute(F.reserveDef, [this.sallyAim(rt)]);
+        if (far && !sallyTroops._route && F.sallyUntil) setRoute(sallyTroops, [this.sallyAim(rt)]);
       }
       // 打って出た組の半ばを討てば、城兵は門の内へ退き始める（待つだけの九十秒にしない）。
-      if ((F.sallyOut || F.sallyUntil) && F.sallyN && !deadB(F.reserveDef)) {
-        const left = (F.reserveDef.real?.units || []).filter((u) => u.alive && !u.fleeing && !u.woundOut).length;
+      if ((F.sallyOut || F.sallyUntil) && F.sallyN && !deadB(sallyTroops)) {
+        const left = (sallyTroops.real?.units || []).filter((u) => u.alive && !u.fleeing && !u.woundOut).length;
         if (left <= F.sallyN / 2) { F.sallyOut = false; F.sallyUntil = rt.t; }
       }
       // 主人公が打って出た城兵と斬り合うまで（四秒）、城兵は退かない。総懸かりだけでは交戦の代わりにしない。
@@ -2054,8 +2064,8 @@ const takato_siege = {
         F.sallyUntil = 0; F.sallyReturning = true;
         for (const q of F.sallyGates) { q.side = -q.side; q.passed = false; }
         rt.unmark('sally');
-        setRoute(F.reserveDef, [[77, 0], [72.5, 0], [74.075, -4.5], [74.075, -8], [65, -8], [57, 10], [GATE_NI.x, GATE_NI.z], [-2.125, -8]]);
-        battleEvent(rt, EVENT_RETREAT, F.reserveDef.pos, F.reserveDef.real, 1, false, '打って出た城兵が門の内へ退く');
+        setRoute(sallyTroops, [[77, 0], [72.5, 0], [74.075, -4.5], [74.075, -8], [65, -8], [57, 10], [GATE_NI.x, GATE_NI.z], [-2.125, -8]]);
+        battleEvent(rt, EVENT_RETREAT, sallyTroops.pos, sallyTroops.real, 1, false, '打って出た城兵が門の内へ退く');
         if (!F.sanFell) {
           mainObj(rt, 2);
           rt.say('森長可', '城兵が退くぞ！　追え、門を閉めさせるな！', 4);
