@@ -63,10 +63,9 @@ function cross(rt, K) {
     S.legT = rt.t;
     for (const g of [F.nobu, F.sen, F.sogo, F.tsune, F.mine]) if (live(g)) g.speed = 4.6;
     for (const g of F.allyBands || []) if (live(g)) g.speed = 4.4;
-    // 川の中ほどで対岸の鉄砲が鳴る（渡る所を撃たれる）
-    rt.after(9, () => { if (F.step === 1) { rt.army.play('volley', { x: 30, z: -50 }, 1.2); rt.say('長宗我部の侍', '撃ってくるぞ！　止まるな、渡り切れ！', 2.6); } });
-    // 渡る間、島津は強く攻めてこない（後で効く）
-    rt.after(17, () => { if (F.step === 1) rt.say('土佐の足軽', '……来ないぞ。島津は弱気か？', 2.8); });
+    // 11/9 夜 kaito：渡る所こそ危ういのに、島津は強く攻めて来ない（遠くで一度鳴るだけ）
+    rt.after(9, () => { if (F.step === 1) { rt.army.play('volley', { x: 40, z: -78 }, 0.5); rt.say('長宗我部の侍', '……来ないぞ。', 2.2); } });
+    rt.after(15, () => { if (F.step === 1) rt.say('土佐の足軽', '島津は弱気か？', 2.2); });
   });
 }
 
@@ -83,7 +82,7 @@ export function ready(rt, K) {
   // 対岸ならどこでもよいとはしない。指定した浅瀬の出口まで本人が渡る。
   if (!crossing(rt) || P.z >= -14 || Math.hypot(P.x - K.FORD.x, P.z + 22) >= 26) return false;
   const arrived = K.lightPos(F.blk.nobu).z < -20 && (!live(F.nobu) || F.nobu.center().z < -16);
-  return arrived || (S.crossLeg === 3 && rt.t - S.legT > 90);
+  return arrived || (S.crossLeg >= 3 && rt.t - S.legT > 90);
 }
 
 export function update(rt, K) {
@@ -98,6 +97,10 @@ export function update(rt, K) {
       S.crossLeg = 3;
       S.legT = rt.t;
       K.go(B.nobu, { x: 16, z: -34 }, 3.6);
+    } else if (S.crossLeg === 3 && (K.lightPos(B.nobu).z < -14 || rt.t - S.legT > 60)) {
+      // 元親の本隊も最後に渡り、北の岸の浅瀬の口の後ろに控える（11/9 夜：後ろはまだ川の近く）
+      S.crossLeg = 4;
+      K.go(B.moto, { x: 4, z: -30 }, 2.6);
     }
     return;
   }

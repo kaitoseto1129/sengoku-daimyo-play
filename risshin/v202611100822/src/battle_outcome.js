@@ -7,7 +7,7 @@ export const HIST_OUTCOME = {
   k11_sanadamaru: { battle: '真田丸 攻略失敗・徳川軍 撤収', mission: '味方部隊撤収' },
   sanadamaru: { battle: '真田丸 攻め落とせず', mission: '兵を退かせる' },
   mikatagahara: { battle: '会戦 敗北', mission: '家康を生きて帰す' },
-  t06_hetsugi: { battle: '会戦 敗北', mission: '生きて退く' },
+  t06_hetsugi: { battle: '大友・四国連合軍 大敗', mission: '撤退' },
   t03b_nagakute: { battle: '長久手 羽柴軍敗北', mission: '細ヶ根まで退く' },
   tedorigawa: { battle: '織田軍 敗北・手取川渡河 成功・主力部隊 生還', mission: '撤退 達成' },   // docs/tedorigawa_spec_1109.md の結果
   t10_oshi: { battle: '水攻め 攻略ならず（小田原開城で忍城も開城）', mission: '堤と陣を守る' },

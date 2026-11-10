@@ -3761,10 +3761,10 @@ body:has(#hud.tennoji-tasks) #tc .tb[data-b=guard] .name {
     if ((F.step === 3 && !F.sortieHelp) || (F.step === 4 && F.kidoCut && !F.kidoHelp)) {
       const me = rt.player.u;
       const groups = F.step === 3 ? F.last : F.kidoG;
-      if (me.atk || me.swing || me.guard) for (const g of groups) {
+      if (!me.dying && !me.woundOut && !me.fleeing && (me.atk || me.swing || me.guard)) for (const g of groups) {
         if (g.kidoRetreat) continue;
         for (const enemy of g.units) {
-          if (!enemy.alive || enemy.fleeing || enemy.woundOut) continue;
+          if (!enemy.alive || enemy.dying || enemy.noTarget || enemy.fleeing || enemy.woundOut) continue;
           if (Math.hypot(enemy.pos.x - me.pos.x, enemy.pos.z - me.pos.z) <= 8 &&
               Math.abs(enemy.pos.y - me.pos.y) < 3 && !rt.army.wallBetween(me.pos, -1, enemy.pos, false)) {
             if (F.step === 3) F.sortieHelp = true;
@@ -3984,7 +3984,7 @@ body:has(#hud.tennoji-tasks) #tc .tb[data-b=guard] .name {
           : '砦の東を北へ進め。味方と敵を押し返せ');
       // 味方が先に囲みを崩しても、砦に残る本人の任務を勝手に果たさない。
       // 敵を探し直す必要はなく、東の堀を回って戦場へ着き、構えて列に加わればよい。
-      const onField = !way && !inPoly(SOTO_POLY, p.x, p.z) &&
+      const onField = !u.dying && !u.woundOut && !u.fleeing && !way && !inPoly(SOTO_POLY, p.x, p.z) &&
         Math.hypot(p.x - SORTIE_NORTH.x, p.z - SORTIE_NORTH.z) < 45;
       if (broken && !F.sortieHelp && onField && u.guard) F.sortieHelp = true;
       if (broken && onField && F.sortieHelp) this.chase(rt);
@@ -4036,11 +4036,12 @@ body:has(#hud.tennoji-tasks) #tc .tb[data-b=guard] .name {
         for (const mate of g.units) if (mate.alive && !mate.fleeing && !mate.woundOut) available++;
       if (!available) return this.fail(rt, '追撃の列が崩れた。城戸口から味方と退け');
       const need = Math.min(6, available);
+      const canSecure = !u.dying && !u.woundOut && !u.fleeing;
       // 先着した味方が殿を払い切った時も、本人が口で構えて押さえれば締めへ進む。
-      if (F.kidoCut && d < 10 && near >= need && (remaining === 0 || escaped) && rt.player.u.guard)
+      if (canSecure && F.kidoCut && d < 10 && near >= need && (remaining === 0 || escaped) && rt.player.u.guard)
         F.kidoHelp = true;
       threat = remaining && !escaped ? Math.max(1, threat) : threat;
-      F.secured = F.kidoCut && F.kidoHelp && d < 10 && threat === 0 && near >= need ? F.secured + span : 0;
+      F.secured = canSecure && F.kidoCut && F.kidoHelp && d < 10 && threat === 0 && near >= need ? F.secured + span : 0;
       rt.objProgress('main', !F.kidoCut && F.oiTail && !spent(F.oiTail) ? '北の道を塞ぐ殿を、味方と払え'
         : d > 100 ? `城戸口まで約${Math.ceil(d / 100) * 100}歩。味方と北へ進め` : d >= 10 ? '城戸口の手前の印へ。木戸内へ入るな'
           : threat > 0 ? '城戸口に残る敵を、味方と払え' : near < need ? `集まった味方 ${near}／${need}人。城戸口で構えよ`

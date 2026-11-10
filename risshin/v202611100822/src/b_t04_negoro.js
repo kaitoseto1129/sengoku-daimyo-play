@@ -322,6 +322,8 @@ function daitoModel(world, x, z) {
 
 const t04_negoro = {
   spawn: { x: START.x, z: START.z, heading: ROT },
+  // 三月の紀州攻めは七月の関白就任より前。年だけで身分を決める共通の説明を使わない。
+  introPeople: [{ id: '秀吉', name: '羽柴秀吉', note: '信長亡き後の天下を争う羽柴家の大将。' }],
   minutes: 15, expectMin: 15,
   depth: () => negoroDepth(NG), lethal: { max: 2, firstAt: 200, gap: 120 },   // 11/9 二巡（徳川D）：既定の lethal では縁と塀の鉄砲の中で bot が二回とも二〜五分で倒れた。突然の討死を二つ・三分過ぎからに絞る。 武将の備（t04_negoro/depth.js）と命懸けの戦場（lethal.js）
   forceBarAlways: true,   // 両軍の総勢と減りを、行き先の案内中も一本の棒で示す
@@ -900,8 +902,14 @@ const t04_negoro = {
         }
         const guns = heads([F.posts.win]);
         const foes = heads(C.groups);
-        const g0 = alive(F.posts.win) ? F.posts.win : C.groups.find(alive);
-        C.goal = g0 ? g0.center() : MONZEN;
+        // 後送兵を含む隊の中心でなく、戦える相手へ案内する。守りが崩れたら達成場所へ戻す。
+        let target = null;
+        if (guns > 4) target = nearestFighter(F.posts.win, rt.player.u.pos);
+        if (!target && foes > 4) for (const g of C.groups) {
+          target = nearestFighter(g, rt.player.u.pos);
+          if (target) break;
+        }
+        C.goal = target ? target.pos : MONZEN;
         rt.objProgress('dp', `残る鉄砲 ${guns}挺${F.horiHurt ? '・堀は退いた' : ''}`);
         // 縁の撃ち手が減るか長引けば、残る根来衆は坊舎の裏へ逃げ出す（自分が討たなくても筋は進む）
         if ((guns <= 4 || el > 95) && !C.broke) { C.broke = true; for (const g of [...C.groups, F.posts.win]) if (g) { g.noRout = false; g.morale = Math.min(g.morale, 15); } if (el > 95) flee(F.posts.win); }

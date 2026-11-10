@@ -590,7 +590,14 @@ const k13_domyoji = {
     // 待ち伏せの予約後に終戦した場合、追撃停止を移動の下知で上書きしない。
     if (F.ending || rt.over || F.dp?.i !== 5) return;
     const sanada = F.dp.cur.groups.find((q) => q.name === '真田信繁の手');
-    if (!sanada || sanada.routed) return;
+    if (!sanada) return;
+    // 射撃を待つ間に退く下知が出た組を、予約の再試行で攻撃へ戻さない。
+    // 伏せた姿勢も解き、大坂へ退く動きを妨げない。
+    if (sanada.routed || sanada.order === 'retreat' || sanada.order === 'flee') {
+      sanada.ambush = false;
+      for (const u of sanada.units) u._crouch = false;
+      return;
+    }
     const active = (u) => u.alive && !u.fleeing && !u.gone && !u.woundOut &&
       !u.rearWound && !u.downed && !u.noTarget;
     // 鉄砲兵が倒れた後まで射撃待ちを続けると、残った槍兵も伏せたままになる。

@@ -411,10 +411,10 @@ const k05_ueda = {
     F.nobushige = this.foe(rt, '真田信繁の手', { x: C.x + 14, z: C.z + 12 }, [bu(NOBU), { type: 'cavalry', n: 4 }, uS(3), uA(8)], { hold: true, width: 6, morale: 100, dmg: 0.5 });
     F.nobushige.seekRange = 3; F.nobushige.aggro = 3; F.nobushige.noAI = true; F.nobushige.stay = true;   // ⑥まで城の内に控え、一度だけ後衛を突きに出る
     const T = this.talk.before;
-    T.forEach(([who, s], i) => rt.after(0.6 + i * 3.8, () => rt.say(who, s, 3.4)));
+    T.forEach(([who, s], i) => rt.after(0.6 + i * 2.6, () => rt.say(who, s, 2.4)));
     // 油断の間：秀忠の本陣は整然と余裕。少し間を置いてから城の門が開く
-    rt.after(0.6 + T.length * 3.8 + 2, () => rt.say('秀忠の使番', '中納言様の仰せ。「今日のうちに片付けて西へ上る」', 3.2));
-    rt.after(0.6 + T.length * 3.8 + 14, () => { F.holdPlayer = false; this.toStep(rt, 1); });
+    rt.after(0.6 + T.length * 2.6, () => rt.say('秀忠の使番', '中納言様の仰せ。「今日のうちに片付けて西へ上る」', 2.4));
+    rt.after(0.6 + T.length * 2.6 + 1, () => { F.holdPlayer = false; this.toStep(rt, 1); });
   },
 
   // 真田の隊を出す（見える所に湧かせない。城の門の内か、北の林から）
@@ -741,7 +741,7 @@ const k05_ueda = {
   // 塀の内の土塁の鉄砲と弓：門へ寄る徳川の兵を、塀越しに次々に撃つ（二の7・十の3。critic60：門の前で味方がほとんど倒れない）
   wallFire(rt) {
     const F = rt.flags, A = rt.army;
-    if (F.step !== 4 || !F.atFront) return;   // 門へ寄せる段だけ撃つ（⑤の荷駄へ戻る背・⑥の退く間は撃たない）
+    if (F.step !== 4) return;   // 小路の通過前でも門へ寄せた者を撃つ。⑤の荷駄・⑥の撤収には集中射撃を続けない。
     const foes = [];
     for (const u of A.units) if (u.team === 0 && u.alive && !u.gone && !u.invuln && u.pos.x > GATE.x + 2 && u.pos.x < GATE.x + 46 && Math.abs(u.pos.z - GATE.z) < 34) foes.push(u);
     const P = rt.player.u;

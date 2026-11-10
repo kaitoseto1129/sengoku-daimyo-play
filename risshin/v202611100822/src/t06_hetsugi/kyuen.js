@@ -2,7 +2,8 @@
 // 戸次川　③の段（6〜12分）：釣り野伏せ → 自分の周りを防ぐ → 信親の隊を救いに行く（救えない）
 //   a（伏せの始め）：信親は西の新納勢へ斬り込んで離れ、本人の所へは豊久・家久の手が寄せる。行き先の▼は防戦する河原
 //   b：十河存保の討死の知らせ → 「信親様の隊が囲まれた」→ ▼は信親。着いて少しすると鈴木大膳が斬り込み（本体の lastStand）
-//   c：信親の討死（本体の closeRing）→ ④へ
+//   c（11/9 夜 kaito）：元親の使番「信親を退かせろ」→ 横から新手 →「長宗我部元親を退かせろ」。本人は元親の所へ走り、
+//     元親を浅瀬へ退かせる間に、振り返ると信親の旗が倒れる（本体の closeRing）→ ④へ。十河は④で殿として残る（別の死）
 // 呼び方：install(rt, K)（本体の ambush の始め）・update(rt, K, el)・pin(rt)・sogoFall(rt, K)。
 // ======================================================================
 const live = (g) => g && g.count > 0;
@@ -46,42 +47,15 @@ export function install(rt, K) {
     rt.say('長宗我部信親', '新納の備へ斬り込む。続け！', 2.8);
   });
   rt.after(20, () => { if (F.step === 3 && !F.s3.st) rt.say('手勢の侍', `東の林からも来るぞ！　ここで防げ！`, 2.8); });
+  rt.after(40, () => { if (F.step === 3 && !F.s3.st) rt.say('仙石の侍', '追え！……いや、止まれ！　立て直せ！', 2.6); });
   rt.after(58, () => { if (F.step === 3 && !F.s3.st) rt.say('使番', '後ろの浅瀬にも島津の手が回りました！', 2.8); });
-  rt.after(76, () => { if (F.step === 3 && !F.s3.st) rt.say('物見', '十河様の備、崩れかかっております！', 2.8); });
-}
-
-// 十河存保の討死（史実：戸次川で討死）。b の始めに
-export function sogoFall(rt, K) {
-  const F = rt.flags, B = F.blk;
-  if (F.sogoDead) return;
-  F.sogoDead = true;
-  // 十河は信親と同じ死に方にしない：殿として残り、見えない所で討たれる（後で使番の知らせ）
-  rt.say('十河存保', '先へ行け！　ここは十河が引き受ける', 2.8);
-  // 名乗った直後に本人まで退かせず、旗本とその場で殿を務める。
-  F.follow = F.follow.filter(([g]) => g !== F.sogo);
-  if (live(F.sogo)) {
-    const g = F.sogo;
-    g.order = 'hold'; g.anchor = { ...g.center() }; g.dest = null; g.onArrive = null; g.focus = null;
-    g.aggro = 6; g.seekRange = 12;
-  }
-  rt.after(9, () => {
-    if (F.sogoU?.alive) { F.sogoU.invuln = false; F.sogoU.mustLive = false; rt.army.kill(F.sogoU, null); }
-    rt.say('使番', '十河存保殿、討死！　右の備が崩れまする', 2.8);
-    K.routButai(B.sogo, 30);
-    // 討死してから残る旗本も崩れ、浅瀬を通って退く。
-    if (live(F.sogo)) {
-      const g = F.sogo;
-      g.order = 'move'; g.focus = null; g.speed = 3.6; g.aggro = 6; g.seekRange = 6;
-      g.dest = { x: K.FORD.x, z: -24 };
-      g.onArrive = (q) => { q.order = 'move'; q.dest = { x: K.FORD.x, z: 40 }; q.onArrive = null; };
-    }
-  });
+  rt.after(76, () => { if (F.step === 3 && !F.s3.st) rt.say('土佐の足軽', '戻れ！　島津だ！', 2.4); });
 }
 
 function toB(rt, K) {
   const F = rt.flags, S = F.s3;
   S.st = 1; S.tB = rt.t;
-  sogoFall(rt, K);
+  F.mText = '信親隊を救援せよ'; rt.obj('main', F.mText, 'main', true);
   rt.after(3.4, () => {
     rt.say('使番', '信親様の隊、新納勢に囲まれた！　お救いせよ！', 3);
     rt.marker('nobu', () => (F.nobuU?.alive ? { x: F.nobuU.pos.x, z: F.nobuU.pos.z } : NOBU_SPOT), '長宗我部信親');
@@ -94,6 +68,7 @@ function toB(rt, K) {
 export function pin(rt) {
   const S = rt.flags.s3, F = rt.flags;
   if (!S || S.st < 1) return DEFEND_SPOT;
+  if (S.st >= 2) return motoAt(rt);
   return F.nobuU?.alive ? F.nobuU.pos : NOBU_SPOT;
 }
 
@@ -123,14 +98,47 @@ export function update(rt, K, el) {
   // 六 m 内にいるだけでは、刀も長刀も届かないまま最期が進んでしまう。
   // 本人の見ている所で、二人のどちらかの刃が相手へ届いた事を確かめる（受け・甲冑で止まる時も含む）。
   contact(rt);
-  // 鈴木一人が旗本や地形に阻まれても、救援している本人の前で包囲が崩れれば最期へ進む。
-  // 遠くでの待機や、交戦の無い時間だけでは討死にしない。
-  const pressed = S.ls && near && F.foes.some((g) => g.units.some((u) =>
-    u.alive && !u.gone && !u.dying && !u.noTarget && !u.woundOut && !u.rearWound &&
-    Math.hypot(u.pos.x - F.nobuU.pos.x, u.pos.z - F.nobuU.pos.z) < 18 &&
-    !rt.army.wallBetween(F.nobuU.pos, F.nobuU.team, u.pos) && !rt.army.terrainBlocks(F.nobuU.pos, u.pos)));
-  if (pressed) S.overrun = (S.overrun || 0) + dt;
-  const duel = meeting && S.bladesMet && S.clash >= 4 && rt.t - S.ls > 55;
-  const overrun = S.standFought && S.overrun >= 45 && pressed && rt.t - S.ls > 90;
-  if (near && S.near > 50 && (duel || overrun)) K.closeRing(rt);
+  // 一度押し返した後、元親の使番と横からの新手 →「元親を退かせろ」。斬り結ぶ所を見届けたか、救援が長引いたら（詰まらない決まり）
+  if (S.st === 1 && S.ls && ((meeting && near && S.bladesMet && S.clash >= 4 && S.near > 40 && rt.t - S.ls > 30) || rt.t - S.ls > 100)) toMoto(rt, K);
+  if (S.st === 2) {
+    const m = motoAt(rt);
+    if (Math.hypot(P.x - m.x, P.z - m.z) < 12 || rt.t - S.tM > 70) { S.st = 3; S.tR = rt.t; retreatMoto(rt, K); }
+  }
+  // 元親と浅瀬へ退く間に、後ろで信親の旗が倒れる
+  if (S.st === 3 && rt.t - S.tR > 12) K.closeRing(rt);
+}
+
+// 元親の居所（本物の旗本の将。いなければ塊）
+function motoAt(rt) {
+  const F = rt.flags, u = F.motoU;
+  return u?.alive && !u.gone ? u.pos : { x: 4, z: -30 };
+}
+
+function toMoto(rt, K) {
+  const F = rt.flags, S = F.s3;
+  S.st = 2; S.tM = rt.t;
+  rt.say('使番', '元親様より！　信親様を退かせよ！', 2.8);
+  rt.after(3, () => rt.say('物見', '横から新手！　島津がまた来るぞ！', 2.6));
+  rt.after(6, () => rt.say('長宗我部元親', '弥三郎！　離せ、わしは弥三郎のもとへ行く！', 3));
+  rt.after(9.5, () => rt.say('長宗我部の老臣', '殿まで討たれては、長宗我部が絶えまする！', 3));
+  rt.after(10, () => {
+    if (F.step !== 3) return;
+    F.mText = '長宗我部元親を退かせろ'; rt.obj('main', F.mText, 'main', true);
+    rt.unmark('nobu');
+    rt.marker('moto', () => motoAt(rt), '長宗我部元親');
+  });
+  // 元親は信親の方へ馬を向けかけ、家臣に止められる（その場で踏みとどまる）
+  if (F.moto?.count) { const g = F.moto; F.follow = F.follow.filter(([q]) => q !== g); g.order = 'hold'; g.aggro = 4; g.seekRange = 6; }
+  // 横からの新手（信親の備の東へ）
+  if (F.blk?.honjo) K.go(F.blk.honjo, { x: K.RING.x + 26, z: K.RING.z + 4 }, 3.2, { charge: true });
+}
+
+// 元親を北の口へ、そして浅瀬を南へ。本人は付き添い、振り返ると信親の旗が倒れる
+function retreatMoto(rt, K) {
+  const F = rt.flags, g = F.moto;
+  rt.say('手勢の侍', '殿、元親様を川へ！', 2.4);
+  if (g?.count) {
+    g.order = 'move'; g.dest = { x: K.FORD.x - 4, z: -20 }; g.speed = 3.2; g.aggro = 4; g.seekRange = 4;
+    g.onArrive = (q) => { q.order = 'move'; q.dest = { x: K.FORD.x - 4, z: 40 }; q.onArrive = (r) => { r.order = 'move'; r.dest = { x: K.CAMP.x + 20, z: K.CAMP.z + 20 }; r.onArrive = null; }; };
+  }
 }

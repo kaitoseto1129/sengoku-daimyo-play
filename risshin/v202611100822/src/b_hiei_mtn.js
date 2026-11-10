@@ -2238,7 +2238,18 @@ function hieiReady(u) {
 }
 // 隊の人数には深手で戦列を離れた兵も残る。突破は戦える守り手で判じる。
 function hieiDefeated(g) {
-  return !g || g.routed || !g.units.some(hieiReady);
+  if (!g || g.routed) return true;
+  let ready = 0;
+  for (const u of g.units) if (hieiReady(u)) ready++;
+  if (!ready) return true;
+  // 隊長を失い、大半が倒れた守りまで最後の一人を探す条件にしない。
+  // 到着や経過時間では崩さず、共通の敗走処理で実際に退いてから突破とする。
+  const head = g._hieiLead || g.units[0], initial = g.initial || g.units.length;
+  if (head && !head.alive && initial - ready >= 2 && ready <= Math.ceil(initial * .2)) {
+    g.noRout = false;
+    g.morale = Math.min(g.morale, 21);
+  }
+  return false;
 }
 // 11/6 fixc1721（kaito 九3・BQ「敵の全ての兵の頭上の赤い▼」）：共通の印は近い敵四人まで。
 //   四十メートル内の見える僧兵・山の衆に、同じ色と形の▼を頭上へ付ける（逃げる者・里の者には付けない）。
