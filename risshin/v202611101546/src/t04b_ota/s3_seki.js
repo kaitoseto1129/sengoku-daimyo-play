@@ -1,6 +1,6 @@
 // 太田城 ③ 6〜9分「水を入れる」：堤が繋がり、出水の堰を開く。紀の川の水が回り、城の周りが水に沈んでいく。
 // 日が暮れ、雑賀衆が小舟で水の上から堰を壊しに来る。堰を守る。
-import { P, SAIKA } from './scene.js';
+import { P, SAIKA, shapeMound } from './scene.js';
 import { troops, reports, move, broken, near } from '../toyo15/kit.js';
 import { sfx } from '../audio.js';
 
@@ -11,8 +11,7 @@ export default {
     // 堰の開放と出撃の予約は一組で作り直す。保存された時刻だけ戻ると、小舟が来ずに終われなくなる。
     F.boats = []; F.weirRun = { opened: null }; F.weirLift = 0;
     F.dug = 1;
-    F.mound.scale.y = 3.4;
-    F.mound.position.y = rt.world.heightAt(P.work.x, P.work.z) + 1.5;
+    shapeMound(F.mound, 3.4, rt.world);
     move(F.friends, { x: P.weir.x - 6, z: P.weir.z - 6 }, true);
     rt.say('羽柴秀長', '堤は繋がった。堰へ行け。水を入れる', 3.5);
   },

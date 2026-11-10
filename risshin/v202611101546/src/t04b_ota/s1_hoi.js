@@ -1,6 +1,6 @@
 // 太田城 ① 0〜3分「巨大な包囲陣」：平地の城を、羽柴の大軍が輪になって囲む。正面からは攻めない。
 // 秀吉の本陣の脇を抜け、築堤の場へ。人夫が土俵を運び始め、城から雑賀衆が様子見に打って出る。
-import { P, SAIKA, porters } from './scene.js';
+import { P, SAIKA, porters, shapeMound } from './scene.js';
 import { troops, host, reports, near, move, broken } from '../toyo15/kit.js';
 
 export default {
@@ -43,6 +43,5 @@ export function workTick(rt, dt) {
   if (F.workT <= 0) { F.workT = 9; F.carry = 1 - F.carry; move(g, F.carry ? { x: P.work.x - 2, z: P.work.z - 4 } : P.pile); }
   const n = g.units.reduce((a, u) => a + (u.alive && !u.gone && !u.fleeing ? 1 : 0), 0);
   F.dug = Math.min(1, F.dug + dt * 0.0016 * Math.max(0.25, Math.min(1, n / 6)));
-  F.mound.scale.y = 0.2 + 3.2 * F.dug;
-  F.mound.position.y = rt.world.heightAt(P.work.x, P.work.z) + F.mound.scale.y / 2 - 0.2;
+  shapeMound(F.mound, 0.2 + 3.2 * F.dug, rt.world);
 }
