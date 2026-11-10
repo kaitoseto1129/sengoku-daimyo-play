@@ -4312,7 +4312,9 @@ const mitsukuri = {
   // ④ 日が傾く：三の郭を取ったら、松明を灯して攻め続ける
   dusk(rt) {
     const F = rt.flags;
-    if (F.step >= 2.5 || F.ending || rt.over) return;
+    // 郭外や館の上で待つだけでは、制圧後の手当てと火入れの下知を受けない。
+    if (F.step !== 2 || !F.sanFell || F.ending || rt.over ||
+      !zoneGroundFighter(rt, rt.player.u) || !mkInSan(rt)) return;
     F.step = 2.5; F.stepT = rt.t;
     // 11/6 描いて遊んで直す（十二3）：柵の口の矢玉と斬り合いで、三の郭を取った時に命が一割まで減り、木戸の前で何もできずに倒れた。
     //   昼の寄せは日暮れで一度止む（信長公記：申の刻から攻め、夜に入って攻め落とす）。この間に傷を縛り、命を七割まで戻す。
@@ -4773,9 +4775,7 @@ const mitsukuri = {
     if (!F.honDown && F.step >= 4 && rt.camera) honDown(rt);
     if (F.flee) for (const c of F.flee) c.update(dt);
     if (F.rocks) F.rocks.tick(dt);
-    // 11/5 遊んで直す（二5「自分が何もしなくても物語は進む」）：三の郭を味方が取っても、本人が郭へ入るまで日が暮れず、矢玉で味方が減り続けた。
-    //   郭が落ちて二十秒たてば、本人がどこにいても日暮れの段（松明）へ進める。
-    if (F.step >= 2 && F.step < 2.5 && F.sanFell && rt.t - (F.sanFellAt ?? rt.t) > 20 && !F.ending) this.dusk(rt);
+    // 日没は下の時刻処理で進む。火入れの段は本人が三の郭へ戻ってから進める。
     // 火入れは下の torchHelpTick で、本人と灯し手の位置・敵を確かめる。
     // 11/5 遊んで直す（一5・十3）：本丸の段で味方の組が手前の郭に留まり、本人一人が本丸の庭にいた。一分たっても落ちない時は、
     //   三十秒ごとに全部の組（後詰も）を次の郭へ送り直す。

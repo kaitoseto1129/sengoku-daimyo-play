@@ -591,8 +591,6 @@ export function fieldSignsTick(rt, root) {
     let k = Math.max(Math.max(moribeMinPixels, inouMinPixels) * moribePixelScale,
       Math.min(ford ? moribeLimit : lesson ? inouLimit : raid ? (u === missionEnemy || u === commander ? 1.6 : 1.1) : u === commander ? 32 : 3, (lesson || ford ? pixels : width) * moribePixelScale)) *
       (ford || lesson ? 1 : 1 + (pulse > 0 ? 1.2 * pulse : reachable && !raid ? .55 : 0));
-    // 戦ごとの所属印の上限。近接の拡大後に抑え、序盤三戦の命中の形は保つ。
-    if (!special && foe && rt.def.enemySignMaxPixels > 0) k = Math.min(k, rt.def.enemySignMaxPixels * moribePixelScale);
     dummy.position.copy(headPos);
     dummy.quaternion.copy(q);
     // 振りかぶりでも▼の向きは変えず、誰の頭上かを保つ。
@@ -739,6 +737,13 @@ export function fieldSignsTick(rt, root) {
       const toPixels = VIEW.h * cam.projectionMatrix.elements[5] / (-v.z * 2);
       const halfWidth = .17 * dummy.scale.x * toPixels, height = .34 * dummy.scale.y * toPixels;
       const fit = Math.min(1, (px - 2) / halfWidth, (VIEW.w - 2 - px) / halfWidth, (py - 2) / height);
+      dummy.scale.multiplyScalar(fit);
+    }
+    // 雑賀の上限は命中時の横伸びも含めた最後の形に掛ける。
+    // 先に k だけを抑えると、その後の拡大で上限を超えて目の前を覆った。
+    if (!special && foe && rt.def.enemySignMaxPixels > 0) {
+      const limit = rt.def.enemySignMaxPixels * moribePixelScale;
+      const fit = Math.min(1, limit / dummy.scale.x, limit / dummy.scale.y);
       dummy.scale.multiplyScalar(fit);
     }
     dummy.updateMatrix();

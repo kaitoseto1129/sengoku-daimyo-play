@@ -9,8 +9,13 @@ export const YOIN_SEC = 30;
 
 export function install(rt, ctx) {
   const { FORD } = ctx;
-  rt.after(12, () => { rt.army.play?.('toki', { x: FORD.x, z: FORD.z - 30 }, 1.4); sfx('toki', 0.6); });
-  rt.after(14, () => rt.say('上杉の足軽', 'えい、えい、おう！　えい、えい、おう！', 3.5));
-  rt.after(19, () => { sfx('wade', 0.6); rt.say('足軽', '川に呑まれた者が、まだ……。振り向くな、歩け', 4); });
-  rt.after(25, () => rt.say('組頭', '手負いを担げ。生きて帰るのが、殿の働きじゃ', 4));
+  // 余韻も操作中の戦場。倒れた後や再試行の札へ、後続の声を重ねない。
+  const after = (sec, fn) => rt.after(sec, () => {
+    if (rt.over || rt.result?.down || !rt.player.u.alive || rt.player.u.hp <= 0) return;
+    fn();
+  });
+  after(12, () => { rt.army.play?.('toki', { x: FORD.x, z: FORD.z - 30 }, 1.4); sfx('toki', 0.6); });
+  after(14, () => rt.say('上杉の足軽', 'えい、えい、おう！　えい、えい、おう！', 3.5));
+  after(19, () => { sfx('wade', 0.6); rt.say('足軽', '川に呑まれた者が、まだ……。振り向くな、歩け', 4); });
+  after(25, () => rt.say('組頭', '手負いを担げ。生きて帰るのが、殿の働きじゃ', 4));
 }

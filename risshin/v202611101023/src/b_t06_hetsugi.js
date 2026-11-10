@@ -778,7 +778,8 @@ const t06_hetsugi = {
         keep(g, { x: p.x + dx, z: p.z + dz }, 14, 16);
       }
       for (const [g, b, dx, dz] of F.followFoe) {
-        if (!live(g) || !b || b.routedL || g.bankHold) continue;
+        // 反転前の静止中は、halt が止めた索敵と持ち場を追従で戻さない。
+        if (!live(g) || !b || b.routedL || g.bankHold || (F.step === 2 && F.haltT)) continue;
         const p = lightPos(b);
         keep(g, { x: p.x + dx, z: p.z + dz }, 4, 6);
       }

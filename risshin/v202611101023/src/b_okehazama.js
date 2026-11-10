@@ -3217,6 +3217,8 @@ html:root body #hud#hud#hud.oke-goals :is(#armybar, #h-prog, #jk-vit) { z-index:
     // 殿の声は遠いので、組頭が伝える。雨脚とピンの円を同じ待ち時間で進める。
     if (!F.waitSpeech) {
       F.waitSpeech = true;
+      // 谷を早く抜けても、行軍中の遠景の台詞待ちで晴れた空を残さない。
+      rt.world.setTime('storm');
       sfx('thunder', 0.9);
       if (!rt.G.lord) {
         rt.after(1.2, () => { if (rt.phase === 'wait') localSay(rt, rt.hostGroup, '組頭', '中島で殿が仰せられた。敵は夜通し歩いて疲れておる。こちらは新手ぞ', 5); });

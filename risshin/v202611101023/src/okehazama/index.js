@@ -41,11 +41,19 @@ export function heading(rt) {
 export function pin(rt) {
   const v = S(rt);
   if (rt.flags.ending || rt.flags.victory) return undefined;
-  if (v.ph === 'zenei') return zenei.pin(rt);
-  if (v.ph === 'nida') return nida.pin(rt);
-  if (v.ph === 'ii') return ii.pin(rt);
-  if (v.ph === 'saka') return saka.pin(rt);
-  return undefined;
+  if (v.ph !== 'zenei' && v.ph !== 'nida' && v.ph !== 'ii' && v.ph !== 'saka') return undefined;
+  // 最後の敵が退いてから段が終わるまでにも、戦った場所の印を残す。
+  // 近づいても消さず、入れ物は段の切替時だけ作る。
+  if (v.pinPhase !== v.ph) {
+    v.pinPhase = v.ph;
+    const q = v.ph === 'zenei' ? v.C.fieldPoint(-36, -52) :
+      v.ph === 'nida' ? v.C.fieldPoint(8, -88) :
+      v.ph === 'ii' ? v.C.fieldPoint(-14, -104) : v.C.fieldPoint(10, -96);
+    v.phasePin = { x: q.x, z: q.z, r: 6, hide: 0, key: 'o15-' + v.ph, always: true, area: true };
+  }
+  const u = sign(rt);
+  if (u) { v.phasePin.x = u.pos.x; v.phasePin.z = u.pos.z; }
+  return v.phasePin;
 }
 export function sign(rt) {
   const v = S(rt);
