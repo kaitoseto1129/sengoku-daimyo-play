@@ -570,7 +570,9 @@ const k04_kuisegawa = {
       if (F.baitPlayerHit && el > 65 && (hurt || dist(lightPos(B.bait), P.pos) < 20)) this.feign(rt);   // 少し戦ってから退くふり（史実）
     } else if (F.step === 2) {
       // 退く島の兵を追い、先手と一緒に川を東へ渡ってから伏兵が出る
-      const joined = [F.noi, F.kazu].some((g) => live(g) && g.units.some((u) => canReturn(u) && !u.downed && L(u.pos).x < -6 && dist(u.pos, P.pos) < 18));
+      // 中村の兵だけが先着しても、頼母の旗と合流したことにはしない。
+      const noi = F.noiU;
+      const joined = noi && canReturn(noi) && !noi.downed && L(noi.pos).x < -6 && dist(noi.pos, P.pos) < 18;
       if (el > 35 && PL.x < -6 && L(lightPos(B.saki)).x < 10 && joined) this.toStep(rt, 3);
     } else if (F.step === 3) {
       if (!F.ringClosed) this.holdVanguard(rt);
