@@ -589,6 +589,9 @@ const t11_hachioji = {
     // 空の色だけでは星と月は隠れない。雲で覆い、直接光を止めて霧の夜に日の影を落とさない。
     nightLight: { sky: 0x464c56, fog: 0x434952, top: 0x262b33, cover: 1, vis: 85, sunI: 0, hemiI: 0.62, hemiSky: 0x80858f, hemiGround: 0x3a3833 },
     mist: true,
+    // 行き先以外の大きな輪を重ねず、降る矢と着弾で危険を伝える。
+    arrowRainGroundCue: false,
+    naturalArrowRain: true,
     groundHalf: 280,
     paths: [ROUTE.slice(0, 9), ROUTE.slice(8)],
     height,
@@ -843,7 +846,8 @@ const t11_hachioji = {
     if (D && D.on && D.cur?.groups && (F._volT = (F._volT ?? 6) - dt) <= 0) {
       F._volT = 5 + Math.random() * 3;
       const P = rt.player.u;
-      if (P.alive && P.hp > P.maxHp * 0.35) for (const g of D.cur.groups) {
+      // 本人の傷で城方の射撃まで止めない。近くの寄せ手も同じ矢にさらされる。
+      if (P.alive) for (const g of D.cur.groups) {
         const bow = g && !g.routed && g.units.find((u) => u.alive && !u.gone && !u.dying && !u.fleeing && !u.evacuatedWound && u.type === 'bow' && Math.hypot(u.pos.x - P.pos.x, u.pos.z - P.pos.z) < 55);
         if (!bow) continue;
         const a = Math.random() * Math.PI * 2, r = 2 + Math.random() * 5, x = P.pos.x + Math.cos(a) * r, z = P.pos.z + Math.sin(a) * r;

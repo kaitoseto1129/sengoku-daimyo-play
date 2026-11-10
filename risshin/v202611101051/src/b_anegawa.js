@@ -2294,14 +2294,14 @@ function deploy(rt, team, o, list) {
     for (const q of limited) for (let j = 0; j < q.n && i < pts.length; j++, i++) {
       const at = pts[i];
       actual.push({ type: q.type, n: 1, o: { ...q.o, x: at.x, z: at.z, heading: o.facing,
-        ...(o.name === '磯野員昌の隊' && (q.type === 'busho' || q.o?.name) ? { invuln: true, allyOk: true } : {}) } });
+        ...(o.name === '磯野員昌の隊' && (q.type === 'busho' || q.o?.name) ? { invuln: true, mustLive: true, allyOk: true } : {}) } });
     }
     rt.army.queueSpawn(g, actual, () => {
       g.anePending = false;
       if (o.name === '浅井の殿') F.rearAt = rt.t;
       g.leader = g.units.find((u) => u.type === 'busho' || u.name) || g.units.find((u) => u.type === 'samurai');
       g.historicalOrders = g.units.some((u) => u.name);
-      if (o.name === '磯野員昌の隊') { F.isoU = g.leader; if (F.isoU) { F.isoU.invuln = true; F.isoU.allyOk = true; } }
+      if (o.name === '磯野員昌の隊') { F.isoU = g.leader; if (F.isoU) { F.isoU.invuln = true; F.isoU.mustLive = true; F.isoU.allyOk = true; } }
     });
   };
   fill();
@@ -3995,10 +3995,13 @@ const anegawa = {
     // 西の瀬でも、森の備の左右でも、大軍どうしが川へ入って組み合う
     // 西は既に交戦中。東の二正面は元の時機に動き出す。
     F.clash.slice(1).forEach((c, i) => rt.after((i + 1) * 4, () => c.go()));
-    if (F.isoU) { F.isoU.invuln = true; F.isoU.announced = false; }   // 磯野はこの戦を生き延びて佐和山へ退いた
+    // 共通の手傷処理では invuln だけの敵将を主人公が討てるため、生存も指定する。
+    if (F.isoU) { F.isoU.invuln = true; F.isoU.mustLive = true; F.isoU.announced = false; }   // 磯野はこの戦を生き延びて佐和山へ退いた
     // 川の中で止めず、川前の味方の脇から南岸へ上がって取り付く。
     g.order = 'move'; g.dest = { x: POST.x + 10, z: POST.z - 3 };
     g.onArrive = (gg) => {
+      // 到着判定は退却中にも呼ばれる。総崩れの後に渡河の攻撃命令を戻さない。
+      if (F.step !== 1 || F.ending || rt.over || gg.order !== 'move' || gg.routed || !gg.count) return;
       gg.order = 'attack'; gg.seekRange = 34; gg.aggro = 16;
       // 渡河した先手が、前の段へ取り付く。
       if (F.isoU?.alive && !F.isoU.announced) {
@@ -4351,11 +4354,14 @@ const anegawa = {
     // しんがりは浅井の四の手の一部（新庄直頼の手）。追い手の三分の一ほど。
     // 二の手の浅井政澄を重ねず、控えと同じ将にする。後年まで生きる新庄は斬り合いの後に退く。
     const R = enemyGroup(rt, { faction: 'azai', name: '浅井の殿', anchor: { x: 24, z: -36 }, facing: 0, fleeDir: AZAI_FLEE, aggro: 12, width: 16, morale: 85 },
-      dress([{ type: 'busho', n: 1, o: { name: '新庄直頼', invuln: true, allyOk: true, horse: true, hat: 'kabuto_m', haori: 0x3a3328 } }, { type: 'samurai', n: 3 }, { type: 'ashigaru', n: 16 }, { type: 'gun', n: 3 }], AZAI));
+      dress([{ type: 'busho', n: 1, o: { name: '新庄直頼', invuln: true, mustLive: true, allyOk: true, horse: true, hat: 'kabuto_m', haori: 0x3a3328 } }, { type: 'samurai', n: 3 }, { type: 'ashigaru', n: 16 }, { type: 'gun', n: 3 }], AZAI));
     F.rear = R;
     R.order = 'path'; R.path = [[24, -50], [24, -36]]; R.pathIdx = 0;
     R.formation = 'column'; R.colW = 2;
-    R.onArrive = (g) => { g.order = 'hold'; g.anchor.x = 24; g.anchor.z = -36; g.formation = 'yari'; };
+    R.onArrive = (g) => {
+      if (F.step !== 2 || F.ending || rt.over || g.order !== 'path' || g.routed || !g.count) return;
+      g.order = 'hold'; g.anchor.x = 24; g.anchor.z = -36; g.formation = 'yari';
+    };
     R.dmgMult = 1;   // 傷の重さは他の兵と同じ。
     // 11/5（X1）：本人が北岸で斬り結ぶまで、しんがりは崩れずに踏みとどまる（aneAdvance の五段目で崩れる）。
     R.noRout = true;

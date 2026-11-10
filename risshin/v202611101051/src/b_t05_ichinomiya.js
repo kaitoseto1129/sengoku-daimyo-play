@@ -626,7 +626,9 @@ export const t05_ichinomiya = {
       Math.hypot(x - HON_GATE.x, z - HON_GATE.z + 6) < 16,   // 搦手の門の前は切り開いた斜面（前は門の前まで杉が茂り、門の前で木に阻まれて立ち往生した。11/6 描いた通し）
     trees: 900, tufts: 2400,
     treeDensity: (x, z) => (distToPolyline(x, z, RIVER) < 26 ? 0 : height(x, z) > 9 ? 1.3 : 0.25),
-    fleeOut: (x, z, team) => team === 1 && z > 170,
+    // 退路は本丸の口の内（-16,114）まで。南の塀の先を退場条件にすると、
+    // 逃げ切った残兵も終点に溜まり続ける。見えず追手もいない時だけ共通処理が外す。
+    fleeOut: (x, z, team) => team === 1 && (z > 170 || (Math.abs(x + 16) < 4 && z > 112)),
   },
   sides: { a: { name: '羽柴秀長の軍', mon: 'toyotomi', faction: 'oda' }, b: { name: '長宗我部方（一宮城）', mon: 'chosokabe' } },
   minutes: 15, expectMin: 15,

@@ -9,6 +9,28 @@
 // ======================================================================
 import { sfx } from '../audio.js';
 import { fight, hold, move, rest } from '../b_depth.js';
+import { TSUTSUMI_PLAN } from '../castles/nagashima.js';
+
+// 砦の柵を斜めに横切らず、実際の木戸の中央へ寄ってから抜ける。
+// 案内と試し役で同じ道を使い、曲がり角の入れ物は使い回す。
+export function fortWay(u, goal) {
+  const p = u.pos;
+  const gates = TSUTSUMI_PLAN.koguchi;
+  const south = goal.z < p.z;
+  for (let i = 0; i < gates.length; i++) {
+    const gate = gates[south ? i : gates.length - 1 - i];
+    const [x, z] = gate.at;
+    const dir = south ? -1 : 1;
+    if ((goal.z - z) * dir <= 0 || (p.z - z) * dir >= 1.5) continue;
+    // 砦の横を通るだけの道は引き戻さない。
+    if (p.x < -60 || p.x > -40 || goal.x < -60 || goal.x > -40) continue;
+    const q = u._ngFortWay || (u._ngFortWay = { x: 0, z: 0, botRadius: .35 });
+    q.x = x;
+    q.z = Math.abs(p.x - x) > .6 ? p.z : z + dir * 2;
+    return q;
+  }
+  return goal;
+}
 
 export const ADV_MISSIONS = [
   '堤の上へ上がり、輪中と門徒の砦を見よ',
