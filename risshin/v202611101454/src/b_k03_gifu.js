@@ -478,6 +478,8 @@ const k03_gifu = {
     };
     // 登る途中の曲がり角の伏兵（戦いながら登る。AT10）
     F.amb = this.foe(rt, '山道の伏兵', { x: -112, z: -14 }, [uS(1), uA(7)], { hold: true, seek: 14 });
+    // 11/10 クラウド：命の満ちた本人が伏兵の侍と足軽の二太刀（36・30）で三秒のうちに倒れた（act 107秒）。伏兵は驚かす役で、一度に命を奪わない
+    if (F.amb) F.amb.dmgMult = 0.6;
     // 秀信は本丸の天守の前で、近習に囲まれて座る（総大将は前に出ない）
     F.hide = this.foe(rt, '織田秀信の近習', SEAT, [busho('織田秀信', { horse: false }), uS(8)], { hold: true, width: 4, morale: 100, seek: 6 });
     F.hideU = F.hide.units.find((u) => u.name === '織田秀信');

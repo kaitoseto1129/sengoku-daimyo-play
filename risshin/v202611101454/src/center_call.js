@@ -72,8 +72,8 @@ onEvent((rt, key, o) => {
   else if (key === 'gotsumeArrive') text = nm ? `${nm}、援軍に到着` : (mine ? '味方の援軍が着いた' : '敵の援軍が着いた');
   else if (key === 'pursuit') text = nm ? `${nm}、追撃` : (mine ? '味方が追撃に移った' : '敵が追ってくる');
   else if (key === 'taishoDown') text = mine ? '味方の大将が討たれた' : '敵の大将を討った';
-  // 真田丸の退きの下知後は、寄せ手の崩れと全軍の壊滅を取り違えない。
-  else if (key === 'armyBroken') text = mine && rt.def.key === 'k11_sanadamaru' && rt.flags?.retreatOrder ? '寄せ手が撤収する' : mine ? '味方が総崩れ' : '敵が総崩れ';
+  // 真田丸では、退きの下知前も寄せ手の崩れを全軍の壊滅と取り違えない。
+  else if (key === 'armyBroken') text = mine && (rt.def.key === 'k11_sanadamaru' || rt.def.key === 'sanadamaru') ? (rt.flags?.retreatOrder ? '寄せ手が撤収する' : '寄せ手が崩れた') : mine ? '味方が総崩れ' : '敵が総崩れ';
   else if (key === 'flankOpen') text = mine ? '' : '敵が横から回り込む';
   else if (key === 'zoneFall') text = '持ち場が落ちた';
   else if (key === 'lineRestored') text = nm ? `${nm}、立て直した` : '';

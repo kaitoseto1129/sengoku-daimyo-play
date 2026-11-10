@@ -114,7 +114,7 @@ function paddy(x, z) {
 }
 
 // 田の水面と早苗（旧暦四月末＝今の六月初め。田植えの済んだ泉州の田）。地面の絵の水は斜めから白い染みに、上からは乾いた土に見えた（11/5 n6 遊んで）。
-//   田一枚ごとに平らな水の面を一枚。早苗の列を描いた一枚の絵を使い回し、面は全部を一つにまとめる（携帯の重さを増やさない）
+//   水面は地表に沿う小面を一つにまとめ、早苗は立った葉を別の一つにまとめる（携帯の描く回数を抑える）
 let riceTex = null;
 function seedlingTex() {
   if (riceTex) return riceTex;
@@ -124,30 +124,36 @@ function seedlingTex() {
   g.fillStyle = '#6e7666'; g.fillRect(0, 0, 256, 256);
   // 濁りのむら
   for (let i = 0; i < 90; i++) { g.fillStyle = `rgba(${96 + (i * 37) % 30},${100 + (i * 17) % 22},${84 + (i * 11) % 16},0.22)`; g.beginPath(); g.arc((i * 97) % 256, (i * 61) % 256, 8 + (i * 13) % 22, 0, 7); g.fill(); }
-  // 早苗の株：30cm おきの列（一枚の田 14m に 46 列のうち、絵一枚に 12 列を繰り返す）。遠くからは緑の筋に見える太さ
-  for (let r = 0; r < 12; r++) for (let k = 0; k < 12; k++) {
-    const x = r * 21.3 + 10 + ((k * 7) % 3), y = k * 21.3 + 10 + ((r * 5) % 3);
-    g.fillStyle = (r + k) % 3 ? '#86a648' : '#74963c';
-    for (let b = 0; b < 6; b++) g.fillRect(x + (b - 2.5) * 1.7, y - 4 + (b % 2), 1.6, 8);
-  }
+  // 苗は水面に描かず、下の立った葉にする。繰り返す緑の格子を水面へ焼き付けない。
   riceTex = new THREE.CanvasTexture(c); riceTex.wrapS = riceTex.wrapT = THREE.RepeatWrapping; riceTex.colorSpace = THREE.SRGBColorSpace; riceTex.anisotropy = 4;
   return riceTex;
 }
 function paddyWater(W) {
-  const pos = [], uv = [], idx = [];
-  const quad = (x0, z0, x1, z1, y, rep) => {
+  const pos = [], uv = [], idx = [], leaves = [];
+  const quad = (x0, z0, x1, z1) => {
     const n = pos.length / 3;
-    pos.push(x0, y, z0, x1, y, z0, x1, y, z1, x0, y, z1);
-    uv.push(0, 0, (x1 - x0) / rep, 0, (x1 - x0) / rep, (z1 - z0) / rep, 0, (z1 - z0) / rep);
+    for (const [x, z] of [[x0, z0], [x1, z0], [x1, z1], [x0, z1]]) {
+      pos.push(x, W.heightAt(x, z) + 0.06, z);
+      uv.push(x / 7.2, z / 7.2);
+    }
     idx.push(n, n + 2, n + 1, n, n + 3, n + 2);
   };
   for (let z = -168; z < -96; z += 12) for (let x = -70; x < 62; x += 14) {
     const cx = x + 7, cz = z + 6;
     if (paddy(cx, cz) < 0.8) continue;
     const x0 = x + 1.1, x1 = x + 12.9, z0 = z + 1.1, z1 = z + 10.9;
-    let y = Infinity;
-    for (const [px, pz] of [[x0, z0], [x1, z0], [x1, z1], [x0, z1], [cx, cz]]) y = Math.min(y, W.heightAt(px, pz));
-    quad(x0, z0, x1, z1, y + 0.1, 3.6);
+    // 最低の隅に大きな板を置くと、ほかの隅と中央が地面へ埋まる。
+    // 小さく区切り、実際の地表に沿わせる。設営時に一つの形へまとめる。
+    for (let iz = 0; iz < 8; iz++) for (let ix = 0; ix < 8; ix++)
+      quad(x0 + (x1 - x0) * ix / 8, z0 + (z1 - z0) * iz / 8,
+        x0 + (x1 - x0) * (ix + 1) / 8, z0 + (z1 - z0) * (iz + 1) / 8);
+    // 一株を交差した二枚の細い葉で表す。材質と描く回数は田全体で一つ。
+    for (let iz = 0; iz < 12; iz++) for (let ix = 0; ix < 14; ix++) {
+      const px = x0 + (ix + 0.5) * (x1 - x0) / 14, pz = z0 + (iz + 0.5) * (z1 - z0) / 12;
+      const y = W.heightAt(px, pz) + 0.065, h = 0.18 + ((ix * 7 + iz * 3) % 5) * 0.018;
+      leaves.push(px - 0.09, y, pz, px + 0.04, y + h, pz, px + 0.09, y, pz,
+        px, y, pz - 0.09, px, y + h, pz + 0.04, px, y, pz + 0.09);
+    }
   }
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
@@ -156,7 +162,12 @@ function paddyWater(W) {
   // 照りは抑える（斜めから見て空が白く映り、白い塗料の染みに見えない程度）
   const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: seedlingTex(), color: 0xe2e4da, roughness: 0.55, metalness: 0 }));
   m.receiveShadow = true; m.userData.noMerge = true;
-  return m;
+  const sprouts = new THREE.BufferGeometry();
+  sprouts.setAttribute('position', new THREE.Float32BufferAttribute(leaves, 3)); sprouts.computeVertexNormals();
+  const plants = new THREE.Mesh(sprouts, new THREE.MeshLambertMaterial({ color: 0x64813c, side: THREE.DoubleSide }));
+  plants.userData.noMerge = true;
+  const field = new THREE.Group(); field.add(m, plants);
+  return field;
 }
 // 溜め池の水面（縁は盛り土に沈めて、水際を地面に任せる）
 function pondWater(W) {
@@ -403,10 +414,10 @@ html:root body #hud#hud#hud.kashii-goals #h-prog#h-prog.goal-mode .pg-goals :is(
     // 樫井の村：熊野街道の両側に家並み（街道沿いの村。家には当たりがあり、カメラも壁で止まる）。畑の箱・竹林・炊事の煙は置かない
     //   （住む者は逃げた後。11/5 n6：緑の箱の畑・傘を重ねたような竹が作り物に見えた）
     //   カメラは家の壁と屋根で止める（茅葺きの中へめり込まない。十一2）
-    for (const [x, z, r] of KASHII_HOUSES) { const h = hut(W, x, z, 8, 5.5, r); h.traverse((m) => { if (m.isMesh) m.userData.camBlock = true; }); rt.scene.add(h); }
+    for (const [x, z, r] of KASHII_HOUSES) { const h = hut(W, x, z, 8, 5.5, r, { groundedHome: true }); h.traverse((m) => { if (m.isMesh) m.userData.camBlock = true; }); rt.scene.add(h); }
     // 安松の家（亀田が退く時に火を放つ）・溜め池と東の堤・田の水面と早苗
     // 安松の家もカメラを壁と屋根で止める（燃える家の中にカメラが入った。11/7 遊んで）
-    F.yasuHouses = YASUMATSU.map(([x, z, r]) => { const h = hut(W, x, z, 7, 5, r); h.traverse((m) => { if (m.isMesh) m.userData.camBlock = true; }); rt.scene.add(h); return { x, z, r }; });
+    F.yasuHouses = YASUMATSU.map(([x, z, r]) => { const h = hut(W, x, z, 7, 5, r, { groundedHome: true }); h.traverse((m) => { if (m.isMesh) m.userData.camBlock = true; }); rt.scene.add(h); return { x, z, r }; });
     rt.scene.add(paddyWater(W), pondWater(W));
     // 家の中へカメラが入らないよう、壁と軒の箱で外へ押し出す（11/6 遊んで：村の辻と東の口で家の中・屋根の上から写った）
     F.camBoxes = [...KASHII_HOUSES.map(([x, z, r]) => [x, z, r, 8, 5.5]), ...YASUMATSU.map(([x, z, r]) => [x, z, r, 7, 5])].map(([x, z, r, w, d]) => {
