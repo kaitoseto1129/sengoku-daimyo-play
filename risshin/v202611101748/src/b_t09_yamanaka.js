@@ -859,7 +859,15 @@ html:root body #hud:has(#h-prog[data-battle="t09_yamanaka"]) #center-call .cc { 
     if (!F.ichiShot && !F.ichiLost && F.ichi?.units.some((u) => u.type === 'busho' && !u.alive)) {
       F.ichiLost = true; F.ichi.name = '一柳直盛の隊';
     }
-    if (F.K && F.step) F.K.tick(dt);   // 出陣の段は出丸の鉄砲を撃たせない
+    if (F.K && F.step) {
+      // 実兵が弾込めしていても、柵の狭間は別の時計で撃ち続けていた。
+      // 出丸の狭間だけ同じ六秒射撃・十二秒弾込めに揃え、制圧後は止める。
+      // tick 自体は続け、既に飛んだ弾・矢と煙は止めない。
+      if (F.K.fire && (F.step !== 1 || (rt.t - F.stepT) % 18 >= 6)) {
+        for (const c of F.K.fire.src) if (F.daiWall.includes(c.s)) c.cool = F.K.fire.t + dt + 0.1;
+      }
+      F.K.tick(dt);
+    }   // 出陣の段は出丸の鉄砲を撃たせない
     // 渡堀後は守り手が三の丸へ退く。近くの別隊を守兵と数えて背後から撃ち続けない。
     if (F.rimFire && F.step === 2) F.rimFire.tick(dt);
     if (F.okuFire) F.okuFire.tick(dt);

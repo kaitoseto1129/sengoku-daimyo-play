@@ -3564,14 +3564,15 @@ const shiga = {
         const back = { x: q.x - Math.sin(q.face) * 14, z: q.z - Math.cos(q.face) * 14 };
         const g = enemyGroup(rt, { name: q.name, faction: q.look === 'asa' ? 'asakura' : 'azai', anchor: back, facing: q.face, order: 'hold', seekRange: 14, aggro: 6, morale: 90, fleeDir: { x: -Math.sin(q.face), z: -Math.cos(q.face) } },
           dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 5 }, { type: 'bow', n: 4 }], look));
-        if (!g) return;
+        if (!g || !g.count) return;
         g.fire = true; g.order = 'move'; g.dest = { x: q.x, z: q.z }; g.speed = 1.8;
         g.onArrive = (h) => { h.order = 'hold'; h.anchor = { x: q.x, z: q.z }; h.facing = q.face; };
         F.sideWaves.push(g);
       });
       if (F.sideWaves.length) {
-        rt.say('肥田彦左衛門', '東にも西にも、水の手にも敵じゃ！\u3000塀から射よ、取り付かせるな！', 4);
-        rt.bark('城は四方から囲まれた', true);
+        const surrounded = F.sideWaves.length === SIEGE_SIDES.length;
+        rt.say('肥田彦左衛門', surrounded ? '東にも西にも、水の手にも敵じゃ！\u3000塀から射よ、取り付かせるな！' : '塀の外へ寄せ手が上がったぞ！　塀から射よ、取り付かせるな！', 4);
+        rt.bark(surrounded ? '城は四方から囲まれた' : '塀の外に寄せ手', true);
       }
     });
     // 町口の攻防から歩いてきた寄せ手を引き継ぐ。北へ戻したり、道を初めから歩き直させたりしない。
