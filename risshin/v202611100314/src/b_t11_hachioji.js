@@ -172,6 +172,14 @@ function routeAt(x, z, out) {
 }
 const RF = { d: 0, s: 0, x: 0, z: 0 }, RT = { d: 0, s: 0, x: 0, z: 0 };
 function hachiojiWay(army, u, want) {
+  // 追う距離だけでは、組ごと木戸の外へ出てしまう。守備中の行き先は曲輪の内へ留める。
+  const g = u.group, k = g?.t11Kuruwa;
+  if (k && !g.routed && !u.fleeing && g.morale >= 22) {
+    const q = u._t11GuardWay || (u._t11GuardWay = { x: 0, z: 0 });
+    q.x = Math.max(k.poly[0][0] + 1.5, Math.min(k.poly[1][0] - 1.5, want.x));
+    q.z = Math.max(k.poly[0][1] + 1.5, Math.min(k.poly[2][1] - 1.5, want.z));
+    return q;
+  }
   // 搦手の兵は北の間道を使う。大手の道への補正で、別の攻め口へ引き戻さない。
   if (u.group?.t11Karamete) return want;
   const q = u._t11Way || (u._t11Way = { x: 0, z: 0, t: -1, active: false, botRadius: 2 });
@@ -323,6 +331,20 @@ function flags(rt) {
 //   守り手は柵・虎口の内に留まる（柵の外の平地へぞろぞろ出て来た。11/8 critic60）：寄せ手が内へ入るまで追わない（追う輪を十六歩に）
 // 出す位置だけでなく持ち場も同じ所へ。b_depth は off が無いと曲輪の中央を持ち場にし直す。
 const keep = (name, at, list, o = {}) => ({ name, from: { x: at.x + (o.dx || 0), z: at.z + (o.dz || 0) }, off: { x: o.dx || 0, z: o.dz || 0 }, width: o.width || 8, list, seek: o.seek || 16, morale: o.morale || 92 });
+
+// 初手と後から来る新手の両方に持ち場を渡す。打って出る組・退く組は別の段のまま。
+function kuruwaFight(o) {
+  const s = DP.fight(o), start = s.start, tick = s.tick;
+  const k = PLAN.kuruwa.find((q) => q.name === o.title);
+  const bind = (C) => {
+    for (const g of C.groups) if (!g.t11Kuruwa) {
+      g.t11Kuruwa = k; g.stay = true; g.noAI = true;
+    }
+  };
+  s.start = (rt, C, m, ctx) => { start(rt, C, m, ctx); bind(C); };
+  s.tick = (rt, C, m, ctx, el) => { const done = tick(rt, C, m, ctx, el); bind(C); return done; };
+  return s;
+}
 
 // 付け入り（docs/kaito_refs_1103 の山中城の型・kaito 11/3）：御主殿の城兵が冠木門を開いて石段を下り、曳橋を渡って打って出る。
 //   ① 曳橋の南の袂で迎え撃つ → 半ばを討つと石段を退く ② 退く敵に紛れて冠木門へ駆け込めば、門を閉める間を与えず御主殿へなだれ込む（F.tsukeiri）。
@@ -609,7 +631,7 @@ const t11_hachioji = {
     depthStart(rt, { faction: 'hojo', flag: 'hojo', armor: HOJO.armor, friends: () => [F.mine, F.saki, F.ni], look: (list) => dress(list, HOJO), scale: 1.3, backing: false, fixedSpawn: true, dmg: 0.45, botSeek: 40 }, [
       sanroku.step(H),
       // ① 山下曲輪：大手の虎口を守った近藤出羽守（綱秀）の組。木戸の内から鉄砲を撃ちかけ、上の段から石弓（石落とし）で先手の降将の勢を押し返した（『北条記』）
-      DP.fight({ at: OTE, title: '山下曲輪', sub: '近藤出羽守が守る', obj: '山下曲輪で、近藤出羽守の組を討て', max: 90, noRefill: true,
+      kuruwaFight({ at: OTE, title: '山下曲輪', sub: '近藤出羽守が守る', obj: '山下曲輪で、近藤出羽守の組を討て', max: 90, noRefill: true,
         say: [['前田の侍', '木戸の内に北条の兵！　霧の中から撃ってくるぞ'], ['前田の侍', '先手の大道寺勢が、上からの石に押し返された！　竹束の陰から寄れ', 4]],
         foes: () => [keep('近藤出羽守の組', OTE, [{ type: 'busho', n: 1, o: { name: '近藤出羽守', hat: 'kabuto_m', horse: false } }, { type: 'samurai', n: 3 }, { type: 'ashigaru', n: 10 }, { type: 'gun', n: 4 }, { type: 'bow', n: 3 }]),
           keep('大手の木戸の鉄砲', OTE, [{ type: 'gun', n: 4 }, { type: 'ashigaru', n: 5 }], { dx: -10, width: 6 })],
@@ -621,13 +643,13 @@ const t11_hachioji = {
       DP.move({ to: BRIDGE_S, obj: '谷の道を、曳橋の南の袂まで進め', label: '曳橋', r: 8, max: 50 }),
       // ② ③ 御主殿の虎口：城兵が石段を下り曳橋を渡って打って出る → 迎え撃つ → 退く敵に続いて冠木門へ（付け入り）
       sallyStep(),
-      DP.fight({ at: GOSHU, title: '御主殿', sub: '氏照の館', obj: '御主殿の館の前の北条勢を討て', max: 60, noRefill: true,
+      kuruwaFight({ at: GOSHU, title: '御主殿', sub: '氏照の館', obj: '御主殿の館の前の北条勢を討て', max: 60, noRefill: true,
         say: [['北条の侍', '殿の館に、一歩も入れるな！'], ['前田の侍', '館の奥の滝の方から、女たちの声が……', 3.4]],
         foes: (rt2) => [keep('御主殿の守り', GOSHU, [{ type: 'samurai', n: rt2.flags.tsukeiri ? 2 : 4 }, { type: 'ashigaru', n: rt2.flags.tsukeiri ? 8 : 12 }, { type: 'bow', n: 3 }], { dx: -6 })],
         reward: '御主殿を取った' }),
       sakamichi.step(H),
       // ④ 尾根の曲輪を一つずつ落とす（上からの鉄砲）
-      DP.fight({ at: KANEKO, title: '金子丸', sub: '金子家重が守る尾根の曲輪', obj: '尾根を登り、金子丸の金子家重の組を討て', max: 60, noRefill: true,
+      kuruwaFight({ at: KANEKO, title: '金子丸', sub: '金子家重が守る尾根の曲輪', obj: '尾根を登り、金子丸の金子家重の組を討て', max: 60, noRefill: true,
         say: [['前田の侍', '上の曲輪から鉄砲じゃ！　身を低くして登れ']],
         foes: () => [keep('金子家重の組', KANEKO, [{ type: 'busho', n: 1, o: { name: '金子家重', hat: 'kabuto_m', horse: false } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 9 }, { type: 'gun', n: 5 }, { type: 'bow', n: 3 }])],
         reward: '金子丸を落とした',
@@ -635,10 +657,10 @@ const t11_hachioji = {
           const g = rt2.flags.slopeBow;
           if (g) { g.noRout = false; g.morale = 0; g.order = 'hold'; g.path = null; g.onArrive = null; }
         } }),
-      DP.fight({ at: TAKA, title: '高丸', sub: '尾根の曲輪', obj: '尾根の柵門を抜け、高丸の北条勢を討て', max: 60, noRefill: true,
+      kuruwaFight({ at: TAKA, title: '高丸', sub: '尾根の曲輪', obj: '尾根の柵門を抜け、高丸の北条勢を討て', max: 60, noRefill: true,
         foes: () => [keep('高丸の守り', TAKA, [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 9 }, { type: 'gun', n: 5 }, { type: 'bow', n: 3 }])],
         reward: '高丸を落とした' }),
-      DP.fight({ at: MATSUKI, title: '小宮曲輪', sub: '搦手から上杉勢が攻め上る', obj: '上杉勢と、小宮曲輪の狩野一庵の組を討て', max: 70, noRefill: true,
+      kuruwaFight({ at: MATSUKI, title: '小宮曲輪', sub: '搦手から上杉勢が攻め上る', obj: '上杉勢と、小宮曲輪の狩野一庵の組を討て', max: 70, noRefill: true,
         // 上杉の藤田信吉は、城の普請奉行だった平井無辺を寝返らせ、その案内で水の手の間道から小宮曲輪を衝いた。内応の者が櫓に火を掛けた
         say: [['前田の侍', '搦手に竹に雀の旗！　上杉勢が裏の間道から来たぞ'], ['前田の侍', '曲輪の櫓に火が上がった！　内から寝返った者がおる', 3.6]],
         foes: () => [keep('狩野一庵の組', MATSUKI, [{ type: 'busho', n: 1, o: { name: '狩野一庵', hat: 'kabuto_m', horse: false } }, { type: 'samurai', n: 3 }, { type: 'ashigaru', n: 10 }, { type: 'gun', n: 4 }, { type: 'bow', n: 3 }])],

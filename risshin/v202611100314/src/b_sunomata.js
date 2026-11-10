@@ -2702,8 +2702,9 @@ function finishBuild(rt, order, onDone, reinforce = false) {
   const step = () => {
     if (rt.over || F.ending || F.won) { F.buildBusy = false; return; }
     const wk = F.wk;
-    if (!wk || wk.routed || !wk.units.some((u) => u.alive && !u.gone && !u.fleeing && !u.woundOut && !u.noTarget)) {
+    if (!wk || wk.routed || !wk.units.some((u) => u.alive && !(u.hp <= 0) && !u.dying && !u.gone && !u.fleeing && !u.woundOut && !u.noTarget)) {
       F.buildBusy = false;
+      F.workHands = false; F.workNotice = '';
       if (reinforce) { F.reinforcing = false; F.reinforceStopped = true; }
       return;
     }
@@ -2730,13 +2731,13 @@ function finishBuild(rt, order, onDone, reinforce = false) {
     wk.order = 'move'; wk.dest = point; wk.speed = 1.4; wk.onArrive = null;
     let hands = 0, workers = 0, foe = false;
     for (const u of rt.army.units) {
-      if (!u.alive || u.gone || u.fleeing || u.woundOut || u.noTarget) continue;
+      if (!u.alive || u.hp <= 0 || u.dying || u.gone || u.fleeing || u.woundOut || u.noTarget) continue;
       // 閉じた柵や小屋の向こうの控えだけで、普請を止め続けない。
       if (u.team === 1 && !u.group?.routed && Math.hypot(u.pos.x - x, u.pos.z - z) < 10 && !rt.army.wallBetween(u.pos, -1, point,
         (u.wpnKind || u.lookWeapon || u.weapon) === 'spear')) foe = true;
       // 作業先が安全でも、列の端の人足へ槍が届く。柵越しの槍も含め、実際の人足との間合いで先に退く。
       if (u.team === 1 && !u.group?.routed && !foe) for (const hand of wk.units) {
-        if (!hand.alive || hand.gone || hand.fleeing || hand.woundOut) continue;
+        if (!hand.alive || hand.hp <= 0 || hand.dying || hand.gone || hand.fleeing || hand.woundOut || hand.noTarget) continue;
         if (Math.hypot(u.pos.x - hand.pos.x, u.pos.z - hand.pos.z) < 10 &&
             !rt.army.wallBetween(u.pos, -1, hand.pos, (u.wpnKind || u.lookWeapon || u.weapon) === 'spear')) { foe = true; break; }
       }
@@ -5869,7 +5870,7 @@ function makeSunomataBrain(b) {
     inp.leftPressed = false; inp.chargeHold = false; inp.runHeld = false;
     let attacker = null, ad = 10;
     for (const o of b.army.threats || emptyThreats) {
-      if (!o.alive || o.team === u.team || o.fleeing || o.type === 'gun' || o.type === 'bow' ||
+      if (!o.alive || o.hp <= 0 || o.dying || o.gone || o.woundOut || o.noTarget || o.team === u.team || o.fleeing || o.type === 'gun' || o.type === 'bow' ||
           Math.abs(o.pos.y - u.pos.y) >= 3) continue;
       const od = Math.hypot(o.pos.x - u.pos.x, o.pos.z - u.pos.z);
       // まだ届かない振りで足と反撃を止めない。構えの気力を遠くで使い切らない。
@@ -5949,7 +5950,7 @@ function makeSunomataBrain(b) {
     senseAt = b.t + 0.5;
     closeFoes = 0; closeFriends = 0;
     for (const o of b.army.units) {
-      if (o === u || !o.alive || o.fleeing || o.noTarget || o.isStruct || o.woundOut || o.type === 'porter' ||
+      if (o === u || !o.alive || o.hp <= 0 || o.dying || o.gone || o.fleeing || o.noTarget || o.isStruct || o.woundOut || o.type === 'porter' ||
           Math.abs(o.pos.y - u.pos.y) >= 3) continue;
       const d = Math.hypot(o.pos.x - u.pos.x, o.pos.z - u.pos.z);
       if (o.team !== u.team && d < 5 && visible(o)) closeFoes++;
@@ -5960,7 +5961,7 @@ function makeSunomataBrain(b) {
     for (const point of restPoints) {
       let clearance = 20;
       for (const o of b.army.units) {
-        if (!o.alive || o.team === u.team || o.fleeing || o.noTarget || o.isStruct || o.woundOut) continue;
+        if (!o.alive || o.hp <= 0 || o.dying || o.gone || o.team === u.team || o.fleeing || o.noTarget || o.isStruct || o.woundOut) continue;
         clearance = Math.min(clearance, Math.hypot(o.pos.x - point[0], o.pos.z - point[1]));
       }
       // 手当ての小屋が安全なら戻る。追手がいる時は、同じ所で足を止めない。

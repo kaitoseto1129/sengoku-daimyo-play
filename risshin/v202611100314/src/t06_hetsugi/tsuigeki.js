@@ -71,7 +71,8 @@ export function pin(rt, K) {
 // 攻撃の結果は短時間で消えるため、本体から毎コマ呼んで残す。
 export function engaged(rt) {
   const F = rt.flags, swing = rt.player.u.swing;
-  if (F.ijContact || rt.stats.kills > F.ijKills0 || rt.stats.taken > F.ijTaken0) return true;
+  // 全体の討ち取り・負傷には先手以外との戦いも混じる。伊集院へ槍を入れた記録だけで判定する。
+  if (F.ijContact) return true;
   if (swing && (swing.res === 'hit' || swing.res === 'armor' || swing.res === 'block') && F.ijBands) {
     for (const g of F.ijBands) if (g.units.includes(swing.target)) { F.ijContact = true; return true; }
   }

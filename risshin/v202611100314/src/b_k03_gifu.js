@@ -107,7 +107,8 @@ const aliveN = (g) => (g ? g.units.reduce((n, u) => n + (u.alive && !u.gone && !
 const holdN = (g) => (g ? g.units.reduce((n, u) => n + (u.alive && !u.gone && !u.fleeing && dist(u.pos, g.anchor) < 30 ? 1 : 0), 0) : 0);
 const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 // 城方は味方と斬り合う所へは石を落とさない（斬り合いの最中に上から石が続けて当たり、本人が倒れた。11/8 bot）
-const noMelee = (rt) => { const u = rt.player?.u; return !(u && rt.army.nearestEnemy(u, 6, (o) => !o.fleeing)); };
+const fighting = (u) => !u.fleeing && !u.gone && !u.downed && !u.woundOut && !u.rearWound && !u.noTarget && !u.isStruct;
+const noMelee = (rt) => { const u = rt.player?.u; return !(u && rt.army.nearestEnemy(u, 6, fighting)); };
 const PIN = { x: 0, z: 0, r: 8, hide: 6, always: true, silent: true, enemy: false, unit: null, follow: false, fire: false, gate: false, defend: false, waiting: false, arrived: false, area: false, route: false };
 const KEEP = 0.4;   // 段の隊は四割まで減れば崩れる（倒す数＝六割）
 
@@ -648,7 +649,7 @@ const k03_gifu = {
         const to = g && g._gfTo;
         if (!to || !live(g)) continue;
         const c = g.center(), d = dist(c, to);
-        const near = (r) => rt.army.units.some((o) => o.alive && o.team === 1 && !o.fleeing && !o.noTarget && !o.isStruct && !(o.group && (o.group._fallen || o.group.order === 'retreat')) && (o.pos.x - c.x) ** 2 + (o.pos.z - c.z) ** 2 < r * r);
+        const near = (r) => rt.army.units.some((o) => o.alive && o.team === 1 && fighting(o) && !(o.group && (o.group._fallen || o.group.order === 'retreat')) && (o.pos.x - c.x) ** 2 + (o.pos.z - c.z) ** 2 < r * r);
         //   退いていく城方（崩れた段の残り）は数えない（それを「近くの敵」と数え、浅野勢が百曲りの砦の柵の外 x=−107 に⑤の間ずっと止まった）
         // 駆ける間は縦の列（幅 9 の横陣のままでは、居館の奥の口（幅 5m）に詰まった）
         // 斬り合いのまま柵の内に止まった隊（浅野勢が中腹の砦の柵の内 x=−99 で二の丸の段の間ずっと止まった）は、八秒動かなければ列に戻して角を辿らせる
@@ -728,7 +729,7 @@ const k03_gifu = {
     // 今の段の持ち場から 30 歩より遠い敵は追わない（中腹の砦の段で退く敵を追って本丸の下まで登り、段の守りに戻らなかった。11/8 bot）
     const at = STEP_AT[F.step] || u.pos;
     const near4 = (o) => Math.hypot(o.pos.x - u.pos.x, o.pos.z - u.pos.z) < 4;
-    const ok = (o) => !o.fleeing && !o.invuln && !o.noTarget && (!o.group?._fallen || near4(o) && (o.atk || o.swing)) && Math.abs(o.pos.y - u.pos.y) < 3 && !((B.skip.get(o) || 0) > b.t) && (Math.hypot(o.pos.x - at.x, o.pos.z - at.z) < 30 || near4(o));   // 斬り掛かってくる敵は持ち場の外でも払う（突かれ続けて十分止まった。11/9 bot）
+    const ok = (o) => fighting(o) && !o.invuln && (!o.group?._fallen || near4(o) && (o.atk || o.swing)) && Math.abs(o.pos.y - u.pos.y) < 3 && !((B.skip.get(o) || 0) > b.t) && (Math.hypot(o.pos.x - at.x, o.pos.z - at.z) < 30 || near4(o));   // 斬り掛かってくる敵は持ち場の外でも払う（突かれ続けて十分止まった。11/9 bot）
     const e = b.army.nearestEnemy(u, 9, ok);
     if (e) {
       const d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);

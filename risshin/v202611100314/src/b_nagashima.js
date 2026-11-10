@@ -1353,6 +1353,17 @@ function allyBankGuard(rt, dt) {
     u.cover = c;
   }
 }
+// 待機中の鉄砲衆を、川へ出さず同じ岸の持ち場で動かす。
+function bankTeppoPatrol(rt) {
+  const F = rt.flags, g = F.teppo;
+  if (!g || F.step >= 2 || F.ending || rt.t < (F.teppoPatrolAt || 0)) return;
+  F.teppoPatrolAt = rt.t + 1;
+  // 退城の下知までは岸の持ち場を見回る。射撃・装填中は列を動かさない。
+  if (g.units.some(u => bankFighterReady(u) && (u.atk || u.reload || u.target?.alive))) return;
+  F.teppoPatrolSide = -(F.teppoPatrolSide || -1);
+  g.anchor.x = 34 + F.teppoPatrolSide * 4;
+  F.teppoPatrolAt = rt.t + 6;
+}
 // 描画済みの川面と同じ水深に舟を浮かべる。毎コマの計算で物を作らない。
 function waterHeight(W, x, z) {
   return W.heightAt(x, z) + W.waterDepthAt(x, z);
@@ -4014,6 +4025,7 @@ const nagashima = {
     if (F.dpOn) depthTick(rt, dt);
     // 縄と最後の巡回は本人の作業だけで進める。経過時間で未完の務めを補わない。
     KIT.backTick(rt);
+    bankTeppoPatrol(rt);
     // 対岸の射手も、射撃の合間は柵沿いを見回る。降伏後は射撃を止めて奥へ下がる。
     // perch を残したまま隊の行き先だけ変えても兵は動かないため、足場そのものを進める。
     for (const g of F.bankBows || []) for (const u of g.units) {
@@ -4492,7 +4504,7 @@ nagashima.force = (rt) => {
     // 舟の待機・降伏・持ち場への帰還で攻撃対象から外れても、兵数は減らさない。
     if (u.team === 0) a0++; else b0++;
     // 倒れる動作の間も alive は残る。命の尽きた兵を現在の兵数へ戻さない。
-    if (!bankFighterReady(u)) continue;
+    if (!u.alive || u.hp <= 0 || u.gone || u.dying || u.woundOut || u.rearWound) continue;
     if (u.team === 0) a++; else b++;
   }
   S.a0 = Math.max(S.a0, a0); S.b0 = Math.max(S.b0, b0);
