@@ -79,7 +79,15 @@ export function oshiStep(NG) {
       const dx = GATE.x - MID.x, dz = GATE.z - MID.z;
       const along = Math.max(0, Math.min(1, ((p.x - MID.x) * dx + (p.z - MID.z) * dz) / (dx * dx + dz * dz)));
       const onRoad = Math.hypot(p.x - MID.x - dx * along, p.z - MID.z - dz * along) < 22;
-      return C.ph >= 5 && el > 200 && heads(C.groups) <= 5 && onRoad;
+      // 塀や岩に残った一組を全滅させるまで待たない。寄せの上限で門へ退かせる。
+      // 本人が山道へ来ていない時は、残兵が退いても次へ進めない。
+      if (C.ph >= 5 && el > 230 && !C.withdrawn) {
+        C.withdrawn = true;
+        for (const g of C.groups) if (g?.count) {
+          g.noRout = false; g.morale = 0; g.order = 'retreat'; g.dest = GATE;
+        }
+      }
+      return C.ph >= 5 && el > 200 && (heads(C.groups) <= 5 || C.withdrawn === true) && onRoad;
     },
     end(rt, C) {
       for (const [g, orders] of C.orders) { Object.assign(g, orders); g.dest = null; }

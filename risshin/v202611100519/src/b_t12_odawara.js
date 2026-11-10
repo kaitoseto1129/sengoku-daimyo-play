@@ -443,7 +443,8 @@ function escort() {
     },
     tick(rt, C, m, ctx, el) {
       const F = rt.flags, k = F.kanU;
-      if (!k.alive) return true;
+      // 討たれた使いを到着扱いにせず、update の任務失敗へ渡す。
+      if (!k.alive) { F.envoyDone = false; return false; }
       // 使いが山王口に近づくと、口の番は道の脇へ退いて通す。本丸の門から出迎えの侍が来て先に立つ
       if (!C.met && Math.hypot(k.pos.x - SANNO.x, k.pos.z - SANNO.z) < 22) {
         C.met = true;
@@ -473,7 +474,7 @@ function escort() {
     end(rt, C) {
       const F = rt.flags;
       rt.unmark('dp');
-      if (F.kanU.alive) { rt.objDone('dp'); rt.award((t) => t.side.push('開城の使いを送り届けた'), '開城の使いを送り届けた'); }
+      if (F.kanU.alive && F.envoyDone) { rt.objDone('dp'); rt.award((t) => t.side.push('開城の使いを送り届けた'), '開城の使いを送り届けた'); }
     },
   };
 }
