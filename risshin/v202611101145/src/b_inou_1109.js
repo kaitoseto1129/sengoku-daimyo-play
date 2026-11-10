@@ -482,7 +482,12 @@ const ino = {
     F.stopT = rt.t;
     say(rt, '組頭', '追うな！　ここまでじゃ。', 2.6);
     try { stopMusic(5); } catch (e) { /* 音の無い時も続ける */ }
-    for (const g of [...F.van, F.sakuma, F.mates, F.mori]) if (live(g)) { g.order = 'hold'; g.aggro = 0; g.anchor = g.center(); for (const u of g.units) u.target = null; }
+    for (const g of [...F.van, F.sakuma, F.mates, F.mori]) if (live(g)) {
+      // 前進の到着命令を残すと、追撃停止後も古い攻撃の下知が残り、持ち場を整えられない。
+      g.order = 'hold'; g.aggro = 0; g.anchor = { ...g.center() };
+      g.onArrive = null; g.dest = null; g.path = null; g.focus = null;
+      for (const u of g.units) { u.target = null; u.watch = null; u.moveTo = null; }
+    }
     // 退く旗本も攻撃を止める。到着時に古い攻撃命令へ戻さない。
     for (const g of F.shiba) if (live(g)) {
       g.aggro = 0; g.focus = null; g.fire = false;
@@ -634,9 +639,9 @@ const ino = {
   botBrain(b, inp, { goTo, patientStrike }) {
     const p = b.player, u = p.u, F = b.flags;
     const fightPh = ['scout', 'hayashi', 'shibata', 'push'].includes(F.ph);
-    const ok = (o) => inouEnemyAlive(o) && !o.invuln && Math.abs(o.pos.y - u.pos.y) < 3;
     if (fightPh) {
-      const e = b.army.nearestEnemy(u, 9, ok);
+      // 案内と同じ備を相手にする。まだ出陣していない柴田勢へ横道にそれない。
+      const e = this.missionSignTarget(b, 9);
       if (e) {
         const d = near(e.pos, u.pos);
         if (p.lock && p.lock !== e) inp.e.add('KeyQ');

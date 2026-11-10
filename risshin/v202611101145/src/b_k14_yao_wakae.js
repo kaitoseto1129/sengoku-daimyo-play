@@ -169,6 +169,7 @@ const k14_yao_wakae = {
   enemyTactics: false,       // 敵の動きはこの定義が決める（伏兵・崩れ・退き）
   noFieldMap: true,
   // 両軍の今の兵の数の棒は出す（hideArmyPeek を外した。九3・十二1）
+  forceBarAlways: true,     // 共通の updateTug はこの指定が無い戦の棒を隠す。行き先の案内中も両軍の数を残す。
   hideGuideSteps: true,
   noPlayerFoot: true,
   nearbyAllySignLimit: 0,
