@@ -78,7 +78,7 @@ function requiredStage(s) {
   const tick = s.tick;
   s.tick = function (rt, C, m, ctx, el, dt) {
     const player = rt.player.u;
-    const fighting = player.alive && !player.dying && !player.woundOut && !player.downed;
+    const fighting = player.alive && !player.gone && !player.dying && !player.woundOut && !player.rearWound && !player.downed;
     if (s.kind === 'fight' && rt.flags.step === 4 && !C.engaged) {
       const p = rt.player.u.pos;
       C.engaged = fighting && Math.abs(p.z) < BANK && p.x < FORT.x + 20 &&
@@ -737,8 +737,8 @@ const k09_imafuku = {
     for (let i = outerN - 1; i >= ((F.step || 0) >= 2 ? -1 : 0); i--) {
       const st = i >= 0 ? F.outer[i] : F.gate;
       if (!st || !st.alive || !p) continue;
-      // 袖の柵や次の木戸の前からは引けない。木戸の幅の内側で縄が届く所に取り付く。
-      const near = rt.player.u.alive && !rt.player.u.dying && !rt.player.u.woundOut && !rt.player.u.downed &&
+      // 袖の柵や次の木戸の前からは引けない。後送・離脱中の本人も縄を引けない。
+      const near = rt.player.u.alive && !rt.player.u.gone && !rt.player.u.dying && !rt.player.u.woundOut && !rt.player.u.rearWound && !rt.player.u.downed &&
         p.z > Math.min(st.seg[1], st.seg[3]) && p.z < Math.max(st.seg[1], st.seg[3]) &&
         p.x - st.seg[0] > -6 && p.x - st.seg[0] < 6;
       const ally = st.allyPull;

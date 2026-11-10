@@ -184,10 +184,33 @@ function hachiojiWay(army, u, want) {
     const q = u._t11GuardWay || (u._t11GuardWay = { x: 0, z: 0 });
     q.x = Math.max(k.poly[0][0] + 1.5, Math.min(k.poly[1][0] - 1.5, want.x));
     q.z = Math.max(k.poly[0][1] + 1.5, Math.min(k.poly[2][1] - 1.5, want.z));
-    return q;
+    if (u.pos.x >= k.poly[0][0] && u.pos.x <= k.poly[1][0] && u.pos.z >= k.poly[0][1] && u.pos.z <= k.poly[2][1]) return q;
+    want = q;
   }
   // 搦手の兵と西へ落ちる横地の供は専用の道を使い、大手へ引き戻さない。
   if (u.group?.t11Karamete || u.group?.t11Escape) return want;
+  // 近い敵でも柵の向こうへ直進しない。曲輪を出入りする時は開口の反対側まで通す。
+  // 木戸そのものを目当てにすると、その手前で到着扱いになって柵越しに斬り続ける。
+  for (const fort of PLAN.kuruwa) {
+    const x0 = fort.poly[0][0], x1 = fort.poly[1][0], z0 = fort.poly[0][1], z1 = fort.poly[2][1];
+    const fromIn = u.pos.x >= x0 && u.pos.x <= x1 && u.pos.z >= z0 && u.pos.z <= z1;
+    const toIn = want.x >= x0 && want.x <= x1 && want.z >= z0 && want.z <= z1;
+    if (fromIn === toIn) continue;
+    let best = Infinity, gate = null;
+    for (const at of fort.gapAt) {
+      const d = Math.hypot(u.pos.x - at[0], u.pos.z - at[1]) + Math.hypot(want.x - at[0], want.z - at[1]);
+      if (d < best) { best = d; gate = at; }
+    }
+    if (!gate) continue;
+    const q = u._t11GateWay || (u._t11GateWay = { x: 0, z: 0, botRadius: 1 });
+    // 門から離れている間は手前側へ。斜めに反対側を狙って柵の角を横切らない。
+    const near = Math.hypot(u.pos.x - gate[0], u.pos.z - gate[1]) < 4.5;
+    const side = (near ? toIn : fromIn) ? 3 : -3;
+    q.x = gate[0] + (gate[0] === x0 ? side : gate[0] === x1 ? -side : 0);
+    q.z = gate[1] + (gate[1] === z0 ? side : gate[1] === z1 ? -side : 0);
+    want = q;
+    break;
+  }
   const q = u._t11Way || (u._t11Way = { x: 0, z: 0, t: -1, active: false, botRadius: 2 });
   if (q.t > army.time && q.active && Math.hypot(q.x - u.pos.x, q.z - u.pos.z) > 1.2) return q;
   if (q.t > army.time && !q.active) return want;
@@ -456,7 +479,7 @@ function sallyStep() {
       // 門を固められた時：冠木門の守りを討てば虎口を抜ける（虎口の鉄砲は上の段にいて、門の内からしか届かない。抜ければ崩れる）
       const rest = live(F.gateG);
       rt.objProgress('dp', `冠木門の敵 ${rest}人`);
-      return rest <= 2 && entered;
+      return entered && (rest <= 2 || (el - C.backT >= 180 && rest <= F.gateG.units.length * 0.3));
     },
     end(rt, C) {
       for (const q of C.groups) retreat(q);
@@ -661,7 +684,7 @@ const t11_hachioji = {
     // 段のファイル（t11_hachioji/*.js）へ渡す場所と道具
     const H = { GATE_FRONT: { x: 150, z: 52 }, AMBUSH: { x: 164, z: 70 }, KARAMETE, SLOPE_MID: { x: 71, z: -20 }, SLOPE_TOP: { x: 72, z: -36 },
       LAST: { x: HON.x - 2, z: HON.z - 6 }, HON, MATSUKI, TAKA, GOSHU, HOJO, dress, marchTo };
-    depthStart(rt, { faction: 'hojo', flag: 'hojo', armor: HOJO.armor, friends: () => [F.mine, F.saki, F.ni], look: (list) => dress(list, HOJO), scale: 1.3, backing: false, fixedSpawn: true, dmg: 0.45, botSeek: 40 }, [
+    depthStart(rt, { faction: 'hojo', flag: 'hojo', armor: HOJO.armor, friends: () => [F.mine, F.saki, F.ni], look: (list) => dress(list, HOJO), scale: 1.3, backing: false, fixedSpawn: true, dmg: 0.45, botSeek: 40, routeFight: true }, [
       sanroku.step(H),
       // ① 山下曲輪：大手の虎口を守った近藤出羽守（綱秀）の組。木戸の内から鉄砲を撃ちかけ、上の段から石弓（石落とし）で先手の降将の勢を押し返した（『北条記』）
       kuruwaFight({ at: OTE, title: '山下曲輪', sub: '近藤出羽守が守る', obj: '山下曲輪で、近藤出羽守の組を討て', max: 90, noRefill: true,

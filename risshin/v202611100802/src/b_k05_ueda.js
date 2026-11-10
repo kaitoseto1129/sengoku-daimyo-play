@@ -570,6 +570,7 @@ const k05_ueda = {
     const F = rt.flags, g = F.sortie;
     if (!live(g) || F.lureI >= LURE.length) return;
     const p = LURE[F.lureI];
+    g._lureDetour = false;
     g.order = 'move'; g.dest = { ...p }; g.anchor = { ...p }; g.speed = 3.9; g.aggro = 0; g.seekRange = 0;
     g.onArrive = (q) => { q.order = 'hold'; q.aggro = 6; q.seekRange = 12; q.onArrive = null; F.lureAt = rt.t; F.lureI++; };
     F.lureMoveT = rt.t;
@@ -584,7 +585,13 @@ const k05_ueda = {
         F.lureMoveT = rt.t;
         // 見えない所なら先へ送る。見える所では、田の真ん中を通る別の道で行き直す（飛んで見えない）
         if (dist(c, rt.player.u.pos) > 45) { for (const u of g.units) if (u.alive && !u.gone) { u.pos.x = g.dest.x + (u.pos.x - c.x) * 0.5; u.pos.z = g.dest.z + (u.pos.z - c.z) * 0.5; } }
-        else { const d = g.dest; g.dest = { x: KARI.x + 2, z: KARI.z - 4 }; g.onArrive0 = g.onArrive; g.onArrive = (q) => { q.dest = d; q.onArrive = q.onArrive0; }; }
+        else if (!g._lureDetour) {
+          // 迂回中に再び詰まっても到着処理を重ねない。重ねると自分自身を戻し続け、追撃が進まなくなる。
+          const d = g.dest, arrived = g.onArrive;
+          g._lureDetour = true;
+          g.dest = { x: KARI.x + 2, z: KARI.z - 4 };
+          g.onArrive = (q) => { q.dest = d; q.onArrive = arrived; q._lureDetour = false; };
+        }
       }
       return;
     }

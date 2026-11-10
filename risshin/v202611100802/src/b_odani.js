@@ -2886,6 +2886,10 @@ const odani = {
   // 稲生と同じ共通の札・ピン・印。道順と兵数、史実の終幕はこの戦のまま。
   missionSingleLine: true,
   goalsAllRows: true, // 五つを最初から並べる。共通の既定では今の一件しか作られない。
+  goalSignOnly: true,
+  goalSignTriangle: true,
+  goalSignDistanceAlways: true,
+  keepBattleSigns: true,
   missionDialogue: true,
   noticeLimit: 2,
   hideMissionDots: true,
@@ -3490,8 +3494,7 @@ const odani = {
 /* 11/3 kaito AL：地面に並ぶ白い矢印は出さない。行き先は真上の金の▼一つ（床の矢印の塗りの道だけを消す）。 */
 #hud[data-odani] #mission-target-lines > g:nth-of-type(2) > path:nth-child(3) { display:none !important; }
 /* 目標の相手（「父子」の札と▼・床の三本矢印）も重ねない。京極丸へは切岸ごしに直に行けず、谷道の印と食い違う。 */
-/* 秀吉に話す間（data-odani-talk）だけは、会う相手の頭上に▼を出す（kaito 十2「会う相手の居場所を印で出す」）。 */
-#hud[data-odani]:not([data-odani-talk]) #goal-sign { display:none !important; }
+/* 行き先の▼は出発後も残す。任務ごとの一点を共通の印で示す。 */
 #hud[data-odani] #intro .intro-reading { width:100%; overflow-y:auto; touch-action:pan-y; pointer-events:auto; overscroll-behavior:contain; }
 /* 任務の補足を二列目へ押し込まず、本文と同じ幅で上から読む。 */
 html body #hud[data-odani] #battle-notices #objectives:not(.expand) li.cur {
@@ -6295,6 +6298,14 @@ installBattleJinkei(odani, [
 // 11/8 critic60 五3・九1：行き先の札は「ここへ」や下知の字でなく、場所の名と距離（m）だけ
 {
   const placeOf = (rt) => { const F = rt.flags; return F.retreatOn ? '退き口' : F.step <= 1 ? '清水谷' : F.step === 2 ? (F.onoDone ? '京極丸' : '大野木屋敷') : F.komaDown || F.honAttack ? '本丸' : F.komaAttack ? '小丸' : F.step === 3 ? '京極丸' : '本丸'; };
+  odani.goalSignTarget = (rt) => {
+    const pin = odani.missionPin(rt);
+    if (!pin) return null;
+    pin.label = rt.flags.step === 0 && !rt.flags.retreatOn ? '羽柴秀吉'
+      : pin.gate ? pin.gateName || '西木戸' : placeOf(rt);
+    pin.hideDistance = 0;
+    return pin;
+  };
   odani.travelGuideLabel = (rt) => {
     const F = rt.flags, q = odani.missionPin(rt), p = rt.player.u.pos;
     if (!q || !Number.isFinite(q.x)) return '';

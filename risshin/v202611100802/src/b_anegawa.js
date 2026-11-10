@@ -3281,6 +3281,7 @@ const anegawa = {
   foeMarks: true,
   touchBattleControls: true, // 指でも既存の指図・持替を使う（全戦の通しと確かめ表の再確認）。
   enemyTriangleSigns: true,
+  lightEnemyTriangleSigns: true, // 近づいた軽い浅井・朝倉の兵にも、一人ずつ既存の赤い▼を出す。
   spawn: { x: POST.x - 8, z: POST.z + 5, heading: Math.PI - 0.5 },   // 川と味方の列・行き先を一つの画面に収める
   // 身の回りの当時の場（timeslip_field.js）。元亀元年六月二十八日は今の八月初め・真夏の朝。
   // 乾いた川原と岸の踏み跡、夏草と岸の葦、蹴立てた土埃。森可成の持ち場と浅瀬ほど、倒れた槍と浅井方の旗が多い。

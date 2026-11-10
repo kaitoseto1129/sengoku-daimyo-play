@@ -15,7 +15,7 @@ const MIN_T = 150;     // 磯野の渡河はこの秒より前には来ない（
 
 // ctx：{ south(x), north(x), enemyGroup(rt, o, list), dress, AZAI, AZAI_FLEE, post, charge() }
 export function install(rt, ctx) {
-  const F = rt.flags, S = F.aneJin = { k: 0, t0: rt.t, done: false };
+  const F = rt.flags, S = F.aneJin = { k: 0, t0: rt.t, done: false, post: ctx.post };
   const MI = { x: 30, z: ctx.south(30) + 9 };
   S.at = MI;
   const live = () => !S.done && !F.ending && !rt.over && rt.player?.u?.alive && F.step === 0;
@@ -113,7 +113,9 @@ export function hit(rt, u) {
 export function stageOf(rt) {
   const S = rt.flags.aneJin;
   if (!S || S.done || rt.flags.step !== 0) return null;
-  return S.k >= 1 ? 1 : 0;
+  // 陣立てを見た直後は、六秒後の出現待ちや兵の枠待ちがある。
+  // 実際に物見が出るまでは「追い返せ」を現在の任務にしない。
+  return S.k >= 2 ? 1 : 0;
 }
 
 // 退く下知から敗走の動きへ替わる間も、物見を追って持ち場を離れない。
@@ -135,7 +137,12 @@ export function pin(rt, q) {
     const u = scoutTarget(S.g);
     if (u) { q.unit = u; q.enemy = true; q.x = u.pos.x; q.z = u.pos.z; q.r = q.hide = 2; return q; }
   }
-  return undefined;
+  // 退く物見を追わせず、次の本手を迎える持ち場へ戻す。
+  // 共通の相手探しへ落とすと、西の別戦線の敵を指す事がある。
+  const at = S.post || S.at;
+  q.unit = null; q.enemy = false;
+  q.x = at.x; q.z = at.z; q.r = q.hide = 6;
+  return q;
 }
 
 // bot：物見の高みへ行き、物見の小勢と槍を合わせる
