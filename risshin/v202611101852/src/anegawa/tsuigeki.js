@@ -32,6 +32,10 @@ export function start(rt, ctx) {
     F.azDA?.[2]?.m.rout?.({ hideAfter: 30 });
     F.azDA?.[1]?.m.moveTo(-60, -205, 70);
   } catch (e) { /* 遠景が無くても進む */ }
+  // 長政の旗本と馬廻りも本陣を捨てて小谷へ退く（「本陣はもぬけの殻」と合わせる。陣幕の前で本人を止めない）。
+  for (const g of rt.army.groups) if (g.team !== rt.player.u.team && g.count && !g.routed && g.units.some((u) => u.alive && u.isTaisho === 'b')) {
+    g.noRout = false; g.order = 'retreat';
+  }
   try { sfx('horagai', 0.8); } catch (e) { /* 音が無くても進む */ }
   rt.say('森可成', '浅井は総崩れじゃ！　野村の長政の本陣まで追い討て！', 4);
   rt.after(9, () => live() && !S.done && rt.say('足軽', '長政の馬印が退いていくぞ！　小谷の方じゃ！', 3));
@@ -78,7 +82,12 @@ export function start(rt, ctx) {
   S.tick = () => {
     if (S.done || !live()) return;
     const p = rt.player.u.pos;
-    if (S.k === 0 && Math.hypot(p.x - DEST.x, p.z - DEST.z) < 20) {   // 本陣の陣幕（30×24）の内に入れば着いた（真ん中は陣幕と旗本で塞がり、bot が囲みの中で止まった 11/10）
+    const dd = Math.hypot(p.x - DEST.x, p.z - DEST.z);
+    // 本陣の陣幕（30×24）の内に入れば着いた（真ん中は陣幕と旗本で塞がり、bot が囲みの中で止まった 11/10）。
+    // 退く旗本に阻まれ陣幕の前で止まる時（11/10 関所：二十六歩手前で八分）は、九十秒で四十歩の内も着いた扱い。百八十秒で遠藤の段へ（手柄は付けない）。
+    const late = rt.t - S.t0, near = dd < 20 || late > 90 && dd < 40;
+    if (S.k === 0 && !near && late > 180) { S.k = 0.5; rt.unmark('aneNomura'); rt.after(2, () => endo()); }
+    if (S.k === 0 && near) {
       rt.award((t) => t.side.push('野村の浅井本陣まで追い討った'), '野村まで追い討った', DEST);
       rt.say('組頭', '本陣はもぬけの殻じゃ。長政は小谷へ逃げたか……', 3.5);
       rt.after(5, () => endo());
@@ -87,15 +96,20 @@ export function start(rt, ctx) {
     if (S.k === 1) {
       // 時計で遠藤を討たず、実際の戦闘を待つ。遠い味方の討ち取りだけで勝ちにしない。
       if (S.u && !S.u.alive && Math.hypot(p.x - S.u.pos.x, p.z - S.u.pos.z) < 12) return close();
+      // 詰まらない決まり（docs/sunomata_spec_1109.md の7）：味方が討った後六十秒経てば、本人が離れていても締めへ。
+      if (S.u && !S.u.alive && rt.t - S.endoT > 60) return close(true);
+      // 二分半経っても討てない時は、竹中の手の者が討ち止める（史実も竹中久作の討ち取り）。
+      if (S.u && S.u.alive && rt.t - S.endoT > 150) { S.u.invuln = false; S.u.hp = 0; rt.army.kill(S.u, null); return close(true); }
     }
   };
 
-  function close() {
+  function close(far) {
     if (S.done) return;
     S.done = true; S.k = 2;
     rt.unmark('aneEndo');
     if (S.g && !S.g.routed) { S.g.noRout = false; S.g.morale = 0; S.g.order = 'retreat'; }
-    rt.award((t) => { t.side.push('遠藤直経を止めた'); t.special = { label: '遠藤直経を止めた', pts: 15 }; }, '遠藤直経を止めた');
+    // 本人がその場にいなかった時は手柄にしない（知らせと起きた事を合わせる。関所の4）。
+    if (!far) rt.award((t) => { t.side.push('遠藤直経を止めた'); t.special = { label: '遠藤直経を止めた', pts: 15 }; }, '遠藤直経を止めた');
     rt.say('竹中久作', '遠藤喜右衛門、ここに果てたり！', 3.6);
     rt.after(4, () => live() && rt.say('森可成', '浅井は小谷へ退いた。追い討ちはここまでじゃ', 3.4));
     rt.after(8, () => live() && ctx.ending());

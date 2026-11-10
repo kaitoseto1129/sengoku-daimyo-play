@@ -426,7 +426,8 @@ const t03_komaki = {
       if (g.order !== 'retreat' && g.order !== 'flee') continue;
       for (const u of g.units) if (u.alive && !u.gone && (u.pos.z >= ZS - 2 || (u.pos.x < -XW + 4 && g.dest?.x < -60))) rt.army.despawn(u);
     }
-    if (F.ending || !F.stage || F.transitioning) return;
+    // 討死直後も戦場は動くが、本人の任務・知らせ・増援は先へ進めない。
+    if (F.ending || rt.over || !rt.player.u.alive || !F.stage || F.transitioning) return;
     const P = rt.player.u;
     walls(rt, XW, ZN, ZS);
     // 連れた兵は主人公の脇に付く

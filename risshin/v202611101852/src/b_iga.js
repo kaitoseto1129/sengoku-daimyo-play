@@ -2676,12 +2676,12 @@ const iga = {
       if (rt.t >= F.bridgeGuideAt) { F.bridgeGuideAt = rt.t + 0.35; igaBridgeWay(rt); }
       let friends = 0, foes = 0;
       for (const u of rt.army.units) {
-        if (!igaReady(u) || u.isStruct || u.group?.civ ||
+        if (!igaReady(u) || u.gone || u.downed || u.isStruct || u.group?.civ ||
             Math.abs(u.pos.y - bridgeY) >= 3 || Math.hypot(u.pos.x - F.bridge.x, u.pos.z - F.bridge.z) >= 24) continue;
         if (u.team === 0) friends++; else foes++;
       }
       let supported = false;
-      for (const u of F.ram.units) if (igaReady(u) &&
+      for (const u of F.ram.units) if (igaReady(u) && !u.gone && !u.downed &&
           Math.abs(u.pos.y - bridgeY) < 3 && Math.abs(p.y - u.pos.y) < 3 && Math.hypot(u.pos.x - F.bridge.x, u.pos.z - F.bridge.z) < 24 && Math.hypot(p.x - u.pos.x, p.z - u.pos.z) < 12 && !rt.army.wallBetween(p, -1, u.pos)) { supported = true; break; }
       // 平面上で近い下段の道を到着としない。実際に土橋へ着いてから守備を始める。
       if (F.bridgeStarted == null && atBridge) F.bridgeStarted = rt.t;

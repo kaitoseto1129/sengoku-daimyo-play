@@ -108,7 +108,9 @@ export function tick(rt) {
   }
   const P = rt.player.u.pos;
   if (!v.atDock && Math.hypot(P.x - v.dock.x, P.z - v.dock.z) < 8) {
-    v.atDock = rt.t; rt.unmark('s15dock');
+    v.atDock = rt.t;
+    // 荷下ろしから帰還まで同じ印を残し、実際に守る人足と帰路へ追従させる。
+    rt.marker('s15dock', () => dest(rt), '材木の護衛');
     sfx('taiko', 0.4);
     rt.say('蜂須賀正勝', 'よう来た。荷を下ろすぞ。少し待て', 2.8);
   }
