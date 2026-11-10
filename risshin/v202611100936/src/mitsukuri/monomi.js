@@ -1,0 +1,64 @@
+// ======================================================================
+// 箕作城 15分の構成（docs/oda15_plan_1108.md 6）　①「六角領侵攻・城を遠景・藤吉郎隊／丹羽隊と合流」（0〜3分）
+// 寄せの前に、麓の物見の場へ上がって城の構えを見る。着いたら必ず何かが起きる（kaito 11/8）：
+//   城の三段の構えが見え（三の郭・二の丸・本丸の旗）、六角の物見の小勢が脇から斬りかかる。
+//   追い払うと丹羽の手が後ろから着き、法螺貝で総懸かり（climb）へ移る。
+// 呼び方：b_mitsukuri.js の setup の終わりで start(rt, ctx, done)。
+// ======================================================================
+import * as DP from '../b_depth.js';
+import { depthStart } from '../b_depth.js';
+
+export function start(rt, ctx, done) {
+  const F = rt.flags;
+  if (F.k15Monomi) return;
+  F.k15Monomi = 'on';
+  const { SPOT, CASTLE } = ctx;
+  // 物見の小勢は三の郭の柵（z=-44）より手前の中央道から寄せる。
+  // 十八〜二十ｍ奥では柵の内へ出てしまい、物見の兵に城内用の道案内が無いため届かなかった。
+  depthStart(rt, { ...ctx, scale: 1.2 }, [
+    DP.rest({ dur: 4, heal: 0, banner: ['南近江・六角領', '上洛の道をふさぐ箕作城'],
+      say: [['木下藤吉郎', '寄せる前に城の構えを見よ。物見の場へ上がれ', 3.4]] }),
+    DP.move({
+      to: SPOT, r: 5, label: '物見の場', obj: '物見の場へ上がり、城の構えを見よ', max: 70,
+      ambush: { d: 10, title: '城の構えが見えた', sub: '坂の柵・二の丸の木戸・山上の本丸', say: ['足軽', '脇の藪から六角の物見じゃ！'],
+        foes: () => [{ name: '六角の物見', from: { x: SPOT.x - 1, z: SPOT.z - 6 }, width: 3, list: [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 6 }, { type: 'bow', n: 1 }], mass: 0 }] },
+      onEnd: (rt2) => {
+        // 着いた時に見えた物：三段の旗を短く示す（字は旗の名だけ）
+        const marks = [['k15m1', CASTLE.san, '三の郭'], ['k15m2', CASTLE.ni, '二の丸の木戸'], ['k15m3', CASTLE.hon, '本丸']];
+        for (const [id, at, label] of marks) rt2.marker(id, at, label, { h: 4 });
+        rt2.after(9, () => { for (const [id] of marks) rt2.unmark(id); });
+        rt2.say('使番', '城の構えは三段。坂の柵、二の丸の木戸、山上の本丸にござる！', 3.8);
+      },
+    }),
+    DP.fight({
+      // 増援のない物見戦に、共通の七分の増援待ちを適用しない。
+      at: SPOT, title: '六角の物見', sub: '脇から寄せる小勢', obj: '六角の物見を追い払え', max: 100, limit: 100, noRefill: true,
+      foes: () => [{ name: '六角の物見の後詰', from: { x: SPOT.x + 1, z: SPOT.z - 8 }, width: 3, list: [{ type: 'ashigaru', n: 5 }, { type: 'gun', n: 1 }], mass: 0 }],
+      reward: '六角の物見を追い払った',
+    }),
+    DP.rest({ dur: 6, heal: 0.25, banner: ['丹羽の手、着到', '四方から寄せる'],
+      say: [['丹羽長秀', '丹羽の手、ただいま着いた。わしらは東の口から寄せる', 3.4], ['木下藤吉郎', 'よし、総懸かりじゃ。持ち場へ戻れ', 2.8]] }),
+  ].map((s) => {
+    // 物見へ着かないまま待ち時間だけで合流・総懸かりを済ませない。
+    // 移動は到着、迎撃は敵の撤退を確かめる。休息の短い待ちは残す。
+    if (s.kind === 'move' || s.kind === 'fight') {
+      s.idleAdvance = false;
+      // 共通の四分・七分の打ち切りも外す。未到着や迎撃中を時間だけで済ませない。
+      s.noHardCap = true;
+      s.limit = Infinity;
+    }
+    if (s.kind === 'move') {
+      const tick = s.tick;
+      // 共通の移動は到着二十五秒で待ち伏せを退かせる。この物見は迎撃も本人の仕事。
+      s.tick = (rt2, C, m, context, el, dt) => {
+        if (!tick(rt2, C, m, context, el, dt)) return false;
+        for (const g of C.groups) {
+          if (g.routed || g.count <= 2) continue;
+          for (const u of g.units) if (u.alive && !u.fleeing) return false;
+        }
+        return true;
+      };
+    }
+    return s;
+  }), () => { F.k15Monomi = 'done'; done(); });
+}
