@@ -2057,6 +2057,10 @@ const shigisan = {
   goalSignOnly: true, // 11/4：行き先は頭上の金の▼一つだけ（持ち場のピンの上向きの矢印を重ねない。AV15・BH6）
   singleDestinationArrow: true, // 行き先の印一つに、足元からの道の矢印を重ねない（⑧・AJ）。
   enemyTriangleSigns: true,
+  // 隊幅に沿った架空の三点ではなく、見えている軽い城兵本人の頭上へ付ける。
+  lightEnemyTriangleSigns: true,
+  lightEnemySignRange: 170,
+  lightEnemySignVisible: (rt, p) => sightPoint(rt, p, 170, true, 0.8),
   // 肩越しの視点から体が隠れる敵には印だけを浮かせない（通し確認の斜面・後方）。
   enemySignVisible: (rt, u) => sightScreenUnit(rt, u),
   keepBattleSigns: true, // 行き先の案内中も、将の名札と敵全員の赤い▼を残す。

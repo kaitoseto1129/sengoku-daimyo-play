@@ -39,7 +39,7 @@ export function stop(rt) { const W = rt.flags.shWall; if (W) W.on = false; }
 function foesAt(rt, z, SB, span = 60) {
   let n = 0;
   for (const u of rt.army.units) {
-    if (u.team !== 1 || !u.alive || u.fleeing || u.gone || u.noTarget || u.group?.shWaiting) continue;
+    if (u.team !== 1 || !u.alive || u.fleeing || u.gone || u.noTarget || u.woundOut || u.rearWound || u.group?.shWaiting) continue;
     const dx = u.pos.x - SB.x0;
     if (dx > -2 && dx < 80 && Math.abs(u.pos.z - z) < span) n++;
   }
@@ -51,16 +51,18 @@ function foesAt(rt, z, SB, span = 60) {
 function insideAt(rt, z, SB) {
   let n = 0;
   for (const u of rt.army.units) {
-    if (u.team !== 1 || !u.alive || u.fleeing || u.gone || u.noTarget || u.woundOut) continue;
+    if (u.team !== 1 || !u.alive || u.fleeing || u.gone || u.noTarget || u.woundOut || u.rearWound || u.group?.shWaiting) continue;
     if (u.pos.x < SB.x0 - SB.gap - 1 && u.pos.x > SB.x0 - 40 && Math.abs(u.pos.z - z) < 32) n++;
   }
   return n;
 }
 
 function volleyHit(rt, W, z, SB, power = 1) {
+  // 予約した着弾が追撃への切替や終戦をまたいでも、柵の斉射を続けない。
+  if (!W.on || rt.over || rt.flags.ending) return;
   const cand = [];
   for (const u of rt.army.units) {
-    if (u.team !== 1 || !u.alive || u.fleeing || u.gone || u.noTarget || u.group?.shWaiting || u.invuln || u.type === 'busho') continue;
+    if (u.team !== 1 || !u.alive || u.fleeing || u.gone || u.noTarget || u.woundOut || u.rearWound || u.group?.shWaiting || u.invuln || u.type === 'busho') continue;
     const dx = u.pos.x - SB.x0;
     if (dx < 6 || dx > 70 || Math.abs(u.pos.z - z) > 28) continue;
     cand.push(u);
@@ -81,7 +83,7 @@ function volleyHit(rt, W, z, SB, power = 1) {
 
 export function tick(rt, dt) {
   const F = rt.flags, W = F.shWall;
-  if (!W || !W.on || F.ending) return;
+  if (!W || !W.on || rt.over || F.ending) return;
   const { SB, MOUTHS, ZONES } = W.ctx, P = rt.player.u.pos;
   W.t += dt;
   // ---- 近い口：三組を A→B→C の番で、二秒半ずつずらして撃たせる（寄せが来ている口だけ） ----

@@ -659,6 +659,8 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
       tick(rt, C, m, ctx, el) {
         const p = rt.player.u.pos, d = Math.hypot(p.x - C.at.x, p.z - C.at.z);
         rt.objProgress('dp', `あと ${Math.round(d)}m`);
+        // 深手で退く場合も、本人が正面へ寄せた後だけ退きの段へ進む。陣で待った刻だけでは攻めを果たさない。
+        if (rt.player.u.alive && d < (o.r || 5) + 7) C.engaged = true;
         // 一人で駆け抜けない：味方の先手が寄るか、そのピンで十五秒待つまで次へ進まない（攻め一回を二分余りに。11/10 関所の流しで十四秒で済んだ）
         const yc = gone(rt.flags.yam) ? null : rt.flags.yam.center();
         const mates = !yc || Math.hypot(yc.x - C.at.x, yc.z - C.at.z) < 18 || el - (C.pinT || 0) > 15;
@@ -669,7 +671,7 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
           if (C.k >= o.pins.length) { if (!o.stop) return true; rt.objProgress('dp', 'あと少し……'); }
           else C.pin(C.k);
         }
-        return !!(o.stop && el >= (o.minT || 0) && o.stop(rt, C, el));
+        return !!(o.stop && C.engaged && el >= (o.minT || 0) && o.stop(rt, C, el));
       },
       end(rt, C) { rt.unmark('dp'); rt.unzone('dp'); rt.objDone('dp'); if (o.onEnd) o.onEnd(rt, C); },
     };
@@ -772,7 +774,7 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
       // 本人が柵の組を援護し、生きた破城隊が取り付いた刻だけ補う。陣で待つだけでは柵を破ったことにしない。
       const tx = (T.seg[0] + T.seg[2]) / 2, tz = (T.seg[1] + T.seg[3]) / 2, p = rt.player.u;
       const working = p.alive && Math.hypot(p.pos.x - tx, p.pos.z - tz) < 14 && rt.flags.rams.some((g) =>
-        !gone(g) && !g.far && g.units.some((u) => u.alive && !u.fleeing && !u.woundOut && Math.hypot(u.pos.x - tx, u.pos.z - tz) < 8));
+        !gone(g) && !g.far && g.units.some((u) => u.alive && !u.gone && !u.fleeing && !u.woundOut && Math.hypot(u.pos.x - tx, u.pos.z - tz) < 8));
       if (working) C.ramWorkT = (C.ramWorkT || 0) + dt;
       if (clamp && C.ramWorkT > 70) { T.hp = T.maxHp * 0.3; T.invuln = true; return true; }
       if (!clamp && C.ramWorkT > 150 && T.alive) { rt.army.damage(T, T.hp + 1, null, { kind: 'melee' }); return !T.alive; }
