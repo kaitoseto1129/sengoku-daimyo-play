@@ -730,7 +730,16 @@ const k06_sekigahara = {
     F.ending = true; F.won = true;
     rt.unmark('foe');
     rt.player.u.invuln = true;
-    if (alive(F.shima)) { F.shima.order = 'move'; F.shima.dest = { ...SHIMA_PATH[SHIMA_PATH.length - 1] }; F.shima.onArrive = null; F.shima.aggro = 0; }
+    if (alive(F.shima)) {
+      // 通常の移動は近い敵へ応戦し、鉄砲も撃ち続ける。受け合いの後は伊勢路への退却を優先する。
+      const g = F.shima;
+      g.order = 'retreat'; g.dest = { ...SHIMA_PATH[SHIMA_PATH.length - 1] };
+      g.onArrive = null; g.aggro = 0; g.seekRange = 0; g.fire = false; g.focus = null;
+      for (const u of g.units) if (u.alive && !u.gone) {
+        u.target = null; u.watch = null; u.atk = null; u.swing = null; u.bind = null;
+        u.charging = false; u.aiT = 0;
+      }
+    }
     for (const g of rt.army.groups) if (g.team === 1 && g !== F.shima) rout(g);
     // 11/8 kaito：すぐ札へ行かず、霧の晴れた野の余韻と首実検の支度を二十秒（k06/yoin.js が締めの finish を呼ぶ）
     //   主の任務の済みと手柄は締めの直前に（共通の goalsDoneTick が二秒半で勝ちに締め、余韻を切らないように）

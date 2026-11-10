@@ -554,6 +554,7 @@ html:root body #hud:has(#h-prog[data-battle="t03b_nagakute"]) #center-call .cc {
 
   update(rt, dt) {
     const F = rt.flags;
+    countFallen(rt);
     if (stopped(rt) || !F.stage) return;
     const P = rt.player.u;
     walls(rt, XW, ZN, ZS);
@@ -753,9 +754,24 @@ html:root body #hud:has(#h-prog[data-battle="t03b_nagakute"]) #center-call .cc {
   },
 };
 t03b_nagakute.sides = { a: { name: '羽柴勢（中入り）', mon: 'toyotomi' }, b: { name: '徳川・織田信雄勢', mon: 'tokugawa' } };
-// 兵の数（布陣図）：白山林・檜ヶ根は信吉 九千・堀 三千 対 先に出た水野・丹羽・大須賀・榊原らおよそ四千五百。
-// 仏ヶ根は池田・森 およそ九千 対 家康・信雄 およそ九千三百（docs/battle_refs/t03_komaki.md）
-t03b_nagakute.force = (rt) => ((rt?.flags?.stage ?? 0) >= 4 ? { a: 9000, a0: 9000, b: 9300, b0: 9300 } : { a: 12000, a0: 12000, b: 4500, b0: 4500 });
+// 画面の兵数は始まりの札と同じ中入り二万対一万四千。局地戦へ移っても初期人数を替えない。
+// 退去・逃走・後続の到着を討死と取り違えず、倒れた兵だけ一度数える。
+function countFallen(rt) {
+  const F = rt.flags;
+  // やり直しの写しで集合も戻す。写されない弱い集合では、復活後の討死を数え損ねる。
+  if (!F.countedFallen) { F.countedFallen = new Set(); F.fallen = [0, 0]; }
+  for (const u of rt.army.units) {
+    if (u.alive || !(u.hp <= 0) || u.isStruct || u.isPlayer || u.civ || (u.team !== 0 && u.team !== 1) || F.countedFallen.has(u)) continue;
+    F.countedFallen.add(u); F.fallen[u.team]++;
+  }
+}
+t03b_nagakute.force = (rt) => {
+  if (rt?.flags && rt.army) countFallen(rt);
+  const fallen = rt?.flags?.fallen;
+  // 小牧の対陣と同じく、本物の兵一人を二十人に見立てる。
+  return { a: Math.max(0, 20000 - (fallen?.[0] || 0) * 20), a0: 20000,
+    b: Math.max(0, 14000 - (fallen?.[1] || 0) * 20), b0: 14000, casualtiesCounted: true };
+};
 t03b_nagakute.date = () => '天正十二年四月九日　朝・初夏';
 t03b_nagakute.history = '小牧で家康とにらみ合う中、池田恒興の策で、池田恒興・元助、森長可、堀秀政、三好信吉（秀吉の甥。翌年に羽柴秀次と名を改める）のおよそ二万が、家康の留守の三河を突こうと東へ回り込んだ（中入り）。家康はこれを知って小牧山を出て追い、四月九日の朝、白山林で休んでいた信吉の隊を後ろと横から襲って崩した。信吉は馬を失いながら逃れた。堀秀政は檜ヶ根で鉄砲を揃えて追手を押し返したが、家康の本隊が池田・森の後ろへ回ったと知って退いた。家康と信雄は堀と池田・森の間の御旗山（富士ヶ根）に金扇の馬印を立てて本陣を置き、井伊直政の赤備えらを前に出した。長久手で池田・森の勢は前と横から押し包まれ、森長可は眉間を撃たれ、池田元助は安藤直次に、恒興は永井直勝に討たれた。秀吉は戦では家康に勝てず、この年の十一月に信雄と和睦し、家康とも手を結んだ。白山林・檜ヶ根・仏ヶ根の間隔と向きは縮めた復元で、主人公の組の動きは遊びのための筋書き。檜ヶ根に柵・堀を築いた記述は無いので置かない。香流川の流れと仏ヶ根の西の田は地形の写しの推定。';
 t03b_nagakute.famous = [];

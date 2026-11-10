@@ -101,11 +101,12 @@ export function tick(rt, dt) {
     if (near(p, I.BACK, 9) && p.x < c.SB.x0 - 2) {
       I.s = 4; I.at = rt.t;
       c.nfGuns(rt, c.MOUTHS[0].z);
-      try { sfx('volley', 1); } catch (e) { /* なし */ }
-      rt.say('野々村正成', '放てっ！', 1.8);
-      // 柵の前まで追った物見は鉄砲に倒れる（撃ち手の当たりに任せず、一斉射の結果として半分を倒す）
-      let k = 0;
-      for (const u of I.g.units) if (u.alive && u.pos.x < c.SB.x0 + 30 && (k++ % 2 === 0)) rt.army.kill(u, null);
+      I.gunsReady = c.guns().some((q) => !q.routed && q.units.some((u) =>
+        u.type === 'gun' && u.alive && !u.fleeing && !u.gone && !u.woundOut && !u.rearWound && !u.noTarget &&
+        Math.hypot(u.pos.x - I.BACK.x, u.pos.z - I.BACK.z) < 80));
+      if (I.gunsReady) rt.say('野々村正成', '放てっ！', 1.8);
+      // 下知だけを出し、射手の生死・装填・射線と命中は通常の鉄砲に任せる。
+      // 本人が戻っただけで物見を直接倒すと、鉄砲組が全滅していても討死を作ってしまう。
     }
     return true;
   }
@@ -115,7 +116,7 @@ export function tick(rt, dt) {
       I.fled = true;
       const q = I.g; q.noRout = false; q.morale = 0; q.routed = true; q.order = 'retreat'; q.dest = { x: 400, z: q.center().z }; q.fleeDir = { x: 1, z: 0 };
       for (const u of q.units) if (u.alive) u.fleeing = true;
-      rt.say('前田利家', '見たか。柵から出ねば、鉄砲が守ってくれる', 3.4);
+      rt.say('前田利家', I.gunsReady ? '見たか。柵と鉄砲で寄せ手を受けるのじゃ' : '物見は退いた。深追いするな。柵の守りを固めよ', 3.4);
       rt.award((t) => { t.side.push('武田の物見を柵の前へ誘い出した'); }, '物見を誘い出した', I.BACK);
     }
     if (T > 8) {
