@@ -26,6 +26,7 @@ import { withGuard } from './toyo_bot.js';
 import { fieldButai, fieldTick, routButai, lightPos } from './b_yasen.js';
 import { butaiTick } from './butai.js';
 import { addSite } from './map_sites.js';
+import { farSight } from './far_sight.js';
 import { setStages } from './b_k_help.js';
 import { KILLS, cut } from './stages.js';
 import { timeslipField } from './timeslip_field.js';
@@ -169,6 +170,7 @@ const k04_kuisegawa = {
     time: 'day',
     groundHalf: 260,
     battleViewDistance: 280,
+    landmarkViewFar: 320,    // 岡山は刈田から約二百m、深田から約二百七十m。カメラの奥で本陣を切らない。
     clearAir: true,          // 兵の描画距離の上限は保ち、岡山の本陣と葵の旗を晴れた遠景に残す
     mountainScale: 0.1, mountainHaze: 0.9,
     moveLim: 248,
@@ -331,7 +333,9 @@ const k04_kuisegawa = {
   // 家康の本陣（赤坂の岡山）と有馬の陣（赤坂の側の岸）。どちらも本物の旗本がいる
   camps(rt) {
     const F = rt.flags, W = rt.world;
+    const campStart = rt.scene.children.length;
     KIT.honjin(rt, IEYASU.x, IEYASU.z, { mon: 'tokugawa', people: false, fire: true });
+    farSight(rt.scene.children.slice(campStart), { W, ground: { ...IEYASU, r: 24 }, far: 320 });
     addSite(rt, 'fort', IEYASU.x, IEYASU.z, '家康の本陣');
     F.ieyasu = allyGroup(rt, { name: '徳川家康の旗本', fullStrength: true, anchor: T(205, -146), facing: Y(-Math.PI * 0.75), width: 6, aggro: 4, seekRange: 8, order: 'hold', fixed: true, noRout: true },
       fl([{ type: 'busho', n: 1, o: { name: '徳川家康', invuln: true, horse: false } }, { type: 'samurai', n: 18 }, { type: 'gun', n: 4 }], 'tokugawa'));
@@ -340,7 +344,11 @@ const k04_kuisegawa = {
     // 本陣の前を固める旗本の備（数百。岡山の一帯に東軍の陣があった。tabi-mag gi0027）。川へは出ない
     F.hata = this.block(rt, { key: 'hata', name: '徳川家康の旗本', team: 0, flag: 'tokugawa', at: T(186, -128), facing: Y(-Math.PI * 0.75), w: 26, d: 8 });
     if (F.ieyasuU) F.ieyasuU._crouch = true;   // 床几に腰を下ろす（総大将は本陣で座る）
-    for (const [dx, dz] of [[-10, 8], [10, 8], [0, 14]]) rt.scene.add(nobori(W, IEYASU.x + dx, IEYASU.z + dz, 'tokugawa', 7));
+    for (const [dx, dz] of [[-10, 8], [10, 8], [0, 14]]) {
+      const flag = nobori(W, IEYASU.x + dx, IEYASU.z + dz, 'tokugawa', 7);
+      farSight(flag, { far: 320 });
+      rt.scene.add(flag);
+    }
     // 有馬の陣の幕と幟は有馬家の左三つ巴。徳川の金扇の馬印は家康の本陣だけ（外様の陣に立てない・11/6）
     KIT.honjin(rt, T(88, -30).x, T(88, -30).z, { mon: ARIMA_MON, people: false, fire: true, yoroi: false, uma: false, hyoro: false });   // 刈田の野の陣に俵は積まない（11/8 critic60 二1）
     addSite(rt, 'fort', ARIMA.x, ARIMA.z, '有馬豊氏の陣');

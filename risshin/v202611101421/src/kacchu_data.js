@@ -1051,6 +1051,11 @@ Object.assign(KACCHU["島左近"], { bowl: "suji", sujiPlates: 52, crest: "sanko
 Object.assign(KACCHU["浅野長晟"], { bowl: "momonari", crest: "none",
   armor: 0x1c1a1a, helm: 0x1c1a1a, lac: "kuro", fuki: "kuro", lace: 0x6a4026, odo: 0x6a4026,
   doStyle: "okegawa", menpo: 0, haori: 0, mon: "asano", flag: "asano", uma: null, fukigaeshiBadge: false });
+// 11/10 浅野長政（長吉）：大阪城天守閣蔵「茶糸威桶側五枚胴具足（伝浅野長政所用）」の桃形鉢・大水牛脇立・茶糸威・桶側胴・違い鷹の羽。
+//   前の南蛮鉢・徳川葵は根拠が無いので改める。正則の大水牛とは威（茶と縹）と紋で分かれる。出所：docs/generals_look_1108/浅野長政.md
+Object.assign(KACCHU["浅野長政"], { bowl: "momonari", crest: "bull",
+  armor: 0x1c1a1a, helm: 0x1c1a1a, lac: "kuro", fuki: "kuro", lace: 0x6a4026, odo: 0x6a4026,
+  doStyle: "okegawa", menpo: 0, haori: 0, mon: "asano", flag: "asano", uma: null, fukigaeshiBadge: false });
 // 11/9 徳川C：蜂須賀至鎮。本人所用と確定できる具足は未確認。徳島城博物館の「萌葱糸威二枚胴具足 唐冠形兜付」は、
 //   至鎮が大坂の陣で同じ形の兜で武功を挙げたのにちなむ蜂須賀家の吉例の形とされる。唐冠形の鉢・萌葱糸威・二枚胴をその型から借りる（色は復元）。
 //   紋は家の旗に合わせ卍（至鎮の代の定紋は抱き柏とする説もある）。面頬・陣羽織・馬印は補わない。出所：docs/generals_look_1108/蜂須賀至鎮.md

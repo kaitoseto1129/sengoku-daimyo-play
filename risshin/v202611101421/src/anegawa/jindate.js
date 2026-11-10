@@ -116,7 +116,11 @@ export function install(rt, ctx) {
 // 本人が物見と槍を合わせた事だけを記録する。討ち取りも同じ入口を通る。
 export function hit(rt, u) {
   const S = rt.flags.aneJin;
-  if (S && !S.done && S.k === 2 && u?.group === S.g) S.fought = true;
+  const g = S?.g;
+  // 退く下知の後の追い打ちを、岸で物見を受け止めた手柄にしない。
+  // 討ち取りの通知は命が尽きた後にも来るため、alive・hp では外さない。
+  if (S && !S.done && S.k === 2 && g && u?.group === g &&
+      !g.routed && g.order !== 'retreat' && g.order !== 'flee' && !u.gone && !u.fleeing) S.fought = true;
 }
 
 // 右上の一行（def.missionOf）：始まりの段の番号。済んだら null
