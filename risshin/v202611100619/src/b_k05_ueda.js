@@ -431,6 +431,10 @@ const k05_ueda = {
     if (F.step) rt.objDone('s' + F.step);
     F.step = n; F.stepT = rt.t;
     rt.obj('s' + n, STEP_TEXT[n], 'main');
+    // 前の段の予約台詞で、退却などの新しい下知を上書きしない。
+    const sayLater = (sec, who, text, duration) => rt.after(sec, () => {
+      if (!rt.over && !F.ending && F.step === n) rt.say(who, text, duration);
+    });
     if (n === 1) {
       sfx('horagai', 0.8);
       // 大手門から真田の兵が打って出て、北の田の刈田の手を襲う
@@ -439,13 +443,13 @@ const k05_ueda = {
       F.honda.order = 'attack'; F.honda.seekRange = 50; F.honda.anchor = { x: KARI.x, z: KARI.z + 4 };
       // 大久保の手も町屋から北の田へ寄せ、刈田の手を襲う真田を挟む（BK1・AP5：自分だけが走らない）
       F.okubo.order = 'attack'; F.okubo.seekRange = 50; F.okubo.anchor = { x: KARI.x + 6, z: KARI.z + 12 };
-      rt.after(3, () => rt.say('牧野康成', '城の門が開いた！　真田が刈田を襲うて来るぞ！', 3));
-      rt.after(7, () => rt.say('本多忠政', '待っておったわ。田へ走れ、刈田の衆を助けよ！', 3));
+      sayLater(3, '牧野康成', '城の門が開いた！　真田が刈田を襲うて来るぞ！', 3);
+      sayLater(7, '本多忠政', '待っておったわ。田へ走れ、刈田の衆を助けよ！', 3);
     } else if (n === 2) {
       this.back(F.sortie);
       rt.say('大久保忠隣', '逃がすな！　門まで追い詰めよ！', 3);
-      rt.after(7, () => rt.say('真田の足軽', '徳川の大軍も追えぬか！　城まで来てみよ！', 3));
-      rt.after(3.5, () => rt.say('本多忠政', '深追いはならぬと言うたが……もう止まらぬ。続け！', 3));
+      sayLater(7, '真田の足軽', '徳川の大軍も追えぬか！　城まで来てみよ！', 3);
+      sayLater(3.5, '本多忠政', '深追いはならぬと言うたが……もう止まらぬ。続け！', 3);
       for (const [g, p] of [[F.honda, { x: FRONT.x + 8, z: FRONT.z - 6 }], [F.okubo, { x: FRONT.x + 8, z: FRONT.z + 6 }], [F.makino, { x: TOWN.x + 6, z: TOWN.z - 14 }]]) {
         g.order = 'move'; g.dest = p; g.speed = 3.8; g.onArrive = (q) => { q.order = 'hold'; q.anchor = { x: p.x, z: p.z }; };
       }
@@ -455,10 +459,10 @@ const k05_ueda = {
       for (let i = 0; i < 6; i++) rt.army.smoke(GATE.x - 2, rt.world.heightAt(GATE.x, GATE.z) + 2.6, GATE.z - 8 + i * 3.2, 1, 0);
       F.yari = this.foe(rt, '門から打って出た真田の槍', { x: GATE.x - 8, z: GATE.z }, [uS(5), uA(20), uG(3)], { aim: { x: FRONT.x + 2, z: FRONT.z }, width: 8, morale: 98 });
       F.w3N = aliveN(F.yari);
-      rt.after(10, () => rt.say('真田昌幸', '誘いに乗ったな。小路の出口へ回れ、退き口を押さえよ！', 3));
+      sayLater(10, '真田昌幸', '誘いに乗ったな。小路の出口へ回れ、退き口を押さえよ！', 3);
       for (const g of [F.honda, F.okubo]) { g.order = 'attack'; g.seekRange = 30; g.anchor = { x: FRONT.x + 4, z: g === F.honda ? FRONT.z - 4 : FRONT.z + 4 }; }
-      rt.after(2, () => rt.say('足軽', '門の上から撃ってくる！　前の者がばたばた倒れる！', 3));
-      rt.after(6, () => rt.say('真田昌幸', '引き付けて放て。門の前に寄せた者は、一人も帰すな', 3.2));
+      sayLater(2, '足軽', '門の上から撃ってくる！　前の者がばたばた倒れる！', 3);
+      sayLater(6, '真田昌幸', '引き付けて放て。門の前に寄せた者は、一人も帰すな', 3.2);
     } else if (n === 4) {
       // 信繁の手が北の林から出て、門の前の徳川の先手の横を突く
       sfx('taiko', 1);
@@ -468,8 +472,8 @@ const k05_ueda = {
       rt.after(40, () => { nb.noRout = false; });
       F.w4N = aliveN(nb);
       for (const g of [F.honda, F.okubo, F.makino]) if (live(g)) { g.morale -= 15; g.order = 'attack'; g.seekRange = 40; }
-      rt.after(3, () => rt.say('大久保忠隣', '横から来たぞ！　槍を北へ向けよ！', 3));
-      rt.after(8, () => rt.say(NOBU, '徳川の先手、門の前で足が止まったわ。揉み潰せ！', 3.2));
+      sayLater(3, '大久保忠隣', '横から来たぞ！　槍を北へ向けよ！', 3);
+      sayLater(8, NOBU, '徳川の先手、門の前で足が止まったわ。揉み潰せ！', 3.2);
       rt.after(16, () => { if (F.step === 4) rt.say(NOBU, '兄上は徳川に付かれた。……真田の家は、どちらが勝っても残る', 3.6); });
     } else if (n === 5) {
       // 「一度引け」の下知に合わせて退く。再攻撃の間も信繁だけ戦い続けないようにする。
@@ -483,14 +487,14 @@ const k05_ueda = {
       }
       F.re = this.foe(rt, '大手門の守りの新手', { x: GATE.x - 8, z: GATE.z + 2 }, [uS(4), uA(14), uG(3)], { aim: { x: FRONT.x - 2, z: FRONT.z }, width: 8, morale: 100, dmg: 0.5 });
       F.w5N = aliveN(F.re); F.reAt = 0;
-      rt.after(6, () => rt.say('榊原康政', '数はこちらが十倍じゃ。塀に取り付け、門を押し破れ！', 3.4));
-      rt.after(16, () => rt.say('真田昌幸', '何度来ても同じこと。門の前へ寄せた者から撃て', 3.2));
-      rt.after(30, () => rt.say('大久保忠隣', '塀の上から撃ちすくめられる……門が固い！', 3));
+      sayLater(6, '榊原康政', '数はこちらが十倍じゃ。塀に取り付け、門を押し破れ！', 3.4);
+      sayLater(16, '真田昌幸', '何度来ても同じこと。門の前へ寄せた者から撃て', 3.2);
+      sayLater(30, '大久保忠隣', '塀の上から撃ちすくめられる……門が固い！', 3);
     } else if (n === 6) {
       // 秀忠の引き揚げの下知。大久保と牧野の手は先に川を越え、本多の先手（主人公）が神川の西の岸でしんがりを務める
       sfx('horagai', 0.9);
       rt.say('秀忠の使番', '中納言様のお下知！　先手は引け。神川を越えて本陣へ戻れ！', 3.6);
-      rt.after(4.2, () => rt.say('本多忠政', '我らがしんがりじゃ。神川の岸で真田を止めよ！', 3.4));
+      sayLater(4.2, '本多忠政', '我らがしんがりじゃ。神川の岸で真田を止めよ！', 3.4);
       for (const [g, p] of [[F.okubo, { x: RET.x + 6, z: -14 }], [F.makino, { x: RET.x + 10, z: 20 }], [F.saka, { x: RET.x + 8, z: -24 }]]) {
         if (!live(g)) continue;
         g.order = 'move'; g.dest = p; g.speed = 3.7; g.onArrive = (q) => { q.order = 'hold'; q.anchor = { x: p.x, z: p.z }; };
@@ -645,8 +649,9 @@ const k05_ueda = {
       };
     };
     F.w6N = aliveN(F.oi); F.oiT = rt.t;
-    rt.after(2, () => rt.say('足軽', '城から新手が出た！　真田が追って来るぞ！', 3));
-    rt.after(9, () => rt.say('本多忠政', '川を背に槍を揃えよ。ここで止めねば皆討たれる！', 3.2));
+    // 退却の下知（0〜3.6秒）と殿の下知（4.2〜7.6秒）を先に読ませる。
+    rt.after(8, () => { if (!rt.over && !F.ending && F.step === 6) rt.say('足軽', '城から新手が出た！　真田が追って来るぞ！', 3); });
+    rt.after(12, () => { if (!rt.over && !F.ending && F.step === 6) rt.say('本多忠政', '川を背に槍を揃えよ。ここで止めねば皆討たれる！', 3.2); });
   },
 
   // 塀の内の土塁の鉄砲と弓：門へ寄る徳川の兵を、塀越しに次々に撃つ（二の7・十の3。critic60：門の前で味方がほとんど倒れない）
