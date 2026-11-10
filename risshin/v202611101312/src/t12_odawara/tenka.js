@@ -113,7 +113,7 @@ export function ending(rt, H) {
   const F = rt.flags, me = nm(rt);
   // 北条の旗が下がり、門の兵は槍を伏せて座る
   if (F.lowerT == null) F.lowerT = rt.t;
-  for (const g of rt.army.groups || []) if (g.team === 1) { g.peaceful = true; g.fire = false; for (const u of g.units) if (u.alive && !u.name) u._crouch = true; }
+  for (const g of rt.army.groups || []) if (g.team === 1) { g.peaceful = true; g.fire = false; for (const u of g.units) if (u.alive && !u.name && (!g.kaijoColumn || g.seated)) u._crouch = true; }
   rt.say('北条氏直', '城を開く。わしの腹ひとつで、城の者の命を助けてくだされ', 4.4);
   rt.after(4.8, () => rt.say('黒田官兵衛', 'そのお覚悟、しかと殿下に申し上げまする', 4));
   rt.after(9, () => rt.say('使番', '小田原、開城！　氏直殿、滝川殿の陣へ出て降られた', 4));
