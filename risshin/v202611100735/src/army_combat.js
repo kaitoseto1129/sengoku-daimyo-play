@@ -1196,7 +1196,7 @@ export const ArmyCombat = {
   // 馬に手傷を負わせる：体力が尽きれば倒れる（horseShot）。尽きなければ驚いて竿立ちになり、少し動けなくなる
   horseDamage(t, amount, src, kind) {
     // 11/8 critic60 忍（一2）：討たれない名のある将（invuln）は馬も倒れない（正木丹波守・甲斐姫が門の前で徒歩になっていた）
-    if (t.invuln && !t.isPlayer && t.name) return;
+    if (t.invuln && !t.isPlayer && t.name && !t.mortalHorse) return;
     if (t.horseHp === undefined) { t.horseMax = Math.round((t.maxHp || 110) * 1.3); t.horseHp = t.horseMax; }
     // 馬の傷も一撃の重さに応じる。弱い弾でも必ず即死、という扱いをやめる
     const force = Math.max(0, amount) / 34;

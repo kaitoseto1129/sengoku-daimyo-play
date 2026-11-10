@@ -277,8 +277,8 @@ const t03b_nagakute = {
         if (F.stage !== 1) return;
         F.w1.push(...[0, 1].map((i) => this.wave(rt, { x: CAMP.x - 10 + i * 18, z: ZN + 8 }, 12, CAMP, '榊原康政の手', null, SAKA)).filter(Boolean));
         this.general(rt, '榊原康政', { x: CAMP.x + 6, z: ZN + 2 }, SAKA, 0);
-        //   五十五秒で南の田から丹羽氏次の手も（三方から。信吉隊の前衛が崩れる）
-        rt.after(37, () => { if (F.stage === 1) { const g = this.wave(rt, { x: CAMP.x + 20, z: CAMP.z + 44 }, 10, CAMP, '丹羽氏次の手'); if (g) { F.w1.push(g); rt.say('物見', '南の田からも！　前の組が崩れるぞ！', 2.6); } } });
+        // 五十五秒で丹羽氏次の手も後ろ（東）から続く。横（北）から襲う榊原の手と挟む（布陣図）。
+        rt.after(37, () => { if (F.stage === 1) { const g = this.wave(rt, { x: CAMP.x + 38, z: CAMP.z + 20 }, 10, CAMP, '丹羽氏次の手'); if (g) { F.w1.push(g); rt.say('物見', '東の後ろから丹羽の手も！　後ろの組が崩れるぞ！', 2.6); } } });
         rt.army.play('toki', { x: CAMP.x, z: ZN + 14 }, 1.4);
         rt.say('物見', '北の横からも！　榊原の旗じゃ、挟まれた！', 2.8);
       });

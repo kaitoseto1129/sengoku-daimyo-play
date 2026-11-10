@@ -203,6 +203,7 @@ function tadaStep(s, rt) {
     if (!rt.flags.tadaHandDone && tick(r, C, m, ctx, el)) rt.flags.tadaHandDone = true;
     const u = rt.flags.tadaU;
     if (u?.alive) C.goal = u.pos;
+    if (u?.alive && rt.flags.tadaHandDone) rt.objProgress('dp', '土橋の前の坂で、島津忠隣を討ち取れ');
     return rt.flags.tadaHandDone && !!u && !u.alive && !!rt._g5?.own.has('島津忠隣');
   };
   s.idleAdvance = false;   // 止まっていても段は先へ飛ばない（忠隣は寄せ続ける。⑤を果たさずに勝ちにしない。kaito 三3）
@@ -219,8 +220,17 @@ function tadaComes(rt) {
   F.tada = enemyGroup(rt, { faction: 'shimazu', name: '島津忠隣の近習', fixed: true, anchor: { x: -2, z: 62 }, facing: Math.PI, width: 6, order: 'attack', seekRange: 70, aggro: 16, noRout: true, morale: 100 },
     dress([{ type: 'busho', n: 1, o: { name: '島津忠隣', invuln: true, horse: true, hat: 'kabuto_w', haori: 0x2a2626 } }, uS(5)], SHIMAZU));
   F.tada.anchor = { x: BREACH.x, z: 14 };
+  // 忠隣は本陣の将と違い、自ら斬り込んで討死する。共通の軍師に退かせず、近習と共に土橋へ進む。
+  F.tada.order = 'assault'; F.tada.leaderAssault = true;
+  F.tada.historicalOrders = true; F.tada.noPursue = true;
   F.tada.dmgMult = 0.6; F.tada.speed = 4.2;
   const u = F.tadaU = F.tada.units.find((q) => q.name === '島津忠隣');
+  if (u) {
+    // 共通の武将の後退判断を外す。ほかの者には討たれない指定と、主人公の止めは下で守る。
+    u.keep = true;
+    // 乗り手の保護を馬まで広げると、馬に当たった刃が傷を付けずに消える。
+    u.mortalHorse = true;
+  }
   // 若武者一人に三分も打ち合わせない（体の強さは出た後に決まるので、一息おいて整える）
   if (u) rt.after(0.3, () => { if (u.alive) { u.maxHp = Math.min(u.maxHp, 460); u.hp = Math.min(u.hp, u.maxHp); } });
   if (u) u.onWound = (src) => {
