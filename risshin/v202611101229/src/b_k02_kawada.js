@@ -265,6 +265,24 @@ function yoneno(step) {
   };
   return step;
 }
+// 砦は木戸を入って守備の八割を崩せば取れる。柵の向こうや戦場の端に
+// 残った数人、戦えない負傷兵を探し続けて段が止まらないようにする。
+function fort(step) {
+  mine(step, 30, inFort);
+  const tick = step.tick;
+  step.tick = (rt, C, ...a) => {
+    if (tick(rt, C, ...a)) return true;
+    if (!inFort(rt.player.u.pos) || C.later.length || !C.nTot) return false;
+    const left = C.groups.reduce((n, g) => n + (g.routed ? 0 : guardStrength(g)), 0);
+    if (left > C.nTot * 0.2) return false;
+    for (const g of C.groups) if (g.count) {
+      g.fleeDir = { x: 0, z: -1 }; g.fleeSet = true;
+      g.noRout = false; g.order = 'retreat'; g.morale = 0;
+    }
+    return true;
+  };
+  return step;
+}
 // 味方の備は本人と一緒に進む（主人公だけが先に一人で走らない・本人の居ない所で味方だけが攻め落とさない。九4・一5）
 //   段が始まると味方は隊のまま一斉に段の場所へ押し出す（本人が先に一人で走らない）。本人が遠い間は斬り合いを浅くし（傷を与える力を下げ）、
 //   本人の居ない所で味方だけが敵を崩し切らない。本人が着けば本気でかかる
@@ -469,11 +487,11 @@ const k02_kawada = {
         reward: '米野で百々綱家の隊を追い払った' })),
       DP.rest({ dur: 5, heal: 0.9, fn: (rt2) => rt2.world.setTime('afternoon') }),   // 新加納の砦は昼過ぎ〜夕方に済んだ
       // ④ 北の新加納の砦。殿がよく防ぐが数で破る。秀信は岐阜城へ退く
-      mine(DP.fight({ at: SHINKANO, title: '新加納の砦', sub: '岐阜への道を殿の織田勢が塞ぐ', obj: '北の新加納の砦の木戸から入り、殿の織田勢を追い払え', max: 200, noRefill: true,   // 砦の内に「新手の新加納の鉄砲組」を湧かせない（11/6 流しで出た）
+      fort(DP.fight({ at: SHINKANO, title: '新加納の砦', sub: '岐阜への道を殿の織田勢が塞ぐ', obj: '北の新加納の砦の木戸から入り、殿の織田勢を追い払え', max: 200, noRefill: true,   // 砦の内に「新手の新加納の鉄砲組」を湧かせない（11/6 流しで出た）
         say: [['池田照政', '敵は岐阜城へ退くぞ。新加納の砦を破れ！']],
         foes: () => [keep('新加納の鉄砲組', { x: SHINKANO.x, z: SHINKANO.z + 4 }, [{ type: 'samurai', n: 2 }, { type: 'gun', n: 10 }, { type: 'ashigaru', n: 6 }], { morale: 94 }),
           keep('新加納の殿', { x: SHINKANO.x, z: SHINKANO.z - 6 }, [{ type: 'samurai', n: 6 }, { type: 'ashigaru', n: 10 }], { morale: 96 })],
-        reward: '新加納の砦を破り、岐阜へ追い込んだ' }), 30, inFort),
+        reward: '新加納の砦を破り、岐阜へ追い込んだ' })),
     ], (rt2) => this.win(rt2));
   },
 

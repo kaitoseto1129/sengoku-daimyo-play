@@ -2741,7 +2741,7 @@ function okReflectFlags(rt, units) {
 }
 
 function okReflect(rt) {
-  const flagMats = new Map(), gateMats = new Map();
+  const flagMats = new Map(), gateMats = new Map(), styledFlags = new Set();
   const reflected = (base, cache, color, intensity) => {
     if (!base?.emissive) return base;
     if (!cache.has(base)) {
@@ -2754,7 +2754,22 @@ function okReflect(rt) {
     return cache.get(base);
   };
   // 雨夜でも旗だけを青白く発光させない。紋と地の濃淡は空と篝火の光で読む。
-  const flag = (mesh) => { if (mesh) mesh.material = reflected(mesh.material, flagMats, 0x000000, 0); };
+  const flag = (mesh) => {
+    if (!mesh) return;
+    const material = reflected(mesh.material, flagMats, 0x000000, 0);
+    if (material !== mesh.material && !styledFlags.has(material)) {
+      styledFlags.add(material);
+      const compile = material.onBeforeCompile, key = material.customProgramCacheKey;
+      // 白地の幟でも、縮んだ紋の灰色を白へ溶かさない。布の形と共有する絵は保つ。
+      material.onBeforeCompile = function(sh, renderer) {
+        compile.call(this, sh, renderer);
+        sh.fragmentShader = sh.fragmentShader.replace('#include <color_fragment>',
+          '#include <color_fragment>\n diffuseColor.rgb = pow(max(diffuseColor.rgb, vec3(0.0)), vec3(1.25));');
+      };
+      material.customProgramCacheKey = () => key.call(material) + '_ok紋';
+    }
+    mesh.material = material;
+  };
   rt.scene.traverse((obj) => { if (obj.userData.flag?.isMesh) flag(obj.userData.flag); });
   okReflectFlags(rt, rt.army.units);
   for (const b of rt.flags.nearButai) {
@@ -3253,7 +3268,7 @@ function okLandscape(W) {
     parts[2].scale(2.7, 2.5, 2.6); parts[2].translate(.9, 7.1, -.3);
     const geometry = mergeGeometries(parts);
     for (const p of parts) p.dispose();
-    const material = new THREE.MeshLambertMaterial({ color: 0xffffff });
+    const material = okForestMaterial();
     for (const mesh of W.farTreeMeshes) {
       const old = mesh.geometry;
       mesh.geometry = geometry; mesh.material = material;
@@ -3289,7 +3304,7 @@ function okLandscape(W) {
   const edge = W.half, segments = 48, bankRows = 7, trees = segments * 4 * 2;
   const trunks = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.18, 0.3, 4, 10), new THREE.MeshLambertMaterial({ color: 0x3c3025 }), trees);
   // 縁の林も七角の球をやめ、凸凹の房に秋の褐色と常緑の深緑を株ごとに混ぜる（10/29 点付け：角ばった塊・秋の林なし）。
-  const crowns = new THREE.InstancedMesh(okCrownGeo(37), new THREE.MeshLambertMaterial({ color: 0xffffff }), trees);
+  const crowns = new THREE.InstancedMesh(okCrownGeo(37), okForestMaterial(), trees);
   const d = new THREE.Object3D(), pos = [], uv = [], idx = [];
   let count = 0;
   for (let side = 0; side < 4; side++) {
@@ -3342,12 +3357,28 @@ function okAutumnBushes(W) {
   okTintTrees(W, (i) => brown[(i * 7 + (i >> 2)) % 4], bushes);
 }
 
-// 丸い樹冠：二十面体を一度割り、向きごとに膨らみと凹みを付けて葉群の房にする（角や平らな面を作らない）。
+// 遠景と外周の房にも葉群の濃淡を残す。株の数・面数・描く回数は増やさない。
+function okForestMaterial() {
+  const material = new THREE.MeshLambertMaterial({ color: 0xffffff });
+  material.onBeforeCompile = (sh) => {
+    sh.vertexShader = 'varying vec3 vOkForest;\n' + sh.vertexShader.replace('#include <begin_vertex>',
+      '#include <begin_vertex>\n vOkForest = position;');
+    sh.fragmentShader = 'varying vec3 vOkForest;\n' + sh.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
+      float okLeaves = sin(dot(vOkForest, vec3(3.7, 4.1, 2.9)))
+        * sin(dot(vOkForest, vec3(-2.3, 3.3, 4.7)));
+      diffuseColor.rgb *= 0.82 + 0.18 * okLeaves;`);
+  };
+  material.customProgramCacheKey = () => '大河内の林の濃淡';
+  return material;
+}
+
+// 丸い樹冠：二十面体を二度割り、向きごとに膨らみと凹みを付けて葉群の房にする。
 function okCrownGeo(seed) {
   const g = new THREE.IcosahedronGeometry(1, 2), p = g.attributes.position;
   for (let i = 0; i < p.count; i++) {
     const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
-    const r = 1 + .14 * Math.sin(x * 5.3 + seed) * Math.cos(z * 4.7 - seed * .3) + .08 * Math.sin(y * 9.1 + x * 3 + seed);
+    // 頂点間より細かい凹凸は、低画質で橙の尖った粒に見える。房の大きさで丸める。
+    const r = 1 + .14 * Math.sin(x * 3.3 + seed) * Math.cos(z * 3.7 - seed * .3) + .05 * Math.sin(y * 4.1 + x * 3 + seed);
     // 下端を一度に三割縮めると、境目が輪状の段になる。裾へ連続して絞る。
     const skirt = 1 - .3 * Math.max(0, Math.min(1, (-y - .4) / .6));
     p.setXYZ(i, x * r, y * r * skirt, z * r);

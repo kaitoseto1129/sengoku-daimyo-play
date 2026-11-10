@@ -3805,9 +3805,12 @@ function remainingForce(rt, a0, b0, aKeep, bKeep, out) {
   if (rt.t - c.at >= 1) {
     c.at = rt.t; let a = 0, b = 0;
     for (const u of rt.army.units) {
-      if (u.isPlayer || u.noTarget || u.civ || u.isStruct || u.type === 'dummy' || u.type === 'porter') continue;
+      if (u.isPlayer || u.civ || u.isStruct || u.type === 'dummy' || u.type === 'porter') continue;
+      // 集計の間に討たれた新手や、手当てで狙いから外れた将も損失に含める。
+      // 初めから戦わない見物の者は、これまでどおり数えない。
+      if (u.noTarget && u.alive && !u.woundOut) continue;
       if (u.team !== rt.player.u.team && u.team !== 1 - rt.player.u.team) continue;
-      if (!u.alive || u.gone || u.fleeing || u.woundOut || c.seen.has(u)) continue;
+      if (c.seen.has(u)) continue;
       c.seen.add(u); c.units.push(u);
       if (u.team === rt.player.u.team) a++; else b++;
     }
