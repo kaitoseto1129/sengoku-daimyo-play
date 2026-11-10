@@ -648,8 +648,9 @@ html body #hud.enemy-action-guide:has(#h-prog[data-battle="k07_sawayama"]) #goal
   // 田中勢が本丸の西の口に着いたら乱入を告げる（言った物が本当にそこにいる）
   tanakaIn(rt) {
     const F = rt.flags;
-    if (F.tanakaIn || !F.tanaka) return;
-    const since = rt.t - (F.tanakaT ?? rt.t);
+    // 本丸の座標だけでは乱入にしない。開城を承知し、水の手から進軍を始めた後に限る。
+    if (F.ending || F.tanakaIn || !F.tanaka || !F.tanakaGo || F.tanakaT == null) return;
+    const since = rt.t - F.tanakaT;
     if (since < OPEN_CASTLE_WAIT) return;   // 早く着いても開城の話を遮らず、約束の後に乱入を告げる
     // 石垣の下を通る兵や、倒れた兵・離脱する兵を、本丸へ乱入した兵として数えない。
     const level = PLAN.kuruwa.find((k) => k.id === 'hon').level;
