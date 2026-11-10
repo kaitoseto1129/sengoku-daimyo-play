@@ -8,11 +8,9 @@
 // ======================================================================
 import { enemyGroup, nm } from '../bhelp.js';
 import { sfx } from '../audio.js';
-import { retreat } from './retreat.js';
+import { retreat, live } from './retreat.js';
 
 export function step(H) {
-  // 敗走した組と、倒れる途中・重傷で離脱した兵は残兵に数えない。
-  const live = (g) => (g && !g.routed ? g.units.filter((u) => u.alive && !u.gone && !u.dying && !u.fleeing && !u.evacuatedWound).length : 0);
   return {
     kind: 'fight', max: 150, key: 'rakujo',
     start(rt, C) {
