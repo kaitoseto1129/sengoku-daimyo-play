@@ -23,6 +23,7 @@ export function install(rt, ctx) {
     dress([{ type: 'samurai', n: 1, o: { hat: 'jingasa' } }, { type: 'gun', n: 5 }, { type: 'ashigaru', n: 4 }], SAIKA));
   G.fixed = false;
   F.tsutsumiG = G;
+  F.tsutsumiAt = DIKE;
   const live = () => { let n = 0; if (!G.tsRouted) for (const u of G.units) if (ready(u)) n++; return n; };
   // 抜いていない杭を横切らず、川下の浅瀬から西岸へ退く。
   const withdraw = (g) => {
@@ -60,6 +61,11 @@ export function install(rt, ctx) {
       }
       // 堤を取った後、雑賀が舟で取り返しに来る（約三十秒後）。取り返しを払えば済む
       // 味方だけで敵を払っても、本人が堤へ着くまでは占拠・放火を進めない。
+      // 守り手が退いたら敵隊の印を外し、本人が着くまで堤そのものを案内する。
+      if (!live() && !F.tsutsumiPlaceMarked) {
+        F.tsutsumiPlaceMarked = true;
+        rt.marker('tsutsumi', DIKE, '川下の堤', { h: 3 });
+      }
       if (!live() && !takenT && Math.hypot(rt.player.u.pos.x - DIKE.x, rt.player.u.pos.z - DIKE.z) < 12) {
         takenT = rt.t;
         // 敵が尽きても堤の行き先を残す。取り返しを払った後もここへ戻れる。

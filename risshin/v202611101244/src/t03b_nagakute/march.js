@@ -56,7 +56,7 @@ export function tick(rt, K, dt) {
   if (near && !F.banHelp) {
     F.banHelp = rt.t;
     rt.after(12, () => {
-      if (F.banFire) return;
+      if (F.ending || F.stage !== 0.5 || F.banFire) return;
       F.banG2 = enemyGroup(rt, { faction: 'tokugawa', name: '番所の加勢', anchor: { x: BANSHO.x + 10, z: BANSHO.z + 34 }, facing: Math.PI, width: 5, formation: 'line', morale: 75, dmgMult: 0.35, order: 'attack', aggro: 20, seekRange: 34 },
         K.dressT([{ type: 'samurai', n: 1, o: { horse: true } }, { type: 'ashigaru', n: 4, o: { flagScale: 1 } }, { type: 'gun', n: 2 }]));
       K.pushWave(F.banG2);
@@ -85,10 +85,11 @@ export function tick(rt, K, dt) {
     try { rt.world.addFire(BANSHO.x, BANSHO.z, { size: 2.6, h: 0.4, blackSmoke: true }); rt.world.addFire(BANSHO.x + 4, BANSHO.z - 2, { size: 1.8, h: 0.3 }); } catch (e) { /* 火 */ }
     rt.award((t) => t.side.push('三河への道の徳川の番所を焼いた'), '徳川の番所を焼いた');
     rt.say('信吉隊の侍', '番所は焼けた。……家康の兵はおらなんだな', 3);
-    rt.after(3.6, () => rt.say('三好信吉', 'よし、陣へ戻れ。白山林で飯にいたす', 3));
+    rt.after(3.6, () => { if (!F.ending && F.stage === 0.5) rt.say('三好信吉', 'よし、陣へ戻れ。白山林で飯にいたす', 3); });
     if (K.live(F.vanG)) { F.vanG.order = 'move'; F.vanG.dest = { x: K.CAMP.x + 10, z: K.CAMP.z + 8 }; F.vanG.onArrive = (q) => { q.order = 'hold'; }; }
     // 焼いた直後、白山林の陣の後ろの林から徳川勢が現れる（家康は小牧を出ていた。陣と分断される）
-    rt.after(8, () => rt.say('物見', '徳川勢じゃ！　白山林の後ろの東の林から来るぞ！　陣へ戻れ！', 3));
-    rt.after(10, () => K.next());
+    rt.after(8, () => { if (!F.ending && F.stage === 0.5) rt.say('物見', '徳川勢じゃ！　白山林の後ろの東の林から来るぞ！　陣へ戻れ！', 3); });
+    // 敗北後の待ち時間に、白山林の奇襲を始め直さない。
+    rt.after(10, () => { if (!F.ending && F.stage === 0.5) K.next(); });
   }
 }

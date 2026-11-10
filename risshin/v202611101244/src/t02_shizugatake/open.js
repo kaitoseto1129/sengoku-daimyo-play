@@ -24,7 +24,7 @@ export function fortArmies(rt, P) {
   try {
     Y.oiwa = clash(rt, {
       x: P.OIWA.x - 30, z: P.OIWA.z + 26, facing: 0.9, w: 30, gap0: 18, seed: 15838, noRout: false, noWake: true,
-      A: { flag: 'toyotomi', armor: 0x24201c, count: 120, flagRate: 0.4, guns: true },
+      A: { flag: 'kiri53', armor: 0x24201c, count: 120, flagRate: 0.4, guns: true },
       B: { flag: 'sakuma', armor: 0x2a2420, count: 200, flagRate: 0.5, guns: true },
     });
   } catch (e) { Y.oiwa = null; }

@@ -31,6 +31,8 @@ export function install(rt, def) {
   // 名のある諸将：横の備に増田盛次、長宗我部の先手に吉田重親、藤堂の鉄砲衆に藤堂氏勝。
   // 既にいる侍に名を付けるので、兵の数と体の作りは増やさない。
   for (const [g, name] of [[F.choSide, '増田盛次'], [F.choA, '吉田重親'], [F.todoGun, '藤堂氏勝']]) {
+    // 戦の定義ですでに名を付けている場合は、別の侍を同じ将にしない。
+    if (g?.units.some((q) => q.name === name)) continue;
     const u = g && g.units.find((q) => q.type === 'samurai' && !q.name);
     if (u) u.name = name;
   }
