@@ -1271,6 +1271,8 @@ function mikiFighting(u) {
 // 今の段に出ている実兵だけ。城内の長治や、まだ川を渡らない控えへは走らせない。
 function mikiNearestFoe(rt) {
   const F = rt.flags, p = rt.player.u.pos;
+  // 兵糧の確認と締めでは、済んだ大村の残兵へ討ち取りの案内を戻さない。
+  if (F.step >= 4 || F.mkYoin || F.ending || rt.over) { F.mikiFoe = null; return null; }
   const mode = F.step >= 3 ? F.step : F.step === 2 ? 2 : F.dropped || gone(F.escort) ? 1 : 0;
   if (F.mikiFoeMode === mode && rt.t >= F.mikiFoeAt && rt.t < F.mikiFoeAt + .25 &&
       mikiFighting(F.mikiFoe) && !gone(F.mikiFoe.group)) return F.mikiFoe;

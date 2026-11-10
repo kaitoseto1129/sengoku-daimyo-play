@@ -8,7 +8,7 @@
 import { sfx } from '../audio.js';
 import { toCourt } from './goryu.js';
 import { k15Fade } from '../oda15_kit.js';
-import { pursuer } from './fuchu.js';
+import { fighter, pursuer } from './fuchu.js';
 
 const ORDER = ['kinome_sou', 'kinome_fuku', 'kinome_hon'];
 
@@ -142,7 +142,9 @@ export function tick(rt, dt) {
   //   塀の上や切岸の上で動かない守兵は数えない）が三十秒いなければ、残りは退く
   if (z.enemies && z.test(P.x, P.z)) {
     let near = false;
-    for (const u of rt.army.units) if (u.alive && u.team !== rt.player.u.team && !u.fleeing && !u.isStruct && Math.abs(u.pos.y - P.y) < 3 && Math.abs(u.pos.x - P.x) < 25 && Math.abs(u.pos.z - P.z) < 25) { near = true; break; }
+    for (const u of rt.army.units) if (fighter(u) && u.team !== rt.player.u.team &&
+        Math.abs(u.pos.y - P.y) < 3 && Math.hypot(u.pos.x - P.x, u.pos.z - P.z) < 25 &&
+        !rt.army.wallBetween(P, -1, u.pos, false)) { near = true; break; }
     S.idle = near ? 0 : (S.idle || 0) + dt;
     // 斬り合っていても残りの数が六十秒減らない（塀の上の弓・届かない所の守兵が混ざる）時も退く（正式の流し：残り十五人のまま百五秒）
     if (S.cntV !== z.enemies) { S.cntV = z.enemies; S.cntT = rt.t; }
