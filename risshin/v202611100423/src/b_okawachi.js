@@ -914,6 +914,8 @@ const okawachi = {
     rt.flags.step === 3 ? '追っ手を防ぎ、道の印から南の陣へ退け' : '組が討ち減らされている。坂の旗で味方と槍を揃えよ',
   // 足元へ置き直す印までの六歩を、陣や柵までの残り距離として出さない。
   distanceText: (rt, d) => rt.missionGuide?.marker?.id === 'sakamichi' ? '' : `${Math.round(d)}m`,
+  goalSignDistance: (rt, target, distance) => rt.flags.step === 3 && target.label === '南の陣'
+    ? okCampDistance(rt) : distance,
   taskLabel(rt, text) {
     // 短い任務札にも、台詞と同じ合図を残す。北大手の陽動では動かせない。
     if (!rt.flags.ending) {
@@ -3479,6 +3481,22 @@ const RUNNER_FROM_FRONT = [...KARAMETE_WAY.slice(SOUTH_JOIN).reverse(), ...RUNNE
 const WAY_FROM = { x: 0, z: 0, s: 0, d: 0 }, WAY_TO = { x: 0, z: 0, s: 0, d: 0 };
 const WAY_SIDE_FROM = { x: 0, z: 0, s: 0, d: 0 }, WAY_SIDE_TO = { x: 0, z: 0, s: 0, d: 0 };
 const WAY_TEST = { x: 0, z: 0 };
+// 印は次の角へ進むが、距離は南の陣までの残りを保つ。角を越すたびに増やさない。
+function okCampDistance(rt) {
+  const p = rt.player.u.pos;
+  const from = rt.flags.campDistanceFrom || (rt.flags.campDistanceFrom = { x: 0, z: 0, s: 0, d: 0 });
+  const side = rt.flags.campDistanceSide || (rt.flags.campDistanceSide = { x: 0, z: 0, s: 0, d: 0 });
+  karametePoint(p, from);
+  karametePoint(p, side, null, null, SOUTH_ROAD);
+  const way = side.d + 0.5 < from.d ? SOUTH_FROM_CAMP : KARAMETE_WAY;
+  if (way !== KARAMETE_WAY) karametePoint(p, from, null, null, way);
+  let distance = from.d;
+  const whole = Math.floor(from.s);
+  for (let i = 1; i <= whole; i++) distance += Math.hypot(way[i][0] - way[i - 1][0], way[i][1] - way[i - 1][1]);
+  if (whole < way.length - 1) distance += (from.s - whole) *
+    Math.hypot(way[whole + 1][0] - way[whole][0], way[whole + 1][1] - way[whole][1]);
+  return distance;
+}
 // 今いる坂の所から下る。下った組を攻め口へ引き戻さず、切岸を横切らない。
 function downRoad(g, end) {
   const from = { x: 0, z: 0, s: 0, d: 0 }, to = { x: 0, z: 0, s: 0, d: 0 };

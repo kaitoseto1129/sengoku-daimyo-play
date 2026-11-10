@@ -551,7 +551,7 @@ const t10_oshi = {
     F.narita = enemyGroup(rt, { faction: 'narita', name: '成田長親の手', anchor: { x: CASTLE.x + 3, z: CASTLE.z + 3 }, facing: Math.PI / 4, width: 6, aggro: 0, fixed: true, noAI: true, noRout: true },
       dress([{ type: 'busho', n: 1, o: { name: '成田長親', invuln: true, horse: false, hat: 'kabuto_m' } }, { type: 'samurai', n: 6 }], HOJO));
     F.naritaU = F.narita.units[0];
-    if (F.naritaU) F.naritaU._crouch = true;   // 城代は本丸の屋形の前の床几に座る（11/4 jin・AV7）
+    if (F.naritaU) { F.naritaU._crouch = true; F.naritaU.mustLive = true; }   // 城代は本丸の屋形の前の床几に座る（11/4 jin・AV7）
     // 本丸の屋形の周りを固める城兵の控え（島に収まる小さな塊。kaito AT4・AV7）
     KIT.backOf(rt, F.narita, { flag: 'narita', armor: HOJO.armor, kind: 'mixed', w: 9, depth: 6, count: 90, gap: 0, seed: 10905 });
     // 戦の前の会話（史実：水攻めは秀吉の命。六月十二日の書状）
@@ -584,6 +584,8 @@ const t10_oshi = {
     const g = enemyGroup(rt, { faction: 'narita', name: '城の夜討ち', anchor: at, facing: Math.PI * 0.75, fleeDir: { x: -1, z: -1 }, width: 5, noRout: true, formation: 'line', morale: 80,
       order: 'move', dest: { x: RAIDAT.x, z: RAIDAT.z }, speed: 3.2, aggro: 5, dmgMult: 0.32 },   // 11/8：夜討ちを四度にしたので一度の重さを下げる   // 11/7：浅瀬の口へ（前は区の奥の人夫へ向かった）
     dress([{ type: 'samurai', n: last ? 3 : 1 }, ...(last ? [{ type: 'busho', n: 1, o: { name: '正木丹波守', invuln: true, horse: true, hat: 'kabuto_m' } }] : []), { type: 'ashigaru', n: 5 + Math.min(i, 2) }, { type: last ? 'gun' : 'bow', n: 1 }], HOJO));
+    // 生き残る守将は、本人の一撃で討たれる共通処理からも守る。
+    for (const u of g.units) if (u.name === '正木丹波守') u.mustLive = true;
     // 11/8 critic60（十5）：真っ直ぐ口へ向かうと沼の深みを胸まで浸かって渡った。浅瀬の土手の筋（城の口→浅瀬の手前→口）を伝わせる
     g.order = 'path'; g.path = [[FORD.x, FORD.z], [RAIDAT.x, RAIDAT.z]]; g.pathIdx = 0;
     g.onArrive = (q) => { q.onArrive = null; q.order = 'attack'; q.seekRange = 12; q.aggro = 12; };
@@ -761,6 +763,8 @@ const t10_oshi = {
     dress(i ? [{ type: 'samurai', n: 1, o: { name: '甲斐姫', invuln: true, horse: true, hat: 'hachimaki', haori: 0x8a2a2a } }, { type: 'samurai', n: 4 }, { type: 'ashigaru', n: 9 }]
       : [{ type: 'busho', n: 1, o: { name: '正木丹波守', invuln: true, horse: true, hat: 'kabuto_m' } }, { type: 'samurai', n: 4 }, { type: 'ashigaru', n: 15 }], HOJO));
     g.onArrive = (q) => { q.onArrive = null; q.order = 'attack'; q.seekRange = 30; q.aggro = 14; };
+    // invuln だけでは主人公の手傷処理で討たれるため、生存する二人を明示する。
+    for (const u of g.units) if (u.name === '正木丹波守' || u.name === '甲斐姫') u.mustLive = true;
     F.sorties.push(g);
     rt.army.play('eshout', GATE, 1.3);
     // 浅野・真田の手は門の前へ詰め、打って出た手を一緒に受け止める（自分だけが戦わない・AP5）

@@ -467,7 +467,7 @@ function escort() {
       if (near && Math.hypot(k.pos.x - tgt.x, k.pos.z - tgt.z) < (C.i <= 6 ? 3 : 11) && C.i < ENVOY.length - 1) C.i++;
       const left = Math.hypot(k.pos.x - KGATE.x, k.pos.z - KGATE.z);
       C.goal = !near ? k.pos : tgt;
-      rt.objProgress('dp', near ? `門まで あと${Math.round(left)}m` : '官兵衛のそばへ');
+      rt.objProgress('dp', near ? '黒田官兵衛を本丸の門まで送り届けよ' : '黒田官兵衛のそばへ戻れ');
       return (F.envoyDone = near && C.i >= ENVOY.length - 1 && left < 12);
     },
     end(rt, C) {

@@ -2981,7 +2981,8 @@ const nodafukushima = {
   },
   setup(rt) {
     rt.world.def.playerVelocity = (r, vx, vz) => this.playerVelocityTower(r, vx, vz);
-    { const P = rt.player, td = P.takeDamage, k = rt.def.cutFloor; P.takeDamage = function (a, s) { const m = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow'; const d = td.call(this, a, s); return s && !s.isStruct && !m && d > 0 ? d * k : d; }; }   // 11/1：刃の一太刀を def.cutFloor 倍に（この戦だけ）
+    // 命と傷に反映する前に軽減する。戻り値だけを減らしても、受けた傷は減らない。
+    { const P = rt.player, td = P.takeDamage, k = rt.def.cutFloor; P.takeDamage = function (a, s) { const m = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow'; return td.call(this, s && !s.isStruct && !m ? a * k : a, s); }; }
     // 野田福島は数千挺の鉄砲の戦（kaito 11/5 BS「主人公は鉄砲を使える」）。問屋で買っていなくても、鉄砲衆の筒を一挺貸す（3 で持ち替え）。
     { const P = rt.player; if (!P.hasGun) { P.hasGun = true; P.gunMesh = weaponMesh('gun'); P.u.gunRainCover = !!P.gunMesh?.userData.rainCover; P.weapons = null; } }
     // 井楼の足元に落とし物があっても、登る長押しを別の作業に奪われない。

@@ -4942,11 +4942,20 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
       let contested = false;
       for (const u of rt.army.units) if (deckEnemy(u)) { contested = true; break; }
       // 11/9 二巡：甲板の端や屋根に残った敵（本人の槍が届かない所）が一人でもいると、退きの段のまま七分止まった。
-      //   船団が退いて九十秒たてば、甲板に残る毛利勢も味方の舟へ飛び移って退く。
+      //   船団が退いて九十秒たてば、残兵にも退きの下知を渡し、既存の帰船経路へ戻す。
       if (contested && elapsed >= 90 && F.bigSunk && !F.deckLeft) {
         F.deckLeft = true;
-        for (const u of [...rt.army.units]) if (deckEnemy(u)) { try { rt.army.despawn(u); } catch (e) { u.alive = false; } }
-        rt.say('物見', '残った敵が海へ飛び込み、退く舟へ泳いで行く！', 3);
+        for (const u of rt.army.units) if (deckEnemy(u)) {
+          // その場で消したり討死に数えず、歩いて板を渡る姿を残す。
+          u.fleeing = true; u.target = null; u.atk = null; u.swing = null; u.bind = null;
+          u.aiT = 0;
+          const g = u.group;
+          if (g) {
+            g.order = 'retreat'; g.focus = null;
+            if (g.boat) { g.boat.withdrawing = true; g.dest = g.boat.landing; }
+          }
+        }
+        rt.say('物見', '残った敵にも退きの下知じゃ！　乗り口から舟へ戻るぞ！', 3);
         contested = false;
       }
       if (!contested && F.bigSunk && F.doused >= 3 && F.cannonHits >= 1 && rt.player.u.alive) {
