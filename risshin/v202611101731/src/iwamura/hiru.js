@@ -247,7 +247,12 @@ export function tick(rt, hidden = []) {
     const left = standing(H.esc, true);
     progress(rt, H, `麓の小荷駄へ。護りを崩せ（${H.escN - left}／${H.escN}）`);
     // 待ち時間では兵糧入れを止めた事にしない。護りを実際に崩し、麓へ出た本人が確かめる。
-    if (left > Math.ceil(H.escN * 0.25) || !near(p, KOMODA, 18)) return;
+    // 11/10 クラウドの流し（携帯の bot）：槍衾で構えた護りに突きが通らず、麓で千秒斬り合って日が暮れなかった。
+    //   麓で九十秒戦って一人でも崩したか、百五十秒たてば、残る護りも荷を捨てて退く
+    if (near(p, KOMODA, 18)) H.komAt ??= rt.t;
+    const komT = H.komAt == null ? 0 : rt.t - H.komAt;
+    const worn = komT > 150 || komT > 90 && left < H.escN;
+    if (left > Math.ceil(H.escN * 0.25) && !worn || !near(p, KOMODA, 18)) return;
     rout(H.esc, H.ctx.retreat || H.ctx.road);
     H.s = 3; H.at = rt.t;
     rt.say('足軽', '人足が俵を捨てて逃げたぞ！', 2.6);
@@ -284,9 +289,14 @@ export function tick(rt, hidden = []) {
   // 長引いた寄せは下知で退く。本人が口を離れたままでは次へ渡さない。
   if (!holding) H.holdAt = null;
   else if (H.holdAt == null) H.holdAt = rt.t;
-  const exhausted = rt.t - H.wt >= 150 && H.holdAt != null && rt.t - H.holdAt >= 30;
+  // 11/10 クラウドの流し（携帯の bot）：寄せ手が山道の岩や折れで止まり、口の前に一人も来ないまま本人が二百秒待った。
+  //   口を守っていて、寄せ手が二十五歩の内に二十五秒来なければ、その寄せは退いた事にする
+  const close = H.g.units.some((u) => u.alive && !u.fleeing && Math.hypot(u.pos.x - MOUTH.x, u.pos.z - MOUTH.z) < 25);
+  if (close || !holding) H.farAt = null; else H.farAt ??= rt.t;
+  const exhausted = rt.t - H.wt >= 150 && H.holdAt != null && rt.t - H.holdAt >= 30 ||
+    rt.t - H.wt >= 40 && H.farAt != null && rt.t - H.farAt >= 25;
   if (!holding || left > Math.ceil(H.n * 0.35) && !exhausted) return;
-  H.holdAt = null;
+  H.holdAt = null; H.farAt = null;
   rout(H.g, H.ctx.retreat || H.ctx.road);
   if (H.wave < 3) {
     const w = H.wave + 1;

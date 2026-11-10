@@ -7360,6 +7360,13 @@ const INABAYAMA_ODA_TOTAL = INABAYAMA_JIN[0].sonae.reduce((sum, s) => sum + s.so
 const INABAYAMA_MINO_TOTAL = INABAYAMA_JIN[0].sonae.find((s) => s.id === 'ibMino').soldiers;
 const INABAYAMA_SAITO_TOTAL = INABAYAMA_JIN[1].sonae.reduce((sum, s) => sum + s.soldiers, 0);
 const INABAYAMA_FORCE = { a: 0, a0: 0, b: 0, b0: INABAYAMA_SAITO_TOTAL };
+// 退いて描画から外れた生存兵も残す。組の count だけでは despawn の後に討死へ化ける。
+function inabaForceCount(g) {
+  let n = 0;
+  for (const u of g.units) if (!u.dying && !u.evacuatedWound
+    && (u.alive || u.gone && u.fleeing && u.hp > 0)) n++;
+  return n;
+}
 // 備え表と同じ仮数に、結び付いた部隊の残存率を掛ける。
 // 軽い兵と本物の兵を二重に数えず、退いた生存兵を戦死者にも数えない。
 function inabaRemaining(spec, bound, detached) {
@@ -7367,9 +7374,9 @@ function inabaRemaining(spec, bound, detached) {
   let initial = 0, alive = 0;
   // 部隊の名目人数は、その部隊に含まれる実兵を含む。実兵を重ねて足さない。
   if (source?.aliveNominal) { initial = source.nominal; alive = source.aliveNominal(); }
-  else if (group?.initial > 0) { initial = group.initial; alive = group.count; }
+  else if (group?.initial > 0) { initial = group.initial; alive = inabaForceCount(group); }
   if (detached) for (const g of detached) {
-    initial += g.initial; alive += g.count;
+    initial += g.initial; alive += inabaForceCount(g);
   }
   const rate = initial > 0 ? alive / initial : 1;
   return Math.round(spec.soldiers * Math.max(0, Math.min(1, rate)));
