@@ -896,12 +896,13 @@ t09_yamanaka.botBrain = (b, inp, { goTo, patientStrike }) => {
     if ((Math.hypot(u.pos.x - W[b.botWp].x, u.pos.z - W[b.botWp].z) < 2.5 || b.t - st.t > 8) && b.botWp < W.length - 1) { b.botWp++; st.t = b.t; }
     goTo(p, inp, W[b.botWp].x, W[b.botWp].z, 1.2); return;
   }
-  if (F.step === 4 && F.hon && !gone(F.hon)) {
+  // 味方が先に旗本を討ち取っても、本人が本丸へ着くまでは登り切る。
+  if (F.step === 4 && F.hon) {
     // 枡形を折れて三の丸・二の丸の虎口を通り、本丸へ（近い点から先へ）
     if (b.botUp === undefined) { let bi = 0, bd = Infinity; UP_ROUTE.forEach(([x, z], i) => { const d = Math.hypot(u.pos.x - x, u.pos.z - z); if (d < bd) { bd = d; bi = i; } }); b.botUp = bi; }
     const [x, z] = UP_ROUTE[b.botUp];
     if (Math.hypot(u.pos.x - x, u.pos.z - z) < 2.5 && b.botUp < UP_ROUTE.length - 1) b.botUp++;
-    if (b.botUp >= UP_ROUTE.length - 1) { const t = F.hon.center(); goTo(p, inp, t.x, t.z, 2); return; }
+    if (b.botUp >= UP_ROUTE.length - 1) { const t = gone(F.hon) ? KURUWA.hon : F.hon.center(); goTo(p, inp, t.x, t.z, 2); return; }
     goTo(p, inp, x, z, 1.2); return;
   }
   goTo(p, inp, c.x, c.z - 4, 3);

@@ -6,7 +6,9 @@ export function oshiStep(NG) {
   const { CHOSO, GOALS, MID, LOW, UP, GATE } = NG;
   const foe = (rt, name, at, list) => enemyGroup(rt, { faction: 'oda', flag: 'chosokabe', fixed: true, name, anchor: at, facing: Math.PI, order: 'attack', seekRange: 24, aggro: 10, width: 5, morale: 70, dmgMult: 0.1 },
     list.map(([type, n]) => ({ type, n, o: CHOSO })));
-  const alive = (g) => g && g.count > 0 && !g.routed;
+  // 共通の戦闘段と同じく、二人以下の残兵や全員が逃げている組は崩れた扱い。
+  // 三組に二人ずつ残ると、戦える組が無いのに合計六人で段が止まっていた。
+  const alive = (g) => g && g.count > 2 && !g.routed && g.units.some((u) => u.alive && !u.fleeing);
   const heads = (gs) => gs.reduce((a, g) => a + (alive(g) ? g.count : 0), 0);
   const send = (rt, at) => {
     // 共通の段で追いついた後続も、山道の退却・再進撃の下知に含める。

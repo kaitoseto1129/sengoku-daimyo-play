@@ -3102,7 +3102,8 @@ function withstand(o) {
     // 本人が不在の間に味方だけで退けた敵を、後から守った実績にしない。
     if (inPost && !C.metEnemy) for (const g of C.groups) {
       if (g.routed) continue;
-      for (const u of g.units) if (u.alive && !u.fleeing && !u.gone && !u.woundOut &&
+      // 倒れた兵や手当てへ離脱した兵を、今から寄せて来た敵として数えない。
+      for (const u of g.units) if (u.alive && !u.fleeing && !u.gone && !u.dying && !u.woundOut && !u.rearWound && !u.downed && !u.noTarget &&
           Math.hypot(u.pos.x - C.at.x, u.pos.z - C.at.z) < (o.r || 14) + 8) { C.metEnemy = true; break; }
       if (C.metEnemy) break;
     }
@@ -3117,7 +3118,7 @@ function withstand(o) {
         else if (u.alive && !u.gone && !u.woundOut && !u.rearWound && !u.downed && !u.noTarget && !C.coverPassedUnits.has(u)) C.coverRemaining++;
       }
       for (const g of C.groups) if (!g.routed) for (const u of g.units)
-        if (u.alive && !u.gone && !u.fleeing && !u.woundOut &&
+        if (u.alive && !u.gone && !u.dying && !u.fleeing && !u.woundOut && !u.rearWound && !u.downed && !u.noTarget &&
             Math.hypot(u.pos.x - C.at.x, u.pos.z - C.at.z) < (o.r || 14) + 8) C.postThreats++;
       C.coverPassed = C.coverPassedUnits.size;
       rt.flags.coverPassed = C.coverPassed;
