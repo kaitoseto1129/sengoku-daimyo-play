@@ -100,7 +100,7 @@ export function tick(rt, dt) {
   g.noRout = false; g.morale = 0; g.routed = true; g.order = 'retreat'; g.dest = { x: 500, z: BZ }; g.fleeDir = { x: 1, z: 0 };
   for (const u of g.units) if (u.alive) u.fleeing = true;
   try { sfx('volley', 0.9); } catch (e) { /* なし */ }
-  rt.banner('山県昌景、討死', '赤備えの大旗が倒れた');
+  if (!lord?.shPlayerKill) rt.banner('山県昌景、討死', '赤備えの大旗が倒れた');
   rt.say('組頭', '破れ目は守った！　柵の内の道を、組と柳田前へ移るぞ！', 3.8);
   if (!B.noAward) rt.award((t) => { t.side.push('柵の破れ目で山県昌景の赤備えを押し返した'); t.special = { label: '赤備えの柵破りを止めた', pts: 14 }; }, '破れ目を守った', B.IN);
   const R = c.reserve();

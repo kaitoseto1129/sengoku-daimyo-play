@@ -42,10 +42,11 @@ export function start(rt, ctx) {
     if (!ctx.live(g)) continue;
     g.order = 'move'; g.dest = d; g.speed = 3.6; g.onArrive = (q) => { q.order = 'attack'; q.aggro = 24; q.seekRange = 30; };
   }
-  rt.after(1, () => report(rt, '敵右翼崩れました！　天王山の手も松田勢が退きまする！'));
+  // 津田勢の損耗は中央の任務と別。健在の右翼まで崩れたと知らせない。
+  rt.after(1, () => report(rt, F.tsudaBroken ? '津田の隊と御牧の殿を破りました！　明智勢を追え！' : '御牧の殿を破りました！　明智勢を追え！'));
   rt.after(5, () => rt.say('堀秀政', '明智勢、勝竜寺へ退く！　追え、追え！', 3));
   rt.after(16, () => rt.say('足軽', '日が暮れる……桔梗の旗が城へ入っていくぞ', 3));
-  rt.after(30, () => report(rt, '津田・斎藤の兵、淀川を渡って散りまする！'));
+  rt.after(30, () => { if (F.mitsuRetreat) report(rt, '光秀、勝竜寺城へ退いておりまする！'); });
 }
 
 export function tick(rt, dt, ctx) {
