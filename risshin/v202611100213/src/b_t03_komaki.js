@@ -197,6 +197,7 @@ const STAGE_TEXT = ['',
   '森勢の列と五条川の渡しへ出る',
   '五条川を越え、夜明けの道を南東へ進む'];
 const COUNCIL = { x: RAKUDA.x + 6, z: RK.z1 + 9 };   // 楽田城の大手門の前の床几（軍議。城の中へ入らずに済む）
+const PIN_NAMES = ['', '二重堀の物見櫓', '二重堀の木戸', '堀の前の田', '楽田の本陣', '森長可の陣', '五条川の渡し', '五条川の南東の道'];
 const PIN = { x: 0, z: 0, r: 8, hide: 6, always: true, silent: true, enemy: false, unit: null, follow: false, fire: false, gate: false, defend: false, waiting: false, arrived: false, area: false, route: false };
 
 const t03_komaki = {
@@ -240,7 +241,8 @@ const t03_komaki = {
     // 行き先は段ごとに固定（人や組の動きで動かさない。AW の 3・BK の 4）
     const p = [null, Camp.towerAt(rt, this.ctx(rt)), GATE, FIELD, COUNCIL, MORIJIN, Night.FORD, Night.DAWN][F.stage];
     if (!p) return null;
-    PIN.x = p.x; PIN.z = p.z; PIN.r = 8;
+    // 目標の文から名を抜くと、長い文は空欄になり、鉄砲組の段では敵の名が場所の代わりに出る。
+    PIN.x = p.x; PIN.z = p.z; PIN.r = 8; PIN.label = PIN_NAMES[F.stage];
     return PIN;
   },
   world: {
