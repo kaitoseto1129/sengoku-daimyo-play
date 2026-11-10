@@ -1663,7 +1663,7 @@ const tonezaka = {
     }
     const enemy = this.missionSignTarget(rt);
     if (enemy) {
-      if (rt.player.inRange && rt.player.rangeCueTarget === enemy) return null;
+      // 槍の間合いに入っても、任務で向かう相手の印を消さない。
       const way = chaseWay(rt.army, rt.player.u, enemy.pos);
       pin.x = way.x; pin.z = way.z; pin.r = pin.hide = .2;
       pin.route = way !== enemy.pos; pin.unit = pin.route ? null : enemy;

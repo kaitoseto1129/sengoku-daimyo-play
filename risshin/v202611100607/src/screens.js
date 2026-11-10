@@ -1222,7 +1222,7 @@ const LORE = {
   tottori: ['羽柴秀吉が、鳥取城を兵糧攻めで落とした', '城の出口をふさぎ、打って出る兵を止める'],
   takato: ['武田攻めで、仁科盛信の高遠城だけが最後まで戦った', '東の大手門へ寄せる組を守る'],
   tano: ['武田勝頼は天目山の麓、田野で最期を迎えた', '山道で追い詰める'],
-  honnoji: ['明智光秀が背き、信長は本能寺に倒れた', '回廊を抜け、東の表門まで見回る'],
+  honnoji: ['明智光秀が背き、信長は本能寺に倒れた', '表門と本堂で上様を守り、二条御所へ退く'],
   okawachi: ['伊勢の北畠氏が、大河内城にこもった', '城を囲み、夜の攻め口で木戸へ寄せる'],
   echizen_ikko: ['府中を追われた一揆が、山林と大滝寺へ逃げ込んだ', '十六日の森と谷筋を狩り、門と堂を破って十七日の朝に奥の院へ進む'],
   // 豊臣編（t01〜t12）・徳川編（k01〜k16）は番号の三字で引く（loreOf）
@@ -1378,7 +1378,7 @@ export function storyCard({ year, title, text, button = '次の場面へ進む',
   const more = (compact || short ? text : text.slice(1)).map((t) => `<p>${esc(t)}</p>`).join('');
   const fold = compact || short;
   // 11/8 小牧 十三1：「上役の下知を待ち、列を離れるな」は何もしなくても果たせる目的だった。小牧は場所と行いを書く
-  const mission = bt?.id === 't03_komaki' ? '楽田の本陣から二重堀の砦へ下り、柵越しの小競り合いを守る。軍議の後、夜に池田・森の中入りの列と三河へ出る。' : bt?.id === 't06_hetsugi' ? '戸次川を渡り、伊集院の先手を追う。島津の包囲を受けたら、浅瀬から退いて鏡城の陣へ生きて戻る。' : bt?.id === 't07_ganjaku' ? '蒲生・前田勢五千で秋月勢三千の岩石城を攻める。大手の坂を登り、打って出た敵を坂で退ける。二の丸の門を抜け、二の丸の曲輪の城兵を討ち払って、本丸の熊井越中守を討つ。門が閉まれば掛矢で破る。' : bt?.id === 'shigisan' ? '大手の木戸を掛矢で打つ。打って出た城兵を土橋で迎え撃ち、退く敵に続いて門の内へ入る。' : bt?.id === 'honnoji' && !G?.lord ? '表門を見回り、上様の門を守る。退く下知に従い、門の外へ敵を追わない。' : tips || (text || []).find((line) => line.startsWith('任務：')) || LORE[bt?.id]?.[1] || '';
+  const mission = bt?.id === 't03_komaki' ? '楽田の本陣から二重堀の砦へ下り、柵越しの小競り合いを守る。軍議の後、夜に池田・森の中入りの列と三河へ出る。' : bt?.id === 't06_hetsugi' ? '戸次川を渡り、伊集院の先手を追う。島津の包囲を受けたら、浅瀬から退いて鏡城の陣へ生きて戻る。' : bt?.id === 't07_ganjaku' ? '蒲生・前田勢五千で秋月勢三千の岩石城を攻める。大手の坂を登り、打って出た敵を坂で退ける。二の丸の門を抜け、二の丸の曲輪の城兵を討ち払って、本丸の熊井越中守を討つ。門が閉まれば掛矢で破る。' : bt?.id === 'shigisan' ? '大手の木戸を掛矢で打つ。打って出た城兵を土橋で迎え撃ち、退く敵に続いて門の内へ入る。' : bt?.id === 'honnoji' && !G?.lord ? '表門と本堂で上様を守る。退く下知に従って御殿から二条御所へ向かい、京の使者に知らせを届ける。' : tips || (text || []).find((line) => line.startsWith('任務：')) || LORE[bt?.id]?.[1] || '';
   const missionHtml = mission ? `<p class="st-mission" style="font-size:max(15px, calc(16px * var(--text-scale, 1)));line-height:1.7"><b>この戦の目的：</b>${esc(mission)}</p>` : '';
   const detail = more + (compact ? `${order}${aim ? `<p>${esc(aim)}</p>` : ''}` : '');
   const body = fold ? `${detail ? `<details class="st-more" style="margin:8px auto;max-width:30em"><summary style="min-height:44px;box-sizing:border-box;padding:10px 8px;cursor:pointer;text-align:center;color:var(--washi);font-size:max(15px, calc(15px * var(--text-scale, 1)));border:1px solid var(--line)">戦の背景と心得を読む</summary>${detail}</details>` : ''}` : text.map((t, i) => `<p style="animation-delay:${0.3 + i * 0.9}s">${esc(t)}</p>`).join('');

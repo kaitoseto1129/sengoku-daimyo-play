@@ -907,7 +907,7 @@ function sunoChoiceLayout(rt) {
     intro.apply(this, args);
     const reading = this.root.querySelector('#intro .intro-reading');
     const goal = reading.querySelector('p b');
-    if (goal) goal.textContent = '勝つには：北・西・川からの寄せを柵の内で受け、寄せ大将を討つ';
+    if (goal) goal.textContent = '勝つには：北・西・川からの寄せを退け、柵を仕上げる';
     // 11/4 jin（BE）：札は戦の名・年・両軍・状況・「戦いを始める」だけ。紹介を読む釦と待ちの説明は出さない
     for (const el of reading.querySelectorAll('.intro-people, .intro-person, .intro-castle')) el.remove();
     for (const p of reading.querySelectorAll('p:not(#intro-wait)')) if (/読む時間|押すと始まります/.test(p.textContent)) p.remove();
@@ -3215,7 +3215,7 @@ const sunomata = {
   missionDetail: () => '',
   missionStatus: () => '',
   bannerAllowed: (rt, t) => rt.over || !!rt.flags.ending || !!rt.flags.won || /討ち取|討死|勝|崩れ|守りきった|砦を残した/.test(t),
-  missions: ['北の柵の口を守る', '柵の内から斎藤の寄せ手を止める', '斎藤方の寄せ大将を討ち取る'],
+  missions: ['北の柵の口を守る', '柵の内から斎藤の寄せ手を止める', '西の柵で寄せ大将の最後の攻撃を退ける'],
   // 毎回いまの戦場から決める。討った・退けた瞬間に次の一行へ替わり、古い字を残さない。
   missionOf(rt) {
     if (sunomata.commanderTarget(rt)) return 2;
@@ -3227,14 +3227,14 @@ const sunomata = {
   // 11/3 AR：「この はたを まもれ」では場所が分からない。今の持ち場の柵の名と行いで書く。
   missionHeading(rt) {
     { const h = SU15.heading(rt); if (h !== undefined) return h; }
-    if (sunomata.commanderTarget(rt)) return '斎藤方の寄せ大将を討ち取る';
+    if (sunomata.commanderTarget(rt)) return '西の柵で寄せ大将の最後の攻撃を退ける';
     const side = rt.flags.guardSide || 'n';
     return `${SIDE_WORD[side]}の柵${side === 'n' ? 'の口' : ''}で斎藤の寄せ手を止める`;
   },
   // 最後の寄せの大将は、柵外に残っていても討ち取りの行き先にする。
   commanderTarget(rt) {
     const F = rt.flags, u = F.yoseBoss;
-    if (F.wave !== 3 || F.won || F.ending || rt.over || !u?.alive || u.hp <= 0 || u.gone || u.fleeing || u.dying || u.woundOut || u.noTarget) return null;
+    if (F.wave !== 3 || F.won || F.ending || rt.over || !u?.alive || u.hp <= 0 || u.gone || u.fleeing || u.dying || u.woundOut || u.noTarget || u.group?.routed) return null;
     return u;
   },
   missionSignTarget(rt) { return sunomata.commanderTarget(rt) || (sunomata.missionOf(rt) === 1 ? sunoNearestFoe(rt) : null); },

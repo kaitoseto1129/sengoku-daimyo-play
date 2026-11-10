@@ -1379,6 +1379,7 @@ const tano = {
   },
   armySignals: false, // 下知は田野の段取りで鳴らす。敵を退ける任務に退き太鼓を鳴らさない。
   distanceUnit: 'metres',
+  routeDestinationPin: true,
   // 通常の距離欄へまとめ、「旗まで何歩」と「約何間」を重ねない。
   // 手当ての退き先は床の印と指図で示し、文末へ歩数を継ぎ足さない。
   hideGuideSteps: true,

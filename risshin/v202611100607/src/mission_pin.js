@@ -995,7 +995,11 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects, arrivalAt) {
   const W = VIEW.w, H = VIEW.h;
   const sa = safeInsets();
   const gathering = rt.def.missionStyle === 'raid';
-  const outside = hidden || x < sa.left + 48 || x > W - sa.right - 48 || y < sa.top + (gathering ? 84 : 64) || y > H - sa.bottom - 24 || !inouPinFree(x, y, rects, gathering);
+  const destinationLabel = want.destinationName && Number.isFinite(want.destinationDistance)
+    ? `${want.destinationName} ${want.destinationDistance}m` : '';
+  // 場所名の二十二画素の字も含めて、画面端・目標札・釦を避ける。
+  const labelHalf = destinationLabel ? Math.ceil(want.destinationName.length * 11 + (String(want.destinationDistance).length + 2) * 6 + 8) : 0;
+  const outside = hidden || x < sa.left + Math.max(48, labelHalf) || x > W - sa.right - Math.max(48, labelHalf) || y < sa.top + (gathering ? 84 : 64) || y > H - sa.bottom - (labelHalf ? 70 : 24) || !inouPinFree(x, y, rects, gathering, labelHalf);
   // 地面の道が見える間は旗や下向き矢印を重ねない。見切れたら端の案内を残す。
   const trail = rt.hud.routeFootsteps;
   if (want.route && rt.def.routeFootsteps && rt.hud.routeArrowCount > 0 &&
@@ -1008,7 +1012,7 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects, arrivalAt) {
   const groundGather = rt.def.missionStyle === 'raid';
   const raid = rt.def.missionStyle === 'raid' || ford;
   // 行き先は旗。戦う相手の刀と、画面内外とも形で区別する。
-  const flagDestination = !!want.destinationName || !want.route && (want.flagDestination || !raid && rt.def.missionStyle !== 'lesson');
+  const flagDestination = !rt.def.goalSignTriangle && (!!want.destinationName || !want.route && (want.flagDestination || !raid && rt.def.missionStyle !== 'lesson'));
   if (flagDestination && !el._destinationFlag) {
     const flag = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     flag.setAttribute('d', 'M-5 0V-55H30L20-42L30-29H-5');
@@ -1019,7 +1023,7 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects, arrivalAt) {
   if (el._destinationFlag) el._destinationFlag.style.display = flagDestination ? '' : 'none';
   // 敵を見失った時も行き先のピンを保ち、味方の横に浮かぶ矢印へ替えない。
   const enemyPin = rt.def.missionStyle === 'lesson' && want.unit?.team !== undefined && want.unit.team !== rt.player.u.team;
-  const destinationPin = raid || enemyPin || rt.def.missionStyle === 'lesson';
+  const destinationPin = raid || enemyPin || rt.def.missionStyle === 'lesson' || !!rt.def.goalSignTriangle;
   const joined = raid && (want.area || ford) && want.arrived;
   // 対岸の先端を固定したまま、遠いピンを小さく、歩いて近づくほど大きくする。
   // 手前でも主人公を覆わない幅に収め、先端が刺さる対岸の土を見せる。
@@ -1064,8 +1068,6 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects, arrivalAt) {
     el._routeEdge.style.display = !want.destinationName && (want.route || outside) ? '' : 'none';
   }
   // 場所を指定する戦は、道の途中の印にも目的地の名と残る距離だけを添える。
-  const destinationLabel = want.destinationName && Number.isFinite(want.destinationDistance)
-    ? `${want.destinationName} ${want.destinationDistance}m` : '';
   el._routeWord.textContent = destinationLabel;
   el._routeWord.style.display = destinationLabel ? '' : 'none';
   if (!outside || docked) el._routeEdge.setAttribute('transform', 'rotate(90)');
@@ -1090,7 +1092,7 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects, arrivalAt) {
     // 集合先は先の尖ったピン。人物の頭を囲む白い輪や敵の▼と形を分ける。
     // 到着後に任務の下へ移す時だけ先端を畳み、次の行き先に見せない。
     // 稲生（lesson）の行き先・敵へのピンは、黒いしずく形でなく▼（行き先は金・敵は赤。五3・五2。11/6 稲生の写真で何の印か分からなかった）
-    const lessonPin = rt.def.missionStyle === 'lesson', triKey = enemyPin ? 'enemy' : 'gold';
+    const lessonPin = rt.def.missionStyle === 'lesson' || rt.def.goalSignTriangle, triKey = enemyPin ? 'enemy' : 'gold';
     if (lessonPin && el._gatherStem !== triKey) {
       for (const part of el._destinationStem.children) { part.setAttribute('d', 'M0 0L-20-32H20Z'); part.setAttribute('fill-rule', 'nonzero'); }
       el._destinationStem.firstChild.setAttribute('fill', enemyPin ? '#ff4a2e' : '#f0cf6a');
@@ -1200,13 +1202,14 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects, arrivalAt) {
     const dy = -(gx * Math.sin(yaw) + gz * Math.cos(yaw));
     if (Math.hypot(dx, dy) < .001) { el.hidden = true; return; }
     const side = Math.abs(dx) / Math.max(1, W / 2 - 92) >= Math.abs(dy) / Math.max(1, H / 2 - 86);
-    const baseX = side ? dx >= 0 ? W - sa.right - (enemyPin ? 36 : 92) : sa.left + (enemyPin ? 36 : 92) : W / 2;
-    const baseY = defend ? H * .5 : side ? H / 2 : dy >= 0 ? H - 68 : 104;
+    const edgeSide = Math.max(enemyPin ? 36 : 92, labelHalf);
+    const baseX = side ? dx >= 0 ? W - sa.right - edgeSide : sa.left + edgeSide : W / 2;
+    const baseY = defend ? H * .5 : side ? H / 2 : dy >= 0 ? H - (labelHalf ? 72 : 68) : 104;
     let found = false;
     for (let i = 0; i <= 40; i++) {
       const offset = Math.ceil(i / 2) * 18 * (i % 2 ? 1 : -1);
       x = baseX + (side ? 0 : offset); y = baseY + (side ? offset : 0);
-      if (x < sa.left + (enemyPin ? 32 : 48) || x > W - sa.right - (enemyPin ? 32 : 48) || y < sa.top + (groundGather ? 84 : 64) || y > H - sa.bottom - 24 || !inouPinFree(x, y, rects, groundGather)) continue;
+      if (x < sa.left + Math.max(enemyPin ? 32 : 48, labelHalf) || x > W - sa.right - Math.max(enemyPin ? 32 : 48, labelHalf) || y < sa.top + (groundGather ? 84 : 64) || y > H - sa.bottom - (labelHalf ? 70 : 24) || !inouPinFree(x, y, rects, groundGather, labelHalf)) continue;
       found = true; break;
     }
     if (!found) { el.hidden = true; return; }
@@ -1214,7 +1217,7 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects, arrivalAt) {
     // 画面外でも同じピンを回すだけ。丸い別の印へ切り替えない。
     // 桶狭間も同じピンの先を行き先へ向ける。別の矢印は足さない。
     if (groundGather) el._simplePin.style.transform = `rotate(${Math.atan2(dy, dx) * 180 / Math.PI - 90}deg) scale(.75)`;
-    if (destinationPin && !groundGather) el._destinationStem.setAttribute('transform', `rotate(${Math.atan2(dy, dx) * 180 / Math.PI - 90}) translate(0 40)`);
+    if (destinationPin && !groundGather && !rt.def.goalSignTriangle) el._destinationStem.setAttribute('transform', `rotate(${Math.atan2(dy, dx) * 180 / Math.PI - 90}) translate(0 40)`);
   }
   // 集合先はピン一本。到着は穴の中の印で返し、別の輪を行き先に見せない。
   let outline = '';
@@ -1242,10 +1245,10 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects, arrivalAt) {
   rt.hud.missionPinOutside = outside && !docked;
 }
 
-function inouPinFree(x, y, rects, gathering = false) {
+function inouPinFree(x, y, rects, gathering = false, labelHalf = 0) {
   // 集合ピンは実際の大きさで札を避ける。携帯で空き場所を失って消さない。
   // 端ではピンを回すため、その回転を含めた幅を空ける。
-  const side = gathering ? 64 : 80, bottom = gathering ? 64 : 60;
+  const side = Math.max(gathering ? 64 : 80, labelHalf), bottom = labelHalf ? 70 : gathering ? 64 : 60;
   const top = gathering ? 80 : 100;
   for (const r of rects) if (x + side > r.left && x - side < r.right && y + bottom > r.top && y - top < r.bottom) return false;
   return true;

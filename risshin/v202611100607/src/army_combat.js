@@ -12,6 +12,7 @@ import { lodSwap, muddyFlag } from './units_flags.js';
 import * as THREE from 'three';
 import { moraleDeath, moralePlayerFight, groupHead } from './army_morale.js';
 import { lethalBlow, lethalDeath } from './lethal.js';
+import { missileHit, missilePlayerAfter } from './missile.js';
 import { GENERALS, TYPES } from './units_data.js';
 import { INTERIOR_WALLS, interiorBlocked, interiorSwingScale } from './shironaka.js';
 import { markArmor } from './armor_wear.js';
@@ -351,10 +352,12 @@ export const ArmyCombat = {
     // world.allyTaken：味方の兵の受ける傷の倍率（城攻めで寄せ手が三分で溶けて、戦が進まなくなる戦だけ）
     if (!t.isPlayer && t.team === 0 && this.world.def.allyTaken) amount *= this.world.def.allyTaken;
     if (this.lethal) amount = lethalBlow(this, t, amount, src, kind, z, from);   // 武器ごとの致命傷（lethal.js）
+    if (missile && this.missile) amount = missileHit(this, t, amount, src, kind);   // 弓・鉄砲の圧（missile.js）
     if (!t.isPlayer && this.hooks.rescueDamage) amount = this.hooks.rescueDamage(t, amount);
     if (t.isPlayer) {
       amount = playerHitLimit(this, t, amount, src, kind);
       if (!(amount > 0)) { if (out) out.res = 'miss'; return; }
+      if (missile && this.missile) amount = missilePlayerAfter(this, t, amount, src, kind);   // 「難しい」だけ近い鉄砲の一発（missile.js）
     }
     amount = this.heroFinishCap(t, amount, src);
     woundHit(t, amount, z.part, side, kind, z.res === 'armor', this.world, src);

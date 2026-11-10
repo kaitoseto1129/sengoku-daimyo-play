@@ -623,10 +623,14 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
     // 行軍・退却・本陣の待機では考え直しを待たず、討たれた相手への狙いを外す（全戦の通しで三秒以上残った）。
     for (const u of rt.army.units) if (u.alive) {
       // 討死の知らせで target が先に消えても、別に残った攻撃・注視を拾う。
-      if (u.target && !u.target.alive && !u.target.isStruct) { u.target = null; u.aiT = 0; }
-      if (u.atk?.target && !u.atk.target.alive && !u.atk.target.isStruct) { u.atk = null; u.aiT = 0; }
-      if (u.watch && !u.watch.alive && !u.watch.isStruct) { u.watch = null; u.aiT = 0; }
+      if (u.target && !u.target.alive) { u.target = null; u.aiT = 0; }
+      if (u.atk?.target && !u.atk.target.alive) { u.atk = null; u.aiT = 0; }
+      if (u.watch && !u.watch.alive) { u.watch = null; u.aiT = 0; }
     }
+    // 掛矢で壊した門や、退いて消えた兵は onKill を通らない。本人の狙いも毎コマ外す。
+    const player = rt.player;
+    if (player.lock && !player.lock.alive) { player.lock = null; player.wheelAcc = 0; }
+    if (player.aimed && !player.aimed.alive) { player.aimed = null; player.aimT = 0; }
     if (F.ending) return;
     if (!F.stage) { if (chakujin.update(rt, K)) this.go(rt, 1); return; }
     // 刻限と同じ更新で熊井を討った時も、果たした最後の目標を日没の負けで取り消さない。

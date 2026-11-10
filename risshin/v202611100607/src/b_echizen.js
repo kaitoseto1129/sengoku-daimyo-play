@@ -1513,9 +1513,9 @@ echizen.setup = function (rt) {
     html.touch body #hud.echizen.wait-guard-active #objectives:not(.expand) .battle-action:has(.guard-caption) {
       display:none !important;
     }
-    /* 途中で切れた下知に続きがある事を、釦のすぐ上で伝える。 */
+    /* 携帯でも、下知を送る操作の説明は重ねない。 */
     #hud #intro[data-battle="echizen"] > .card::after {
-      content:'下知は上下に送って読めます'; order:1; flex:0 0 auto;
+      content:none; order:1; flex:0 0 auto;
       font-size:max(13px, calc(13px * var(--text-scale, 1)));
       line-height:1.4; color:#ece4d2;
     }
