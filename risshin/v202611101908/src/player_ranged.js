@@ -227,7 +227,7 @@ export class PlayerRanged {
     let best = null, bs = Infinity;
     for (const o of this.rt.army.units) {
       // 味方（team 0）は狙えないが、乗っている馬だけは別（自分の馬・味方の馬も撃つ・射ると討てるように。kaito 10/1）
-      if (!o.alive || (o.team === 0 && !(o.mounted && o.horse && !o.isPlayer && !o.invuln)) || o.woundOut || o.type === 'dummy') continue;
+      if (!o.alive || o.gone || o.noTarget || (o.team === 0 && !(o.mounted && o.horse && !o.isPlayer && !o.invuln)) || o.woundOut || o.type === 'dummy') continue;
       if (nearestEnemy && (o.team === this.u.team || o.fleeing || o.gone || o.civ)) continue;
       if (!weatherSees(this.rt.world, this.u.pos, o.pos)) continue;
       v.set(o.pos.x - cam.position.x, o.pos.y + (o.mounted ? 2.0 : 1.2) - cam.position.y, o.pos.z - cam.position.z);
@@ -263,7 +263,7 @@ export class PlayerRanged {
       this.stickT = (this.stickT || 0) - dt;
       if (this.stickT <= 0) { this.stickT = 0.15; this.stickTo = this.aimRanged(isTouch && this.weapon === 'gun' ? 0.16 : 0.07, this.weapon === 'gun' ? 70 : 45, this.weapon === 'gun'); }
       const o = this.stickTo;
-      if (o && o.alive && !o.woundOut && !o.fleeing && weatherSees(rt.world, u.pos, o.pos)) {
+      if (o && o.alive && !o.gone && !o.noTarget && !o.woundOut && !o.fleeing && weatherSees(rt.world, u.pos, o.pos)) {
         const want = Math.atan2(o.pos.x - u.pos.x, o.pos.z - u.pos.z), df = angleDiff(this.yaw, want);
         if (Math.abs(df) < 0.25) {
           const k = Math.min(1, dt * (isTouch ? 3.2 : 2));

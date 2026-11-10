@@ -3311,12 +3311,11 @@ const tedorigawa = {
         // 出発前の控えに近づいても、追手が迫った知らせや退く下知を先走らせない。
         if (u.group?.tedoFrom && !u.group.tedoActive) continue;
         const d = Math.hypot(u.pos.x - p.x, u.pos.z - p.z);
-        // 見える戦力の知らせだけ画面の見通しに従う。背後の声と蹄まで消さない。
-        if (this.enemySignVisible(rt, u)) {
-          if (d < 60) { if (u.team === 0) allies++; else if (u.team === 1) foes++; }
-          if (u.team === 1 && d < 25) F.nearThreat = true;
-          if (u.team === 1 && d < 12) openingThreat = true;
-        }
+        // 印の見通しと近くの戦力を分ける。背後や闇の兵も枠に数え、
+        // 見回すだけで遠景から兵を足したり、追手の警告を消したりしない。
+        if (d < 60) { if (u.team === 0) allies++; else if (u.team === 1) foes++; }
+        if (u.team === 1 && d < 25) F.nearThreat = true;
+        if (u.team === 1 && d < 12) openingThreat = true;
         // 戦力の数え方は保ち、倒れた兵だけは声と馬の音の発信元から外す。
         if (u.downed || u.rearWound) continue;
         // 持ち場へ着く前と渡河中にも、近づいた追手の声は背後から届く。

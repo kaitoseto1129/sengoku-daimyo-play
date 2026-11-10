@@ -2742,7 +2742,9 @@ const tennoji = {
     }
     finalizeSimpleBatch(rt, kidoBatch);
     templeTown(rt);
-    rt.scene.add(fortGate(W, KIDO.x, KIDO.z, 6.4, true));
+    F.kidoGate = fortGate(W, KIDO.x, KIDO.z, 6.4, true, true);
+    F.kidoGate.userData.openGate();
+    rt.scene.add(F.kidoGate);
     // ---- 四天王寺：石山合戦の焼亡を反映。位置を保ち、基壇と焼け柱を目印にする ----
     shitennojiRuins(rt);
     // 公記巻九（三）（四）は天王寺付城の守備を記すが、四天王寺伽藍内の織田陣は記さない。
