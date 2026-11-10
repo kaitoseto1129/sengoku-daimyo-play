@@ -16,8 +16,8 @@ export function start(rt, ctx) {
   F.step = 4; F.stepT = rt.t;
   rt.setPhase('kiga'); rt.objProgress('main', '');
   rt.objDone('main');
-  rt.obj('main', sack ? '大村道に残った俵を見て参れ' : '平田の蔵で、運び入れた俵を確かめよ', 'main');
-  rt.say('組頭', sack ? 'よう守った。道に捨てた荷駄の俵、陣へ運ぶぞ。数を見て参れ' : 'よう守った。平田の蔵へ行き、運び入れた俵を確かめよ', 4);
+  rt.obj('main', sack ? '大村道に残った俵を見て参れ' : F.storedLoads > 0 ? '平田の蔵で、運び入れた俵を確かめよ' : '平田の蔵で、俵の運び入れを待て', 'main');
+  rt.say('組頭', sack ? 'よう守った。道に捨てた荷駄の俵、陣へ運ぶぞ。数を見て参れ' : F.storedLoads > 0 ? 'よう守った。平田の蔵へ行き、運び入れた俵を確かめよ' : '俵は運んでおる。平田の蔵で運び入れるのを待て', 4);
 }
 
 function next(rt, S) { S.k++; S.kT = rt.t; }
@@ -37,11 +37,12 @@ export function tick(rt, ctx) {
     const road = roadAt(rt, ctx);
     if (road === ctx.store && !S.atStore) {
       S.atStore = true;
-      rt.say('組頭', '俵は平田の蔵へ運んだ。蔵へ行き、運び入れた俵を確かめよ', 4);
-      rt.obj('main', '平田の蔵で、運び入れた俵を確かめよ', 'main');
+      rt.say('組頭', F.storedLoads > 0 ? '俵は平田の蔵へ運んだ。蔵へ行き、運び入れた俵を確かめよ' : '俵は運んでおる。平田の蔵で運び入れるのを待て', 4);
+      rt.obj('main', F.storedLoads > 0 ? '平田の蔵で、運び入れた俵を確かめよ' : '平田の蔵で、俵の運び入れを待て', 'main');
     }
     const at = Math.hypot(p.x - road.x, p.z - road.z) < 6;
-    if (at) {
+    // 担ぎ手の肩にある俵は蔵の荷ではない。実際に一俵届くまで確認を果たさない。
+    if (at && (road !== ctx.store || F.storedLoads > 0)) {
       next(rt, S);
       rt.army.playFar('kane', ctx.castle, 0.6);
       rt.say('足軽', S.atStore ? '蔵に米と塩を運び入れたぞ。城へは通さずに済んだ' : '米じゃ、塩もある……。この荷を城へ通すために、別所の手が打って出たのか', 4.5);

@@ -2581,7 +2581,8 @@ const hiei_mtn = {
   keepBattleSigns: true, // 行き先の案内中も、武将名・人数の棒・目標一覧と敵全員の赤い▼を残す。
   enemyTriangleSigns: true,
   // 敵全員の印は共通処理だけで描く。非戦の者と戦列を離れた者には付けない。
-  enemySignVisible: (rt, u) => !rt.flags.ending && !u.civ && !u.downed && !u.rearWound,
+  enemySignVisible: (rt, u) => !rt.flags.ending && !u.civ && !u.downed && !u.rearWound
+    && !u.fleeing && !u.group?.routed,
   nearbyAllySignLimit: 0,
   noDodgeCard: true,
   noCouriers: true,
