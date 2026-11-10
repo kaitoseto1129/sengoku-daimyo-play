@@ -2339,6 +2339,9 @@ function kgReinforceTick(rt) {
     if (!F.ending && !F.fleeing) rt.after(2, () => {
       // 合流直後に退けの下知が出た場合、古い「砦で受けるぞ」を重ねない。
       if (rt.over || F.ending || F.fleeing) return;
+      // 川の砦から次の備へ退く間も、前の砦へ呼び戻す下知は出さない。
+      const line = r.key === 'ikeda' ? 1 : r.key === 'akechi' ? 2 : -1;
+      if (F.line !== line || F.step !== line * 2 + 1) return;
       rt.say('木下藤吉郎', r.key === 'ikeda' ? '池田殿、かたじけない！　砦の柵で追手を受けるぞ！' : r.key === 'akechi' ? '明智殿の鉄砲じゃ！　柵の内へ寄せよ、撃たせよ！' : '徳川殿か！　皆、徳川勢の後ろを抜けて退け！', 3);
     });
   }

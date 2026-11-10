@@ -1839,6 +1839,9 @@ const iga = {
       g.anchor = { x: CAMP.x + 24, z: CAMP.z + 56 };
       g.order = 'hold'; g.guard = true; g.guardSight = 12; g.guardLeash = 8; g.seekRange = 8;
     }
+    // 夜の番も最初から本陣の奥に置く。包囲の夜になって兵を新しく作らない。
+    F.nightWatch = allyGroup(rt, { fixed: true, noAI: true, formation: 'yari', guard: true, guardLeash: 4, name: '堀の控えの組', anchor: { x: 6, z: 66 }, facing: Math.PI, width: 6, spacing: 0.9, aggro: 7, seekRange: 7, noRout: true },
+      dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 11 }], ODA));
     F.huts = [[-20, 30, 0.1], [18, 26, -0.2], [-8, 60, 0.2], [26, 56, 0]].map(([x, z, r]) => {
       const m = igaHut(W, x, z, 7, 5, r, { wall: 0x6e5a40,
         interior: { name: '陣の兵の小屋', kind: 'nagaya', profile: 'iga', team: 0 } });
@@ -2132,7 +2135,7 @@ const iga = {
       // 11/6 fix1841：段の替わり（見出し）の十二秒内も褒めない。下知が別の口から出ると、上の記録を通らず「その槍、見事なり」が二秒後に出ていた。
       const banner0 = rt.banner.bind(rt); rt.banner = (...a) => { F.lastBannerT = rt.t; return banner0(...a); }; }
     rt.banner('比自山に着いた夜', 'あなたは丹羽の先手。蒲生の下知で麓の陣を守れ');
-    rt.obj('main', HI(rt) ? '麓の陣の口で、一手を率いて山から下りる伊賀衆に備える' : '麓の陣の口で、丹羽の兵の列に付いて山から下りる伊賀衆に備える', 'main');
+    rt.obj('main', HI(rt) ? '麓の陣の口で、一手を率いて山から下りる伊賀衆を防げ' : '麓の陣の口で、丹羽の兵の列に付き、山から下りる伊賀衆を防げ', 'main');
     rt.say('蒲生忠三郎', `${nm(rt)}、山へ追うな。味方のそばで夜討ちに備えよ`, 5);
     // 紙（battle_events_1101）：いくつもの方面から伊賀へ。黒装束の忍びの軍にはせず、山と谷と森に拠る国人衆として。
     rt.after(2.5, () => { if (!F.ending) rt.say('使番', '九月三日、諸口から伊賀へ入った。丹羽様・滝川様の本隊は、まだ北の口で手間取っておる', 5); });
@@ -2262,7 +2265,7 @@ const iga = {
     for (const C of F.mouthClashes || []) C.rout?.('B', { hideAfter: 30, from: 0 });
     if (F.slopeHost) F.slopeHost.visible = false;
     for (const g of F.raidPatrols) if (!g.ambush) retireRaid(rt, [g]);
-    rt.obj('main', '麓の陣の口の印へ集まり、夜討ちの伊賀衆に備える', 'main');
+    rt.obj('main', '麓の陣の口で、夜討ちの伊賀衆を防げ', 'main');
     depthStart(rt, igaCtx(rt), igaA(rt), () => { rt.objRemove('dp'); if (!F.ending) this.assault(rt); });
   },
 
@@ -2417,7 +2420,7 @@ const iga = {
     depthStart(rt, igaCtx(rt), [
       igaMove({ to: SHU, r: 6, max: 45, label: '主郭', obj: '主郭を調べよ' }),
       igaMove({ to: KITA, r: 9, max: 45, label: '北の曲輪', obj: '道をたどり、北の曲輪を調べよ', say: [['足軽', '番所も空だがね。北へ足跡が続いとる', 4]] }),
-      rest({ dur: 8, fn: (r) => { r.objRemove('dp'); r.obj('main', '北の曲輪で組をそろえ、柏原への退きの報せを待つ', 'main'); }, say: [['伝令', '城に敵はおらぬ。柏原へ退いたとの報せだ', 4]] }),
+      rest({ dur: 8, fn: (r) => { r.objRemove('dp'); r.obj('main', '北の曲輪を押さえよ', 'main'); }, say: [['伝令', '城に敵はおらぬ。柏原へ退いたとの報せだ', 4]] }),
     ], () => { rt.objRemove('dp'); if (!F.ending) this.win(rt); });
   },
 
@@ -3502,7 +3505,7 @@ function igaB(rt) {
     igaMove({ to: CAMP, r: 10, label: '包囲の陣', obj: '来た道を戻り、麓の陣へ退け', guideAfter: 150 }),
     rest({ dur: 4, banner: ['包囲を続けた夜', '麓の陣の口で、夜討ちを防げ'], fn: (rt) => {
       rt.objRemove('dp');
-      rt.obj('main', '麓の陣の口で組をそろえ、夜討ちの伊賀衆に備える', 'main');
+      rt.obj('main', '麓の陣の口で、夜討ちの伊賀衆を防げ', 'main');
       igaNight(rt);
       // 11/6 fix61：昼の土橋の戦いで坂を追って来た組・追い討ちの組は、日暮れまでに城へ引き上げた（夜の場面替えの間に消す）。夜討ちの組だけが残る。
       { const keep = new Set(rt.flags.waveB || []), me = rt.player.u.pos;
@@ -3512,11 +3515,7 @@ function igaB(rt) {
       igaBeginCastleRetreat(rt);
       // 11/6 fix1841：土橋で討ち減らされた後、陣の口に味方が二三人しか残らず、陣口に立つ本人がいても夜討ちに押し負けて負けた（NORENDER の流し）。
       // 包囲の陣は堀の本陣の控え（数百）を抱える。夜の番として控えの一組を本陣から陣の口へ歩かせる（湧かせず、陣の奥から来る）。
-      if (!rt.flags.nightWatch) {
-        const g = allyGroup(rt, { fixed: true, formation: 'yari', guard: true, guardLeash: 4, name: '堀の控えの組', anchor: { x: 6, z: 66 }, facing: Math.PI, width: 6, spacing: 0.9, aggro: 7, seekRange: 7, noRout: true },
-          dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 11 }], ODA));
-        g.anchor = { x: 0, z: 30 }; rt.flags.nightWatch = g;
-      }
+      igaGather(rt, rt.flags.nightWatch, { x: 0, z: 30 });
       battleEvent(rt, EVENT_MESSENGER, CAMP, null, 0, true, '蒲生・堀・筒井の手が山の麓を囲んだ');
       for (const c of rt.flags.lines) c.push('A', 0.25);
     } }),

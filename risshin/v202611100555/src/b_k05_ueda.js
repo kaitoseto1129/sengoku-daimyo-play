@@ -523,6 +523,8 @@ const k05_ueda = {
     //   段の済み・勝ちの印・手柄は締めの直前に（共通の goalsDoneTick が二秒半で締め、急使の場面を切らないように）
     endScene(rt, { armies: F.sometai, talk: this.talk.after, done: () => {
       F.won = true;
+      // 城を落とせず西へ向かう締めを終えた。共通の勝鬨・祝勝動作へ戻さない。
+      F.victoryShown = true;
       rt.objDone('s' + LAST);
       rt.tracker.main = true;
       rt.award((t) => { t.main = true; t.special = { label: '上田城下でしんがりを務めた', pts: 20 }; }, '上田城下でしんがりを務めた');
@@ -592,6 +594,8 @@ const k05_ueda = {
       if (!F.kyushi && F.reAt > 45 && (F.w5N - aliveN(F.re) >= Math.round(F.w5N * 0.4) || F.reAt > 90)) {
         F.kyushi = true;
         sfx('horagai', 0.9);
+        // 小競り合いの九月六日から日が過ぎた事を、急使より先に伝える（check60 U4）。
+        rt.banner('九月八日', '');
         rt.say('使番', '家康公より急使！　「上田にかかずらわず、急ぎ美濃へ上られよ」との仰せ！', 4);
         rt.after(4.4, () => rt.say('徳川秀忠', '……城は落ちぬか。攻めを止めよ。西へ急げ！', 3.4));
         rt.after(8, () => { this.back(F.re); this.toStep(rt, 6); });

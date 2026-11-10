@@ -25,6 +25,13 @@ import * as EC_KURUWA from './echizen/kuruwa.js';
 import * as EC_SEIEI from './echizen/seiei.js';
 import * as EC_FUCHU from './echizen/fuchu.js';   // 15分の構成（docs/oda15_plan_1108.md 18）：段の中身は echizen/ に一段一ファイル
 
+// 段ごとの下知は、小言を消す古い語句の制限で落とさない。
+const ECH_STORY_LINES = new Set([
+  '主郭から精鋭が打って出たぞ！　副郭で踏みとどまれ！',
+  '追いついたぞ。坂の上に殿が踏みとどまっておる！',
+  '……一揆勢は府中へ散った。峠は、われらの物じゃ',
+]);
+
 // 11/5 fix61（kaito 九1・九3・十1）：右上は①〜⑤を最初から全部並べ、済んだ物に印（hud_goals の札）。両軍の今の兵の数の棒も上に常に出す。
 //   共通の任務札は一行だけ（missionSingleLine）なので、その後に目標の札を重ねて置き換える（有岡と同じ作り）。時の字は出さない。
 const ECH_BOARD_CSS = `
@@ -1598,7 +1605,7 @@ echizen.setup = function (rt) {
     }
     // 11/6 fix4_echizen：10/26 から戦の間の台詞が全部消え、杉津口の寝返りの知らせ・付け入り・殿の将の名が届かず、物語が分からなかった。
     //   物語の台詞（知らせ・名のある将・組頭の太鼓と付け入りと殿）だけ出す。共通の「前に出すぎ」「東の旗へ寄れ」などの指図と、崩れるたびの一言は出さない
-    const story = speaker === '組頭' ? /敦賀|惟任殿|穂先をそろえよ|付け入|木戸を閉め|太鼓じゃ|府中へ退く|西光寺|竹束/.test(text)
+    const story = speaker === '組頭' ? ECH_STORY_LINES.has(text) || /敦賀|惟任殿|穂先をそろえよ|付け入|木戸を閉め|太鼓じゃ|府中へ退く|西光寺|竹束/.test(text)
       : speaker !== '足軽' || /火縄/.test(text);
     // 11/6 fixc0917_echizen：殿へ懸かる柴田らが共通の崩れの一言（「無念」「固まって退け」）を言い、勝ち戦の中で味方の将が退くように聞こえた
     if (!rt.over && !rt.flags.ending && /無念|固まって退け|背を向けるな/.test(text)) return;

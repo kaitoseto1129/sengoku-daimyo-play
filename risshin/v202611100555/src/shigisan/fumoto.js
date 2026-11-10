@@ -6,6 +6,7 @@
 // ======================================================================
 import { enemyGroup } from '../bhelp.js';
 import { sfx } from '../audio.js';
+import { siegeFighter } from '../siege_zones.js';
 
 export function install(rt, ctx) {
   const F = rt.flags;
@@ -38,7 +39,7 @@ export function install(rt, ctx) {
     rt.army.play?.('eshout', { x: a[0], z: a[1] }, 1.2);
     rt.say('組頭', '尾根道を下りて来る者がおる！　松永の物見じゃ、払え！', 4);
     rt.obj('main', '尾根道を下りて来た松永の物見を、筒井の先手と払え', 'main');
-    rt.marker('fumotoS', () => (S.units.some((u) => u.alive && !u.fleeing && !u.woundOut) ? S.center() : null), '松永の物見', { red: true, group: S });
+    rt.marker('fumotoS', () => (S.units.some(siegeFighter) ? S.center() : null), '松永の物見', { red: true, group: S });
   });
   // 払った後：信忠の使番の下知 → 筒井の先手の旗へ寄ると法螺で登り始める（着かなくても約四十秒で）
   let gather = 0;
@@ -69,7 +70,7 @@ export function install(rt, ctx) {
       }
       if (!S) { if (el > 110) finish(); return; }
       let n = 0;
-      for (const u of S.units) if (u.alive && !u.fleeing && !u.woundOut) n++;
+      for (const u of S.units) if (siegeFighter(u)) n++;
       rt.objProgress('main', n ? `松永の物見 ${n}人` : '');
       if ((!n && el > 80) || el > 150) {
         if (!n) rt.award((t) => t.side.push('夜攻めの前に、松永の物見を払った'), '松永の物見を払った');

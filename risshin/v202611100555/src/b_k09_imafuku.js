@@ -78,7 +78,7 @@ function requiredStage(s) {
   const tick = s.tick;
   s.tick = function (rt, C, m, ctx, el, dt) {
     const player = rt.player.u;
-    const fighting = player.alive && !player.dying && !player.woundOut;
+    const fighting = player.alive && !player.dying && !player.woundOut && !player.downed;
     if (s.kind === 'fight' && rt.flags.step === 4 && !C.engaged) {
       const p = rt.player.u.pos;
       C.engaged = fighting && Math.abs(p.z) < BANK && p.x < FORT.x + 20 &&
@@ -111,7 +111,7 @@ function requiredStage(s) {
       if (leaderAlive && rt.t - F2.gatesDownT > 75) {
         for (const g of C.groups) for (const u of g.units) if (u.alive && /^(矢野正倫|飯田家貞)$/.test(u.name || '')) {
           const by = rt.army.units.find((a) => a.alive && a.team === 0 && !a.isPlayer && !a.isStruct &&
-            !a.fleeing && !a.dying && !a.woundOut && !a.perch &&
+            !a.fleeing && !a.dying && !a.woundOut && !a.downed && !a.perch &&
             Math.abs(a.pos.y - u.pos.y) < 3 && Math.hypot(a.pos.x - u.pos.x, a.pos.z - u.pos.z) < 4 &&
             !rt.army.wallBetween(a.pos, a.team, u.pos, false));
           if (!by) continue;
@@ -710,7 +710,7 @@ const k09_imafuku = {
       }
       F.allyAt = null;
       if ((F.step || 0) >= 2) for (const u of rt.army.units) if (u.alive && u.team === 0 && !u.isPlayer && !u.isStruct &&
-        !u.fleeing && !u.dying && !u.woundOut && !u.group?.routed && Math.abs(u.pos.z) < 4 &&
+        !u.fleeing && !u.dying && !u.woundOut && !u.downed && !u.group?.routed && Math.abs(u.pos.z) < 4 &&
         (F.allyAt == null || u.pos.x < F.allyAt)) F.allyAt = u.pos.x;
       // 西へ抜けた一人の位置だけでは、遠く離れた木戸まで縄を引いた事にしない。
       // 木戸ごとに、実際に取り付ける足場にいる戦闘中の味方を数える。
@@ -720,7 +720,7 @@ const k09_imafuku = {
         st.allyPull = false;
         if ((F.step || 0) < 2) continue;
         for (const u of rt.army.units) if (u.alive && u.team === 0 && !u.isPlayer && !u.isStruct && !u.perch &&
-          !u.fleeing && !u.dying && !u.woundOut && !u.group?.routed && Math.abs(u.pos.z) < 4 &&
+          !u.fleeing && !u.dying && !u.woundOut && !u.downed && !u.group?.routed && Math.abs(u.pos.z) < 4 &&
           u.pos.x - st.seg[0] > -6 && u.pos.x - st.seg[0] < 5) { st.allyPull = true; break; }
       }
     }
@@ -731,7 +731,7 @@ const k09_imafuku = {
       const st = i >= 0 ? F.outer[i] : F.gate;
       if (!st || !st.alive || !p) continue;
       // 袖の柵や次の木戸の前からは引けない。木戸の幅の内側で縄が届く所に取り付く。
-      const near = rt.player.u.alive && !rt.player.u.dying && !rt.player.u.woundOut &&
+      const near = rt.player.u.alive && !rt.player.u.dying && !rt.player.u.woundOut && !rt.player.u.downed &&
         p.z > Math.min(st.seg[1], st.seg[3]) && p.z < Math.max(st.seg[1], st.seg[3]) &&
         p.x - st.seg[0] > -6 && p.x - st.seg[0] < 6;
       const ally = st.allyPull;

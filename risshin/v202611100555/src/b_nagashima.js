@@ -4520,23 +4520,27 @@ const nagashima = {
 // 表示の兵力は遊びの目安。戦う者と、二砦に残る非戦闘の人々の数を分ける。
 // 11/8 critic60 長島（九3・十二1）：描いた兵の減り方を全体の数へ写し、斬り込みと火で両軍の数と棒が動くようにする。入れ物は使い回す。
 nagashima.force = (rt) => {
-  const S = rt.flags._force || (rt.flags._force = { a0: 0, b0: 0, out: { a: 70000, a0: 70000, b: 10000, b0: 10000 } });
-  let a = 0, b = 0, a0 = 0, b0 = 0;
+  const S = rt.flags._force || (rt.flags._force = { a0: 0, b0: 0, lost: new WeakSet(), aLost: 0, bLost: 0, out: { a: 70000, a0: 70000, b: 10000, b0: 10000 } });
+  let a0 = 0, b0 = 0;
   for (const u of rt.army?.units || []) {
     if (!u || u.isPlayer || u.civ || u.isStruct || (u.team !== 0 && u.team !== 1)) continue;
     // 舟の待機・降伏・持ち場への帰還で攻撃対象から外れても、兵数は減らさない。
     if (u.team === 0) a0++; else b0++;
-    // 倒れる動作の間も alive は残る。命の尽きた兵を現在の兵数へ戻さない。
-    if (!u.alive || u.hp <= 0 || u.gone || u.dying || u.woundOut || u.rearWound) continue;
-    if (u.team === 0) a++; else b++;
+    // 舟で逃れた者は despawn で alive=false・gone=true になるが、討死ではない。
+    // 実際の死傷を一度だけ覚え、兵が列から片付けられても損害を戻さない。
+    const casualty = u.hp <= 0 || u.dying || u.woundOut || u.rearWound || !u.alive && !u.gone;
+    if (casualty && !S.lost.has(u)) {
+      S.lost.add(u);
+      if (u.team === 0) S.aLost++; else S.bLost++;
+    }
   }
   S.a0 = Math.max(S.a0, a0); S.b0 = Math.max(S.b0, b0);
   // 着火は結末の三秒後。火が広がる間に減らし、着火前に半減させない。
   const fireProgress = rt.flags.ending ? Math.max(0, Math.min(1, (rt.t - rt.flags.endingAt - 3) / (END_SEC - 3))) : 0;
   const burnt = 1 - .55 * fireProgress;
   // 後続の組が加わって分母が増えても、既に減った兵数を戻さない。
-  S.out.a = Math.min(S.out.a, 70000 - (S.a0 ? (S.a0 - a) / S.a0 * 2500 : 0));
-  S.out.b = Math.min(S.out.b, (S.b0 ? 10000 * b / S.b0 : 10000) * burnt);
+  S.out.a = Math.min(S.out.a, 70000 - (S.a0 ? Math.min(1, S.aLost / S.a0) * 2500 : 0));
+  S.out.b = Math.min(S.out.b, (S.b0 ? 10000 * Math.max(0, 1 - S.bLost / S.b0) : 10000) * burnt);
   return S.out;
 };
 nagashima.sides = { a: { name: '織田軍', mon: 'oda' }, b: { name: '長島の一揆勢', mon: 'namu' } };

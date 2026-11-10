@@ -325,6 +325,7 @@ const t04_negoro = {
   minutes: 15, expectMin: 15,
   depth: () => negoroDepth(NG), lethal: { max: 2, firstAt: 200, gap: 120 },   // 11/9 二巡（徳川D）：既定の lethal では縁と塀の鉄砲の中で bot が二回とも二〜五分で倒れた。突然の討死を二つ・三分過ぎからに絞る。 武将の備（t04_negoro/depth.js）と命懸けの戦場（lethal.js）
   forceBarAlways: true,   // 両軍の総勢と減りを、行き先の案内中も一本の棒で示す
+  keepBattleSigns: true,   // 行き先の▼を出している間も、人数の棒と武将名を隠さない。
   nameTagLimit: 12,   // 見えている将の名を一、二人だけに絞らない（重なりは共通の判定で避ける）
   noCavalryMix: true,   // 寺の境内・山城の狭い道：共通の「敵の組に騎馬を混ぜる」をしない（路地と山道で馬の突きに何度も倒された）
   nearbyAllySignLimit: 0,   // 近くの味方に意味の分からない白い丸を出さない（critic60 五2）

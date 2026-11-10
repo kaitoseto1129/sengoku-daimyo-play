@@ -624,7 +624,13 @@ const t06_hetsugi = {
     };
     kyuen.sogoFall(rt, K);   // 十河は救援の知らせの時に先に討たれている
     rt.after(1.4, () => fall(F.tsuneU, '戸次統常'));
-    rt.after(2.6, () => { fall(F.nobuU, '長宗我部信親', F.suzukiU?.alive ? F.suzukiU : null); routButai(B.nobu, 30); rt.say('鈴木大膳', '長宗我部信親、討ち取ったり！', 2.4); });
+    rt.after(2.6, () => {
+      const duel = F.s3?.bladesMet && F.suzukiU?.alive;
+      fall(F.nobuU, '長宗我部信親', duel ? F.suzukiU : null);
+      routButai(B.nobu, 30);
+      if (duel) rt.say('鈴木大膳', '長宗我部信親、討ち取ったり！', 2.4);
+      else rt.say('手勢の侍', '信親様の旗が……！　島津に呑まれた！', 2.4);
+    });
     // 夜へ移ろう（包みの段の六十秒から。まだなら今から。四6）
     if (!F.nightGo) { F.nightGo = true; rt.world.setTime?.('night'); }
     rt.after(3.8, () => rt.say(F.mine.leader?.name || '手勢の侍', `${nm(rt)}殿、信親様が……！　ここは退くほかござらぬ`, 3.2));
@@ -633,7 +639,7 @@ const t06_hetsugi = {
     for (const g of [F.nobu, F.sogo, F.tsune, ...(F.allyBands || [])]) if (live(g)) {
       // 十河の残兵は先に渡り始めている。浅瀬に入った隊を北の口へ呼び戻さない。
       const crossing = g.center().z > -24;
-      g.order = 'move'; g.dest = { x: FORD.x, z: crossing ? 40 : -24 }; g.speed = 3.6; g.aggro = 6; g.seekRange = 6;
+      g.order = 'move'; g.focus = null; g.dest = { x: FORD.x, z: crossing ? 40 : -24 }; g.speed = 3.6; g.aggro = 6; g.seekRange = 6;
       g.onArrive = crossing ? null : (q) => { q.order = 'move'; q.dest = { x: FORD.x, z: 40 }; q.onArrive = null; };
     }
     // 元親も渡りの手前から落ちていく（史実：伊予の日振島へ逃れた）
@@ -654,6 +660,11 @@ const t06_hetsugi = {
     F.suzuki.kind = 'main'; F.suzuki.focus = u; F.foes.push(F.suzuki);
     F.suzukiU = F.suzuki.units.find((s) => s.type === 'busho');
     if (F.suzukiU) { F.suzukiU.invuln = true; F.suzukiU.mustLive = true; F.suzukiU.noTarget = false; }
+    // 信親も斬り込んだ相手へ向く。備の持ち場への追従で鈴木から離れ続けない。
+    if (F.suzukiU && live(F.nobu)) {
+      F.follow = F.follow.filter(([g]) => g !== F.nobu);
+      F.nobu.order = 'attack'; F.nobu.dest = null; F.nobu.focus = F.suzukiU;
+    }
     rt.army.play('toki', at, 1.2);
     rt.say('長宗我部信親', '退かぬ。信親はここで斬り死にいたす！', 3);
     rt.after(6, () => rt.say(F.mine.leader?.name || '手勢の侍', '尾根の陰から新手じゃ！　信親様の馬印へ寄れ！', 3));
@@ -709,6 +720,7 @@ const t06_hetsugi = {
       guardRecover(rt, F.nobuU, dt, HISTORICAL_RETURN);
       guardRecover(rt, F.suzukiU, dt, HISTORICAL_RETURN);
       if (live(F.suzuki) && F.nobuU?.alive && !F.nobuU.noTarget) F.suzuki.focus = F.nobuU;
+      if (F.s3?.ls && live(F.nobu) && F.suzukiU?.alive && !F.suzukiU.noTarget) F.nobu.focus = F.suzukiU;
     }
     butaiTick(rt, dt);
     // 塊どうしの押し合い（伊集院に当たる段から）
@@ -758,7 +770,7 @@ const t06_hetsugi = {
       for (const g of rt.army.groups) if (g.team === 1 && g.count && !g.feignSoft) { g.feignSoft = true; g.feignDmg = g.dmgMult ?? 1; g.dmgMult = Math.min(g.feignDmg, 0.45); }
       // 替わった先手の兵は待たずに四国の衆と本人へ槍を入れる（退くふりの前は本当に当たる。九2）
       if (!F.feigned) for (const g of rt.army.groups) if (g.team === 1 && g.count && g.order === 'hold' && g.kind !== 'main' && !g.gunLine) { g.order = 'attack'; g.seekRange = 26; g.aggro = 12; }
-      if (!F.feigned && tsuigeki.engaged(rt) && el > 60) this.feign(rt);   // 本人が先手と当たってから退く。時間だけで交戦を果たさない。
+      if (!F.feigned && tsuigeki.pressed(rt, K) && el > 60) this.feign(rt);   // 本人の交戦か、崩れた先手の持ち場の確保を経て退く。
       if (F.feigned) tsuigeki.update(rt, K);
       if (F.feigned && tsuigeki.ready(rt, K)) this.toStep(rt, 3);
     } else if (F.step === 3) {
