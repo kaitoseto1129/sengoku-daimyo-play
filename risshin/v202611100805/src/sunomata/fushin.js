@@ -130,23 +130,27 @@ function stageUp(rt, B, k) {
 // 次の段へ進める（六十秒の見張りから）
 function kick(rt, def, C) {
   const F = rt.flags, B = S(rt), v = F.s15 || {};
+  // 停滞の救済でも、舟着きへの出迎えと本人の帰還は省かない。
+  if (v.ph === 'hakobi') {
+    const p = rt.player.u.pos;
+    if (!v.atDock || Math.abs(p.x) >= C.FORT || Math.abs(p.z) >= C.FORT) return 'wait';
+    B.kicks++; C.hakobiForce?.(rt); return 'hakobi';
+  }
+  // 戦った印は本体の命中・討ち取りでだけ付ける。待つだけで目標を果たさせない。
+  if (F.wave && F.foughtWave !== F.wave) return 'wait';
   B.kicks++;
-  if (v.ph === 'hakobi') { C.hakobiForce?.(rt); return 'hakobi'; }
   if (!F.wave) { def.wave1?.(rt); return 'w1'; }
   if (F.wave === 1) {
-    F.foughtWave = 1;
     for (const g of [F.W1, F.W1b, F.PR1]) retreat(g);
     if (!F.W2) def.wave2?.(rt);
     return 'w2';
   }
   if (F.wave === 2) {
-    F.foughtWave = 2;
     retreat(F.W2);
     def.wave3?.(rt);
     return 'w3';
   }
   // 三の手：刻限までは築城を一段進め、刻限を過ぎていれば残りの寄せを退かせて夜明けの完成へ
-  F.foughtWave = 3;
   if (!F.finishAt || rt.t < F.finishAt) {
     const nx = STAGE_AT.find((a) => a > B.p);
     if (nx != null && nx < 100) B.p = nx;

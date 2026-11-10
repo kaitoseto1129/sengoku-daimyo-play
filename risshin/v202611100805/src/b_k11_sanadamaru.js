@@ -758,9 +758,8 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
       // 遠くに残った組は退かせ、柵の近くの組（無ければ新しい組）で打つ
       const tx = (T.seg[0] + T.seg[2]) / 2, tz = (T.seg[1] + T.seg[3]) / 2;
       for (const g of F.rams) if (!gone(g)) { const c = g.center(); if (Math.hypot(c.x - tx, c.z - tz) > 50) { withdraw(g, { x: RALLY.x + 6, z: RALLY.z + 10 }); g.far = true; } else g.far = false; }
-      const R = F.rams.find((g) => !gone(g) && !g.far) || this.newRam(rt, T);
+      if (!F.rams.some((g) => !gone(g) && !g.far)) this.newRam(rt, T);
       for (const g of F.rams) if (!gone(g) && !g.far) { g.keepMoveOrder = false; g.order = 'assault'; g.formation = 'line'; g.aggro = 2; g.dmgMult = 2.2; g.assault = () => (T.alive && !T.invuln ? T : null); for (const u of g.units) u.aiT = 0; }
-      if (!R) return;
       // 持ち場の印と破る柵の印を重ねない
       rt.unmark('dp');
       rt.marker('fence', { x: (T.seg[0] + T.seg[2]) / 2, z: (T.seg[1] + T.seg[3]) / 2 }, T.name, { h: 3 });
@@ -807,9 +806,9 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
     F.step = 2; F.holdFire = true;
     setWarStage(1);   // 戦の曲：寄せる所でテンポが上がる（music_war.js の段）
     for (const g of [F.yam, F.second]) if (!gone(g)) { g.formation = 'line'; g.facing = Math.PI; g.width = 22; }
-    rt.say('山崎長徳', 'ここまで笑われて戻れるか！　正面から真田丸へ寄せよ！', 3.6);
     // 利光は軍令違反と見て引き戻そうとしたが、先手は止まらなかった（専門家の目 11/6）
-    rt.after(4.5, () => { if (F.step === 2) rt.say('前田の使番', '殿より！　丸へは寄せるな、仕寄りへ戻れとの仰せ！', 3.4); });
+    rt.say('前田の使番', '殿より！　丸へは寄せるな、仕寄りへ戻れとの仰せ！', 3.4);
+    rt.after(4.5, () => { if (F.step === 2) rt.say('山崎長徳', 'ここまで笑われて戻れるか！　正面から真田丸へ寄せよ！', 3.6); });
     rt.after(9, () => { if (F.step === 2) rt.say('足軽', '小さな出丸じゃ。これなら一気に落とせる！', 3); });
     rt.after(24, () => { if (F.step === 2) rt.say('使番', '前田勢、真田丸へ寄せたり！　住吉の大御所様の陣へ注進！', 3.4); });
     // 退きの下知までの損害：一斉射の後、味方が十二人倒れるか、撃たれて五十秒
