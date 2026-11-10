@@ -4400,8 +4400,9 @@ const anegawa = {
     if (rt.t >= (F.hqSceneAt || 0)) {
       F.hqSceneAt = rt.t + 0.5;
       const raid = rt.taisho?.raid;
-      let incoming = raid && !gone(raid) && Math.hypot(raid.center().x - HQ.x, raid.center().z - HQ.z) < 65;
-      if (!incoming) for (const g of F.waves) if (g && !g.anePending && !gone(g) &&
+      // 退く下知から敗走になるまでの間も、本陣へ攻めている扱いにしない。
+      let incoming = raid && !gone(raid) && raid.order !== 'retreat' && raid.order !== 'flee' && Math.hypot(raid.center().x - HQ.x, raid.center().z - HQ.z) < 65;
+      if (!incoming) for (const g of F.waves) if (g && !g.anePending && !gone(g) && g.order !== 'retreat' && g.order !== 'flee' &&
           Math.hypot(g.center().x - HQ.x, g.center().z - HQ.z) < 55) { incoming = true; break; }
       if (incoming && !F.hqClashStarted && !F.ending && !rt.over) {
         F.hqClashStarted = true; F.hqClash.mesh.visible = true; F.hqClash.go();
