@@ -572,11 +572,19 @@ const k13_domyoji = {
     const F = rt.flags, g = F.katakura;
     // 待ち伏せの予約後に終戦した場合、追撃停止を移動の下知で上書きしない。
     if (F.ending || rt.over || F.dp?.i !== 5) return;
-    if (!g || !g.count) return;
     const sanada = F.dp.cur.groups.find((q) => q.name === '真田信繁の手');
     if (!sanada || sanada.routed) return;
     const active = (u) => u.alive && !u.fleeing && !u.gone && !u.woundOut &&
       !u.rearWound && !u.downed && !u.noTarget;
+    // 鉄砲兵が倒れた後まで射撃待ちを続けると、残った槍兵も伏せたままになる。
+    // 迎える伊達勢が尽きた時も、架空の一斉射撃で押し戻さず通常の戦いへ戻す。
+    if (!sanada.units.some((u) => active(u) && u.weapon === 'gun') ||
+        !g || !g.count || !g.units.some(active)) {
+      sanada.ambush = false; sanada.order = 'attack'; sanada.seekRange = 55;
+      sanada.anchor = { x: HONDA.x, z: HONDA.z };
+      for (const u of sanada.units) u._crouch = false;
+      return;
+    }
     if (!sanada._dmAmbush) {
       sanada._dmAmbush = true;
       sanada.ambush = true; sanada.order = 'hold'; sanada.seekRange = 0;

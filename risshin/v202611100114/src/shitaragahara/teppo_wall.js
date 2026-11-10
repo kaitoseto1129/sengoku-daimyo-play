@@ -72,7 +72,12 @@ export function tick(rt, dt) {
     const m = MOUTHS[i];
     if ((W.near[i] -= dt) > 0) continue;
     const foes = foesAt(rt, m.z, SB);
-    if (!foes) { W.near[i] = 1.5; continue; }
+    if (!foes) {
+      // 寄せ手が去った口は射撃を終える。前の番の「放て」を残さない。
+      for (const q of W.mouthGuns[i]) { q.fire = false; q.holdFire = true; }
+      W.near[i] = 1.5;
+      continue;
+    }
     W.near[i] = 2.4 + Math.random() * 0.6;
     const gs = W.mouthGuns[i].filter((q) => q.count && !q.routed);
     if (!gs.length) continue;

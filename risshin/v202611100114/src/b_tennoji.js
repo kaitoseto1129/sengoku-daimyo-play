@@ -3984,8 +3984,9 @@ body:has(#hud.tennoji-tasks) #tc .tb[data-b=guard] .name {
         let live = 0;
         for (const enemy of g.units) if (enemy.alive && !enemy.woundOut) {
           live++;
-          // 退く下知の出た殿は、木戸の手前の印から十二歩離れていれば退いたとみなす（11/9 二巡：木戸の柵で一人が詰まり六分止まった）。
-          if (enemy.pos.z > KIDO.z - 12 && !(g.kidoRetreat && Math.hypot(enemy.pos.x - F.kz.x, enemy.pos.z - F.kz.z) > 12)) escaped = false;
+          // 木戸の柵で詰まっても、退く下知を受けて印より北の木戸側へ達した殿は退去済み。
+          // 南の迎撃位置や東西へ離れただけでは、木戸へ退いたことにしない。
+          if (enemy.pos.z > KIDO.z - 12 && !(g.kidoRetreat && enemy.pos.z <= F.kz.z - 12)) escaped = false;
         }
         remaining += live;
         // 殿が討ち減らされたら、背後の木戸へ走って退く。
