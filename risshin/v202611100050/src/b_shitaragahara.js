@@ -1232,11 +1232,13 @@ function shRetreatPath(rt, goal) {
 function shGuardVoice(rt, text) {
   // 柵外へ追う下知の後は、守備用の掛け声で柵へ戻さない。
   if (rt.flags.pursuit && text.includes('馬防柵の内から、狙いを定めよ')) {
-    return rt.flags.tsuigeki?.stage === 3 ? '仲間と並び、馬場隊へ槍を向けよ' : '組を離れるな。退く武田の旗を追え';
+    return rt.flags.nf?.step >= 5 ? '退き口で仲間と並び、馬場隊へ槍を向けよ' : '柳田前の虎口を出て、組と連吾川を渡れ';
   }
   if (!rt.flags.pursuit && /敵は総崩れじゃ|敵が背を見せた！|敵が崩れた！|敵が槍を捨てた！|敵が下がった！.*押せ|敵が退いて列を組み直す|敵が息を継いでおる|敵の列が乱れておる/.test(text)) {
     // 配置替えや後退の途中に、足を止める古い下知を重ねない。
     const F = rt.flags;
+    // 現在の六つの任務を優先する。旧進行の待機・帰陣の声で、物見の誘いや配置替えを止めない。
+    if (F.nf) return NF_TEXT[shitaragahara.missionOf(rt)];
     // 守りを終えた後は、札と同じ攻め方の判断か進み太鼓へ案内する。
     if (F.chaseOrdered) return F.dp?.on && F.dp.cur?.s.kind === 'pick'
       ? '馬場隊を正面から攻めるか、横へ回るか選べ' : SH_CHASE_WAIT;
@@ -1690,6 +1692,7 @@ html:root body #hud#hud#hud.sh-battle #armybar { display:grid !important; visibi
 html:root body #hud#hud#hud.sh-battle #h-prog#h-prog #armybar#armybar .gauge.one { display:block !important; grid-column:1 / -1; width:100%; }
 html:root body #hud#hud#hud.sh-battle #h-prog#h-prog.goal-mode .pg-goals .tm { display:none !important; }
 html:root body #hud#hud#hud.sh-battle #h-prog#h-prog.goal-mode .pg-goals li { display:flex !important; color:#e6dfd2 !important; background:none !important; }
+html:root body #hud#hud#hud.sh-battle #h-prog#h-prog.goal-mode .pg-goals li.out { display:none !important; }
 html:root body #hud#hud#hud.sh-battle #h-prog#h-prog.goal-mode .pg-goals li span { color:inherit !important; background:none !important; }
 html:root body #hud#hud#hud.sh-battle #h-prog#h-prog.goal-mode .pg-goals li.now { color:#fff !important; font-weight:800; }
 html:root body #hud#hud#hud.sh-battle #h-prog#h-prog.goal-mode .pg-goals li.done { color:#b9b3a6 !important; }
@@ -3477,8 +3480,8 @@ const shitaragahara = {
   // 11/6 fixc1721：寄せる二つの備。初めは連吾川の東の段丘の縁に構え、下知で段丘を下りて柵へ寄せる（開戦から柵の外で団子にしない）。
   //   具足は黒（赤備えは南の山県だけ・四3）。家の旗は真田の六連銭と武田菱。軍勢対軍勢に見えるよう、本物の徒歩を三十四人に。
   WAVES: [
-    { name: '真田信綱・昌輝', hq: 'shitara_sanada', fac: 'hojo', flag: 'sanada', z: MOUTHS[0].z, home: { x: 148, z: MOUTHS[0].z + 4.5 }, cav: 8, ash: 22, brother: true },
-    { name: '内藤昌豊', hq: 'shitara_naito', fac: 'hojo', flag: '内藤の胴赤', z: MOUTHS[1].z, home: { x: 152, z: MOUTHS[1].z + 4.5 }, cav: 8, ash: 22, general: '内藤昌豊', final: true },
+    { name: '真田信綱・昌輝', hq: 'shitara_sanada', fac: 'takeda', flag: 'sanada', z: MOUTHS[0].z, home: { x: 148, z: MOUTHS[0].z + 4.5 }, cav: 8, ash: 22, brother: true },
+    { name: '内藤昌豊', hq: 'shitara_naito', fac: 'takeda', flag: '内藤の胴赤', z: MOUTHS[1].z, home: { x: 152, z: MOUTHS[1].z + 4.5 }, cav: 8, ash: 22, general: '内藤昌豊', final: true },
   ],
 
   makeWave(rt, w) {
