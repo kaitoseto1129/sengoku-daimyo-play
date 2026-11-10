@@ -822,6 +822,9 @@ html:root body #hud:has(#h-prog[data-battle="t09_yamanaka"]) #center-call .cc { 
 
   update(rt, dt) {
     const F = rt.flags;
+    // 「plain」でも共通の地表の靄は昼まで残る。山中は初めの朝霧だけにし、九十秒で消す。
+    if (rt.world?.def) rt.world.def.groundMistScale = Math.max(0, 1 - rt.t / 90);
+    if (rt.t >= 90 && rt.world?.mistVeil) rt.world.mistVeil.list.length = 0;
     // 落城後の会話中は守りの射撃を止める。勝った後まで寄せ手を撃ち倒さない。
     if (F.ending) return;
     // 討死・やり直しの札の裏で、味方の討ち取りや経過時間だけで目標を果たさない。
@@ -879,7 +882,8 @@ html:root body #hud:has(#h-prog[data-battle="t09_yamanaka"]) #center-call .cc { 
         F.dai.noRout = true; F.dai.morale = 100; F.dai.order = 'assault'; F.dai.seekRange = 60; F.dai.aggro = 40; F.dai.fixed = false;
         // 横陣の後列は敵が三〜六mへ来るまで持ち場を守る。突き入りの下知では後列も前へ出す。
         F.dai.formation = 'column'; F.dai.colW = 3;
-        rt.say('間宮康俊', '氏勝殿も直元も落とした。白髪首を渡すは恥ぞ、墨で染めたわ。者ども、続け！', 5);
+        const escaped = F.ujikatsu && !F.ujikatsu.units.some((u) => u.alive && !u.gone);
+        rt.say('間宮康俊', `${escaped ? '氏勝殿も直元も落とした。' : '氏勝殿と直元は北の道へ。'}白髪首を渡すは恥ぞ、墨で染めたわ。者ども、続け！`, 5);
       }
       // 最期は実際の攻撃で決める。柵の向こうで待つだけで四十秒後に命を尽かせない。
       // 突き入り前に本人が討った場合も記録し、討死と隊の崩壊を分けて数える。

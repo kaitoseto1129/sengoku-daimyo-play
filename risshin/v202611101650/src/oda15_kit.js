@@ -20,7 +20,8 @@ export function k15Go(rt, id, pos, r, text, label, fn, o = {}) {
   if (o.progress) rt.objProgress('main', o.progress);
   rt.marker('k15', guide, label, { h: o.h || 3, guideAlways: true });
   const tick = () => {
-    if (rt.over || !F.k15at || F.k15at.id !== id) return;
+    // 討死から結果待ちまでの間も予約は来る。到着扱いで次の寄せ手を出さない。
+    if (rt.over || F.ending || rt.player.u.alive === false || !F.k15at || F.k15at.id !== id) return;
     const p = at(), me = rt.player.u.pos;
     if (!p || (Math.hypot(me.x - p.x, me.z - p.z) < r && (!o.canArrive || o.canArrive())) || rt.t - F.k15at.t0 > (o.limit || 60)) {
       F.k15at = null; rt.unmark('k15'); fn(rt); return;
@@ -157,12 +158,12 @@ export function k15Wave(rt, o, after) {
 // 出した一手の残りを数え、減るか時が過ぎたら退かせて done（戦ごとの兵の出し方を使う時）
 export function k15Track(rt, g, label, o, done) {
   const F = rt.flags;
-  if (!g) { rt.after(1, () => done?.(), true); return; }
+  if (!g) { rt.after(1, () => { if (!rt.over && !F.ending && rt.player.u.alive !== false) done?.(); }, true); return; }
   const N0 = k15Live(g), t0 = rt.t;
   F.k15fight = true;
   rt.marker('k15foe', centerOf(g), label, { red: true, group: g });
   const tick = () => {
-    if (rt.over || F.ending) return;
+    if (rt.over || F.ending || rt.player.u.alive === false) return;
     const left = k15Live(g);
     rt.objProgress('main', `${label} ${left}／${N0}`);
     if (left <= (o.left ?? 1) || rt.t - t0 > (o.sec || 90)) {
@@ -184,6 +185,6 @@ export function k15Heal(rt, k = 0.85) { const u = rt.player.u; if (u.alive) u.hp
 // 段の間、前の段の時計（F[key]）を止める（前の段の「何秒たったら失敗・先へ」を、挟んだ段の長さで踏まない）
 export function k15Freeze(rt, stage, key = 'pT') {
   const F = rt.flags, t0 = rt.t, base = F[key];
-  const keep = () => { if (F.k15stage !== stage || rt.over) return; if (base != null) F[key] = base + (rt.t - t0); rt.after(0.5, keep, true); };
+  const keep = () => { if (F.k15stage !== stage || rt.over || F.ending || rt.player.u.alive === false) return; if (base != null) F[key] = base + (rt.t - t0); rt.after(0.5, keep, true); };
   keep();
 }

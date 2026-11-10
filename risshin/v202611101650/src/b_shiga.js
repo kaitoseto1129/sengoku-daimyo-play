@@ -4244,11 +4244,10 @@ const shiga = {
         sightPoint(rt, q.pos, 40)) : null;
       // 三将の最期は、槍の届く敵と将の姿を見届けられる時だけ進める。
       // 背後や町屋の陰で字だけの討死にせず、見えるまで同じ攻防を続ける。
-      // 11/10 クラウド：将の姿が見えない所で寄せ手が届かず、町口の段が十分止まった（act bot 197→791秒）。
-      //   詰まらない決まり：見届けを四十五秒待っても揃わない時は、近くの寄せ手に討たせて筋を進める。
-      const late = tries > 45 ? (foe || rt.army.nearestEnemy(u, 25, (q) => !q.fleeing && !q.isStruct && !q.noTarget)) : null;
-      if (u.alive && !late && (!foe || !sightPoint(rt, u.pos, 40))) { rt.after(1, fall); return; }
-      if (u.alive) { u.invuln = false; rt.army.kill(u, foe || late); }
+      // 待ち時間を過ぎても、遠い兵や塀の向こうの兵を討ち手にしない。
+      // 寄せ手の補充と寄せ直しで攻防を続け、接触と見通しを待つ。
+      if (u.alive && (!foe || !sightPoint(rt, u.pos, 40))) { rt.after(1, fall); return; }
+      if (u.alive) { u.invuln = false; rt.army.kill(u, foe); }
       if (u.alive) { rt.after(1, fall); return; }
       this.reportDoom(rt, u, o.key, o.name);
     };
