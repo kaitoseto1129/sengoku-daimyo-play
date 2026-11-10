@@ -113,6 +113,9 @@ export function oshiStep(NG) {
       const dx = GATE.x - MID.x, dz = GATE.z - MID.z;
       const along = Math.max(0, Math.min(1, ((p.x - MID.x) * dx + (p.z - MID.z) * dz) / (dx * dx + dz * dz)));
       const onRoad = Math.hypot(p.x - MID.x - dx * along, p.z - MID.z - dz * along) < 22;
+      // 再進撃で山道へ着いた働きは残す。追撃や手当てで持ち場を離れても、
+      // 残兵の退却後に敵のいない中ほどへ戻るまで段を止めない。
+      if (C.ph >= 4 && onRoad) C.roadReached = true;
       // 塀や岩に残った一組を全滅させるまで待たない。寄せの上限で門へ退かせる。
       // 本人が山道へ来ていない時は、残兵が退いても次へ進めない。
       if (C.ph >= 5 && el > 230 && !C.withdrawn) {
@@ -124,7 +127,7 @@ export function oshiStep(NG) {
       C.nTot = C.groups.reduce((n, g) => n + (g.initial || g.units.length), 0);
       const remaining = heads(C.groups);
       rt.objProgress('dp', C.nTot ? `敵 ${Math.max(0, C.nTot - remaining)}／${C.nTot}人` : '');
-      return C.ph >= 5 && el > 200 && (remaining <= 5 || C.withdrawn === true) && onRoad;
+      return C.ph >= 5 && el > 200 && (remaining <= 5 || C.withdrawn === true) && C.roadReached === true;
     },
     end(rt, C) {
       for (const [g, orders] of C.orders) { Object.assign(g, orders); g.dest = null; }

@@ -709,14 +709,19 @@ export const t05_ichinomiya = {
         F.coverControlled = true; cover.noAI = true;
         // 武将に続く共通の前進も止め、竹束を順に使う下知を保つ。
         cover.keepMoveOrder = true; cover.dest = null;
+        // 共通の攻撃段が先に門へ置いた要を、実際の隊の位置へ戻す。
+        // 要だけを竹束へ飛ばさず、移動先へ走らせる。
+        const c = cover.center();
+        cover.anchor = { x: c.x, z: c.z };
       }
       const leg = F.coverLeg || 0, at = COVER_ROUTE[leg];
       if (cover._coverAt !== at) {
-        cover._coverAt = at; cover.anchor = at; cover.order = 'move'; cover.aggro = 6; F.coverWait = 0;
+        // 経路の点を要と共有すると、移動処理が経路そのものを書き換える。
+        cover._coverAt = at; cover.dest = at; cover.order = 'move'; cover.aggro = 6; F.coverWait = 0;
       }
       const c = cover.center();
       if (Math.hypot(c.x - at.x, c.z - at.z) < 4) {
-        cover.order = 'hold'; cover.facing = 0;
+        cover.order = 'hold'; cover.dest = null; cover.facing = 0;
         if (!F.coverWait) F.coverWait = rt.t + 3;
         if (rt.t >= F.coverWait) F.coverLeg = leg + 1;
       }

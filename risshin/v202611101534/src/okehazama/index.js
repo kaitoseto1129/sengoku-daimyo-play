@@ -76,7 +76,7 @@ export function guardOk(rt) { const v = S(rt); return !!v.kinju2T && rt.t - v.ki
 // 義元の深手は、輿を捨てて退く旗本が三度向き直ってから（公記「二度三度、四度五度」。済まなければ退き始めて八十秒）
 export function woundOk(rt) { const F = rt.flags; return (F.turnBack || 0) >= 3 && rt.t - F.koshiLeftT > 40 || rt.t - F.koshiLeftT > 80; }
 // 帰陣の旗に着いた後の余韻（then で本体の finish）
-export function ending(rt, then) { const v = S(rt); yoin.start(rt, v.def, v.C, then); sugoi.nameAsked(rt, 20.5); }
+export function ending(rt, then) { const v = S(rt); yoin.start(rt, v.def, v.C, then); sugoi.nameAsked(rt, 33); }
 
 export function tick(rt, dt) {
   const v = S(rt), F = rt.flags;

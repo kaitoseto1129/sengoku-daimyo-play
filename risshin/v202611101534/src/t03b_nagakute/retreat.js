@@ -24,9 +24,12 @@ export function start(rt, K) {
   laterSay(rt, 40, '使番', '家康の本隊は追わず、小幡城へ引く様子にござる', 3.2);
 }
 // 退き切ったか（主人公が細ヶ根に着き、落ち武者も着くか散るか、時が経った）
+function canChase(u) {
+  return u.alive && !u.gone && !u.fleeing && !u.woundOut && !u.rearWound && !u.downed && !u.noTarget;
+}
 function chasing(g) {
   return g && !g.routed && g.order !== 'retreat' && g.order !== 'flee' &&
-    g.units.some((u) => u.alive && !u.gone && !u.fleeing && !u.woundOut && !u.rearWound && !u.downed && !u.noTarget);
+    g.units.some(canChase);
 }
 export function done(rt, K, atGoal, el) {
   const F = rt.flags;
@@ -46,7 +49,7 @@ export function done(rt, K, atGoal, el) {
   // 出しただけの追手が遠方に残っていても「追われて退いた」事にはしない。
   // 途中で迫った事は覚え、振り切った後に敵へ戻る必要は無くす。
   if (!F.pursuitMet) for (const g of F.pursuit || []) {
-    if (g.units.some((u) => u.alive && !u.gone && Math.hypot(u.pos.x - rt.player.u.pos.x, u.pos.z - rt.player.u.pos.z) < 18)) {
+    if (chasing(g) && g.units.some((u) => canChase(u) && Math.hypot(u.pos.x - rt.player.u.pos.x, u.pos.z - rt.player.u.pos.z) < 18)) {
       F.pursuitMet = true;
       break;
     }
