@@ -550,7 +550,11 @@ const t06_hetsugi = {
   // 島津の兵は北の岸の水辺へ戻って並び、南を向いて止まる（追って来ない）
   bankHold(rt) {
     const F = rt.flags, B = F.blk;
-    for (const b of [B.niiro, B.honjo, B.ieh, B.ijuin, B.ura]) if (b && !b.routedL) { const p = lightPos(b); this.go(b, { x: Math.max(FORD.x - 70, Math.min(FORD.x + 70, p.x)), z: -40 }, 2.0); }
+    // 水辺への下知は一度だけ。見回りのたびに移動を作り直さない。
+    if (!F.bankBlocksHeld) {
+      F.bankBlocksHeld = true;
+      for (const b of [B.niiro, B.honjo, B.ieh, B.ijuin, B.ura]) if (b && !b.routedL) { const p = lightPos(b); this.go(b, { x: Math.max(FORD.x - 70, Math.min(FORD.x + 70, p.x)), z: -40 }, 2.0); }
+    }
     let i = 0;
     for (const g of rt.army.groups) {
       if (g.team !== 1 || !g.count || g.bankHold || g === F.ieh || g === F.iehS) continue;
@@ -640,7 +644,8 @@ const t06_hetsugi = {
       morale: 100, dmgMult: 0.5, order: 'hold', fixed: true, aggro: 6, seekRange: 10, speed: 2.4 },
     [{ type: 'samurai', n: 8, o: { keep: true } }, { type: 'ashigaru', n: 6, o: { flagScale: 1, keep: true } }, { type: 'gun', n: 2 }]);
     F.ieh.kind = 'main'; F.ieh.stay = true; F.foes.push(F.ieh);
-    F.iehS = enemyGroup(rt, { faction: 'shimazu', name: '島津家久の本陣', anchor: SEAT, facing: 0, width: 2, aggro: 0, seekRange: 0, order: 'hold', fixed: true, noRout: true },
+    // 旗本は上の別隊。自動の供回りまで床几の一点へ座らせない。
+    F.iehS = enemyGroup(rt, { faction: 'shimazu', name: '島津家久の本陣', anchor: SEAT, facing: 0, width: 1, noRetinue: true, aggro: 0, seekRange: 0, order: 'hold', fixed: true, noRout: true },
       [{ type: 'busho', n: 1, o: { name: '島津家久', invuln: true, horse: false, keep: true } }]);
     F.iehS.stay = true; F.iehS.noAI = true;
     for (const u of F.iehS.units) {
@@ -669,11 +674,19 @@ const t06_hetsugi = {
       rt.say('仙石秀久', 'ええい、退け、退け！', 2.5);
       routButai(B.sen, 26);
       if (live(F.sen)) {
-        F.sen.order = 'move'; F.sen.dest = { x: FORD.x, z: -24 }; F.sen.speed = 4.4;
-        // 北の口へ寄せてから渡る。河原から南岸へ斜めに走ると浅瀬を外れる。
+        // 囲みの陣の小屋（39,-66）の北を回ってから浅瀬へ。
+        // 直接南へ下がると、小屋の角（42,-70）で仙石が止まっていた。
+        F.sen.order = 'move'; F.sen.focus = null; F.sen.dest = { x: F.sen.center().x, z: -82 }; F.sen.speed = 4.4;
+        F.sen.arriveRadius = 6;
         F.sen.onArrive = (q) => {
-          q.order = 'move'; q.dest = { x: FORD.x, z: 40 };
-          q.onArrive = (s) => { s.order = 'move'; s.dest = { x: CAMP.x + 12, z: CAMP.z + 12 }; s.onArrive = null; };
+          q.order = 'move'; q.dest = { x: FORD.x, z: -82 };
+          q.onArrive = (r) => {
+            r.order = 'move'; r.dest = { x: FORD.x, z: -24 };
+            r.onArrive = (s) => {
+              s.order = 'move'; s.dest = { x: FORD.x, z: 40 };
+              s.onArrive = (t) => { t.order = 'move'; t.dest = { x: CAMP.x + 12, z: CAMP.z + 12 }; t.onArrive = null; };
+            };
+          };
         };
       }
       F.follow = F.follow.filter((f) => f[0] !== F.sen);
