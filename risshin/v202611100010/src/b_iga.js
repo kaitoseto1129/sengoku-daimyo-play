@@ -1665,6 +1665,7 @@ const iga = {
     nightFill: 0.2, // 11/6 fix61（四6）：夜が曇りの昼の明るさに見えた。月と空の返りを下げ、篝火と燃える小屋で読ませる。
     // 月の向いた面は保ち、軒下と火から離れた土を一様に照らさない。
     nightMoonMin: IGA_NIGHT.sunI, // 共通の最低値で月光を昼のように強めず、伊賀の夜色を保つ。
+    nightMoonFloor: IGA_NIGHT.sunI, // 天気の更新でも月を最低〇・五まで明るく戻さない。
     contactShadows: true, // 味方・本人の足元にも、共通の柔らかい陰を使う。
     infantryWeight: true, // 前後の列へ膝と腰の踏ん張りを渡す。攻撃の間と兵数は保つ。
     longHoro: 'round', // 使番の母衣は背に負う籠。既存の丸い形を近景・遠景とも使う。
@@ -2438,9 +2439,8 @@ const iga = {
     // 紙：最後は物量で制圧。諸口の大将が主郭へ集まり、国中の城が次々に開く。
     const me = rt.player.u.pos;
     // 総大将の織田信雄は伊勢地口にいて比自山へは来ない（docs/battle_refs/iga.md）。曲輪へ来るのは比自山を囲んだ筒井順慶と、遅れて着いた丹羽長秀。
-    // 11/6 fix61：目の前に湧かせず、主郭の側（南）から二十歩ほど歩いて来る。
-    const walkIn = (g, dx) => { if (!g) return; g.fixed = false; g.order = 'move'; g.dest = { x: me.x + dx, z: me.z + 6 }; g.onArrive = (q) => { q.order = 'hold'; }; };
-    walkIn(evPerson(rt, 0, '筒井順慶', { x: me.x + 5, z: me.z + 24 }, Math.PI, { calm: true, guard: 2 }), 4);
+    // 朝に麓へ合流した同じ順慶を呼ぶ。北の曲輪の脇へ新しく出さず、尾根の道を歩かせる。
+    igaGather(rt, F.tsutsuiJunkei, { x: me.x + 4, z: me.z + 6 });
     // 丹羽長秀・滝川一益の本隊は第三戦の前に着いた（docs/battle_learn/iga.md 四）。自分の組の主として馬上で曲輪へ来る。
     igaGather(rt, F.niwaNagahide, { x: me.x - 4, z: me.z + 6 });
     igaGather(rt, F.takigawa, { x: me.x + 10, z: me.z + 8 });
@@ -3039,6 +3039,9 @@ function igaEmptyCastleMorning(rt) {
   const me = rt.player.u.pos;
   F.niwaNagahide = evPerson(rt, 0, '丹羽長秀', { x: me.x - 9, z: Math.max(me.z + 10, 44) }, Math.PI, { calm: true, guard: 3, u: { horse: true } });
   F.takigawa = evPerson(rt, 0, '滝川一益', { x: me.x + 11, z: Math.max(me.z + 12, 46) }, Math.PI, { calm: true, guard: 3, u: { horse: true } });
+  // 長岡山の陣を離れた順慶も麓で合流し、勝ちの場まで同じ兵で登る。
+  F.tsutsuiJunkei = evPerson(rt, 0, '筒井順慶', { x: CAMP.x - 18, z: CAMP.z + 18 }, Math.PI,
+    { calm: true, guard: 2, u: { horse: true, flag: 'umebachi' } });
   rt.after(6, () => { if (!F.ending && !rt.over) rt.say('滝川一益', '罠があるやもしれぬ。山腹は手探りで登れ', 4); });
 }
 
@@ -3275,7 +3278,8 @@ function igaHold(o) {
 // 上の道から要だけ麓へ移すと、後列の持ち場が切岸の向こうになる。
 // 生き残った同じ兵を、今いる高さから行き先まで道の順に歩かせる。
 function igaGather(rt, g, at) {
-  if (!g || g.routed || !g.units.some(igaReady)) return;
+  // 戦わない将と供も歩ける。攻撃対象外の印で、朝に着いた丹羽・滝川まで麓に残さない。
+  if (!g || g.routed || !g.units.some(u => u.alive && !u.gone && !u.fleeing && !u.woundOut && !u.rearWound && !u.dropped)) return;
   const c = g.center(), from = { x: c.x, z: c.z, y: rt.world.heightAt(c.x, c.z) }, road = {};
   const formUp = (q) => {
     q.order = 'hold'; q.path = null; q.dest = null; q.roadColumn = false;
@@ -3325,6 +3329,7 @@ function igaMove(o) {
     // 着陣した将も麓から同じ山道を登る。勝ちの場で消して作り直さない。
     igaGather(rt, rt.flags.niwaNagahide, { x: C.at.x - 4, z: C.at.z + 6 });
     igaGather(rt, rt.flags.takigawa, { x: C.at.x + 10, z: C.at.z + 8 });
+    igaGather(rt, rt.flags.tsutsuiJunkei, { x: C.at.x + 4, z: C.at.z + 6 });
     C.guideUnit = { pos: rt.player.u.pos }; C.guideAt = 0;
     C.lastDistance = Infinity; C.stuckT = 0; C.corner = { x: 0, z: 0 }; C.roadFrom = {}; C.roadTo = {};
   };
