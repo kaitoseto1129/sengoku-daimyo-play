@@ -500,15 +500,29 @@ const t09_yamanaka = {
     for (const s of F.rimWall) { s.noClimb = true; s.bodyPadding = 0.3; }
     F.rimFire = makeSamaFire(rt, [{ structs: F.rimWall, inside: { x: 10, z: SHOJI.z0 - 12 } }], { heads: false, near: 70, close: 15, base: 1.2, peak: 5, arrows: 0.45, hurt: 0.25, rain: 0.6 });
     // 一箇所開けば破れ口から渡る。残る柵を順に全部壊させると後続が対岸へ来ない。
-    const mouths = F.rimWall.map((s) => ({ s, x: (s.seg[0] + s.seg[2]) / 2, z: SHOJI.z0 - 5 }));
+    // 柵には初めから畝の正面（7〜13m）に口がある。壊れた区画だけを探すと、
+    // 開いている口を使わず、後続まで生きた柵へ押し付いてしまう。
+    const mouthAt = (s, x) => ({ s, x, z: SHOJI.z0 - 5, approach: { x, z: SHOJI.z0 - 1 } });
+    const mouths = [mouthAt(null, CROSS_X),
+      ...F.rimWall.map((s) => mouthAt(s, (s.seg[0] + s.seg[2]) / 2))];
+    const exits = [-SHOJI.cell, 0, SHOJI.cell, SHOJI.cell * 4].map((dx) => ({ x: CROSS_X + dx, z: SHOJI.z0 - 1 }));
     const assault = (u) => {
+      // 隊の先頭が着いても後列は畝の途中にいる。一人ずつ岸へ出るまでは横へ曲げない。
+      if (u.pos.z >= SHOJI.z0) {
+        let exit = exits[0];
+        for (const e of exits) if (Math.abs(e.x - u.pos.x) < Math.abs(exit.x - u.pos.x)) exit = e;
+        return exit;
+      }
       let wall = null, wd = Infinity, mouth = null, md = Infinity;
       for (const m of mouths) {
         const d = Math.hypot(m.x - u.pos.x, m.z - u.pos.z);
-        if (m.s.alive === false || m.s.hp <= 0) { if (d < md) { mouth = m; md = d; } }
+        if (!m.s || m.s.alive === false || m.s.hp <= 0) { if (d < md) { mouth = m; md = d; } }
         else if (d < wd) { wall = m.s; wd = d; }
       }
-      return mouth ? (u.pos.z > mouth.z ? mouth : F.cross) : wall || F.cross;
+      if (!mouth) return wall || F.cross;
+      // 脇の畝から口の奥へ斜めに進むと隣の杭に当たる。手前で口の正面へ揃える。
+      if (u.pos.z > SHOJI.z0 - 3 && Math.abs(u.pos.x - mouth.x) > 1.5) return mouth.approach;
+      return u.pos.z > mouth.z ? mouth : F.cross;
     };
     const path = (g, dx) => {
       if (gone(g)) return;
@@ -517,8 +531,8 @@ const t09_yamanaka = {
       // 東の二陣は戻さず、それぞれの畝へ続く。
       const c = g.center();
       g.path = c.x < -11 ? [[Math.min(c.x, -32), 176], [-6, 176]] : [];
-      // 対岸の柵は z0−3。柵の向こうを到着点にすると、攻撃へ切り替わる前に列が柵へ詰まる。
-      g.path.push([CROSS_X + dx, SHOJI.z1 + 10], [CROSS_X + dx, SHOJI.z0 + 2]);
+      // 対岸の柵（z0−3）の手前まで畝を渡り切る。堀の中で横へ揃え直すと畝から落ちる。
+      g.path.push([CROSS_X + dx, SHOJI.z1 + 10], [CROSS_X + dx, SHOJI.z0 - 1]);
       g.pathIdx = 0; g.speed = 3;
       g.onArrive = (q) => { q.order = 'assault'; q.assault = assault; q.seekRange = 30; };
     };

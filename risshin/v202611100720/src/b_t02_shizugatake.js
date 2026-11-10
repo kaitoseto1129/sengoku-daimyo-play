@@ -714,11 +714,10 @@ const t02_shizugatake = {
     if (!F.sakuIn) this.sakuIn(rt);
   },
   lookBack(rt) {
-    const F = rt.flags, P = rt.player;
+    const F = rt.flags;
     if (F.lookedBack) return;
     F.lookedBack = rt.t;
-    const u = P.u, ax = OI.x - u.pos.x, az = OI.z - u.pos.z, L = Math.hypot(ax, az) || 1;
-    P.camShot = { t: 0, dur: 7, from: { x: u.pos.x - ax / L * 3, z: u.pos.z - az / L * 3 }, at: { x: OI.x + 4, z: OI.z - 2 }, h: 2.4, lookH: 4, zoom: 0.35, drift: 0.3, ang: 0 };
+    // 旗の交替は操作中に起こす。振り返る向きは主人公に任せる。
     rt.after(1.8, () => {
       // 中川の旗が倒れる（長い死のムービーは出さない）
       const f = F.nakaFlag;
@@ -744,6 +743,7 @@ const t02_shizugatake = {
     if (F.phase >= 2.3) return;
     if (!F.lookedBack) { F.lookedBack = rt.t; this.oiFlags(rt, 'sakuma'); for (const u2 of F.naka?.units || []) if (u2.alive && !u2.gone) { u2.invuln = false; rt.army.kill(u2); } if (F.nakaFlag) F.nakaFlag.rotation.z = 1.45; }
     this.enter(rt, 2.3);
+    rt.world.setTime('dusk');
     F.waves = 0;
     try { F.sfar?.oiwa?.rout?.('A', { from: 0, hideAfter: 30, minFight: 1 }); } catch (e) { /* 遠景 */ }
     // 大岩山に入った寄せ手は砦に居座る（後で奪い返す相手）
@@ -753,7 +753,21 @@ const t02_shizugatake = {
     rt.after(8, () => { if (F.phase === 2.3) { rt.say('使番', '岩崎山の高山様、砦を捨てて退かれまする！', 3); this.oiFlags(rt, 'sakuma'); } });
     rt.after(14, () => { if (F.phase === 2.3) rt.say('桑山重晴', '賤ヶ岳は退かぬ。ここで支えるぞ', 2.8); });
     // 追手が坂を上がって来る（二度）
-    const w = (x, z, n) => { F.waves++; this.wave(rt, '佐久間の追手', { x, z }, { x: MOUTH.x + 10, z: MOUTH.z - 6 }, foeList(n, { flag: SAKUMA.flag }), { seek: 22, speed: 3.4, dmg: 0.26 }); };
+    const w = (x, z, n) => {
+      F.waves++;
+      const g = this.wave(rt, '佐久間の追手', { x, z }, { x: MOUTH.x + 5, z: MOUTH.z - 3 }, foeList(n, { flag: SAKUMA.flag }), { seek: 22, speed: 3.4, dmg: 0.26 });
+      g.keepMoveOrder = true;
+      // 急な北斜面を直登せず、物見の肩から東の口へ登る。
+      const arrive = g.onArrive, mouth = g.dest;
+      g.dest = { ...LOOK };
+      g.onArrive = (q) => { q.order = 'move'; q.dest = mouth; q.onArrive = arrive; };
+      rt.army.play('horagai', { x, z }, 0.9);
+      rt.army.play('toki', { x, z }, 0.9);
+    };
+    // 丹羽は東の口の内側で砦を支え、反攻の先頭には出ない。
+    F.niwaG = allyGroup(rt, { name: '丹羽長秀の隊', fullStrength: true, anchor: { x: FORT.x + 5, z: FORT.z + 5 }, facing: Math.PI / 2, width: 4, aggro: 2, seekRange: 4, order: 'hold', noRout: true, noAI: true },
+      [{ type: 'busho', n: 1, o: { name: '丹羽長秀', invuln: true, flag: NIWA } }, { type: 'samurai', n: 3, o: { flag: NIWA } }, { type: 'ashigaru', n: 8, o: { flag: NIWA } }, { type: 'gun', n: 4, o: { flag: NIWA } }]);
+    rt.say('桑山重晴', '琵琶湖を渡った丹羽殿の加勢じゃ。東の口を支えよ！', 3);
     rt.after(10, () => { if (F.phase === 2.3) w(18, 236, 9); });
     rt.after(34, () => { if (F.phase === 2.3) w(4, 250, 9); });
   },
@@ -761,6 +775,7 @@ const t02_shizugatake = {
   returnHide(rt) {
     const F = rt.flags, W = rt.world;
     this.enter(rt, 2.6);
+    W.setTime('night');
     rt.award((t) => t.side.push('大岩山から兵を連れて退き、賤ヶ岳を支えた'), '賤ヶ岳を支えた');
     returnTurn(rt, this.ctx(rt));
     for (const [x, z] of [[214, 214], [200, 160], [184, 100]]) W.addSmokeColumn?.(x, W.heightAt(x, z) + 3, z, { size: 7 });
@@ -806,7 +821,10 @@ const t02_shizugatake = {
     sfx('taiko', 0.9); sfx('horagai', 0.9);
     sevenSpears(rt, this.ctx(rt), 'oiwa');
   },
-  inFortFoes(rt) { return nearCount(rt, 1, OI, OI.r + 5); },
+  inFortFoes(rt) {
+    // 盛政の退く旗本や倒れた負傷兵を、奪還を阻む守備兵に数えない。
+    return rt.army.units.reduce((n, u) => n + (u.team === 1 && u.alive && !u.gone && !u.fleeing && !u.noTarget && !u.downed && !u.woundOut && !u.rearWound && !u.isStruct && !u.civ && dist(u.pos, OI) < OI.r + 5 ? 1 : 0), 0);
+  },
   // ⑪ 佐久間を押し返す：盛政はすぐ逃げず、大岩山の北で備を立て直して抗う
   pushSaku(rt) {
     const F = rt.flags;
@@ -906,8 +924,8 @@ const t02_shizugatake = {
         return;
       // 東の口：二度の追手を退け（口で揉み合うか追手を減らす）、口にいれば帰還へ
       case 2.3:
-        for (const g of F.groups) if (g.kind4 === 'raid' && g.bornT != null && live(g) && g.order !== 'attack' && rt.t - g.bornT > 22) { g.order = 'attack'; g.seekRange = 30; g.aggro = 14; g.speed = 3.4; }
-        if (F.waves >= 2 && near(MOUTH, 22) && st > 50 && (raidLeft() <= 4 || st > 110)) this.returnHide(rt);
+        if (!F.mouthFight && near(MOUTH, 22) && nearCount(rt, 1, MOUTH, 30) > 0) F.mouthFight = true;
+        if (F.mouthFight && F.waves >= 2 && near(MOUTH, 22) && st > 50 && (raidLeft() <= 4 || st > 110)) this.returnHide(rt);
         return;
       case 2.6: {
         const came = !live(F.yari) || dist(F.yari.center(), JOIN) < 30 || st > 50;
@@ -944,9 +962,7 @@ const t02_shizugatake = {
     rt.player.u.invuln = true;
     for (const g of F.groups) if (live(g) && g.units[0]?.team === 1) { g.order = 'retreat'; g.dest = { x: g.center().x, z: -300 }; g.speed = 3.4; }
     victoryMoment(rt, '勝');
-    // 最後に大岩山を見る（朝は中川が守り、昼は佐久間に取られ、今は羽柴が取り返した）
-    const u = rt.player.u;
-    rt.after(2, () => { rt.player.camShot = { t: 0, dur: 9, from: { x: u.pos.x, z: u.pos.z + 4 }, at: { x: OI.x, z: OI.z }, h: 3.4, lookH: 4, zoom: 0.2, drift: 0.4, ang: 0.5 }; });
+    // 勝鬨の間も操作した向きを保ち、大岩山は自分で振り返って見られる。
     const sec = epilogue(rt, this.ctx(rt));
     rt.finish({ scriptedEnd: true }, sec);
   },
