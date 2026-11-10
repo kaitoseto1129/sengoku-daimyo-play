@@ -528,6 +528,8 @@ html:root body #hud#hud#hud.shigino-goals #h-prog#h-prog.goal-mode .pg-goals h3 
 
   // 下知による実射だけは取り置きの弾を使う。
   commandShot(rt, u, target) {
+    // 転倒中は筒を構えられない。起き上がった後の合図で撃たせる。
+    if (!fighting(u) || u.downed) return false;
     // 不発でも弾は減る。最後の一発を使い切る前に後続の弾薬を受け取り、
     // 脇差へ持ち替えて川越しの救援が止まるのを防ぐ。発砲の成否は実射で判定する。
     if (u.gunAmmo <= 1) {
