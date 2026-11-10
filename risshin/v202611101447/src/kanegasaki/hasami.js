@@ -65,7 +65,8 @@ export function lastStand(rt, ctx) {
 export function tick(rt, dt) {
   const F = rt.flags, p = rt.player.u.pos;
   const A = F.azaiFar;
-  if (A?.m) A.m.visible = !!F.azaiShown && Math.hypot(A.x - p.x, A.z - p.z) > 70;
+  // 他の遠景部隊と同じく、九十m 以内では板の兵を見せない。
+  if (A?.m) A.m.visible = !!F.azaiShown && Math.hypot(A.x - p.x, A.z - p.z) > 90;
   const S = F.lastStand;
   if (!S) return;
   // 時間や主人公との距離だけで、健在の槍組を全滅したように見せない。

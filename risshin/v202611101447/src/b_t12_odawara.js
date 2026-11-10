@@ -412,10 +412,13 @@ function requiredStep(step) {
         if (C.later && near && rt.player.u.alive) C.repulseHold = (C.repulseHold || 0) + dt;
         // 木戸や塀の奥に残った敵を追わせず、刻限後は守る場所を示す。
         // 持ち場で耐えた時間だけを数えるため、陣で待つだけでは済まない。
-        if (C.later?.length === 0 && el >= step.max && !done) {
+        if (C.later && ((C.later.length === 0 && el >= step.max && !done) || (done && !near))) {
           C.goal = C.at;
-          if (!C.repulseMarked) {
+          // 共通処理は残兵の組が替わるたび印を替え、全て退くと消す。
+          // その場合も本人が戻る持ち場の印を保つ。
+          if (!C.repulseMarked || C.repulseEnemy !== C.marked) {
             C.repulseMarked = true;
+            C.repulseEnemy = C.marked;
             rt.unmark('dp');
             rt.marker('dp', C.at, '篠曲輪の木戸の前', { h: 3 });
           }
