@@ -56,11 +56,13 @@ export function tick(rt, dt, ctx) {
   const F = rt.flags;
   if (!F.ikOku || F.ending || (F.ikOkuT = (F.ikOkuT || 0) - dt) > 0) return;
   F.ikOkuT = 5;
-  const hondo = [F.ikkoHondoMain?.real, F.ikkoHondoBow?.real];
   for (const u of rt.army.units) {
     if (u.team !== 1 || !u.alive || u.fleeing || u.isStruct) continue;
     if (u.woundOut || u.noTarget || !ctx.zones.some((z) => z.test(u.pos.x, u.pos.z))) { u._ikStill = null; continue; }
-    if (hondo.includes(u.group)) { u.fleeing = true; u.target = null; u.aiT = 0; continue; }
+    // 実兵の組がまだ無い備えと、所属の無い兵を同じ組として退かせない。
+    if (u.group && (u.group === F.ikkoHondoMain?.real || u.group === F.ikkoHondoBow?.real)) {
+      u.fleeing = true; u.target = null; u.aiT = 0; continue;
+    }
     // 弓・鉄砲や持ち場の槍は、その場で戦う。立ち止まっているだけで討死にしない。
     if (fighting(rt, u)) {
       u._ikStill = null;

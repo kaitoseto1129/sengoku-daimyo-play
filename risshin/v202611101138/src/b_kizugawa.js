@@ -2847,10 +2847,15 @@ const kizugawa = {
   stageGoalsOnly: true,   // 段だけを目標に（「敵を何人討つ」で埋めない）
   goalsAllRows: true,   // 目標の共通表示が一件になっても、五つを最初から並べる。
   // 11/6 fixc0504（kaito 九1・十1）：五つを最初から全部並べ、済んだ物に印。段（kzStage）は戻らないので印も戻らない。
-  goals5: () => [0, 1, 2, 3, 4].map((k) => ({
+  goals5: (rt) => [0, 1, 2, 3, 4].map((k) => ({
     kind: 'stage', k, text: KZ_STAGE_TEXT[k].replace(/撃て$/, '撃つ').replace(/消せ$/, '消す').replace(/討て$/, '討つ').replace(/退かせよ$/, '退かせる').replace(/止めよ$/, '止める'),
     // 11/6 fixc0823：行き先の名は▼の立つ場所の名（④は西の大筒・⑤は守る乗り口。甲板の上に「木津浦 10m」と出ていた）
-    noun: ['西の大筒', '甲板の火', '南と西の乗り口', '西の大筒', '西の大筒と甲板の乗り口'][k],
+    // 共通の行き先表示にも、今ピンが立つ物の名を渡す。目標の本文は替えない。
+    get noun() {
+      return k === 1 ? (rt?.flags.water ? '甲板の火' : '水桶') : k === 4 ?
+        (rt?.flags.step === 6 && !rt.flags.kzYoin ? '西の大筒' : '甲板の乗り口') :
+        k === 2 ? '南と西の乗り口' : '西の大筒';
+    },
     check: (rt) => !!rt.tracker?.main || (k < 4 ? (rt.flags.kzStage || 0) > k : false),
     count: () => null, sec: 900,
   })),
@@ -4293,6 +4298,9 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
     const F = rt.flags;
     if (F.step >= 3) return;
     F.step = 3; F.stepT = rt.t; F.boardRepelledStart = F.deckRepelled;
+    // 消火中は屋形で敗北にしない。その間の危険時間を持ち越し、段替わり直後に負けにしない。
+    F.deckLost = 0;
+    F.water = false;
     if (F.openingBoardSpawn) { F.openingBoardSpawn(); F.openingBoardSpawn = null; }
     // 間合いで待っていた小早が、いっせいに乗り口へ漕ぎ寄せる（①②の hold を解く）
     for (const b of F.boats) if (b.hold) { if (b.approach) b.dock = b.hold; else b.t = b.hold; b.hold = null; }

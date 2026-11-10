@@ -48,7 +48,8 @@ export function tick(rt) {
       g.order = 'attack'; g.stay = false; g.aggro = 40; g.seekRange = 40;
     }
     // 時間だけでは追撃先へ着いた事にしない。
-    if (Math.hypot(p.x - P.pos.x, p.z - P.pos.z) < 26) {
+    if (Math.hypot(p.x - P.pos.x, p.z - P.pos.z) < 26 &&
+        !rt.army.wallBetween(p, -1, P.pos, false)) {
       P.s = 1; P.at1 = rt.t; F.echExitAt = null;
       g.order = 'attack'; g.stay = false; g.aggro = 40; g.seekRange = 40;
       rt.say('一揆の門徒', '南無阿弥陀仏……ここで死ねば極楽じゃ！', 3.2);
@@ -56,7 +57,8 @@ export function tick(rt) {
     return;
   }
   const left = g.units.filter(fighter).length;
-  const near = Math.hypot(p.x - P.pos.x, p.z - P.pos.z) < 26;
+  const near = Math.hypot(p.x - P.pos.x, p.z - P.pos.z) < 26 &&
+    !rt.army.wallBetween(p, -1, P.pos, false);
   // 味方が先に討ち切った時も、本人を追撃先へ案内してから押さえる。
   F.echExitAt = near ? null : P.pos;
   // 主力の四分の三を失い、追手が陣を押さえたら残兵は崩れる。
