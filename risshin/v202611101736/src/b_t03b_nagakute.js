@@ -257,7 +257,9 @@ html:root body #hud:has(#h-prog[data-battle="t03b_nagakute"]) #center-call .cc {
     // 秀次隊のほかの手（朝飯の最中。林の中で崩れていく）
     F.camp = allyGroup(rt, { ...o, noRout: false, name: '信吉隊', anchor: { x: CAMP.x + 14, z: CAMP.z - 8 }, facing: E, width: 7, aggro: 9, speed: 3.2, order: 'hold', dmgMult: 0.4 },
       fl([{ type: 'ashigaru', n: 16, o: { flagScale: 1 } }, { type: 'samurai', n: 4 }, { type: 'bow', n: 3 }, { type: 'gun', n: 3 }], 'toyotomi'));
-    F.camp.ai = true;
+    // 朝飯中に共通の判断が「攻めよ」へ替えると、番所へ出陣して白山林の陣が空になる。
+    // 奇襲の段で出す攻撃命令と、次の段の撤退命令を守らせる。
+    F.camp.noAI = true;
     // 朝飯の最中：林の中に炊事の鍋の火と煙。兵は腰を下ろして休む（寄せが来て立つ・二3）
     if (rt.scene && rt.world) for (const [dx, dz] of [[16, -12], [26, -4], [12, -22], [24, -20]]) rt.scene.add(nabe(rt.world, CAMP.x + dx, CAMP.z + dz));
     for (const g of [F.camp, F.men, F.hideG]) for (const u of g.units) if (u.type !== 'busho' && !u.mounted && !u.stdHeld) u._crouch = true;

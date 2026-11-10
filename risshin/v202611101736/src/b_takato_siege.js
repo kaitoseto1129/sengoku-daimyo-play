@@ -1846,7 +1846,8 @@ const takato_siege = {
     const occupied = (id, foothold = false) => {
       let n = 0, enemy = 0;
       for (const u of rt.army.units) {
-        if (!siegeFighter(u) || !F.C.kuruwa[id].test(u.pos.x, u.pos.z)) continue;
+        if (!siegeFighter(u) || !F.C.kuruwa[id].test(u.pos.x, u.pos.z) ||
+            Math.abs(u.pos.y - rt.world.heightAt(u.pos.x, u.pos.z)) >= 3) continue;
         if (u.team === 0) n++; else enemy++;
       }
       const zone = F.SZ.byId[id];
@@ -1863,7 +1864,10 @@ const takato_siege = {
     // 味方が要る数だけ曲輪に入って九十秒斬り合っても討ち取りが足りない時も同じ（本人が三の丸で長屋の中の城兵に構えたまま三百秒）
     const footT = F.attrFoot || (F.attrFoot = {});
     const longIn = (id) => {
-      if (rt.player.u.alive && F.C.kuruwa[id].test(pp.x, pp.z)) inside[id] ??= rt.t;
+      // 曲輪から退いた時間や、同じ平面位置の堀底で待った時間は制圧に数えない。
+      if (siegeFighter(rt.player.u) && F.C.kuruwa[id].test(pp.x, pp.z) &&
+          Math.abs(pp.y - rt.world.heightAt(pp.x, pp.z)) < 3) inside[id] ??= rt.t;
+      else inside[id] = null;
       if (occupied(id, true)) footT[id] ??= rt.t; else footT[id] = null;
       return inside[id] != null && rt.t - inside[id] >= 75 || footT[id] != null && rt.t - footT[id] >= 90;
     };

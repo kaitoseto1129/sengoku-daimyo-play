@@ -2992,13 +2992,13 @@ const anegawa = {
   enemyTaskTarget(rt) {
     if (!(rt.flags.hqThreat || rt.flags.hqDefend) || anegawaReturning(rt)) return null;
     const enemy = rt.flags.hqEnemy, p = rt.player.u.pos;
-    return enemy?.alive && Math.hypot(enemy.pos.x - p.x, enemy.pos.z - p.z) < 18 ? enemy : null;
+    return aneFoe(enemy) && Math.hypot(enemy.pos.x - p.x, enemy.pos.z - p.z) < 18 ? enemy : null;
   },
   aimReadyLabel(rt) {
     return anegawaGuardLabel(rt, true);
   },
   waitFacingTarget(rt) {
-    return rt.flags.waitFacingEnemy ? rt.flags.watchEnemy : null;
+    return rt.flags.waitFacingEnemy && aneFoe(rt.flags.watchEnemy) ? rt.flags.watchEnemy : null;
   },
   waitFacingLabel(rt, ready) {
     return ready ? anegawaGuardLabel(rt, true) : rt.flags.waitFacingEnemy ? '敵へ向く' : '川へ向く';
@@ -3010,7 +3010,8 @@ const anegawa = {
         F.retreatGuiding || F.taskHurt || rt.withdrawal || F.flankPick === 0 && !F.flankDone || F.nearEnemies > 0) return null;
     // 後方の列では、川に向き直らせず、実際に迫る兵を見張らせる。
     const enemy = F.watchEnemy;
-    F.waitFacingEnemy = rt.phase !== 'brief' && !!enemy?.alive && !enemy.fleeing && !enemy.group?.routed;
+    // 退く下知から敗走の動きへ替わる間や、命が尽きて倒れる途中も見張りの相手から外す。
+    F.waitFacingEnemy = rt.phase !== 'brief' && aneFoe(enemy);
     if (!F.waitFacingEnemy && rt.phase !== 'brief' &&
         (F.holdAt.z > POST.z + 4 || F.inabaT || F.westReported)) return null;
     const point = F.waitFacingPoint || (F.waitFacingPoint = { x: 0, z: 0 });
@@ -4708,12 +4709,13 @@ const anegawa = {
       const crossers = [F.mori, F.kino, F.inaba, F.shibata, F.chase].some((g) => g && !gone(g));
       // 11/5（X1）：本人が北岸でしんがりと斬り結んだ時（aneStage 5）だけ勝ち。崩れを待つのは四秒まで。
       const fought = F.aneStage >= 5 && (gone(R) || rt.t - F.aneStageT > 4);
-      if (fought && p.z < aneNorthBank(p.x) && crossers) {
+      // 野村への追撃を始めた後は、毎コマ同じ殿の手柄を付け直さない。
+      if (!F.aneTsui && fought && p.z < aneNorthBank(p.x) && crossers) {
         rt.objDone('pursue'); rt.unmark('rear');
         // 野村への追撃と遠藤の段を終えるまでは、戦全体の達成にはしない。
         rt.award((t) => { t.special = { label: '追い討ち', pts: 25 }; }, '浅井の殿を崩した');
         if (rt.G.lord) this.ending(rt); else TSUI.start(rt, aneCtx(rt, this));
-      } else if (F.aneStage >= 5 && !crossers) {
+      } else if (!F.aneTsui && F.aneStage >= 5 && !crossers) {
         // 総崩れ後は、渡河の遅れや殿の出現待ちだけで負けにしない。
         // 殿と斬り結ぶまでは追撃を続け、果たした後だけ次の段へ渡す。
         // 殿と斬り結んだ後に追い手が尽きても、追加の二目標を飛ばして勝ちにしない。
