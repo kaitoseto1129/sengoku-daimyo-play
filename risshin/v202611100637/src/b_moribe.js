@@ -2879,6 +2879,8 @@ const moribe = {
   noMiniMap: true,
   goalSignOnly: true,
   goalSignTriangle: true,   // 行き先は画面の内外とも▼一つにする。
+  noGroundGuide: true,   // 共通の▼と専用の丸い時計を二重に描かない。
+  keepBattleSigns: true,   // 行き先の▼を出している間も将の名札を残す。
   goalsAllRows: true,   // 最初から目標を並べ、済んだ物にも印を残す。
   // 既存の相手選びを使い、共通の枠と方向の矢印を同じ本人へ出す。
   actionGuideTarget(rt) { return this.missionSignTarget(rt); },
@@ -3139,15 +3141,17 @@ const moribe = {
     if (!q || F.ending || rt.over) return null;
     // 人を追う印と地面の小旗を区別し、段が変わったら追う相手を消す。
     q.unit = null; q.enemy = false; q.approach = false; q.gatherArea = false;
+    q.label = ''; q.hideDistance = undefined;
     // 着いた後の足元や画面端へ、移動を促す印を残さない。
     q.waiting = false; q.arrived = false; q.crossing = false; q.progress = 0; q.guardArea = false; q.waitDuration = 0;
     // 渡河の下知前は南岸の柳へ。北岸の渡河地点へ先走らせない。
     if (F.m15?.ph === 'kishi') {
       const at = F.m15.C.KISHI;
       q.x = at.x; q.z = at.z; q.y = drawGroundAt(rt.world, q.x, q.z);
-      q.r = q.hide = 3;
+      q.r = 3; q.hide = q.hideDistance = 0;
       q.arrived = Math.hypot(p.u.pos.x - q.x, p.u.pos.z - q.z) <= 3;
-      return q.arrived ? null : q;
+      q.label = '南岸の柳の陰';
+      return q;
     }
     let pos = null, r = 6, hide = 6;
     // 開戦したコマから渡河の到着印を消し、敵の▼へ渡す。
@@ -3605,7 +3609,7 @@ const moribe = {
     mist: false,   // 雨は公記にあるが、濃い霧は確定できない。
     // 11/6 fixc（kaito 四-5）：輪中の平らな野に大きな山が迫って見えた。養老・伊吹は十キロ余り先なので、地平に低く霞ませる。
     mountainScale: .2, mountainHaze: .85,
-    fogFar: 360,   // 雨は残し、川向こうと両将の槍列の輪郭まで読めるようにする。
+    fogFar: 480,   // 雨は残し、終盤に振り返っても低い遠山と田の地平を霧に埋めない。
     battleViewDistance: 140,   // 描画の上限内で両翼と控えを見せる。遠い兵は既存の軽い姿を使う。
     trees: 140,
     rocks: 30,   // 11/6 fixc（kaito 八-1）：輪中の田に大きな灰の岩はほぼ無い。道の上ののっぺりした大岩を減らす

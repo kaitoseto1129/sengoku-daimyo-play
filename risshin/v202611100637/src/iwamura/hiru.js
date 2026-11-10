@@ -104,6 +104,7 @@ function sally(rt, H, n) {
     const watch = () => {
       if (!lead || !lead.alive || rt.over || rt.flags.ending) return;
       if (lead.hp <= lead.maxHp * 0.4) {
+        retreatRoad(g, H.ctx.retreat || H.ctx.road, lead);
         lead.invuln = true; lead.noTarget = true; lead.fleeing = true; lead.target = null; lead.atk = null; lead.aiT = 0;
         rt.say('物見', '杢之助が深手を負うて、城へ退くぞ！', 3);
         return;
@@ -117,7 +118,25 @@ function sally(rt, H, n) {
 // 深手で離脱した者は戦力に残さない。一時的に転んだ者は起きるので数える。
 const fighting = (u) => u.alive && !u.fleeing && !u.woundOut;
 const standing = (g) => g.units.filter(fighting).length;
-function rout(g) {
+// 昼の敗走も、登って来た九十九折りを城へ戻る。直進では切岸に詰まる。
+// 各兵が今いる道の区間から先へ進め、麓や通過済みの折れへ飛ばさない。
+function retreatRoad(g, road, only = null) {
+  g.fleePath = road;
+  for (const u of g.units) {
+    if (!u.alive || only && u !== only) continue;
+    let best = Infinity, next = 0;
+    for (let i = 1; i < road.length; i++) {
+      const a = road[i - 1], b = road[i], dx = b[0] - a[0], dz = b[1] - a[1];
+      const len = dx * dx + dz * dz;
+      const t = len ? Math.max(0, Math.min(1, ((u.pos.x - a[0]) * dx + (u.pos.z - a[1]) * dz) / len)) : 0;
+      const d = Math.hypot(u.pos.x - a[0] - dx * t, u.pos.z - a[1] - dz * t);
+      if (d < best) { best = d; next = i; }
+    }
+    u.fleePathIdx = next;
+  }
+}
+function rout(g, road) {
+  retreatRoad(g, road);
   g.noRout = false; g.morale = 0; g.routed = true; g.order = 'flee'; g.focus = null; g.fleeDir = { x: 0, z: -1 };
   for (const u of g.units) if (u.alive) { u.fleeing = true; u.target = null; u.aiT = 0; }
 }
@@ -171,7 +190,7 @@ export function tick(rt, hidden = []) {
     const left = H.esc.units.filter((u) => fighting(u) && u.type !== 'porter').length;
     // 待ち時間では兵糧入れを止めた事にしない。護りを実際に崩し、麓へ出た本人が確かめる。
     if (left > 2 || !near(p, KOMODA, 26)) return;
-    rout(H.esc);
+    rout(H.esc, H.ctx.retreat || H.ctx.road);
     H.s = 3; H.at = rt.t;
     rt.say('足軽', '人足が俵を捨てて逃げたぞ！', 2.6);
     rt.after(3, () => {
@@ -202,7 +221,7 @@ export function tick(rt, hidden = []) {
   if (!H.g) return;
   // 無傷の寄せ手を百秒で退かせず、口で実際に押し返した時だけ次の手へ渡す。
   if (standing(H.g) > Math.ceil(H.n * 0.35) || !near(p, MOUTH, 26)) return;
-  rout(H.g);
+  rout(H.g, H.ctx.retreat || H.ctx.road);
   if (H.wave < 3) {
     const w = H.wave + 1;
     rt.say('河尻秀隆', w === 2 ? '退いたか。まだ来るぞ、口を空けるな！' : 'よし、二の手も退いた。……旗が見えるか。次は侍大将じゃ', 3.2);
