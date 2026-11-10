@@ -231,6 +231,7 @@ const t03_komaki = {
   alwaysMelee: false,
   foeMarks: true,
   enemyTriangleSigns: true,
+  keepBattleSigns: true,   // 行き先の案内中も、武将名・両軍の人数と敵の赤い▼を残す。
   noAutoFoeCam: () => true,
   playerAtkMax: 3,
   playerTaken: 0.5,

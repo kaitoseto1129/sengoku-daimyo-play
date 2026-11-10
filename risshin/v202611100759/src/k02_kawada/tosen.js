@@ -8,7 +8,7 @@
 // ======================================================================
 import { sfx } from '../audio.js';
 import { onceWhen } from '../k_toku_a/sonae.js';
-import { depthOrder } from '../army_depth.js';
+import { depthOrder, ST } from '../army_depth.js';
 
 const BLACK = 0x1e1b19, WEST = 0x2a2622;
 
@@ -16,9 +16,13 @@ export function install(rt, ctx) {
   const F = rt.flags, T = {};
   F.k02t = T;
   const di = () => F.dp?.i ?? -1;
+  const crossed = () => {
+    const s = F.depth?.A?.sonae.find((q) => q.id === 'ikeda2');
+    return F.east?.count > 0 && F.east.center().z < -30 && s?.men > 0 && s.z < -20 && s.state !== ST.AWAY && s.state !== ST.APPROACH;
+  };
   T.tick = onceWhen(rt, [
-    // 北岸の柵を取った後：後ろの備も続いて渡り始める
-    [() => di() >= 3, () => rt.after(1, () => rt.say('使番', '山内殿・池田の二陣、続いて渡りました！　尾越の福島殿も渡り終えたと', 3.4))],
+    // 段だけで渡河済みと告げず、山内の手と池田の二陣が北岸へ着くのを待つ。
+    [() => di() >= 3 && crossed(), () => rt.after(1, () => rt.say('使番', '山内殿・池田の二陣、続いて渡りました！　尾越の福島殿も渡り終えたと', 3.4))],
     // 米野は本物の隊だけで戦う。段の外に勝敗・人数に入らない兵や騎馬を足さない（確認表の四の1・十二の2）
     [() => di() >= 4, () => {
       rt.after(5, () => rt.say('浅野幸長', '百々と飯沼の手を破れ。米野を抜けば敵は総崩れじゃ', 3.6));

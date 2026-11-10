@@ -11,7 +11,7 @@ export const GOALS = [
 // 主人公が自分の槍で働いた事（その段で討った数）。何もしないうちに済みの印を付けない（kaito crit 11/6・九2・十二3）
 export const inouDid = (rt, stage, n) => ((rt.flags.ks || [])[stage] || 0) >= n;
 // 案内は、今も刃を合わせられる敵本人にだけ付ける。
-export const inouEnemyAlive = (u) => u?.alive && u.hp > 0 && !u.gone && !u.dying && !u.downed && !u.woundOut && !u.rearWound && !u.fleeing && !u.group?.routing && !u.group?.routed && !u.invuln && !u.noTarget;
+export const inouEnemyAlive = (u) => u?.alive && u.hp > 0 && !u.gone && !u.dying && !u.downed && !u.woundOut && !u.rearWound && !u.fleeing && !u.group?.routing && !u.group?.routed && u.group?.order !== 'retreat' && !u.group?.inouRetiring && !u.invuln && !u.noTarget;
 // 討たれる本人以外に、今も手柄の相手にできる兵がいるか。
 // 退却中・手負いの生存者で最後の戦える一人の保護を外さない。
 export const inouLastFighter = (groups, target) => !(groups || []).some((g) =>
