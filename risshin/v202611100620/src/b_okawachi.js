@@ -801,7 +801,9 @@ const okawachi = {
     q.waiting = false; q.arrived = false; q.route = false; q.always = true; q.silent = true;
     q.r = 6; q.hide = 0;
     let at;
-    if (F.step === 3) at = CAMP_LINE;
+    const recoverCover = F.step < 3 && !F.coverReached && F.waitCover;
+    if (recoverCover) { at = F.waitCover; q.r = .3; q.waiting = true; }
+    else if (F.step === 3) at = CAMP_LINE;
     else if (F.step === 4) { at = SOUTH_BLOCK; q.r = 18; q.defend = q.waiting = true; }
     else if (F.step >= 2) {
       at = FRONT;
@@ -816,7 +818,7 @@ const okawachi = {
       q.r = q.waiting ? .3 : 3;
     }
     // 任務の文から名を抜くと「番の組と道」などが行き先になる。道の角でも目的地の名を保つ。
-    q.label = F.step === 3 ? '南の陣' : F.step === 4 ? '南の鹿垣' :
+    q.label = recoverCover ? '搦手の竹束' : F.step === 3 ? '南の陣' : F.step === 4 ? '南の鹿垣' :
       F.step >= 2 || at === FRONT ? '坂の旗' : '搦手の竹束';
     // 切岸越しに直進させず、既存の歩ける道と同じ角へ案内する。
     const next = karameteWay(rt.army, rt.player.u, at);
@@ -825,7 +827,7 @@ const okawachi = {
     q.x = pos.x; q.z = pos.z;
     if (q.route) { q.unit = null; q.enemy = false; q.defend = q.waiting = false; q.r = .5; }
     // 隣の折り返し道や切岸の上では、任務と同じ高さの判定で未到着にする。
-    q.arrived = !q.route && (F.step <= 1 && q.waiting ? okAtWaitCover(rt) :
+    q.arrived = !q.route && (recoverCover || F.step <= 1 && q.waiting ? okAtWaitCover(rt) :
       okAtPost(rt, at, q.r));
     // 敵本人の印は missionSignTarget の▼。行き先は同じ地点への道のピンにする。
     // 間合いに入ったら▼だけを残し、近い敵に移動のピンを重ねない。
@@ -2289,7 +2291,9 @@ const okawachi = {
           covered ? '法螺に鬨を返して進め' : '手前の竹束の陰へ戻れ');
       }
     }
-    if (F.step <= 1 && !F.coverReached && okAtWaitCover(rt)) F.coverReached = true;
+    // 城兵の打って出が先に始まっても、竹束へ戻って①を果たせる。
+    // ③から退く条件にも①が要るため、段だけ進めて到着を締め切らない。
+    if (F.step < 3 && !F.coverReached && okAtWaitCover(rt)) F.coverReached = true;
     if (F.step >= 1 && F.step < 3 && !F.gateReached && okAtPost(rt, FRONT, 9)) F.gateReached = true;
     if (F.step === 3 && !F.campReached && okAtPost(rt, CAMP_LINE, 8)) F.campReached = true;
     if (F.step === 1 && F.assaultMoving) {
@@ -2324,7 +2328,8 @@ const okawachi = {
       const d = Math.hypot(p.x - FRONT.x, p.z - FRONT.z);
       let active = 0;
       for (const g of L) if (!sortieBroken(g)) active++;
-      okRoadGuide(rt, FRONT, '坂道を通って、城兵を止める旗へ');
+      okRoadGuide(rt, F.coverReached ? FRONT : F.waitCover,
+        F.coverReached ? '坂道を通って、城兵を止める旗へ' : '搦手の坂下の竹束へ戻る道');
       rt.objProgress('main', F.pushSignalPending ? '城兵が坂へ出た。坂の旗で槍を揃え、退き口を守れ' :
         rt.t < F.signalQuietUntil ? '鉦二つは止まれ。組の返事を聞き、坂の旗で槍を揃えよ' :
         rt.t < (F.sortieVoiceUntil || 0) ? '城兵の声！　坂の旗で槍を揃え、退き口を守れ' :
@@ -5114,7 +5119,7 @@ okawachi.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
   inp.k.delete('KeyW'); inp.k.delete('KeyE');
   if (!u.alive || F.ending) return;
   if (F.dp && F.dp.on && F.step < 1) { depthBot(b, inp, goTo); return; }   // 15分の構成：夜攻めの前の物見の段
-  if (F.step === 0 || F.step === 1 && !F.assaultMoving) {
+  if (F.step === 0 || F.step === 1 && !F.assaultMoving || F.step < 3 && !F.coverReached) {
     if (!okAtWaitCover(b)) goTo(p, inp, F.waitCover.x, F.waitCover.z, 0.2);
     inp.guardHold = false;
     return;
