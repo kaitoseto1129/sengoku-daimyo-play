@@ -194,7 +194,9 @@ export function tick(rt, dt) {
 // 戦後：上官に名を聞かれる（出世につながると分からせる。主人公はまだ足軽）
 export function nameAsked(rt, at) {
   if (rt.G.lord) return;
-  rt.after(at, () => say(rt, '前田又左衛門', 'そこの足軽。本陣の幕まで斬り込んでおったな。名は？', 3));
-  rt.after(at + 3.1, () => say(rt, '組頭 源八', `わしの組の${nm(rt)}にござる`, 2.2));
-  rt.after(at + 5.4, () => say(rt, '前田又左衛門', '覚えておく。殿にも申し上げておこう', 2.4));
+  // 帰陣後は ending が立つ。戦中の声を止める say を通すと、この三言も消えてしまう。
+  const report = (who, text, d) => { if (!rt.over && rt.flags.o15?.yoinT != null) rt.say(who, text, d); };
+  rt.after(at, () => report('前田又左衛門', 'そこの足軽。本陣の幕まで斬り込んでおったな。名は？', 3));
+  rt.after(at + 3.1, () => report('組頭 源八', `わしの組の${nm(rt)}にござる`, 2.2));
+  rt.after(at + 5.4, () => report('前田又左衛門', '覚えておく。殿にも申し上げておこう', 2.4));
 }

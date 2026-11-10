@@ -299,7 +299,7 @@ function matabeiShot(rt) {
         Math.hypot(p.x - v.pos.x, p.z - v.pos.z) > 50) return null;
     for (const g of groups) {
       if (g.routed || g.order === 'retreat' || g.order === 'flee') continue;
-      for (const u of g.units) if (active(u) && u.weapon === 'gun' &&
+      for (const u of g.units) if (active(u) && u.weapon === 'gun' && !u.mounted && (u.gunAmmo ?? 20) > 0 &&
           Math.hypot(u.pos.x - v.pos.x, u.pos.z - v.pos.z) <= 60 &&
           rt.army.coverBetween(u.pos, v.pos, u.team) > 0 && !rt.army.shotBlocked(u, v.pos)) return u;
     }
@@ -687,7 +687,9 @@ const k13_domyoji = {
       !u.rearWound && !u.downed && !u.noTarget;
     // 鉄砲兵が倒れた後まで射撃待ちを続けると、残った槍兵も伏せたままになる。
     // 迎える伊達勢が尽きた時や退く下知が出た時も、架空の一斉射撃で押し戻さず通常の戦いへ戻す。
-    if (!sanada.units.some((u) => active(u) && u.weapon === 'gun') ||
+    // 馬上では共通の射撃処理が発砲しない。弾切れの筒も待ち伏せの射手に数えない。
+    const armed = (u) => active(u) && u.weapon === 'gun' && !u.mounted && (u.gunAmmo ?? 20) > 0;
+    if (!sanada.units.some(armed) ||
         !g || !g.count || g.routed || g.order === 'retreat' || g.order === 'flee' || !g.units.some(active)) {
       sanada.ambush = false; sanada.order = 'attack'; sanada.seekRange = 55;
       sanada.anchor = { x: HONDA.x, z: HONDA.z };
@@ -703,7 +705,7 @@ const k13_domyoji = {
       }
     }
     // 台詞から一定時間で押し戻さず、生きた鉄砲兵へ伊達勢が寄り、射線が通るまで伏せて待つ。
-    const gunner = sanada.units.find((u) => active(u) && u.weapon === 'gun' &&
+    const gunner = sanada.units.find((u) => armed(u) &&
       g.units.some((v) => active(v) && Math.hypot(u.pos.x - v.pos.x, u.pos.z - v.pos.z) <= 42 &&
         rt.army.coverBetween(u.pos, v.pos, u.team) > 0 && !rt.army.shotBlocked(u, v.pos)));
     if (!gunner) {

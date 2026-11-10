@@ -308,10 +308,10 @@ const k07_sawayama = {
   keepCombatTaskHeading: true,
   // 11/8 九7：カメラが門の梁・土塁・枡形の壁・塀の面にめり込んだ。肩越しの目を体へ寄せる
   camPull: -1.2,
-  // 寄せ口から約百七十メートル先の天守も描く。既定の百五十では、山頂ごと描画の外に切れていた。
-  landmarkViewFar: 200,
   minutes: 25,
   world: {
+    // 描画側は world の指定を読む。寄せ口から約百七十メートル先の天守まで描く。
+    landmarkViewFar: 200,
     seed: 1600921,
     time: 'morning',   // 十七日の払暁から攻めた
     // 11/10 クラウド（関所の写真）：夜の三の丸で兵の面に月の補光が強く掛かり、具足が白く光る骨のような兵に見えた。今福・鳥取と同じく弱める
@@ -380,7 +380,7 @@ html body #hud.enemy-action-guide:has(#h-prog[data-battle="k07_sawayama"]) #goal
     for (const [x, z, w, d] of [[80, 17, 9, 6], [91, 18, 8, 5.5], [101, 17, 8, 6], [79, 7, 7, 5], [100, 6, 6, 5]]) {
       try { rt.scene.add(hut(W, x, z, w, d, Math.PI, { ita: true, minka: false })); } catch (e) { console.warn(e); }
     }
-    farSight(rt.scene.children.slice(castle0), { W, ground: { x: 20, z: -20, r: 100 }, far: this.landmarkViewFar });
+    farSight(rt.scene.children.slice(castle0), { W, ground: { x: 20, z: -20, r: 100 }, far: W.def.landmarkViewFar });
     flags(rt);
     // 見せかけの軍勢は近くに置かない（AA・AF・AQ6）。見える兵は全部本物。11/8：百五十歩より奥にだけ寄せ手一万五千の包囲を重ねる（k07/hoi.js）
     hoi.install(rt);
