@@ -13,12 +13,16 @@ function say(rt, who, s, t, sec = 3) {
 }
 
 export function returnTurn(rt, ctx) {
-  const F = rt.flags, W = rt.world;
+  const F = rt.flags, W = rt.world, phase = F.phase;
   // 北国街道を下る羽柴の大軍（大垣から駆け戻った本隊。軽い作り）
   try {
     const A = (x, z, seed, count) => W.addDistantArmy({ x, z, w: 14, d: 22, count, facing: Math.PI * 0.86, armor: 0x24201c, flagTex: flagTexture('kiri53'), mon: 'kiri53', seed, team: 0, kind: 'mixed', host: false, farFill: true });
     F.retG = [A(206, 156, 15841, 320), A(178, 70, 15842, 300), A(150, -10, 15843, 280)];
-    rt.after(2, () => { try { F.retG[0]?.moveTo(214, 214, 80); F.retG[1]?.moveTo(204, 150, 90); F.retG[2]?.moveTo(176, 66, 90); } catch (e) { /* 遠景 */ } });
+    rt.after(2, () => {
+      // 敗北や再開で段が替わった後に、古い大返しの列を動かさない。
+      if (rt.over || F.ending || F.phase !== phase) return;
+      try { F.retG[0]?.moveTo(214, 214, 80); F.retG[1]?.moveTo(204, 150, 90); F.retG[2]?.moveTo(176, 66, 90); } catch (e) { /* 遠景 */ }
+    });
   } catch (e) { F.retG = []; }
   // 盛政は退けの命に従わない（湖の向こうの柴田の陣の声）
   say(rt, '柴田の使番', '玄蕃殿、勝家様より「すぐに退け」との仰せにござる！', 15, 3.2);

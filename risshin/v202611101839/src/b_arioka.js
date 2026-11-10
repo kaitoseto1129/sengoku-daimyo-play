@@ -1487,6 +1487,23 @@ const arioka = {
   // 通しの記録（gate4_1110）：敵の印が出ない。共通の赤い▼を使う。
   // field_signs はこの印が付いた兵を除くので、同じ頭上に二つ重ねない。
   enemyTriangleSigns: true,
+  // 通しの二周目：本人から通っても、視点からは屋根に隠れる敵へ▼が出ていた。
+  // 見通しは視点から調べ、壁に加えて実物の軒と屋根の箱も使う。
+  sightFromCamera: true,
+  sightBlocked(rt, a, p, ay, by) {
+    const F = rt.flags;
+    const from = F.ariSightFrom || (F.ariSightFrom = { x: 0, y: 0, z: 0 });
+    const to = F.ariSightTo || (F.ariSightTo = { x: 0, y: 0, z: 0 });
+    from.x = a.x; from.y = ay; from.z = a.z;
+    to.x = p.x; to.y = by; to.z = p.z;
+    for (const box of F.ariCameraHouses || []) {
+      // 入れる町屋の戸口と窓は共通の壁判定に任せ、屋根だけを補う。
+      if (box.house.room && box.bottom < 2.9) continue;
+      const hit = ariGateCameraHit(box, from, to);
+      if (hit !== null && hit < .999) return true;
+    }
+    return false;
+  },
   nearbyAllySignLimit: 0,
   hideNameTag: (u) => u.name === '滝川の組頭',   // 名の伝わらない役に名札を出さない（AY7。頭上に「滝川のかしら」と出ていた）
   // 11/6 描いて遊ぶ：命・小地図・目標の三枚で共通の「札は三つまで」が埋まり、名札が一度も出なかった（五2・九3）。

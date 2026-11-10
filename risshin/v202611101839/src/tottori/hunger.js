@@ -108,6 +108,18 @@ function whiteCloth(u) {
   g.add(new THREE.Mesh(L.pole, L.wood), new THREE.Mesh(L.cloth, L.white));
   g.position.set(0.35, 0, 0.1); u.mesh.add(g); u.ttWhite = g;
 }
+// 白旗を迎えた朝から停戦する。退却の到着処理や古い狙いを交渉へ持ち越さない。
+function ceasefire(rt) {
+  for (const g of rt.army.groups) {
+    g.order = 'hold'; g.path = null; g.pathIdx = 0; g.onArrive = null;
+    g.focus = null; g.fire = false; g.aggro = 0; g.seekRange = 0; g.noRout = true;
+    g.routed = false; g.ttRetreat = false; g.retreatOnly = false;
+    for (const u of g.units) {
+      u.noTarget = true; u.target = null; u.atk = null; u.swing = null; u.watch = null; u.dmg = 0;
+      if (alive(u)) { u.fleeing = false; u.moveTo = null; }
+    }
+  }
+}
 const alive = (u) => u.alive && u.hp > 0 && !u.dying && !u.gone && !u.downed && !u.woundOut && !u.rearWound;
 
 function start(rt, K, done) {
@@ -325,6 +337,7 @@ function start(rt, K, done) {
   // 明け方：武器を持たない使者が、白い布を掲げて下りる。使者を本陣へ通す
   function dawn() {
     if (stop()) return;
+    ceasefire(rt);
     k15Fade(rt, () => {
       applyLook(rt, DAWN); rt.world.lookDark = false;
       if (F.farFires) F.farFires.visible = false;

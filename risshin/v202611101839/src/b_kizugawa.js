@@ -3346,6 +3346,8 @@ const kizugawa = {
   //   一太刀を一割八分（侍は二割）に、刃を受けた後の4秒は次の刃を通さない（同じ一瞬に二太刀・三太刀を浴びない）。
   cutFloor: 0.35,
   world: {
+    // 狭い甲板では、長く残る硝煙の幕が乗り口と沖の船を隠さない大きさにする。
+    gunHazeScale: 0.3,
     playerAtkMax: 2,   // 11/1：本人へ同時に打ち込むのは二人まで（共通の既定は四人・player_pressure.js）
     // 兵を作る側もこの印を見る。戦の表側の印だけでは武将の馬が残る。
     noHorse: true,
@@ -4190,7 +4192,7 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
     // 玉込め中も操作札を保ち、押した時に待つ理由を伝える。
     if (rt.missionGuide) rt.missionGuide.scan = 0;
     rt.army.play('volley', { x: c.x, z: c.z }, 1.6);
-    rt.army.smoke(c.x - 2, DECK.y + 1.2, c.z, -1, 0, 2.5);
+    rt.army.smoke(c.x - 2, DECK.y + 1.2, c.z, -1, 0, 0.4);
     // 命中も限られる：遠いほど外れやすい（大きな弾は狙いを付け直しにくい）
     bd = Math.hypot(best.x - c.x, best.z - c.z);
     const missChance = bd <= 40 && broadside(best, c) >= 0.4 ? 0 : Math.max(0.05, Math.min(0.55, (bd - 15) / 110 + (1 - broadside(best, c)) * 0.1));
@@ -4373,7 +4375,8 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
     rt.obj('main', '甲板に残る毛利の兵を討て', 'main');
     rt.banner('大鉄砲の轟き', '敵の大船が崩れ、周りの小舟が止まる');
     rt.say('九鬼嘉隆', playerShot ? `${nm(rt)}、見事じゃ！　おぬしの一発に続け、皆々放て！` : '大船が崩れたぞ！　皆々、甲板を固めよ！', 4);
-    for (const c of F.guns) rt.army.smoke(c.x - 2, DECK.y + 1.2, c.z, -1, 0, 2.5);
+    // 自船の三門は短い筒煙だけ。大きな白煙を重ねて大将船の崩れを隠さない。
+    for (const c of F.guns) rt.army.smoke(c.x - 2, DECK.y + 1.2, c.z, -1, 0, 0.4);
     for (const e of F.escorts) {
       const dx = F.big.x - e.x, dz = F.big.z - e.z, d = Math.hypot(dx, dz) || 1;
       rt.army.smoke(e.x + dx / d * 5, 3, e.z + dz / d * 5, dx / d, dz / d, 2.5);
@@ -4662,10 +4665,10 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
     salvo.flash.position.set(salvo.muzzle.x, salvo.muzzle.y, salvo.muzzle.z); salvo.flash.scale.setScalar(0.7);
     salvo.splash.visible = shotAge >= 0.5 && shotAge < 1.5;
     salvo.splash.position.set(salvo.hit.x, salvo.hit.y, salvo.hit.z);
-    salvo.splash.scale.set(1.2, S.reduceMotion ? 1.8 : Math.max(0.1, 3 * Math.sin((shotAge - 0.5) * Math.PI)), 1.2);
+    salvo.splash.scale.set(0.65, S.reduceMotion ? 0.9 : Math.max(0.1, 1.4 * Math.sin((shotAge - 0.5) * Math.PI)), 0.65);
     const cannonSplash = F.cannonSplash, splashAge = rt.t - cannonSplash.at;
     cannonSplash.mesh.visible = splashAge >= 0.5 && splashAge < 1.5;
-    cannonSplash.mesh.scale.set(1.2, S.reduceMotion ? 1.8 : Math.max(0.1, 3 * Math.sin((splashAge - 0.5) * Math.PI)), 1.2);
+    cannonSplash.mesh.scale.set(0.65, S.reduceMotion ? 0.9 : Math.max(0.1, 1.4 * Math.sin((splashAge - 0.5) * Math.PI)), 0.65);
     // 小早を動かす・沈める
     for (const b of F.boats) {
       if (!b.alive) {

@@ -589,7 +589,8 @@ const t11_hachioji = {
     const dx = BRIDGE_N.x - BRIDGE_S.x, dz = BRIDGE_N.z - BRIDGE_S.z;
     const t = ((u.pos.x - BRIDGE_S.x) * dx + (u.pos.z - BRIDGE_S.z) * dz) / (dx * dx + dz * dz);
     if (t < 0 || t > 1 || Math.hypot(u.pos.x - BRIDGE_S.x - dx * t, u.pos.z - BRIDGE_S.z - dz * t) > 1.7) return;
-    if (Math.hypot(camera.x - u.pos.x, camera.z - u.pos.z) < 1.6) camera.y = Math.max(camera.y, u.pos.y + (u.mounted ? 3.6 : 2.5));
+    // 共通カメラの最短距離は1.6m。境界と補間中の僅かなずれも拾う。
+    if (Math.hypot(camera.x - u.pos.x, camera.z - u.pos.z) <= 1.65) camera.y = Math.max(camera.y, u.pos.y + (p.mounted || u.mounted ? 3.6 : 2.5));
   },
   spawn: { x: START.x - 4, z: START.z, heading: -Math.PI / 2 },
   noWake: true,

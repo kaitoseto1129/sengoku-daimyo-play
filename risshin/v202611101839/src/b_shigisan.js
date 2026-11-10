@@ -882,7 +882,9 @@ function stoneSpace(x, z, flat = false) {
 }
 // 平蜘蛛の釜と天守が爆ぜる（のちの伝えを絵にする）：望楼の上の階に火の玉・閃き・黒煙・飛び散る板と瓦。
 // 形と材質は一度だけ作り、破片は一つの InstancedMesh で動かす（毎コマ new しない）。
-const KEEP_AT = { x: TOP.x - 2, z: TOP.z - 8, up: 5.3 };
+// 四階の床は9.3、屋根の棟は12.23。古い7.3の案内は三階の壁の内側を指していた。
+// 屋根から立つ炎を案内と見届けの共通の点にし、壁を見ただけで締めない。
+const KEEP_AT = { x: TOP.x - 2, z: TOP.z - 8, up: 5.3, fireH: 9.3, viewH: 12.6 };
 let BLAST_KIT = null;
 function blastKit() {
   if (BLAST_KIT) return BLAST_KIT;
@@ -2112,7 +2114,7 @@ const shigisan = {
       if (!keep) return null;
       q.key = 'keep'; q.marker = keep; q.route = true;
       q.x = KEEP_AT.x; q.z = KEEP_AT.z;
-      q.y = rt.world.heightAt(q.x, q.z) + KEEP_AT.up + 2;
+      q.y = rt.world.heightAt(q.x, q.z) + KEEP_AT.viewH;
       return q;
     }
     if (enemy) {
@@ -3572,7 +3574,7 @@ const shigisan = {
     F.castleFireAt = rt.t;
     // 城内の自害は戦後の語りで知らせ、足軽による討取りにしない。
     // 天主の火（信長公記：久秀が自ら火をかけて焼死）。平蜘蛛・爆死の伝えは絵にしない。
-    rt.marker('keep', { x: KEEP_AT.x, z: KEEP_AT.z }, '天主の上の階', { h: KEEP_AT.up + 2 });
+    rt.marker('keep', { x: KEEP_AT.x, z: KEEP_AT.z }, '天主の上の階', { h: KEEP_AT.viewH });
     // kaito 11/1 の紙：平蜘蛛と爆死は後の脚色が強い。史実の演出にせず、天主の火と自害だけを見せる。
     rt.after(1.2, () => rt.say('松永久秀', '信長に頭は下げぬ。この城と共に果てるまでよ', 4));
     rt.after(3.4, () => {
@@ -3585,7 +3587,7 @@ const shigisan = {
         if (u.human) u.human.still = false;
       }
       // 11/6 fixc2137：火が館の内（床から一歩余り）にあり、壁と屋根に隠れて本丸の南口から一度も見えなかった（描いて遊んだ写真）。屋根を抜けて炎と黒煙が立つ高さに。
-      W.addFire(KEEP_AT.x, KEEP_AT.z, { size: 4.5, h: KEEP_AT.up + 0.5, blackSmoke: true });
+      W.addFire(KEEP_AT.x, KEEP_AT.z, { size: 4.5, h: KEEP_AT.fireH, blackSmoke: true });
       rt.banner('久秀の最期', '天主は燃え落ち、久秀は城内で自害した');
     });
     rt.after(5.2, () => rt.say('筒井順慶', '久秀め、自ら火をかけたか……。大和は筒井が預かる', 5));
@@ -3610,7 +3612,7 @@ const shigisan = {
       if (!P || !pl.u.alive || pl.u.hp <= 0) return;
       {
         rt.camera.updateMatrixWorld();
-        keepFire.set(KEEP_AT.x, W.heightAt(KEEP_AT.x, KEEP_AT.z) + KEEP_AT.up + 2, KEEP_AT.z);
+        keepFire.set(KEEP_AT.x, W.heightAt(KEEP_AT.x, KEEP_AT.z) + KEEP_AT.viewH, KEEP_AT.z);
         keepView.copy(keepFire).project(rt.camera);
         const eye = rt.camera.position;
         let visible = Math.abs(keepView.x) < 0.9 && Math.abs(keepView.y) < 0.9 && keepView.z > -1 && keepView.z < 1 &&
