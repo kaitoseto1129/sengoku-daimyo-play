@@ -1028,7 +1028,8 @@ const t10_oshi = {
         if (g.saved || !P.alive || !g.units.some((u) => u.alive && !u.gone && near(u.pos, P.pos, 4.5))) continue;
         g.saved = true; g.fixed = false; g.noAI = false; g.ai = false; F.saved = (F.saved || 0) + 1;
         for (const u of g.units) u._crouch = false;
-        g.routed = false; g.morale = 100; g.onArrive = null;
+        // 救助した者も避難の下知を保つ。高所で待機に替わった後、共通の突撃で城兵へ戻らせない。
+        g.stay = true; g.noRout = true; g.routed = false; g.morale = 100; g.onArrive = null;
         F.evac.push(g);
         rt.say(g.units[0]?.name || '手負いの足軽', 'かたじけない……！', 2.2);
       }
