@@ -1352,7 +1352,8 @@ function mikiGoalBoard(rt) {
     const on = me.alive && !rt.over && !rt.flags.ending && !rt.game.paused && !rt.choice && !this.introWaiting && !rt.player.camShot && !this.bigmap && !this.root.hidden && !this.root.classList.contains('photo') && !this.root.classList.contains('ending');
     let n = 0;
     if (on) for (const u of rt.army.units) {
-      if (!u.alive || u.gone || u.dying || u.woundOut || u.noTarget || u.isStruct || u.civ || u.team === me.team || u.team > 1 || u._nearSignOn ||
+      // 倒れた直後は alive が残ることがある。倒れた兵や後送中の兵を攻撃先の印にしない。
+      if (!u.alive || u.hp <= 0 || u.gone || u.dying || u.downed || u.woundOut || u.rearWound || u.noTarget || u.isStruct || u.civ || u.team === me.team || u.team > 1 || u._nearSignOn ||
           u.mesh?.visible === false || u.camHidden) continue;
       // 四十歩より遠くても、画面に姿が見える敵には印を残す。壁・霧と見通しの短期保存は共通へ任せる。
       if (!sightScreenUnit(rt, u)) continue;
