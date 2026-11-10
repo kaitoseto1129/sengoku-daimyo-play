@@ -72,7 +72,9 @@ function waveRule(rt, FORT) {
     if (!few && !long) continue;
     // 寄せ大将の組は、大将が生きて柵の内にいる間だけは残す（討つ機会を消さない）。最大の時間の倍を過ぎれば退く。
     const boss = F.yoseBoss;
-    if (boss && ready(boss) && boss.group === g && rt.t - g._fsT < maxT * 2 && !few) continue;
+    if (boss && ready(boss) && boss.group === g &&
+        Math.abs(boss.pos.x) < FORT && Math.abs(boss.pos.z) < FORT &&
+        rt.t - g._fsT < maxT * 2 && !few) continue;
     retreat(g);
   }
 }
