@@ -1926,7 +1926,14 @@ const takato_siege = {
       for (const u of rt.army.units)
         if (u.team === 0 && siegeFighter(u)) alive++;
       F.captureNeed = Math.max(1, Math.min(4, alive));
-      for (const z of F.SZ.zones) z.need = Math.max(1, Math.min(z.id === 'hodoin' ? 6 : 4, alive));
+      for (const z of F.SZ.zones) {
+        // 共通の制圧は onZoneFall より先に士気・退却・門へ作用する。
+        // 下知だけを保留せず、迎撃と曲輪の順序を制圧の入口でも守る。
+        const ready = z.id === 'hodoin' || receivedSally(F) &&
+          (z.id === 'san' || z.id === 'ni' && F.sanFell && rt.t - F.sanT >= 20 ||
+            z.id === 'hon' && F.niFell && rt.t - F.niT >= 15);
+        z.need = ready ? Math.max(1, Math.min(z.id === 'hodoin' ? 6 : 4, alive)) : Infinity;
+      }
     }
     if (F.SZ) F.SZ.tick(dt);
     if (F.K) F.K.tick(dt);

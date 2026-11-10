@@ -1537,7 +1537,7 @@ const arioka = {
   // 行き先の▼は目標の場所に一つだけ（①木戸の外の竹束 ②木戸の内 ③④辻 ⑤官兵衛）。一人の敵を行き先にしない（三1）。
   missionPin(rt) {
     const F = rt.flags, C = F.dpOn && F.dp?.cur;
-    if (rt.over || !rt.player.u.alive || F.ending && !F.kanbePending) return null;
+    if (rt.over || !rt.player.u.alive || F.ending && !F.kanbePending && !F.kanbeMet) return null;
     const pin = F.ariMissionPin || (F.ariMissionPin = { x: 0, z: 0, r: 3, hide: 3, hideDistance: 0 });
     const stage = this.missionOf(rt);
     const post = F.ariMissionPost || (F.ariMissionPost = { x: 0, z: 0 });
@@ -2734,7 +2734,7 @@ const arioka = {
         rt.say('小寺官兵衛', 'かたじけない……。この足では、もう走れぬがな', 4);
         rt.after(3.5, () => rt.say('栗山善助', '殿、お迎えに参りました。播磨へ帰りましょう', 3.5), true);
         rt.flags.kanbeMet = true;
-        rt.hud?.root?.classList.remove('arioka-kanbe');
+        // 官兵衛を迎えた後も終幕は操作できる。結果へ移るまで居場所の印を残す。
         rt.after(5, () => rt.objDone('main'), true);
         rt.after(8, () => AR_YOIN.start(rt, () => rt.finish({ scriptedEnd: true }, 4)), true);   // 三十秒の余韻（arioka/yoin.js）の後に締める
       // 待ち時間だけでは迎えた事にしない。遠くへ離れた本人にも印を残す。

@@ -1344,7 +1344,7 @@ function nodaOpenSeirou(rt, x, z, name) {
   return { mesh: root, deckId, ladderId, topY, x, z, foot, loopSpots, hut: OPEN_HUT, open: true };
 }
 // 梯子を登り切って床に立った時だけ。登降中は床の高さを通っても到着にしない。
-function onTower(u, t) { return !u.climb && Math.abs(u.pos.x - t.x) < 1.5 && Math.abs(u.pos.z - t.z) < 1.5 && u.pos.y > t.topY - .7; }
+function onTower(u, t) { return u.alive && !u.climb && Math.abs(u.pos.x - t.x) < 1.5 && Math.abs(u.pos.z - t.z) < 1.5 && Math.abs(u.pos.y - t.topY) < .7; }
 // 自動操作も実際の照準を狙い直す。反動を戻さないと三発目以降が砦の上空へ外れ続ける。
 function seirouAim(p, camera, x, y, z) {
   p.yaw = Math.atan2(x - p.u.pos.x, z - p.u.pos.z);

@@ -4298,7 +4298,11 @@ const anegawa = {
         noGuard: true, width: 6, aggro: 12, seekRange: 32, morale: 65, speed: 3.2 },
       dress(pts.map((at) => ({ type: 'ashigaru', n: 1, o: { x: at.x, z: at.z, heading: at.yaw } })), AZAI));
       g.order = 'move'; g.dest = { x: p.x, z: p.z };
-      g.onArrive = (q) => { q.order = 'attack'; };
+      g.onArrive = (q) => {
+        // 三十秒後の退却や終幕の下知を、遅れた到着で攻撃へ戻さない。
+        if (F.step !== 2 || F.ending || rt.over || q.order !== 'move' || gone(q)) return;
+        q.order = 'attack';
+      };
       F.counterChase = g;
     }
     F.step = 2; F.stepT = rt.t;

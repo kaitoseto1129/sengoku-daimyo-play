@@ -270,19 +270,27 @@ const k04_kuisegawa = {
       dummy.scale.set(1, cut ? 0.15 : 0.95, 1); dummy.updateMatrix(); rice.setMatrixAt(i, dummy.matrix);
     });
     rt.scene.add(rice);
-    const berm = new THREE.InstancedMesh(new THREE.BoxGeometry(0.8, 0.3, 2.1), new THREE.MeshLambertMaterial({ color: 0x665332 }), banks.length);
+    // 直方体の縁をやめ、土を盛った丸い畦を同じ形の使い回しで置く。
+    const bermGeo = new THREE.CylinderGeometry(0.4, 0.4, 2.1, 8);
+    bermGeo.rotateX(Math.PI / 2); bermGeo.scale(1, 0.55, 1);
+    const berm = new THREE.InstancedMesh(bermGeo, new THREE.MeshLambertMaterial({ color: 0x665332 }), banks.length);
     banks.forEach(({ p, a }, i) => {
-      dummy.position.set(p.x, W.heightAt(p.x, p.z) + 0.08, p.z); dummy.rotation.set(0, a, 0); dummy.scale.set(1, 1, 1);
+      const sx = Math.sin(a), sz = Math.cos(a);
+      const slope = (W.heightAt(p.x + sx, p.z + sz) - W.heightAt(p.x - sx, p.z - sz)) / 2;
+      dummy.position.set(p.x, W.heightAt(p.x, p.z), p.z); dummy.rotation.set(0, a, 0); dummy.rotateX(-Math.atan(slope)); dummy.scale.set(1, 1, 1);
       dummy.updateMatrix(); berm.setMatrixAt(i, dummy.matrix);
     });
     rt.scene.add(berm);
     // 泥の面は細かく地面に沿わせ、斜面で浮いた板にならないようにする。
-    const pos = [], indices = [];
+    const pos = [], colors = [], indices = [];
     for (const center of mud) {
       const local = L(center), base = pos.length / 3;
       for (let iz = 0; iz <= 8; iz++) for (let ix = 0; ix <= 6; ix++) {
         const p = T(local.x - 6.2 + ix * 12.4 / 6, local.z - 7.7 + iz * 15.4 / 8);
         pos.push(p.x, W.heightAt(p.x, p.z) + 0.035, p.z);
+        // 鏡のような黒い一枚板にせず、湿った土の濃淡を頂点で付ける。
+        const shade = 0.92 + 0.12 * Math.sin(local.x + ix * 1.7) * Math.cos(local.z + iz * 2.3);
+        colors.push(0.22 * shade, 0.18 * shade, 0.11 * shade);
       }
       for (let iz = 0; iz < 8; iz++) for (let ix = 0; ix < 6; ix++) {
         const a = base + iz * 7 + ix; indices.push(a, a + 7, a + 1, a + 1, a + 7, a + 8);
@@ -290,7 +298,8 @@ const k04_kuisegawa = {
     }
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setIndex(indices); geo.computeVertexNormals();
-    rt.scene.add(new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: 0x342e20, roughness: 0.23 })));
+    geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+    rt.scene.add(new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.76 })));
   },
 
   // 葦の原：人の背（二m余り）の葦の株を密に並べる。大垣の側の川べりにも細い帯で（11/8 critic60：葦の原が無く伏せる所が見えなかった）
