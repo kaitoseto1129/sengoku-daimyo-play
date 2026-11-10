@@ -2739,9 +2739,9 @@ function aneCtx(rt, def) {
 // 遊んでいる姉川の rt（bot の本陣守りの判定に使う）
 let aneLive = null;
 const anegawa = {
-  // 遠藤を止めた後の下知・集合・戦後の場面は、十八分の打ち切りで取り消さない。
-  // 未達の追撃は待たず、任務を時計だけで勝ちにもしない。
-  pacingWait: (rt) => !!rt.flags.aneTsui?.done || !!rt.flags.ending && rt.tracker.main === true,
+  // 本陣を守っている間は、十八分の共通打ち切りだけで敗北にしない。
+  // 任務の達成と終幕は各段、本陣を破られた時の敗北は hqLostT で判定する。
+  pacingWait: () => true,
   resumeSteps: [[1, 'charge'], [2, 'counter']],   // 戦の途中の保存（battle_checkpoint.js）：段の始まりを、段の関数を順に流して作り直す
   // 信長の開始地点・部隊の基点・居場所の判定を、陣杭の柳に置く同じ本陣へ揃える。
   // https://cocoshiga.jp/official/topic/ieyasu01/

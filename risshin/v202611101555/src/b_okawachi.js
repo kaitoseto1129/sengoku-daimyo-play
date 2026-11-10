@@ -3491,7 +3491,9 @@ function okGate(gate) {
 const FRONT = { x: -8, z: GATE.z + 16 };
 // 据えた二束の後ろに収まった時だけ待機を促す。太鼓や戦の進行は止めない。
 function okAtWaitCover(rt) {
-  const p = rt.player.u.pos, cover = rt.flags.waitCover;
+  const u = rt.player.u;
+  if (!u.alive || u.dying || u.downed || u.gone || u.woundOut || u.dropped) return false;
+  const p = u.pos, cover = rt.flags.waitCover;
   return !!cover && Math.abs(p.x - cover.x) <= 1.2 && p.z >= cover.z - 0.4 && p.z <= cover.z + 0.3 &&
     Math.abs(p.y - rt.world.heightAt(cover.x, cover.z)) <= 3;
 }
@@ -4677,7 +4679,9 @@ function okShortLineTick(C, near, line, foes, dt) {
 // 隣の折り返し道や切岸の上は、同じ持ち場に着いた扱いにしない。
 // 任務と案内が同じ平場・範囲を見て、到着後に引き返す印を出さない。
 function okAtPost(rt, at, radius) {
-  const p = rt.player.u.pos;
+  const u = rt.player.u;
+  if (!u.alive || u.dying || u.downed || u.gone || u.woundOut || u.dropped) return false;
+  const p = u.pos;
   return Math.hypot(p.x - at.x, p.z - at.z) <= radius &&
     Math.abs(p.y - rt.world.heightAt(at.x, at.z)) <= 3;
 }
@@ -4691,11 +4695,11 @@ function okSortieContact(rt, g, at, radius) {
   g._okContactAt = rt.t + 0.5;
   const holdY = rt.world.heightAt(at.x, at.z);
   for (const u of g.units) {
-    if (!u.alive || u.dying || u.gone || u.fleeing || u.woundOut || u.dropped || u.noTarget ||
+    if (!u.alive || u.dying || u.downed || u.gone || u.fleeing || u.woundOut || u.dropped || u.noTarget ||
         Math.hypot(u.pos.x - at.x, u.pos.z - at.z) > radius + 6) continue;
     let contact = false;
     rt.army.forNear(u.pos.x, u.pos.z, 6, (v) => {
-      if (contact || v.team !== 0 || !v.alive || v.dying || v.gone || v.isStruct || v.fleeing ||
+      if (contact || v.team !== 0 || !v.alive || v.dying || v.downed || v.gone || v.isStruct || v.fleeing ||
           v.woundOut || v.dropped || v.noTarget ||
           !(v.isPlayer || rt.flags.lineGroups.includes(v.group)) ||
           Math.hypot(v.pos.x - at.x, v.pos.z - at.z) > radius ||
