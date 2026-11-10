@@ -243,6 +243,8 @@ const ino = {
   scoutBack(rt) {
     const F = rt.flags;
     if (F.scoutBack) return;
+    // 味方が物見を退けても、列に加わらない本人の任務は済ませない。
+    if (!F.lead?.alive || near(F.lead.pos, rt.player.u.pos) > 16) return;
     F.scoutBack = true;
     if (live(F.scoutG)) { const g = F.scoutG; g.routing = true; g.order = 'retreat'; g.dest = { x: 12, z: -60 }; g.fleeDir = { x: 0, z: -1 }; g.speed = 3.6; g.aggro = 0; g.focus = null; for (const u of g.units) { u.noTarget = true; u.target = null; } }
     say(rt, '隊長', '追うな！　隊列を崩すな！', 2.8);
@@ -252,7 +254,7 @@ const ino = {
     this.sayIf(rt, 'van', 6, '隊長', '前衛に合流するぞ。ついて来い。', 2.6);
     rt.after(30, () => { if (F.ph === 'van' && !F.manySaid) { F.manySaid = true; say(rt, '弥助', '……多いな。', 2.2); } });
     this.sayIf(rt, 'van', 34, '足軽', '奥の雁金の旗……あれが柴田か。', 2.8);
-    rt.after(58, () => { if (F.ph === 'van') this.hayashi(rt); });
+    rt.after(58, () => { if (F.ph === 'van' && F.lead?.alive && near(F.lead.pos, rt.player.u.pos) < 14) this.hayashi(rt); });
   },
 
   // 5:00 林勢と接触（味方二十余り・敵三十余り）。主人公は隊長のすぐ後ろ。隊長の「押せ」「左へ寄れ」「下がれ」
@@ -298,11 +300,10 @@ const ino = {
     rt.after(3.4, () => { F.lead = F.sakumaU; this.go(rt, 'join'); });
     // 弥助・源太らは佐久間隊へ寄る
     rt.after(4, () => { if (live(F.mates) && F.sakumaU) this.moveG(F.mates, { x: F.sakumaU.pos.x - 3, z: F.sakumaU.pos.z + 2 }, 3, 'attack'); });
-    rt.after(34, () => { if (F.ph === 'join') this.joined(rt); });
   },
   joined(rt) {
     const F = rt.flags;
-    if (F.joined) return;
+    if (F.joined || !F.sakumaU?.alive || near(F.sakumaU.pos, rt.player.u.pos) >= 9) return;
     F.joined = true;
     say(rt, '組頭', 'よし、わしの後ろにつけ。', 2.4);
     this.go(rt, 'hayashi');
@@ -391,7 +392,6 @@ const ino = {
     for (const g of F.shibaLines) if (live(g)) this.moveG(g, { x: g.lineX, z: 70 }, 2.2, 'attack');
     this.moveG(F.shibaG, { x: 6, z: 30 }, 2.2);
     this.sayIf(rt, 'retreat', 8, '弥助', '走れ！　振り向くな！', 2.2);
-    rt.after(70, () => { if (F.ph === 'retreat') this.rally(rt); });
   },
   // 12:20 信長本人が前線近くへ。旗本が合流し、逃げていた兵が止まり、旗が立つ → 全軍が向き直る
   rally(rt) {
@@ -542,6 +542,8 @@ const ino = {
     if (F.ph === 'scout' && !F.scoutBack && F.scoutG && (aliveIn([F.scoutG]) <= 2 || rt.t - F.phT > 70)) this.scoutBack(rt);
     // 佐久間隊へ合流
     if (F.ph === 'join' && F.sakumaU?.alive && near(F.sakumaU.pos, P.pos) < 9) this.joined(rt);
+    // 遅れて着いても進める。待ち時間だけで前衛への合流を済ませない。
+    if (F.ph === 'van' && rt.t - F.phT >= 58 && L && near(L.pos, P.pos) < 14) this.hayashi(rt);
     // 新六を助ける（下がる途中の新六のそばへ寄る）
     if (F.shinHurtT && rt.t - F.shinHurtT > 3 && !F.shinMet && F.shinrokuU?.alive && near(F.shinrokuU.pos, P.pos) < 3.5) {
       F.shinMet = true;

@@ -3005,8 +3005,8 @@ function ariStage(o, defending) {
     kind: 'hold', max: defending ? 410 : o.max,
     // 追加の段は局地の目安を過ぎても、本人と組が確保するまで続ける。
     // 戦全体の攻めの期限は update で扱い、共通の段の期限にも達成を代行させない。
-    limit: o.passOnLimit ? Infinity : o.lenient ? (o.limit ?? Infinity) : undefined,   // 残兵が退いた後も、本人と組の確保を待つ。
-    noHardCap: !!(o.passOnLimit || o.lenient),
+    limit: defending || o.passOnLimit ? Infinity : o.lenient ? (o.limit ?? Infinity) : undefined,   // 残兵が退いた後も、本人と組の確保を待つ。
+    noHardCap: !!(defending || o.passOnLimit || o.lenient),
     // 持ち場で構えるのは任務の一部。共通の放置判定で味方を突撃させず、下の期限で決着させる。
     idleAdvance: false,
     ariOrders: orders,
@@ -3032,8 +3032,9 @@ function ariStage(o, defending) {
     },
     tick(rt, C, m, ctx, el, dt) {
       if (rt.flags.ending) return false;
-      // 時間切れや木戸の陥落は、この段で理由を示して終える。
-      const limit = defending ? Math.max(o.dur + 60, 252 - C.t0) : o.lenient ? (o.limit ?? Infinity) : o.max;
+      // 辻の守りは後詰の到着を百四十八秒で打ち切らない。
+      // 敵による奪回は下で判定し、攻め全体の期限は update に任せる。
+      const limit = defending ? Infinity : o.lenient ? (o.limit ?? Infinity) : o.max;
       if (!o.lenient && el > limit) { C.timeout = true; return true; }
       // 10/31 小隊を一組ずつ順に出さない。段の初めに、この段の荒木勢を全部一斉に寄せる（大軍で押し寄せる）。
       // 台詞と見出しは元の刻みのまま流す。
@@ -3192,7 +3193,8 @@ function ariStage(o, defending) {
       rt.obj('dp', instruction, 'main', true);
       // 本文の秒数は、確保か寄せの目安のどちらか一つだけにする。
       const approaching = C.groups.reduce((n, g) => n + (!ariSpent(g) && !g.ariEngaged ? 1 : 0), 0);
-      rt.objProgress('dp', `味方${friend}人・持ち場の敵${enemy}人${C.rangedEnemy ? `・射手${C.rangedEnemy}人` : ''}\n${approaching ? `侍町から${approaching}組が移動中／` : C.orders.length ? `新手あと${C.orders.length}組／` : ''}期限あと${Math.max(0, Math.ceil(limit - el))}秒`);
+      const remaining = 1020 - AR_OPEN.KAIMAKU_END - (rt.t - rt.flags.stepT);
+      rt.objProgress('dp', `味方${friend}人・持ち場の敵${enemy}人${C.rangedEnemy ? `・射手${C.rangedEnemy}人` : ''}\n${approaching ? `侍町から${approaching}組が移動中／` : C.orders.length ? `新手あと${C.orders.length}組／` : ''}期限あと${Math.max(0, Math.ceil(remaining))}秒`);
       return held;
     },
     end(rt, C, m) {
@@ -3420,7 +3422,7 @@ function ariC() {
         { t: 4, say: ['足軽', '侍町から寄せるぞ！　辻で迎え撃て！'], foes: () => [{ name: '侍町から寄せ返す荒木勢', from: { x: TOWN_X + 20, z: -62 }, list: [uS(3), uA(9)] }] },
         { t: 18, say: ['滝川の組頭', '鉄砲衆が寄せるぞ！　町屋を盾にせよ！'], foes: () => [gunLine('侍町の鉄砲衆', { x: TOWN_X + 30, z: -60 }, 4, {})] },
         { t: 36, say: ['足軽', '南の通りから新手じゃ！'], foes: () => [{ name: '南の通りから来る荒木勢', from: { x: TOWN_X + 30, z: 32 }, list: [uS(2), uA(7)] }] },
-        { t: 54, title: '村重が去った知らせ', sub: '家族と家臣を残して尼崎へ。城兵が動揺する',
+        { t: 54, title: '城兵の嘆き', sub: '九月に尼崎へ去った村重を恨み、城兵が動揺する',
           say: ['荒木の足軽', '村重様は我らを捨てて尼崎へ去られた。何のための籠城じゃ……'],
           foes: () => [{ name: '荒木久左衛門の手', from: { x: TOWN_X + 48, z: 32 }, list: [uS(4), uA(8)] }],
           fn: (rt, C) => {

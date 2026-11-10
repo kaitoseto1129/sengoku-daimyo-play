@@ -1777,8 +1777,14 @@ const tottori = {
     let at;
     if (F.k15on) {
       const goal = F.k15at;
-      if (!goal) return null;
-      at = goal.at(); q.r = goal.r;
+      if (goal) { at = goal.at(); q.r = goal.r; }
+      else {
+        // 到着後の下知の間は、各段が残した印を使う。前の目的地を勝手に復元しない。
+        const marker = rt.markers?.find((m) => m.id === 'k15');
+        at = marker?.pos();
+        if (!at) return null;
+        q.marker = marker; q.waiting = true;
+      }
     } else if (F.step === 0) at = F.hide.anchor;
     else if (F.step === 1 && bankNeedsReturn(rt)) at = bankEntry(rt);
     // 舟焼きの行き先は番兵が近くても替えない。敵は各兵の頭上の印で示す。
@@ -2486,27 +2492,9 @@ const tottori = {
     for (const g of F.sallies) hungryLook(g);
     F.tgun = allyGroup(rt, { fixed: true, name: '柵の内の鉄砲組', anchor: { x: 8, z: FENCE_Z + 17 }, facing: Math.PI, width: 9, aggro: 4, formation: 'line' },
       dress([{ type: 'samurai', n: 1, o: KUMIGASHIRA }, { type: 'gun', n: 10 }], ODA));
-    // 遊び始めて百十秒の頃、本人の向かう先の二十五〜三十五メートル（道の脇へ九メートルずらす）に、羽柴勢と城兵の押し合いが起こる。
-    // 打って出た城兵の組（F.sallies）とは別で、崩れず、時間を持たせる。本人の道筋は塞がない。
-    const pairAt = (mx, mz, yaw, tag, k) => {
-        const fx = Math.sin(yaw), fz = Math.cos(yaw);
-        const mel = (g) => { g.noRout = true; g.noAI = true; g.fire = false; g.morale = 100; g.dmgMult = .2; return g; };
-        const face = Math.atan2(-fx, -fz);
-        mel(allyGroup(rt, { fixed: true, fullStrength: true, name: '羽柴の押さえ' + tag + k, anchor: { x: mx - fx * 2.2, z: mz - fz * 2.2 }, facing: yaw, order: 'hold', width: 6, formation: 'yari', aggro: 9, morale: 100 },
-          dress([{ type: 'samurai', n: 1, o: KUMIGASHIRA }, { type: 'ashigaru', n: 8 }], ODA)));
-        const e = mel(enemyGroup(rt, { fixed: true, faction: 'mori', name: '舟の荷揚げの兵' + tag + k, anchor: { x: mx + fx * 2.2, z: mz + fz * 2.2 }, facing: face, order: 'hold', width: 6, formation: 'yari', aggro: 9, morale: 100, fleeDir: { x: fx, z: fz } },
-          dress([{ type: 'samurai', n: 1, o: { ...BANK_SAMURAI, cdBase: 2, windup: 0.6 } }, { type: 'ashigaru', n: 8, o: { cdBase: 2.4, windup: 0.65 } }], KIKKAWA)));   // 舟で来た吉川の手。飢えた城兵の姿にしない
-        W.addFire(mx - fz * 4, mz + fx * 4, { torch: true, h: 1.6, size: .7, smoke: false, lightRadius: 26, lightColor: 0xffa060, lightStrength: 2.8, lightDecay: 0 });
-    };
-    // 開戦25秒の画面（持ち場から舟の番へ寄った所。カメラは北北西を向く）の真ん中、本人の前8〜18mの岸の上（舟の番の右手）で、
-    //   羽柴の押さえと打って出た城兵が始めから押し合う（10/30 実機の門：開戦25秒でまばら）。舟の番への道（左手前）は空ける。
+    // 岸では任務の舟の番と味方の組だけが戦う。時間を持たせるための押し合いは置かない。
     {
-      // 11/1 夕：押し合う向きを画面の奥行きに沿わせる（羽柴は切岸の側から川へ、毛利の番は舟の側から岸へ）。
-      //   川上を向く画面では、両軍の前線が横顔で見え、槍が交わる線が真ん中に入る（前は味方の背に敵が隠れ、一つの列に見えた）。
-      const yaw = -1.15;
-      const pts = [[-45.0, -12.5], [-44.0, -21.5]];
-      pts.forEach(([x, z], k) => pairAt(x, z, yaw, 'α', k));
-      // 押し合いの右の脇に篝火（夜の岸で群れを照らす）
+      // 岸道の篝火は舟の番と、そこへ進む味方を照らす。
       const kp = [[-39.6, -15.0], [-38.8, -24.0]];
       rt.scene.add(kagaribiBatch(W, kp));
       for (const [x, z] of kp) W.addFire(x, z, { torch: true, h: 1.3, lightRadius: 24, lightColor: 0xff9a48, lightStrength: 3.0, lightDecay: 0 });
