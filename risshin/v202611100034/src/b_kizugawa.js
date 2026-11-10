@@ -5023,7 +5023,9 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
     // 乗り込みを止めるのは、一斉射で敵船が退き始めた時。
     if (F.deckAttackers >= (F.step === 1 ? 6 : F.step === 4 ? 4 : 6) || rt.t < F.nextBoardAt) return 0;   // 大船を引き付ける段は、新手の乗り込みを絞り、大筒へ戻る間を残す
     if (F.step < 3 || F.step > 4 || F.bigSunk || b.damageStage || b.withdrawing || !b.remaining || rt.t < b.nextBoard) return 0;
-    const u = b.group?.units.find(u => u.alive && !u.fleeing && !u.woundOut && u.shipBoat === b && !u.shipTransit.active);
+    // 退く組や倒れかけた兵を、新たな乗り込みへ戻さない。
+    if (b.group?.routed) return 0;
+    const u = b.group?.units.find(u => u.alive && !u.gone && !u.dying && !u.fleeing && !u.woundOut && u.shipBoat === b && !u.shipTransit.active);
     if (!u) { b.remaining = 0; return 0; }
     const tr = u.shipTransit;
     tr.active = true; tr.returning = false; tr.start = rt.t; tr.x = u.pos.x; tr.y = u.pos.y; tr.z = u.pos.z;
