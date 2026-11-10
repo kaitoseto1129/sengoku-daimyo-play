@@ -158,16 +158,18 @@ function start(rt, K, done) {
       };
     }, true);
     rt.marker('k15foe', centerOf(run), '囲みを抜けた城兵', { red: true, group: run });
-    k15Go(rt, 'hg-breach', () => run.center(), 12, '東の囲みの穴をふさげ', '囲みの穴', () => {
+    // 崩れた城兵を追わせず、抜けられた柵の穴へ戻って封鎖する。
+    k15Go(rt, 'hg-breach', () => k15Live(run) ? run.center() : from, 12, '東の囲みの穴をふさげ', '囲みの穴', () => {
       F.k15fight = true; F.ttBreachFight = true; run.onArrive = null;
-      k15Charge(rt, run, run.center());
+      if (k15Live(run)) k15Charge(rt, run, run.center());
       rt.say('足軽', '戻れ！　ここは通さぬ！', 3);
       const t0 = rt.t;
       const tick = () => {
         if (stop() || rt.over || !F.ttBreachFight) return;
-        const left = k15Live(run), me = rt.player.u.pos, c = run.center();
+        const left = k15Live(run), me = rt.player.u.pos, c = left ? run.center() : from;
         const near = Math.hypot(me.x - c.x, me.z - c.z) < 30;
-        const sealed = near && repelled(rt, 0, 0, c) && (left <= 1 || rt.t - t0 > 45);
+        // 近くで待っただけでは穴をふさいだ扱いにしない。城兵が実際に減るまで守る。
+        const sealed = near && repelled(rt, 0, 0, c) && (left <= 1 || left <= 3 && rt.t - t0 > 45);
         if (sealed || rt.t - t0 > 100) {
           F.ttBreachFight = false; F.k15fight = false; run.onArrive = null;
           k15Rout(rt, run, K.CASTLE); rt.unmark('k15foe');
