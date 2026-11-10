@@ -159,11 +159,13 @@ export function goalSignTick(rt, root) {
     const yaw = Math.atan2(camDir.x, camDir.z);
     const right = -Math.cos(yaw) * dx + Math.sin(yaw) * dz, fwd = Math.sin(yaw) * dx + Math.cos(yaw) * dz;
     ang = Math.atan2(right, fwd);   // 0 が前（画面の上）
-    // 後ろの目標も、画面の縁の矢印で向きを伝える。
+    // 真後ろの行き先を下の中央へ出すと、主人公の背中が目的地に見える。
+    // 後ろは左右の縁へ寄せる（河田の確認表・五3）。
     const ex = Math.sin(ang), ey = -Math.cos(ang);
     const kx = ex ? ((ex > 0 ? W - m : m) - W / 2) / ex : Infinity, ky = ey ? ((ey > 0 ? H - 90 : 70) - H / 2) / ey : Infinity;
     const k = Math.min(Math.abs(kx), Math.abs(ky));
     x = W / 2 + ex * k; y = H / 2 + ey * k; edge = true;
+    if (fwd < 0) x = right >= 0 ? W - m : m;
     // 縁の印が右上の目標の札・左上の戦の名・小さな地図に重なる時は、札の下（入らなければ上）へずらす（11/3 p100_inou の bot「札と goal-sign が重なる」）
     for (const r of hud?.hudRects?.() || []) if (x + 60 > r.left && x - 60 < r.right && y + 22 > r.top && y - 22 < r.bottom) y = r.bottom + 26 <= H - 90 ? r.bottom + 26 : Math.max(30, r.top - 26);
   }

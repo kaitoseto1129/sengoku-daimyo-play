@@ -8,9 +8,15 @@
 import { enemyGroup, allyGroup } from '../bhelp.js';
 import { moveSonae } from './depth.js';
 
-function say(rt, who, s, t, sec = 3) {
+function after(rt, t, run) {
   const stage = rt.flags.stage;
-  rt.after(t, () => { if (!rt.flags.ending && !rt.flags.transitioning && rt.flags.stage === stage) rt.say(who, s, sec); });
+  rt.after(t, () => {
+    // 討死後の余韻や暗転中に、古い行軍の下知・追撃の見出しを出さない。
+    if (!rt.over && rt.player?.u?.alive !== false && !rt.flags.ending && !rt.flags.transitioning && rt.flags.stage === stage) run();
+  });
+}
+function say(rt, who, s, t, sec = 3) {
+  after(rt, t, () => rt.say(who, s, sec));
 }
 export const FORD = { x: 132, z: 30 };      // 五条川の渡し（⑥の行き先）
 export const DAWN = { x: 146, z: 96 };      // 渡った先の南東の道（⑦の行き先）
@@ -63,7 +69,7 @@ export function tickNight(rt, K, dt) {
     if (last) { F.tScout.order = 'retreat'; F.tScout.dest = { x: K.HONJIN.x, z: 140 }; F.tScout.speed = 5; F.tScout.aggro = 0; F.tScout.seekRange = 0; }
     const slain = F.tScout.units.every((u) => !u.alive && u.hp <= 0);
     rt.say('足軽', last ? '物見が逃げた……小牧山の方へ！' : slain ? '徳川の物見を討ち取ったぞ！' : '徳川の物見は、もう向かって来ぬ！', 2.6);
-    rt.after(3, () => rt.say('森長可', '構わぬ。夜が明ける前に川を越えるぞ', 2.8));
+    say(rt, '森長可', '構わぬ。夜が明ける前に川を越えるぞ', 3, 2.8);
   }
   // 渡しの手前の藪に伏せた物見の鉄砲（二度目の接触。渡る列を撃つ）
   if (F.scoutDone && !F.ambush && Math.hypot(P.x - FORD.x, P.z - FORD.z) < 20) {
@@ -141,10 +147,10 @@ export function tickDawn(rt, K) {
       // 本多忠勝は小牧の留守を守る。追撃の知らせで留守居の備まで出さない。
       if (!s.bound && s.id !== 'honda') moveSonae(rt, 'B', s.id, s.x + 70, 118);
     }
-    rt.after(4, () => rt.say('森長可', '気取られたか。……かまわぬ、前へ進め', 3));
-    rt.after(8, () => rt.say('三好信吉', '後ろは堀が守る。岡崎を目指せ', 3));
-    rt.after(15, () => { if (!rt.over) rt.banner('徳川軍、追撃開始', ''); });
-    rt.after(12, () => rt.say('池田恒興', '追うて来るなら来い。岩崎城はもう目の前じゃ', 3));
-    rt.after(21, () => K.win());
+    say(rt, '森長可', '気取られたか。……かまわぬ、前へ進め', 4, 3);
+    say(rt, '三好信吉', '後ろは堀が守る。岡崎を目指せ', 8, 3);
+    after(rt, 15, () => rt.banner('徳川軍、追撃開始', ''));
+    say(rt, '池田恒興', '追うて来るなら来い。岩崎城はもう目の前じゃ', 12, 3);
+    after(rt, 21, () => K.win());
   }
 }

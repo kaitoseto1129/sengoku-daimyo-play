@@ -7,6 +7,7 @@
 // ======================================================================
 import { sfx } from '../audio.js';
 import { toCourt } from './goryu.js';
+import { pursuer } from './fuchu.js';
 
 const ORDER = ['kinome_sou', 'kinome_fuku', 'kinome_hon'];
 
@@ -137,10 +138,14 @@ export function chaseCut(rt, ctx) {
     put(P, f.x, f.z + 14);
     // 場面替えの間に息を整えた（追う間の時が過ぎている）。命を八割五分まで戻す
     if (P.maxHp) P.hp = Math.max(P.hp, P.maxHp * 0.85);
-    for (const q of rt.squadGroups || []) for (const u of q.units) if (!q.routed && u.alive && !u.fleeing && !u.woundOut && !u.rearWound && Math.hypot(u.pos.x - ox, u.pos.z - oz) < 40) put(u, f.x - 3 + Math.random() * 6, f.z + 17 + Math.random() * 5);
+    for (const q of rt.squadGroups || []) for (const u of q.units) if (pursuer(u) && Math.hypot(u.pos.x - ox, u.pos.z - oz) < 40) put(u, f.x - 3 + Math.random() * 6, f.z + 17 + Math.random() * 5);
     for (const g of F.echUp || []) {
-      if (g.routed) continue;
-      for (const u of g.units) if (u.alive && !u.fleeing && !u.woundOut && !u.rearWound) put(u, f.x - 6 + Math.random() * 12, f.z + 18 + Math.random() * 6);
+      if (g.routed || g.order === 'flee') continue;
+      // 遠くの将の手は本道を歩かせる。倒れた者も場面替えで運ばない。
+      // 組の途中だけを飛ばすと隊の中心が遠くへ戻るため、追手全員の近さを調べる。
+      const followers = g.units.filter(pursuer);
+      if (!followers.length || followers.some(u => Math.hypot(u.pos.x - ox, u.pos.z - oz) >= 40)) continue;
+      for (const u of followers) put(u, f.x - 6 + Math.random() * 12, f.z + 18 + Math.random() * 6);
       const c = g.center(); g.anchor.x = c.x; g.anchor.z = c.z; g._fitAt = 0;
       g.pathIdx = Math.max(0, (g.path?.length || 1) - 1);
     }

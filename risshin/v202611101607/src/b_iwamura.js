@@ -3469,6 +3469,8 @@ html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.iwamura-army #army
       });
     }
     g.iwWithdraw = true; g.order = 'path'; g.formation = 'column'; g.path = g.iwReturn;
+    // 敵の後列にも折れを通らせる。先頭だけ道を戻すと、後列が切岸へ直進して止まる。
+    g.roadColumn = true; g.followColumnRoad = true;
     // 寄せた道を戻る。東の端の兵を柵の中へ斜めに引き戻さない。
     let nearest = Infinity;
     for (let i = 0; i < g.path.length; i++) {
