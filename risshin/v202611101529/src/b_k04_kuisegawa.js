@@ -520,6 +520,8 @@ const k04_kuisegawa = {
       F.mineT = 0.6;
       const g = F.mine;
       if (live(g)) {
+        // 11/10 クラウド：退く段で追手に背を討たれ、十六人の手勢が西の岸へ着く前に全滅して負けた（act 326秒）。退きの間は手勢の傷を半ばに
+        g.defMult = F.step >= 4 ? 2 : 1;
         const c = g.center();
         // 敵に組みつかれている間は歩き続けず斬り返す（主人公を追って歩くまま討たれ、手勢が全滅していた。三巡 11/9 豊臣A）
         const lead = g.units.find((u) => u.alive && !u.gone);
@@ -680,7 +682,8 @@ const k04_kuisegawa = {
     // 討たれない将を避ける共通の判断で、最初の目標だけが止まらないようにする。
     const ok = (o) => !o.fleeing && (!o.invuln || F.step === 1 && !F.baitPlayerHit && F.gamo?.units.includes(o)) && !o.noTarget && Math.abs(o.pos.y - u.pos.y) < 3 &&
       (!defense || dist(o.pos, defense) < 14);
-    const r = F.step >= 4 ? 0 : F.step === 3 ? 4 : F.step === 1 ? 7 : 0;
+    // 11/10 クラウド：退く段で道を塞ぐ追手を払わず二十秒あまり立ち止まり、その間に手勢が討たれ尽くした。手の届く敵だけは払って進む
+    const r = F.step >= 4 ? 2.5 : F.step === 3 ? 4 : F.step === 1 ? 7 : 0;
     const e = r ? b.army.nearestEnemy(u, r, ok) : null;
     if (e) {
       const d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);

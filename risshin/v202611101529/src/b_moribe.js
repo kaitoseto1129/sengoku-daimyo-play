@@ -3403,7 +3403,7 @@ const moribe = {
     if (!F.signal) return rt.def.waitOrderLabel(rt);
     if (F.squadGuide || F.stage === 'assemble' && F.gatherUnit) return '仲間のそばへ';
     if (F.stage === 'assemble') return Math.hypot(rt.player.u.pos.x - F.asm.x, rt.player.u.pos.z - F.asm.z) < 12 ? '森部の野で仲間と槍をそろえよ' : '森部の野で仲間と集まれ';
-    if (F.stage === 'press') return F.pursuit ? '墨俣への道で殿を追え' : F.marked ? '味方と両将の旗本へ進め' : '前備の列で槍をそろえよ';
+    if (F.stage === 'press') return !F.ownHatamoto ? '長井・日比野の旗本へ進み、旗本の侍を自分で討て' : F.pursuit ? '墨俣への道で殿を追え' : F.marked ? '味方と両将の旗本へ進め' : '前備の列で槍をそろえよ';
     if (F.stage === 'contact' && F.vBroken) return '前備の列で仲間と槍をそろえよ';
     return F.stage === 'hold' ? F.lineReady ? '前備の列で長井・日比野の槍列を受け止めよ' : '前備の列で仲間と槍をそろえよ' : '北岸の畦で斎藤の先手を押し返せ';
   },
@@ -4778,7 +4778,7 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
         rt.objRemove('line'); rt.unmark('line'); rt.unmark('lineFlag'); rt.unzone('line');
         F.stage = 'press'; F.pressStart = rt.t; rt.setPhase('press');
         rt.banner(enemyBroken ? '敵が退いた' : counterattack ? '組の働きで、反撃へ' : '大将の旗本へ', enemyBroken ? '深追いせず、列を保て' : counterattack ? '支えた槍列が、両将の旗本へ押し出す' : '長井甲斐守・日比野下野守の旗が、雨の向こうに残る');
-        rt.obj('commanders', (F.bossDown || 0) < 2 ? '長井甲斐守・日比野下野守を討て' : '味方と進み、残る敵を押せ', 'main');
+        rt.obj('commanders', !F.ownHatamoto ? '長井・日比野の旗本へ進み、旗本の侍を自分で討て' : '味方と長井・日比野の旗本を攻めよ', 'main');
         orderSpeech(rt, enemyBroken ? '敵は退いた。組を離すな。残る旗を見届けよ' : counterattack ? 'お主の組が列を支えた！　陣太鼓の早打ちじゃ、味方と押し出して両将の旗本を囲め！' : '陣太鼓の早打ちじゃ！　長井と日比野の旗本へ、味方と並んで押すぞ。一人で走るな！', 5);
         if (!enemyBroken) {
           moribeSignal(rt, 'kakari');

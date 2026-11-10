@@ -31,7 +31,7 @@ export function tick(rt, dt) {
 export function bot(b, inp, { goTo, patientStrike }) {
   const v = S(b), u = b.player.u;
   if (v.ph !== 'hakobi') return false;
-  const e = b.army.nearestEnemy(u, 6, (o) => !o.fleeing && !o.invuln && !o.noTarget);
+  const e = b.army.nearestEnemy(u, 6, (o) => !(o.hp <= 0) && !o.dying && !o.gone && !o.woundOut && !o.group?.routed && !o.fleeing && !o.invuln && !o.noTarget);
   const T = e?.pos || hakobi.dest(b);
   if (!T) return false;
   const d = Math.hypot(T.x - u.pos.x, T.z - u.pos.z);

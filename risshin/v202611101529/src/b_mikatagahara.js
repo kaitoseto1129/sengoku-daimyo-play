@@ -3019,10 +3019,13 @@ mikatagahara.famous = [
   }[g.name] || g.line })),
 ];
 mikatagahara.date = (rt) => `元亀三年十二月二十二日　冬・${rt.flags.step >= 3 ? '夜' : '夕暮れ'}`;
-mikatagahara.canSkip = (rt) => rt.flags.returnedT !== undefined && !rt.over && rt.t - rt.flags.returnedT >= 5 ? '結果へ進む' : rt.phase === 'brief' && rt.t > 3 ? '先手の下知まで待つ' : '';
-mikatagahara.skip = (rt) => { if (rt.flags.returnedT !== undefined && !rt.over && rt.t - rt.flags.returnedT >= 5) rt.finish({ scriptedEnd: true,
-  ...(rt.tracker.main === false ? { failureReason: '家康を浜松城へ帰せなかった' } : {}),
-}, 0.2); else if (rt.phase === 'brief') mikatagahara.first(rt); };
+// 待ち時間だけを省く。物見と持ち場への移動を飛ばして先手を出すと、
+// 自分で務める前に最初の二目標が未達成になる。帰着後は門の締めまで続ける。
+mikatagahara.canSkip = (rt) => !rt.over && !rt.flags.ending && rt.player.u.alive && rt.phase === 'brief' && rt.t > 3 ? '平手の列へ進む' : '';
+mikatagahara.skip = (rt) => {
+  if (!mikatagahara.canSkip(rt)) return;
+  shutsujin(rt, { HIRATE_POST, adv, next: () => mikatagahara.first(rt) });
+};
 mikatagahara.history = '元亀三年十二月二十二日（西暦1573年1月25日）、遠江の三方ヶ原で徳川・織田勢と武田勢が戦った。『信長公記』巻五は、信長が佐久間信盛・平手汎秀・水野信元を大将として浜松へ遣わしたと記す。同書にこの援軍の総数や滝川一益の名はない。二俣城を落とした信玄は堀江城へ向かって動き、浜松を出た家康の勢と三方ヶ原で戦った。先頭の約三百人に石を投げさせ、太鼓を打って寄せたとも記される。平手汎秀とその家臣、徳川家臣の成瀬藤蔵らが討ち死にし、家康は敵中を抜けて浜松城へ退いた。会戦を夕刻とする解説があり、魚鱗・鶴翼の陣や祝田坂での反転は『三河物語』『甲陽軍鑑』などに伝わる。各備の寄せる順、城門を開けて追手を惑わせた話、犀ヶ崖の夜討ちは、確定した出来事としては扱わない。兵数には諸説あり、武田二万七千（三万とも）、徳川・織田一万一千は一つの見積もりで、各備の人数・配置は遊びの復元である。降雪を伝える浜松市の解説もあるが、当日の天候は断定しない。地形・時間・浜松の城口は遊びのために縮めている。浜松城は台地の東縁にあり、西の曲輪を高く示したが、比高・木柵の線・屋形の位置は当時の縄張りを測って再現したものではない。武田勢はその後も西へ進んだが、元亀四年、信玄が病を重くすると帰国の途につき、信玄は四月にその途中で没した。';
 
 // 素直な遊び手：先手を受け、赤備えと戦い、浜松城へ走る

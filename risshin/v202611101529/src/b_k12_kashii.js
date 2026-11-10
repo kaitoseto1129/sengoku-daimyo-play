@@ -626,6 +626,8 @@ html:root body #hud#hud#hud.kashii-goals #h-prog#h-prog.goal-mode .pg-goals :is(
     const F = rt.flags;
     if (F.hanaDown || !F.hanaByMe || F.step !== 5) return;
     F.hanaDown = true; F.hanaDownT = rt.t;
+    // 討死の知らせと同時に目標も済ませる。淡輪の斬り込みを待つ間に未達成を残さない。
+    rt.objDone('s5');
     if (!F.hanaBanner) rt.banner(F.hanaByMe ? '塙団右衛門、討ち取ったり' : '塙団右衛門、討ち死に');
     if (F.hanaByMe) rt.award((t) => { t.special = { label: '塙団右衛門を討ち取った', pts: 32 }; }, '塙団右衛門を討ち取った');
     for (const g of [F.hata, F.hana, F.awa]) if (live(g)) { g.noRout = false; g.morale = Math.min(g.morale, 15); }

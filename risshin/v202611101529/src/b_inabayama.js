@@ -1751,6 +1751,27 @@ const TOWN_RUBBLE_MAT = new THREE.MeshStandardMaterial({ roughness: 1 });
 const CHAR_MAT = new THREE.MeshStandardMaterial({ color: 0x211c18, roughness: 1 });
 const CHAR_TREE_MATRIX = new THREE.Matrix4(), CHAR_TREE_COLOR = new THREE.Color(0x51443a);
 function charTownTrees(W, h) {
+  // 描画範囲を詰め直す元の配列にも焼け跡を残す。表示中の配列だけでは葉が復活する。
+  for (const C of W.cullList || []) for (const o of C.orig || []) {
+    if (!W.treeMeshes?.includes(o.m)) continue;
+    const foliage = o.m.userData.treeFoliage || o.m.material.alphaTest > 0;
+    let changed = false;
+    for (let i = 0; i < C.N; i++) {
+      const at = i * 16;
+      if (Math.hypot(o.mat[at + 12] - h.x, o.mat[at + 14] - h.z) > 12) continue;
+      if (foliage) o.mat.fill(0, at, at + 12);
+      else {
+        if (!o.col) {
+          o.col = new Float32Array(C.N * 3); o.col.fill(1);
+          // 画面外の幹にも色の入れ物を用意し、次の詰め直しで参照できるようにする。
+          if (!o.m.instanceColor) o.m.setColorAt(0, new THREE.Color(0xffffff));
+        }
+        o.col[i * 3] = CHAR_TREE_COLOR.r; o.col[i * 3 + 1] = CHAR_TREE_COLOR.g; o.col[i * 3 + 2] = CHAR_TREE_COLOR.b;
+      }
+      changed = true;
+    }
+    if (changed) { C.x = 1e9; C.packed?.fill(-1); }
+  }
   // 火を放った家の近くのみ焼く。既存の幹・枝を残し、形と材質を増やさない。
   for (const mesh of W.treeMeshes || []) {
     const foliage = mesh.userData.treeFoliage || mesh.material.alphaTest > 0;
@@ -2223,6 +2244,16 @@ function gradeInabayamaRoads(terrain) {
 }
 
 // 搦手の山道：土留め・岩の段・根・草・若木を設営時だけまとめ描画で置く。
+// 切岸や谷をまたぐ根は、端だけ接地しても途中が宙へ伸びるため置かない。
+function inabaRootFooting(W, x, z, rx, rz) {
+  const y = drawGroundAt(W, x, z), ry = drawGroundAt(W, rx, rz);
+  if (!Number.isFinite(y) || !Number.isFinite(ry) || Math.abs(ry - y) > Math.hypot(rx - x, rz - z)) return false;
+  for (let i = 1; i < 4; i++) {
+    const t = i / 4, ground = drawGroundAt(W, x + (rx - x) * t, z + (rz - z) * t);
+    if (!Number.isFinite(ground) || Math.abs(ground - (y + (ry - y) * t)) > 0.12) return false;
+  }
+  return true;
+}
 function buildKaraRoadWorks(rt) {
   const W = rt.world;
   const ground = (x, z) => drawGroundAt(W, x, z);
@@ -2255,7 +2286,7 @@ function buildKaraRoadWorks(rt) {
       for (let j = 0; j < 4; j++) {
         const sx = x + (rx - x) * j / 4, sz = z + (rz - z) * j / 4;
         const ex = x + (rx - x) * (j + 1) / 4, ez = z + (rz - z) * (j + 1) / 4;
-        roots.push({ x: sx, z: sz, y: ground(sx, sz) + 0.025, rx: ex, rz: ez, ry: ground(ex, ez) + 0.025 });
+        if (inabaRootFooting(W, sx, sz, ex, ez)) roots.push({ x: sx, z: sz, y: ground(sx, sz) + 0.025, rx: ex, rz: ez, ry: ground(ex, ez) + 0.025 });
       }
       for (let k = 0; k < 3; k++) {
         const gx = x + nx * side * (0.4 + k * 0.3) + dx * k * 0.55;
@@ -2290,6 +2321,8 @@ function buildKaraRoadWorks(rt) {
   // 短く区切った丸木を描く面へ沿わせ、上半分を土から出す。設営時に一束へまとめる。
   const logParts = [];
   for (const q of logs) {
+    const dx = Math.cos(q.rot) * q.len / 2, dz = -Math.sin(q.rot) * q.len / 2;
+    if (!inabaRootFooting(W, q.x - dx, q.z - dz, q.x + dx, q.z + dz)) continue;
     const g = new THREE.CylinderGeometry(0.13, 0.16, q.len, 6, 8);
     g.rotateZ(Math.PI / 2); g.rotateY(q.rot); g.translate(q.x, 0, q.z);
     const p = g.attributes.position;
@@ -2926,6 +2959,7 @@ function buildInabaMountain(rt) {
         for (let j = 0; j < 4 && nt < roots.instanceMatrix.count; j++) {
           const sx = x + (rx - x) * j / 4, sz = z + (rz - z) * j / 4;
           const ex = x + (rx - x) * (j + 1) / 4, ez = z + (rz - z) * (j + 1) / 4;
+          if (!inabaRootFooting(W, sx, sz, ex, ez)) continue;
           const y = drawGroundAt(W, sx, sz) + 0.025, ry = drawGroundAt(W, ex, ez) + 0.025;
           end.set(ex - sx, ry - y, ez - sz); const len = end.length();
           dummy.position.set((sx + ex) / 2, (y + ry) / 2, (sz + ez) / 2);

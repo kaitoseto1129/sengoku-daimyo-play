@@ -2349,14 +2349,15 @@ const nagashima = {
     if (p.mounted) return '馬を降りて手当て';
     // 安全な所で手当てを始められるなら、別の印へ歩かせない。
     if (p.treatmentReady) return p.treating ? '傷を縛れ' : '座って傷を縛れ';
-    if (cue?.valid && Math.hypot(cue.x - p.u.pos.x, cue.z - p.u.pos.z) >= cue.radius) return '柵の内へ下がり、傷を縛れ';
+    if (cue?.valid && Math.hypot(cue.x - p.u.pos.x, cue.z - p.u.pos.z) >= cue.radius) return rt.flags.adv ? '味方の後ろへ下がり、傷を縛れ' : '柵の内へ下がり、傷を縛れ';
     if (p.treatmentNext > rt.t) return '息を整え、傷を押さえよ';
     return cue?.valid ? '止まり、手当ての支度を待て' : '味方の後ろへ下がれ';
   },
   retreatGuideLabel(rt, reached) {
     const cue = rt.hud.retreatGuide;
     if (cue?.active && cue.valid && cue.treatment) return this.treatmentGuideLabel(rt, cue);
-    return reached ? rt.player.sta < 20 ? 'ここで休め' : 'ここで構えよ' : '味方の後ろへ';
+    const place = this.travelGuideLabel(rt);
+    return reached ? rt.player.sta < 20 ? `${place}の味方の後ろで休め` : `${place}で味方と構えよ` : '味方の後ろへ';
   },
   taskDetail(rt, title, detail) {
     const cue = rt.hud.retreatGuide;
@@ -2365,11 +2366,13 @@ const nagashima = {
       return detail ? `${reason}\n${detail}` : reason;
     }
     // 退く理由と岸の務めを一緒に残す。軽い被弾だけで深手とは呼ばない。
-    if (title !== '味方の後ろへ' && title !== 'ここで休め' && title !== 'ここで構えよ') return detail;
+    const resting = title === `${this.travelGuideLabel(rt)}の味方の後ろで休め`;
+    const guarding = title === `${this.travelGuideLabel(rt)}で味方と構えよ`;
+    if (title !== '味方の後ろへ' && !resting && !guarding) return detail;
     const reason = rt.player.sta < 20 ? '息切れ。列の後ろで休め'
       : rt.player.u.hp < rt.player.u.maxHp * .3 ? '深手。敵を向いて下がれ'
         : rt.player.u.mobbed ? '囲まれる。列へ下がれ'
-          : title === 'ここで構えよ' ? '敵を向き、味方と受けよ' : '敵を向き、構えて下がれ';
+          : guarding ? '敵を向き、味方と受けよ' : '敵を向き、構えて下がれ';
     // 退く理由と残り時間を別の行に置く。短い横画面で秒数だけを折り返さない。
     return detail ? `${reason}\n${detail}` : reason;
   },
