@@ -278,7 +278,7 @@ const k05_ueda = {
   // 行き先のピン：段ごとに一つ（字は出さない）。場所は段ごとに決まっている（AW3）
   missionPin(rt) {
     const F = rt.flags;
-    if (F.ending) return null;
+    // 締めの台詞の間も行軍先を残す。結果の札が出るまでは本人が動ける。
     let p = KARI;
     if (F.step === 1) p = KARI;
     else if (F.step === 2) p = TRAP;   // 北の林の入口。逃げる隊の移動や全滅で行き先を動かさない。
@@ -715,8 +715,6 @@ const k05_ueda = {
   update(rt, dt) {
     const F = rt.flags;
     KIT.backTick?.(rt);
-    // 右上の目標に刻限の時計を付けない（タイマーは出さない。時は使番・本陣・急使で見せる）
-    if (!F.noClock && rt._g5) { for (const g of rt._g5.goals) g.sec = 0; F.noClock = true; }
     this.gateTick(rt, dt);
     if (F.ending || !F.step) return;
     const P = rt.player.u;
@@ -980,7 +978,7 @@ STAGES[ID] = STEP_TEXT.slice(1).map((t, i) => (i ? [t, st(i + 1)] : [t]));
 // 右上の七つ（goals5.js の def.goals5）：刻限の時計を付けない
 k05_ueda.goals5 = () => STEP_TEXT.slice(1).map((text, i) => {
   const kill = [1, 0, 0, 1, 1, 0, 0][i];
-  return { kind: 'stage', k: i, text, sec: 1e6, check: (rt) => (rt.flags.step ?? 0) > i + 1 || !!rt.flags.won, ...(kill ? { count: (rt) => (rt.flags.step === i + 1 ? KILLS[ID](rt) : null) } : {}) };
+  return { kind: 'stage', k: i, text, sec: 0, check: (rt) => (rt.flags.step ?? 0) > i + 1 || !!rt.flags.won, ...(kill ? { count: (rt) => (rt.flags.step === i + 1 ? KILLS[ID](rt) : null) } : {}) };
 });
 // 倒す数：段が進む判定と同じ数え方
 KILLS[ID] = (rt) => {

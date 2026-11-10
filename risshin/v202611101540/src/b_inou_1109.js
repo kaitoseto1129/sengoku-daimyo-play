@@ -227,7 +227,7 @@ const ino = {
   },
   fight(g, aggro = 14) {
     if (!live(g)) return;
-    if (g.inouRetiring) { g.inouRetiring = false; g.retreatOnly = false; g.peaceful = false; for (const u of g.units) u.noTarget = false; }
+    if (g.inouRetiring || g.peaceful) { g.inouRetiring = false; g.retreatOnly = false; g.peaceful = false; for (const u of g.units) u.noTarget = false; }
     g.fire = true; g.noAI = false; g.order = 'attack'; g.aggro = aggro; g.seekRange = 26; g.onArrive = null;
   },
   // 整然と退く隊は、通常の移動中の敵探しへ戻さず、旗と同じ退路を進む。
@@ -448,7 +448,11 @@ const ino = {
     if (F.rallyT) return;
     F.rallyT = rt.t;
     this.go(rt, 'rally');
-    for (const g of F.shibaLines) if (live(g)) { g.order = 'hold'; g.anchor = { x: g.lineX, z: Math.max(60, g.center().z) }; }
+    // 向き直る間は追撃を止める。持ち場だけ替えると、古い相手と到着時の攻撃が残る。
+    for (const g of F.shibaLines) if (live(g)) {
+      this.retireG(g, g.center(), g.speed, true);
+      g.inouRetiring = false; // 退場ではなく足止め。遠い翼も戦場から消さない。
+    }
     const at = { x: Math.max(-XW + 6, P.x - 22), z: Math.min(ZS - 6, P.z + 6) };
     if (live(F.nobuG)) {
       // 西の奥から駆けつける（二十〜三十m）
@@ -464,7 +468,6 @@ const ino = {
     F.allAlly.push(F.mori);
     this.moveG(F.mori, { x: 4, z: 112 }, 3.6);
     rt.after(6, () => { if (!F.ending) { say(rt, rt.G.lord ? '自分' : '織田信長', '者ども、返せ！　敵は主に槍を向ける者ぞ！', 3.2); sfx('taiko', 1); rt.army.play('toki', P, 1.6); } });
-    rt.after(10, () => { F.nobuFlag && (F.nobuFlag.position.set(at.x + 2, rt.world.heightAt(at.x + 2, at.z), at.z)); });
     rt.after(12, () => this.push(rt));
   },
   // 12:50 柴田勢を押し返せ：左右の味方が一斉に前進、主人公もその中
@@ -510,6 +513,11 @@ const ino = {
       g.order = 'hold'; g.aggro = 0; g.fire = false; g.anchor = { ...g.center() };
       g.onArrive = null; g.dest = null; g.path = null; g.focus = null;
       for (const u of g.units) { u.target = null; u.atk = null; u.swing = null; u.bind = null; u.watch = null; u.moveTo = null; }
+    }
+    // 戦の跡を歩く本人だけを置き去りにしない。声を掛ける仲間と組頭が実際に歩いて集まる。
+    const P = rt.player.u.pos;
+    for (const [g, dx] of [[F.mates, -4], [F.sakuma, 4]]) if (live(g)) {
+      this.retireG(g, { x: Math.max(-XW + 6, Math.min(XW - 6, P.x + dx)), z: Math.max(ZN + 6, Math.min(ZS - 6, P.z + 4)) }, 3.4);
     }
     // 退く旗本も攻撃を止める。到着時に古い攻撃命令へ戻さない。
     for (const g of F.shiba) if (live(g)) {

@@ -126,7 +126,9 @@ function requirePresence(s, contactNames = null) {
     if (p.alive && d < (C.botRadius || 14)) C.present = true;
     // 共通の在陣時間は持ち場の三十歩外でも増える。一瞬だけ着いて
     // 離れた後、味方だけが敵を倒しても守り抜いた扱いにはしない。
-    if (s.kind === 'hold' && p.alive && d < (C.botRadius || 14) + 8) C.k01InT = (C.k01InT || 0) + dt;
+    // 寄せ手が届く前の待ち時間は含めない。遅れて接敵した直後に
+    // 敵が崩れても、それまで立っていた時間だけで守備達成にしない。
+    if (s.kind === 'hold' && C.k01Engaged && p.alive && d < (C.botRadius || 14) + 8) C.k01InT = (C.k01InT || 0) + dt;
     // 到着した記憶だけでは足りない。屋敷を離れた後に味方が番兵を
     // 倒しても、遠くから火を掛けたり、次の持ち場へ進めたりしない。
     // 敵を追い払った後は持ち場へ戻す。無関係な敵を追って塀の上で
