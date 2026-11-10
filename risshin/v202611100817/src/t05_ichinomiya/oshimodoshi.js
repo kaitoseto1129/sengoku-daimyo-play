@@ -12,8 +12,14 @@ export function withdraw(g) {
   g.fleeDir = { x: 0, z: 1 }; g.fleeSet = true;
   g.fleePath = [];
   if (c.z < 68) g.fleePath.push([-58, 68]);
-  if (c.z < 81) g.fleePath.push([-40, 79], [-16, 81]);
-  if (c.z < 93) g.fleePath.push([-16, 94]);
+  if (c.z < 81) g.fleePath.push([-40, 79]);
+  // 坂の上（z81以南）でも、城外なら門の正面へ回る。
+  // 高さ側の座標だけで省くと、西の坂から小倉丸の塀へ斜めに突き当たる。
+  const outside = c.z < 90 || c.x < -32 || c.x > 0;
+  if (outside) {
+    if (c.z >= 90) g.fleePath.push([c.x, 81]);
+    g.fleePath.push([-16, 81], [-16, 94]);
+  } else if (c.z < 93) g.fleePath.push([-16, 94]);
   // 本丸の北の口まで。南の塀には出口がなく、城外へ一直線に逃がすと壁に詰まる。
   g.fleePath.push([-16, 106], [-16, 110], [-16, 114]);
   for (const u of g.units) if (u.alive) {
