@@ -2238,7 +2238,7 @@ const shigisan = {
   meleeThreatRange: 4.5, // 別の段や離れた控えを、目前の打ち手として囲まない。
   meleeThreatHeight: 3,
   releaseGuardForAttack: true,
-  waitGuardButtonText: '押し続けて ふせぐ',
+  waitGuardButtonText: '押し続けて防ぐ',
   attackOpening(rt, enemy) {
     const P = rt.player, u = P.u;
     if (enemy.playerOpeningBlocked || enemy.atk || enemy.swing && !enemy.swing.done ||
@@ -2336,10 +2336,10 @@ const shigisan = {
     return reached ? '味方の後ろで構えよ' : '味方の後ろへ下がれ';
   },
   dodgeGuideLabel: (_rt, arrived, rain) => rain
-    ? arrived ? 'ここで構え、矢をやり過ごせ' : '矢印の方へよけよ'
-    : arrived ? 'ここで槍を構えよ' : '敵から少し離れよ',
+    ? arrived ? '構え、矢をやり過ごせ' : '矢の落ちる所から退け'
+    : arrived ? '槍を構えよ' : '敵から少し離れよ',
   // 矢の雨は別の表示口を使う。実物の旗へ逃げる下知と取り違えない。
-  rainDodgeGuideLabel: (_rt, arrived) => arrived ? 'ここで矢をやり過ごせ' : '矢印の方へよけよ',
+  rainDodgeGuideLabel: (_rt, arrived) => arrived ? '矢をやり過ごせ' : '矢の落ちる所から退け',
   dodgeActionText: '押し続ける', // 横画面の札で末尾の「る」だけを次の行へ落とさない。
   dodgePointAllowed(rt, point) {
     return this.retreatPointAllowed(rt, point);

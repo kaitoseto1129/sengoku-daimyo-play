@@ -207,12 +207,20 @@ function checkedStep(step) {
     // 誉田は本人だけが近くにいれば済む待機にしない。味方の列と共に受けた刻だけ数える。
     if (holdTime) {
       // 寄せが列へ届く前の待機だけで「受け止めた」にしない。
-      // 鉄砲戦も含め、本人と味方の列がいる持ち場の射程内へ敵が来た事を残す。
+      // 敵が近いだけでは済ませず、列との白兵戦か射線の通る弓・鉄砲戦を確かめる。
       // 敵を早く退けても、その後に列を保つ時間は数える。
       if (!C.metAttack) C.metAttack = C.groups.some((g) => !g.routed &&
         g.order !== 'retreat' && g.order !== 'flee' && g.units.some((u) =>
         u.alive && !u.fleeing && !u.woundOut && !u.gone && !u.downed && !u.noTarget &&
-        !u.rearWound && Math.hypot(u.pos.x - C.at.x, u.pos.z - C.at.z) < 60));
+        !u.rearWound && !u.isStruct && Math.hypot(u.pos.x - C.at.x, u.pos.z - C.at.z) < 60 &&
+        rt.army.nearestEnemy(u, 42, (v) => v.alive && !v.fleeing && !v.woundOut &&
+          !v.gone && !v.downed && !v.noTarget && !v.rearWound && !v.isStruct &&
+          Math.hypot(v.pos.x - C.at.x, v.pos.z - C.at.z) < 32 &&
+          (Math.hypot(u.pos.x - v.pos.x, u.pos.z - v.pos.z) <= 6 ||
+            ((u.weapon === 'gun' || u.weapon === 'bow') &&
+              rt.army.coverBetween(u.pos, v.pos, u.team) > 0 && !rt.army.shotBlocked(u, v.pos)) ||
+            ((v.weapon === 'gun' || v.weapon === 'bow') &&
+              rt.army.coverBetween(v.pos, u.pos, v.team) > 0 && !rt.army.shotBlocked(v, u.pos))))));
       if (C.metAttack) C.lineTime = (C.lineTime || 0) + dt;
     }
     // 列で実際に寄せを受け、全ての波を守り切ったら残兵は大坂へ退く。

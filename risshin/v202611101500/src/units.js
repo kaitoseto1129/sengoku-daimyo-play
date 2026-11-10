@@ -502,6 +502,22 @@ function sweepLazyGeometries(army, now) {
     }
   }
 }
+// 支度の直後に一度だけ：まだ一度も描いていない兵の部品の形（遠さの段の控え・束で描く兵・隠れた兵）の配列を先に手放す。
+//   六秒ごとの巡回は開戦後にしか回らず、組み立てで作った形（天王寺で約 40MB）が支度の山（人・顔・絵の送り）に重なって
+//   iPhone・iPad の支度中の落ちになっていた（11/10）。最初の一枚で描く近い兵の形は、今までどおり同じ鍵で作り直される
+function dropHiddenLazy(army) {
+  let n = 0;
+  const one = (g) => { if (g && g.isBufferGeometry && g._make && !g._lazy && !g._lazyRestored && !g.userData.cpuUse && dropLazyGeo(g)) n++; };
+  const walk = (o) => {
+    if (o.isMesh) { const lod = o.userData.lod; if (lod) for (const g of lod) one(g); else one(o.geometry); }
+    for (const c of o.children) walk(c);
+  };
+  for (const u of army.units) {
+    for (const m of [u.body, u.head]) { const lod = m && m.userData.lod; if (lod) for (const g of lod) one(g); }
+    if (u.mesh) walk(u.mesh);
+  }
+  return n;
+}
 function soloDropArrays(pool, id, g) {
   const r = pool.bm._reservedRanges[id], bg = pool.bm.geometry;
   if (!r || (window.__apx && window.__apx.nosolo)) return;   // x_nosolo：実機で切って比べる
@@ -2199,6 +2215,8 @@ export class Army {
   //   （一人 8〜10 回描いていたのを、全員で形の数だけに）。描く直前（行列が新しくなった後）に Battle が呼ぶ
   //   形（近い形・遠い形）と影を落とすかどうかで束を分ける。
   //   まとめた部品は layers を空にして、本来の描画と影から外す（行列の更新と動きは今までどおり）
+  // 支度の直後（main.js）：見えない兵の形の配列を先に手放す（iPhone・iPad の支度中の山を下げる）
+  dropHiddenShapes() { return MEM_TIGHT && !(window.__apx && window.__apx.nolazy) && !(window.__apx && window.__apx.nodropfirst) ? dropHiddenLazy(this) : 0; }
   batchDraw(cam) {
     const coarse = this._coarse || (this._coarse = { pending: new Map(), jobs: [], head: 0 });
     advanceCoarse(coarse);

@@ -20,22 +20,72 @@ export const ArmyFx = {
     this.stains = [];
     this.stainPool = [];
     this.stainSlots = [];
+    // 急な山道を指定した戦だけ細かい面を持ち、染みを置く時に足場へ沿わせる。
+    const ground = !!this.world.def.groundStains;
+    // 11/10 重さ：平らな跡は一枚ずつ描かず、縁の三通りごとに束ねて描く（最大 48 回の描く呼びかけ → 3 回）。
+    //   一枚ずつの位置・色・薄さは今までどおり o.m（描かない入れ物）に持ち、置く時と 0.2 秒ごとに束へ写す。
+    if (!ground) this.stainInst = STAIN_TEX.map((tex) => {
+      const geo = STAIN_PLANE.clone();
+      const al = new THREE.InstancedBufferAttribute(new Float32Array(48), 1); al.setUsage(THREE.DynamicDrawUsage);
+      geo.setAttribute('iAlpha', al);
+      const mat = new THREE.MeshLambertMaterial({ map: tex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 });
+      mat.onBeforeCompile = (sh) => {
+        sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float iAlpha;\nvarying float vIA;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvIA = iAlpha;');
+        sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vIA;').replace('vec4 diffuseColor = vec4( diffuse, opacity );', 'vec4 diffuseColor = vec4( diffuse, opacity * vIA );');
+      };
+      mat.customProgramCacheKey = () => 'stainInst';
+      const im = new THREE.InstancedMesh(geo, mat, 48);
+      im.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+      im.setColorAt(0, new THREE.Color(1, 1, 1));
+      im.instanceColor.setUsage(THREE.DynamicDrawUsage);
+      im.count = 0; im.frustumCulled = false;
+      im.userData.noFreeze = im.userData.noMerge = true;   // 止めの束ね・行列の凍結に入れない
+      this.scene.add(im);
+      return im;
+    });
     for (let i = 0; i < 48; i++) {
-      // 急な山道を指定した戦だけ細かい面を持ち、染みを置く時に足場へ沿わせる。
-      const ground = !!this.world.def.groundStains;
-      const geo = ground ? new THREE.PlaneGeometry(2.4, 2.4, 8, 8).rotateX(-Math.PI / 2) : STAIN_PLANE;
-      const m = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: 0x40140e, map: STAIN_TEX[i % STAIN_TEX.length], transparent: true, opacity: 0.5, alphaTest: ground ? 0.01 : 0, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }));
+      let m;
+      if (ground) {
+        const geo = new THREE.PlaneGeometry(2.4, 2.4, 8, 8).rotateX(-Math.PI / 2);
+        m = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: 0x40140e, map: STAIN_TEX[i % STAIN_TEX.length], transparent: true, opacity: 0.5, alphaTest: 0.01, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }));
+        this.scene.add(m);
+      } else {
+        // 描かない入れ物（場面には入れない）。material は色・薄さ・縁の絵を持つだけの箱
+        m = new THREE.Object3D();
+        m.material = { map: STAIN_TEX[i % STAIN_TEX.length], color: new THREE.Color(0x40140e), opacity: 0.5, dispose() {} };
+      }
       m.visible = false;
-      this.scene.add(m);
       const o = { m, t: 0, life: 0, sx: 0, sz: 0, grow: 0, op: 0 };
       this.stainSlots.push(o);
       this.stainPool.push(o);
     }
   },
+  // 束ねた染み：見えている跡を縁の絵ごとに束へ写す
+  syncStains() {
+    const I = this.stainInst;
+    if (!I) return;
+    const n = [0, 0, 0];
+    for (const o of this.stains) {
+      const m = o.m;
+      if (!m.visible) continue;
+      const ti = Math.max(0, STAIN_TEX.indexOf(m.material.map)), im = I[ti], k = n[ti]++;
+      m.updateMatrix();
+      im.setMatrixAt(k, m.matrix);
+      im.setColorAt(k, m.material.color);
+      im.geometry.attributes.iAlpha.array[k] = m.material.opacity;
+    }
+    for (let t = 0; t < I.length; t++) {
+      const im = I[t];
+      im.count = n[t];
+      if (!n[t]) continue;
+      im.instanceMatrix.needsUpdate = true; im.instanceColor.needsUpdate = true; im.geometry.attributes.iAlpha.needsUpdate = true;
+    }
+  },
   disposeStains() {
     if (!this.stainSlots) return;
     // 専用の形は戦の資源回収が場面から拾う。ここで二度返さない。
-    for (const o of this.stainSlots) { this.scene.remove(o.m); o.m.material.dispose(); }
+    for (const o of this.stainSlots) { if (o.m.parent) this.scene.remove(o.m); o.m.material.dispose(); }
+    if (this.stainInst) { for (const im of this.stainInst) { this.scene.remove(im); im.material.dispose(); im.geometry.dispose(); } this.stainInst = null; }
     this.stains.length = this.stainPool.length = this.stainSlots.length = 0;
   },
 
@@ -86,6 +136,7 @@ export const ArmyFx = {
     m.visible = true;
     o.t = 0; o.life = inWater ? 32 : Math.min(life, grow ? 240 : 120); o.sx = inWater ? sx * 2.2 : sx; o.sz = inWater ? sz * 2.2 : sz; o.grow = grow; o.op = m.material.opacity;
     this.stains.push(o);
+    this.syncStains();
     return o;
   },
   // 柵・塀の区画の傾き（形は世界の座標で作ってあるので、区画の根元の線を軸に回す）
@@ -433,6 +484,7 @@ export const ArmyFx = {
       o.m.material.color.setRGB(0.36 - 0.2 * dry, 0.05 + 0.02 * dry, 0.035 + 0.015 * dry);
       o.m.material.opacity = o.op * (1 - 0.35 * dry) * Math.min(1, (1 - k) / 0.3);
     }
+    this.syncStains();
   },
   updateFallenHorses(dt) {
     const F = this.fallenHorses;
