@@ -1617,6 +1617,8 @@ export class Hud {
 
     }
     const workAction = !!it?.hold && !/^(head|horse)/.test(it.id);
+    const ladderWork = !!rt.def.ladderWorkVisible && workAction && (it.id === 'ladder-climb' || it.id === 'seirou-down');
+    setClass(pr, 'ladder-work', ladderWork);
     const fireWork = workAction && /火を(?:つけ|かけ|放|移)|篝火を焚/.test(it.label);
     const workMarker = rt.missionGuide?.marker;
     const doorWork = fireWork && workMarker?.entrance && workMarker.id === it.id;
@@ -1625,7 +1627,7 @@ export class Hud {
     setClass(pr, 'work-action', workAction);
     // 戦の画面（battle-order）では任務の欄（#battle-notices）ごと隠す（hud_cards.js）。そこへ入れると作業釦が消え、
     //   指の端末で梯子・掛矢・柵倒しの長押しができなかった（11/8 野田・福島の井楼で十五分止まった）。戦の間は元の場所に置く
-    if (workAction && !doorWork && !rainUrgent && !this.root.classList.contains('battle-order')) {
+    if (workAction && !ladderWork && !doorWork && !rainUrgent && !this.root.classList.contains('battle-order')) {
       // 作業釦を任務と同じ欄へ入れる。既存の押す処理を保ったまま札を一枚にする。
       if (!this.workPromptHome) {
         this.workPromptHome = pr.parentNode;

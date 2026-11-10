@@ -2754,7 +2754,7 @@ const tennoji = {
       F.nobuShotSaid = true;
       // 先に傷を受けた時も、知らせだけで済ませず射手の位置から硝煙を出す。
       // 出来事の記録だけでは煙は描かれない。既存の煙を使い回す。
-      const gun = F.gunA?.units.find((u) => u.alive && !u.fleeing && !u.woundOut);
+      const gun = F.gunA?.units.find((u) => u.type === 'gun' && u.alive && !u.fleeing && !u.woundOut);
       if (gun) {
         const dx = F.nobuU.pos.x - gun.pos.x, dz = F.nobuU.pos.z - gun.pos.z;
         const length = Math.hypot(dx, dz) || 1;

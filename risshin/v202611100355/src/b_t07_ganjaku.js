@@ -709,7 +709,7 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
       // 自分が門を抜ければすぐ二の丸へ。閉まった門を時間だけで通過扱いにしない。
       const entered = F.allies.some((g) => { const c = this.centerOf(g); return c && Math.hypot(c.x - INNER.x, c.z - INNER.z) < 12; });
       const passable = st && (!st.alive || st.opened);
-      if (passable && (Math.hypot(p.x - INNER.x, p.z - INNER.z) < 10 || Math.hypot(p.x - INSIDE.x, p.z - INSIDE.z) < 4 || (rt.t - F.stageT > 60 && entered) || (rt.t - F.stageT > 110 && !st.alive))) this.go(rt, 4);
+      if (passable && (Math.hypot(p.x - INNER.x, p.z - INNER.z) < 10 || Math.hypot(p.x - INSIDE.x, p.z - INSIDE.z) < 4 || (rt.t - F.stageT > 60 && entered))) this.go(rt, 4);
     } else if (F.stage === 4) {
       if (ninomaru.update(rt, K)) this.go(rt, 5);
     } else if (F.stage === 5) {
@@ -864,7 +864,17 @@ t07_ganjaku.botBrain = (b, inp, { goTo }) => {
   if (F.botRest && u.hp >= u.maxHp * 0.65) F.botRest = false;
   if (F.botRest) {
     // 坂では先手の少し後ろへ。門の内では城壁を横切らず、先手の列へ戻る。
-    const cover = F.stage <= 2 ? t07_ganjaku.roadAt(t07_ganjaku.along(gc.x, gc.z) - 12) : gc;
+    let cover = F.stage <= 2 ? t07_ganjaku.roadAt(t07_ganjaku.along(gc.x, gc.z) - 12) : gc;
+    // 先手の中心も敵中なら、そこに立ち止まって回復を待たない。近い敵から離れ、塀を横切る退き方は避ける。
+    const threat = b.army.nearestEnemy(u, 8, (o) => !o.noTarget && !o.isStruct && !o.fleeing && !o.perch && Math.abs(o.pos.y - u.pos.y) < 3 && !b.army.wallBetween(u.pos, -1, o.pos));
+    if (threat) {
+      const dx = u.pos.x - threat.pos.x, dz = u.pos.z - threat.pos.z, d = Math.hypot(dx, dz);
+      if (d > 0.1) {
+        const rear = F.botCover || (F.botCover = { x: 0, y: 0, z: 0 });
+        rear.x = u.pos.x + dx / d * 10; rear.z = u.pos.z + dz / d * 10; rear.y = u.pos.y;
+        if (!b.army.wallBetween(u.pos, -1, rear)) cover = rear;
+      }
+    }
     if (Math.hypot(u.pos.x - cover.x, u.pos.z - cover.z) > 4) goTo(p, inp, cover.x, cover.z, 3);
     return;
   }
