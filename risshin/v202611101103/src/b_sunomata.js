@@ -3201,6 +3201,14 @@ function sunoCivilianClearing(x, z) {
   return false;
 }
 
+// 到着後の指図も、現在いる柵の内外を地名で示す。迎えで門外へ出た時も内側と取り違えない。
+function sunoGuidePlace(rt) {
+  const p = rt.player.u.pos;
+  if (Math.abs(p.x) < FORT && Math.abs(p.z) < FORT) return '砦の内';
+  if (Math.abs(p.x) > Math.abs(p.z)) return p.x < 0 ? '西の柵の外' : '東の柵の外';
+  return p.z < 0 ? '北の柵の外' : '南門の外';
+}
+
 const sunomata = {
   jinkei: SUNOMATA_JIN,
   forceBarAlways: true, // 共通の人数の棒は明示しないと隠れる。寄せ手の退却も常に数へ示す。
@@ -3408,7 +3416,7 @@ const sunomata = {
     // まだ退き先へ届いていない人を、その場で待たせない。
     if (Math.hypot(cue.x - p.u.pos.x, cue.z - p.u.pos.z) >= cue.radius) return '手当ての印まで下がれ';
     if (p.treatmentNext > rt.t) return `次の手当てまであと${Math.ceil(p.treatmentNext - rt.t)}秒`;
-    if (Math.hypot(p.u.vel.x, p.u.vel.z) >= .3) return 'ここで足を止め、傷を縛る';
+    if (Math.hypot(p.u.vel.x, p.u.vel.z) >= .3) return `${sunoGuidePlace(rt)}で足を止め、傷を縛る`;
     return '攻撃をやめ、手当ての支度を待て';
   },
   coverGuideLabel: '矢を避け、物陰へ下がれ',
@@ -3438,7 +3446,7 @@ const sunomata = {
     // 深手でも、手当ての支度が済んだ時は退く命令で長押しの案内を消さない。
     if (cue?.active && cue.valid && cue.treatment)
       return sunomata.treatmentGuideLabel(rt, cue);
-    if (reached && rt.player.sta < rt.player.maxSta * .6) return 'ここで息を整える';
+    if (reached && rt.player.sta < rt.player.maxSta * .6) return `${sunoGuidePlace(rt)}で息を整える`;
     return reached ? '味方の後ろで構えよ' : '味方へ下がる';
   },
   // 古い持ち場や資材の印に案内を奪わせず、今見えている任務に合わせる。
@@ -3518,7 +3526,7 @@ const sunomata = {
     if (sunoNeedsRetreat(rt))
       return limit + (rt.player.sta < 20
         ? cue?.active && cue.valid && Math.hypot(cue.x - rt.player.u.pos.x, cue.z - rt.player.u.pos.z) < cue.radius
-          ? 'ここで構えを解き、息を整えよ。' : 'まず印まで下がれ。着いたら構えを解き、息を整えよ。'
+          ? `${sunoGuidePlace(rt)}で構えを解き、息を整えよ。` : 'まず印まで下がれ。着いたら構えを解き、息を整えよ。'
         : '組と退き、敵を離してから守りへ戻れ。') + sunoRepairDetail(rt, false);
     if (rt.missionGuide?.marker?.id === 'returnGate')
       return limit + '閉じた柵を回り、南門を通れ。戻ったら持ち場の印へ。';
@@ -3553,10 +3561,10 @@ const sunomata = {
   dodgeActionText: '長押しでよける',
   // 回避の札は dodgeLabel と別に描かれる。守備中に共通の「にげる」を戻さない。
   dodgeGuideLabel(rt, reached, rain) {
-    return reached ? 'ここで敵へ槍を向ける' : rain ? sunomata.rainDodgeGuideLabel(rt, false) : '印までよけ、槍を構える';
+    return reached ? `${sunoGuidePlace(rt)}で敵へ槍を向ける` : rain ? sunomata.rainDodgeGuideLabel(rt, false) : '印までよけ、槍を構える';
   },
   rainDodgeGuideLabel(rt, reached) {
-    if (reached) return 'ここで矢が過ぎるのを待つ';
+    if (reached) return `${sunoGuidePlace(rt)}で矢が過ぎるのを待つ`;
     return '印へよけ、矢を避ける';
   },
   // 画面端の矢印も同じ退避の指図を使う。実在の隊旗へ逃げる命令に替えない。
@@ -4211,7 +4219,7 @@ const sunomata = {
     rt.say = (name, text, ...args) => {
       if (name === '木下藤吉郎' && text.includes('仲間が討たれた') && !F.allyFell) return;
       if (name === rt.G.name && text === 'かかれっ！突っ込め！' &&
-          ['gate', 'defend', 'post', 'rescue'].includes(F.sunoTask)) text = '槍を揃え、ここで迎え撃て！';
+          ['gate', 'defend', 'post', 'rescue'].includes(F.sunoTask)) text = `${sunoGuidePlace(rt)}で槍を揃え、迎え撃て！`;
       if (name === rt.G.name && text === '敵は遠い。前へ出るぞ' &&
           ['gate', 'defend', 'post', 'rescue'].includes(F.sunoTask)) {
         text = F.sunoTask === 'rescue' ? '人足の前で構えよ。敵を迎え撃つぞ'
@@ -4782,7 +4790,7 @@ const sunomata = {
       F.lastPush.assault = assaultFn(rt, 'w'); F.lastPush.speed = 3; F.lastPush.aggro = 8; F.lastPush.seekRange = 45;
       rt.after(14, () => {
         if (rt.over || F.ending || F.won || !F.lastPush.count || F.lastPush.routed) return;
-        rt.say('前野長康', '林に残った者も西の柵へ来る。追わずに、ここで受けるぞ', 3.5);
+        rt.say('前野長康', '林に残った者も西の柵へ来る。追わずに、西の柵で受けるぞ', 3.5);
       });
     }
     F.W3a = F.reserveW3a;
