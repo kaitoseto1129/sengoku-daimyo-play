@@ -3094,7 +3094,9 @@ const tonezaka = {
     const F = rt.flags;
     F.step = 4; F.stepT = rt.t; rt.setPhase('road');
     // 11/6 fix61（Z2）：義景は崩れて討たれたのではなく、供と越前へ退いた。敗走にせず峠の先へ歩かせる（「義景と旗本、崩れたぞ」を出さない）。
-    rt.unmark('asakuraMain'); F.yoshikage.speed = 1.2; march(F.yoshikage, [xz(-4, -320)], (g) => { g.order = 'hold'; });
+    rt.unmark('asakuraMain'); march(F.yoshikage, [xz(-4, -320)], (g) => { g.order = 'hold'; });
+    // march の追撃用の速さを上書きし、供と歩いて退く速さを保つ。
+    F.yoshikage.speed = 1.2;
     for (const b of F.fleeB) b.order({ id: 'retreat', to: { x: b.pos.x + NORTHWEST.x * 100, z: b.pos.z + NORTHWEST.z * 100 }, form: 'column' });
     rt.unmark('pass'); rt.unmark('nobu');
     // 11/6 fixc2220（一6・二2）：坂の殿・人夫・義景の供は一乗谷へ来ない（河合・山崎・龍興は坂で討死、詫美は疋壇城から逃れ、義景は大野へ）。
