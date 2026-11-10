@@ -2650,6 +2650,7 @@ const mitsukuri = {
   noHorse: true,
   // 11/5 kaito 九1・十1：右上は①〜⑤を最初から全部並べ、済んだ物に印（stages.js の箕作と同じ字・言い替えない）。
   //   勝ちの札の五つも同じ（敵を何人討つ・自分で討つは置かない。城将の討ち手は伝わらない）。
+  goalsAllRows: true,
   goals5(rt) {
     const F = rt.flags, won = () => rt.tracker?.main === true && !!rt.over;
     // 打って出た組の出現だけでは「掛矢で打つ」を果たさない。

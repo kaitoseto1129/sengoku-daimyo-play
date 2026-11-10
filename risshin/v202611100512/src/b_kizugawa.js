@@ -3679,7 +3679,10 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
       const g = c.getContext('2d'), img = g.createImageData(64, 128);
       for (let y = 0; y < 128; y++) for (let x = 0; x < 64; x++) {
         const dx = Math.max(0, Math.abs(x - 31.5) / 32 - 0.55) / 0.45, dy = Math.max(0, Math.abs(y - 63.5) / 64 - 0.7) / 0.3;
-        const a = Math.max(0, 1 - Math.hypot(dx, dy)); img.data[(y * 64 + x) * 4 + 3] = Math.round(255 * a * a);
+        const a = Math.max(0, 1 - Math.hypot(dx, dy)), p = (y * 64 + x) * 4;
+        // 陰の濃さは透明度でなく、透過用の画像が読む緑の成分へ入れる。
+        img.data[p] = img.data[p + 1] = img.data[p + 2] = Math.round(255 * a * a);
+        img.data[p + 3] = 255;
       }
       g.putImageData(img, 0, 0);
       const map = new THREE.CanvasTexture(c);
