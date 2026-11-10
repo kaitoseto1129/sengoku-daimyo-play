@@ -62,6 +62,7 @@ export function tick(rt, ctx) {
     // 本人だけ先に着いても、担ぎ手の運び入れが済むまで次の下知へ進めない。
     if (at && t >= 10 && F.storedLoads > 0) {
       next(rt, S);
+      rt.obj('main', '平田の蔵で、秀吉の使番の下知を聞け', 'main');
       sfx('horagai', 0.5);
       rt.say('使番', '平井山より！　「城を力で攻めるな。囲みを締め、兵糧の道を一つ残らず断て」との仰せ', 5);
       rt.after(6, () => { if (F.mkKiga === S) rt.say('組頭', '干し殺しか……。長治殿は城兵の命をどうなさるおつもりか', 4); });
@@ -74,6 +75,7 @@ export function tick(rt, ctx) {
 
 export function pin(rt, ctx) {
   const S = rt.flags.mkKiga;
-  if (!S || S.done || S.k >= 2) return null;
+  // 使番の下知を聞く間も、待つ場所である平田の蔵の印を残す。
+  if (!S || S.done) return null;
   return S.k === 0 ? roadAt(rt, ctx) : ctx.store;
 }
