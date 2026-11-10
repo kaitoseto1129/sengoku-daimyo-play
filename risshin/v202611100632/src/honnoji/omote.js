@@ -38,13 +38,23 @@ function start(rt, K, done) {
     const w1 = K.akechi(rt, '塀を越えた明智勢', [[gx - 2, gz - 10], [at.x + 4, at.z]], [K.uS(1), K.uA(3)], { entered: true, player: true, dmg: 0.5 });
     rt.say('小姓', '塀を越えて来たぞ！', 3);
     k15Track(rt, w1, '塀を越えた明智勢', { sec: 60, reward: '表庭で塀を越えた明智勢を討った' }, () => k15Scenes(rt, [
-      [1.5, () => { rt.banner('上様、弓を取る', '小袖のまま縁に立ち、寄せ手へ矢を放つ'); }],
+      [1.5, () => {
+        // 門の守りで既に弦が切れた時は、再び弓を取ったと知らせない。
+        const bow = F.nb?.wpnKind === 'bow';
+        rt.banner(bow ? '上様、弓で迎え撃つ' : '上様、槍で迎え撃つ',
+          bow ? '小袖のまま縁に立ち、寄せ手へ矢を放つ' : '小袖のまま縁に立ち、槍で寄せ手を迎え撃つ');
+      }],
       [3.5, () => rt.say('織田信長', '寄せよ、明智が者ども。この信長が相手じゃ', 4)],
       [3, () => {
         const w2 = K.akechi(rt, '門から入る明智勢', [[gx + 2, gz], [at.x + 3, at.z - 1]], [K.uS(2), K.uA(3)], { entered: true, player: true, dmg: 0.5 });
         rt.say('森蘭丸', '門から次が来る！　槍をそろえよ！', 3);
         k15Track(rt, w2, '門から入る明智勢', { sec: 70, reward: '表庭で上様の退く時を稼いだ' }, () => k15Scenes(rt, [
-          [1, () => rt.say('織田信長', '弦が切れた。……槍を持て！', 3.5)],
+          [1, () => {
+            if (F.nb?.alive && F.nb.wpnKind === 'bow') {
+              K.nbWeapon(rt, 'spear');
+              rt.say('織田信長', '弦が切れた。……槍を持て！', 3.5);
+            } else rt.say('織田信長', '槍をそろえよ。寄せ手を奥へ通すな！', 3.5);
+          }],
           [3.5, () => {
             // 三の波：鉄砲の煙の向こうから、門の口を破った明智の侍衆
             const w3 = K.akechi(rt, '門を押し破る明智の侍', [[gx + 1, gz + 3], [at.x + 3, at.z + 1]], [K.uS(3), K.uA(1)], { entered: true, player: true, dmg: 0.5 });

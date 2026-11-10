@@ -524,7 +524,7 @@ const t03b_nagakute = {
     if (F.ending || !F.stage) return;
     const P = rt.player.u;
     walls(rt, XW, ZN, ZS);
-    const run = F.stage === 2 || F.stage === 4 || F.stage === 6 || F.stage === 5.5;
+    const run = F.stage === 0.5 || F.stage === 2 || F.stage === 4 || F.stage === 6 || F.stage === 5.5;
     // 連れた兵：走る段は斬り合いに留まらず縦に駆けて付いて来る（前は②で白山林に残って討たれた・一5・九4）。着けば構えて打ち合う
     if ((F.menT = (F.menT || 0) - dt) <= 0) {
       F.menT = 0.5;

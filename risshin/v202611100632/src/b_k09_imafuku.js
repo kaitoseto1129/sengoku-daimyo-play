@@ -634,9 +634,13 @@ const k09_imafuku = {
     // 舟の上の鉄砲は共通の頭では的を選ばず、一発も撃たなかった（一3）。舟から堤の佐竹勢を一人ずつ狙って撃つ（七〜十一秒に一発）
     // 又兵衛の「退きながら撃て」の下知どおり、西へ漕ぎ戻る間も射程内では撃つ。
     if (F.boats && !F.ending) for (const bt of F.boats) for (const u of bt.us) {
-      if (!u.alive || (u.k09Shot = (u.k09Shot ?? 2 + Math.random() * 6) - dt) > 0) continue;
+      // 舟の専用射撃も、倒れた兵・重傷で離脱した兵・敗走中の兵には行わせない。
+      // fireGun は生死だけを確かめるため、ここで戦える状態を確かめる。
+      if (!u.alive || u.gone || u.dying || u.woundOut || u.downed || u.rearWound || u.fleeing ||
+        (u.k09Shot = (u.k09Shot ?? 2 + Math.random() * 6) - dt) > 0) continue;
       u.k09Shot = 7 + Math.random() * 4;
-      const t = rt.army.nearestEnemy(u, 55, (o) => !o.isStruct && !o.fleeing && Math.abs(o.pos.z) < WADE);
+      const t = rt.army.nearestEnemy(u, 55, (o) => !o.isStruct && !o.gone && !o.fleeing &&
+        !o.dying && !o.woundOut && !o.downed && !o.rearWound && Math.abs(o.pos.z) < WADE);
       if (t) { u.heading = Math.atan2(t.pos.x - u.pos.x, t.pos.z - u.pos.z); rt.army.fireGun(u, t); }
     }
     if (F.ending) return;

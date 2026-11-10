@@ -1954,7 +1954,7 @@ const JIN = [
     ['rear', '後方の控え（別所勢・復元）', '別所勢の組頭（名は不明）', 60, 110, 0, 'oda', 'oda', 60, { w: 24, d: 18 }],
   ], '信長公記巻十。佐久間・羽柴・荒木・別所・堀は山手勢。川岸に描く各勢の持ち場・人数・佐久間の陣所は復元。各勢の総兵数ではない'),
   rosterPlan('高岸の守り', 1, { x: -110, z: 0 }, EAST, [
-    ...[-24, -12, 0, 12, 24].map((z, i) => ['gun' + i, '柵の鉄砲の小組', '雑賀の将（名は不明）', 5, -47, z, 'yatagarasu', 'yatagarasu', 0, { bind: 'gunPosts.' + i }]),
+    ...[-24, -12, 0, 12, 24].map((z, i) => ['gun' + i, '柵の鉄砲の小組', '雑賀の将（名は不明）', 10, -47, z, 'yatagarasu', 'yatagarasu', 0, { bind: 'gunPosts.' + i }]),
     ['spear', '柵の控え', '雑賀の将（名は不明）', 20, -57, 0, 'yatagarasu', 'yatagarasu', 0, { bind: 'reserve' }],
     ['upstream', '川上の柵と林', '雑賀の将（名は不明）', 72, -57, -64, 'yatagarasu', 'yatagarasu', 72, { kind: 'gun', w: 26, d: 18, host: 18 }],
     ['downstream', '川下の柵と家', '雑賀の将（名は不明）', 72, -57, 64, 'yatagarasu', 'yatagarasu', 72, { kind: 'gun', w: 26, d: 18, host: 18 }],
@@ -2372,7 +2372,7 @@ const saika = {
     // 兵数と実兵への置換は増やさない。
     clashMiddleDetail: 40, lowArmyDetail: true, middleInfantryArms: true,
     noHaori: true, // 本の足軽の具足姿へそろえ、組頭にも陣羽織・母衣を着せない。
-    // 各鉄砲小組の弓は一人。実際に放つ矢だけを飛ばし、数十本の追加矢を降らせない。
+    // 弓は柵の控えにまとめる。実際に放つ矢だけを飛ばし、数十本の追加矢を降らせない。
     noArrowRain: true,
     // 岸の石と根元の葉を立体にし、近い三角の黒い塊を作らない。
     groundedSlopeRocks: true, curvedRockTufts: true, rockDrawGround: true,
@@ -3252,15 +3252,15 @@ const saika = {
       a.guardAt = { x: a.x + 7, z: a.z };
     }
     F.teppo = allyGroup(rt, { name: '東岸の織田鉄砲衆', fixed: true, fullStrength: true, fleeDir: { x: 1, z: 0 }, guard: true, guardSight: 65, guardLeash: 3, anchor: { x: 10, z: -16 }, facing: WEST, width: 6, ranks: 1, aggro: 65 }, dress([{ type: 'gun', n: 12 }], ODA));
-    // 五つの小組が各々撃って込める。六人以上の共通一斉射と二段交代を使わない。
+    // 五組それぞれ五人ずつ二段。全体で二十五人ずつ二列にし、共通の段交代で撃ち続ける。
     F.gunPosts = [-24, -12, 0, 12, 24].map((z, i) => {
-      const g = enemyGroup(rt, { faction: 'saika', fixed: true, name: '西岸の鉄砲の小組', anchor: { x: -47, z }, facing: EAST, width: 5, ranks: 1,
-        order: 'hold', guard: true, guardSight: 68, guardLeash: 3, aggro: 68, fleeDir: { x: -1, z: 0 } }, dress([{ type: 'gun', n: 4 }, { type: 'bow', n: 1 }], SAIKA));
+      const g = enemyGroup(rt, { faction: 'saika', fixed: true, name: '西岸の鉄砲の小組', anchor: { x: -47, z }, facing: EAST, width: 5, ranks: 2,
+        order: 'hold', guard: true, guardSight: 68, guardLeash: 3, aggro: 68, fleeDir: { x: -1, z: 0 } }, dress([{ type: 'gun', n: 10 }], SAIKA));
       for (const u of g.units) u.cd = 2 + i * 4 + u.slot;
       return g;
     });
     F.reserve = enemyGroup(rt, { faction: 'saika', fixed: true, name: '柵を守る雑賀衆', anchor: { x: -57, z: 0 }, facing: EAST, formation: 'yari', width: 10,
-      order: 'hold', guard: true, guardSight: 20, guardLeash: 5, aggro: 10, fleeDir: { x: -1, z: 0 } }, dress([{ type: 'samurai', n: 1, o: { name: '雑賀の組頭', flagScale: 2.2, haori: 0 } }, { type: 'samurai', n: 1 }, { type: 'ashigaru', n: 18 }], SAIKA));
+      order: 'hold', guard: true, guardSight: 20, guardLeash: 5, aggro: 10, fleeDir: { x: -1, z: 0 } }, dress([{ type: 'samurai', n: 1, o: { name: '雑賀の組頭', flagScale: 2.2, haori: 0 } }, { type: 'samurai', n: 1 }, { type: 'bow', n: 5 }, { type: 'ashigaru', n: 13 }], SAIKA));
     F.saikaBoss = F.reserve.units[0];
     // 地元の小組は、川上・川下を渡った東岸の道に初めからいる。開始後に兵を足さない。
     // 川上から寄せ、持ち場から見て杭抜きの組の正面で当たる（10/30 採点：兵が左に寄る）。

@@ -12,9 +12,9 @@ export const BANSHO = { x: 146, z: 10 };   // 道の東南の徳川方の番所�
 function say(rt, who, s, t, sec = 3) { rt.after(t, () => { if (!rt.flags.ending) rt.say(who, s, sec); }); }
 
 function defending(g) {
-  if (!g || g.routed) return 0;
+  if (!g || g.routed || g.order === 'retreat' || g.order === 'flee') return 0;
   let n = 0;
-  for (const u of g.units) if (u.alive && !u.gone && !u.fleeing) n++;
+  for (const u of g.units) if (u.alive && !u.gone && !u.fleeing && !u.woundOut && !u.rearWound && !u.downed && !u.noTarget) n++;
   return n;
 }
 

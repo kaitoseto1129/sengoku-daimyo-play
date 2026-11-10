@@ -2540,7 +2540,7 @@ const kanegasaki = {
       { kind: 'stage', k: 2, text: '狭路の砦で、明智の鉄砲と朝倉の後続を止める', noun: '狭路の砦', action: '狭路の砦で後続を止めよ', place: at(LINES[2]), check: () => !!F.fleeing && hit(2) },
       { kind: 'stage', k: 2, text: '若狭への道の退き口へ、木下・池田・明智と退く', noun: '退き口', action: '退き口へ退け', place: at(KUTSUKI), check: won },
     // 11/6：目標は時間切れで✕にしない（備ごとの長さは台本の下知で決まる）。残りの秒も出さない。
-    ].map(g => ({ ...g, sec: 3600 }));
+    ];
   },
   // 高画質の井楼は既存の垂直柱・交互の横木を使う。遠景も同じ輪郭にする。
   lookoutLogFrame: true,
@@ -2940,7 +2940,7 @@ const kanegasaki = {
     // 登城道のつづら折りの間にも若葉の林を残す（道の際6歩を空けると、城山の正面の斜面が坊主になった。10/29）
     treePadMul: 0.6,
     // 11/8 八1・四1：退き口の杉が十字に挿した板の木に見えた。散らす木は松と広葉樹を主にし、杉は麓の一の備の林（groves）だけに
-    treeMix: { sugi: 0.2, matsu: 0.85 },
+    treeMix: { sugi: 0, matsu: 0.85 },
     noLogs: true, // 11/7 fixc0422 八1：狭路の急な坂に寝かせた倒木が、宙へ突き出た丸太に見えた（critic「丸太が宙に浮いて刺さっている」）
     overcastFillScale: 1.5, dayBounce: 1.25, // 杉の間の白い空の柔らかい光：日陰を持ち上げ、影を薄くする
     branchFoliage: true, foldedNeedleCards: true, unevenCrowns: true, nearCedarBranches: true,

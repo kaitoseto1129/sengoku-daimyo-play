@@ -283,14 +283,14 @@ OWN.t12_odawara = () => {
   ];
 };
 
-// 忍城攻め（11/3 p100_t10_oshi）：堤の夜討ち → 堰 → 丸墓山へ逃げる → 佐間口の打って出 → 付け入り。敵を何人討つは使わない（11/4）
+// 忍城攻め（11/10 docs/oshi_spec_1109.md）：力攻め → 退く → 堤の普請 → 堰 → 舟から堤を守る → 決壊して丸墓山へ → 切れ口の普請 → 開城。敵を何人討つは使わない
 OWN.t10_oshi = (rt) => {
   // 11/8 15分の構成：段の字は b_t10_oshi.js の MISSIONS（step − 1 が並びの番）。最後の段は勝ちで済む
   const M = rt.def.missions || [];
-  const N = ['城の外の柵', '丸墓山', '浅瀬の口', '堰', '堤の岸', '丸墓山', '佐間口の門前', '佐間口', '佐間口の門前', '佐間口'];
+  const N = ['城の外の柵', '丸墓山', '浅瀬の口', '堰', '堤の岸', '丸墓山', '堤の切れ口', '佐間口'];
   return M.map((text, k) => ({ kind: 'stage', k, text, noun: N[k] || '',
-    // 避難・打って出・門前は、段を進める時と同じ人数を出す。名前から敵を拾うと討てない将まで分母に入る。
-    count: k === 5 || k === 7 || k === 8 ? (r) => r.flags.step === k + 1 ? KILLS.t10_oshi(r) : null : undefined,
+    // 避難は、段を進める時と同じ人数を出す。
+    count: k === 5 ? (r) => r.flags.step === k + 1 ? KILLS.t10_oshi(r) : null : undefined,
     check: k === M.length - 1 ? won : (r) => won(r) || (r.flags.step ?? 0) > k + 1 }));
 };
 

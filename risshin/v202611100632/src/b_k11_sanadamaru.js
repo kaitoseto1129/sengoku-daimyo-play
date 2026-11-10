@@ -73,7 +73,11 @@ function withdraw(g, dest) {
   g.order = 'move'; g.dest = dest; g.anchor = dest;
   for (const u of g.units) { u.target = null; u.aiT = 0; }
 }
-const PORT = (s) => polar(s * GATE, FENCE_R + 1);   // 丸の左右の口（真田はここから打って出る）
+const PORT = (s) => polar(s * GATE, FENCE_R + 1);
+const L_FENCE = [-0.84, -0.72];                     // 第二の攻めで打ち倒しかける西の柵の一間（角）
+const RALLY = { x: 12, z: 32 };                     // 攻めの合間に退いて組を立て直す所（篠山の北の麓。櫓の狙いの外）
+const LIVE_MAX = 250;                               // 本物の兵は両軍で二百五十ほどまで
+const liveN = (rt) => rt.army.units.reduce((n, u) => n + (u.alive && !u.isStruct && !u.isPlayer ? 1 : 0), 0);   // 丸の左右の口（真田はここから打って出る）
 
 // 家ごとの見た目（足軽は御貸具足の色。名のある武将は kacchu_data の甲冑）
 const SANADA = { armor: 0x8e1f16, lace: 0xb8342a, flag: 'sanada' };
@@ -291,7 +295,7 @@ import DEPTH_K11 from './k11/depth.js';   // 軍勢の厚み・陣立ての表�
 const k11_sanadamaru = {
   depth: DEPTH_K11,
   lethal: true,   // 命懸けの戦場（lethal.js）：流れ弾・突然の負傷と討死・制圧・恐怖・孤立
-  resumeSteps: [[1, 'begin'], [2, 'taunt'], [3, 'fenceStart'], [4, 'sortie'], [5, 'fallBack']],   // 戦の途中の保存（battle_checkpoint.js）：段の始まりを、段の関数を順に流して作り直す
+  resumeSteps: [[1, 'begin'], [2, 'attack1'], [3, 'attack2'], [4, 'rush'], [5, 'assault'], [6, 'collapse'], [7, 'withdraw']],   // 戦の途中の保存（battle_checkpoint.js）：段の始まりを、段の関数を順に流して作り直す
   // 身の回りの合戦の跡（timeslip_field.js）。真田丸：十二月初めの冬の朝。霜枯れの草、撃ち込まれた矢・倒れた槍と旗
   timeslip: {
     wet: 0.25, dust: 0.3, trample: 0.35, debris: 1.4, arrows: 1.3, maxSlope: 0.25,
@@ -308,7 +312,7 @@ const k11_sanadamaru = {
   noFlankCry: true,            // 撃ち崩された寄せ手に、共通の側面攻撃の声を重ねない。
   // 見出しの札は終わりと討ち取りだけ（「敵の隊が崩れた」や段の見出しは案内の字。kaito 五1）。流れは台詞と動きで分かる
   bannerAllowed: (rt, t) => rt.over || !!rt.flags.ending || /討ち取|討死/.test(t),
-  minutes: 14,
+  minutes: 15,
   foeHit: 1.05,
   world: {
     // 11/8 critic60 九6：倒れる味方が宙で二つ折れの人形に見えた。本能寺と同じく、倒れを地面で受け、遠目の亡骸の腰と胸も地へ着ける
@@ -379,13 +383,18 @@ const k11_sanadamaru = {
     stone(STEP1.r1 + 0.4, GATE - 0.12, GATE + 0.55); stone(STEP2.r1 + 0.4, GATE - 0.05, GATE + 0.4, 0.2);
     F.fence = [
       // 外の柵は切れ目なく巡らす（前は左右の口の前が開いていて、柵の内へ入ると出られなくなった）。真田の兵は口の前の木戸から出入りする
-      ...wallLine(rt, arc(FENCE_R, -SPAN + 0.1, -0.05, 46), { team: 1, hp: 1e9, name: '柵', segLen: 6 }),
+      // 西の一間（L_FENCE）は第二の攻めで打ち倒しかける柵（真田の予備が押し返し、傾いたまま残る。docs/sanadamaru_spec_1109.md）
+      ...wallLine(rt, arc(FENCE_R, -SPAN + 0.1, L_FENCE[0], 30), { team: 1, hp: 1e9, name: '柵', segLen: 6 }),
+      ...wallLine(rt, arc(FENCE_R, L_FENCE[1], -0.05, 14), { team: 1, hp: 1e9, name: '柵', segLen: 6 }),
       ...wallLine(rt, arc(FENCE_R, 0.05, SPAN - 0.1, 46), { team: 1, hp: 1e9, name: '柵', segLen: 6 }),
     ];
     // 破る柵：正面の一間。鉤縄を掛け、打つと揺れて傾く（どこを・どう倒すかが一目で分かる。十四5）
     F.target = wallLine(rt, arc(FENCE_R, -0.05, 0.05, 1), { team: 1, hp: 520, name: '真田丸の柵', segLen: 6, mesh: hookFence })[0];
     F.target.armor = 0.2; F.target.lastHp = F.target.hp;
     F.fence.push(F.target);
+    F.target2 = wallLine(rt, arc(FENCE_R, L_FENCE[0], L_FENCE[1], 1), { team: 1, hp: 380, name: '真田丸の西の柵', segLen: 6, mesh: hookFence })[0];
+    F.target2.armor = 0.2; F.target2.lastHp = F.target2.hp;
+    F.fence.push(F.target2);
     // 塀の角と横・正面の櫓（塀に跨る一重の櫓）
     for (const a of TOWERS) { const q = polar(a, WALL_R - 0.6); rt.scene.add(maruYagura(W, q.x, q.z, along(a), Math.abs(Math.abs(a) - Math.PI / 4) < 0.01 ? 4 : 3.4)); }
     // 塀に沿って並ぶ小屋掛けの小さな櫓（二枚目の模型：塀の上に櫓がたくさん）
@@ -517,6 +526,7 @@ const k11_sanadamaru = {
     this.goalsHud(rt);
     rt.setPhase('brief');
     rt.obj('main', '篠山の頂まで登れ', 'main');
+    rt.marker('dp', { x: SASA.x, z: SASA.z }, '篠山', { h: 3 });   // 行き先のピンは戦の始めから切らさない（関所3）
     // 戦の前：信繁が南に出丸を築いた。徳川は南へ回った
     rt.banner('真田丸', '慶長十九年十二月　大坂城の南');
     rt.say('山崎長徳', '見よ、城の南に突き出た出丸を。真田左衛門佐が築いたものじゃ', 4.4);
@@ -529,7 +539,7 @@ const k11_sanadamaru = {
   // 右上の目標：①〜⑤を最初から全部並べ、済んだ物に印（九1・十1）。段の刻限の時計は出さない（段は柵を破るまで続く）
   goals5() {
     return STAGES.k11_sanadamaru.map(([text], k) => ({ kind: 'stage', k, text,
-      check: (rt) => (k < 4 ? (rt.flags.step || 0) >= k + 2 : !!rt.flags.returned) }));
+      check: (rt) => (k < STAGES.k11_sanadamaru.length - 1 ? (rt.flags.step || 0) >= k + 2 : !!rt.flags.returned) }));
   },
   // 共通の任務札は今の一行だけなので、この戦では目標の札（hud_goals）を重ねて置き換え、両軍の兵の数の棒（armybar）も上に出す（九1・九3・十二1）。
   //   森部（b_moribe.js）と同じ作り。戦が終われば元へ戻す
@@ -570,110 +580,141 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
     };
   },
 
-  begin(rt) {
+  // ---- 流れ（kaito 11/9 夜 docs/sanadamaru_spec_1109.md「攻めても進めない戦をつまらなくしない」）----
+  //   ① 篠山（見る・支度）→ ② 正面の攻め（引きつけての一斉射）→ ③ 西から回り込む（横矢・横の鉄砲衆・柵を倒しかけて予備の槍に押し返される）
+  //   → ④ 味方の先走りの渋滞を整理する（信繁を遠くに見せる）→ ⑤ 最大の攻め（柵を破ると中の二の構えと打って出の罠）
+  //   → ⑥ 攻撃中止・味方を退かせる → ⑦ 撤収戦（取り残された味方を救い、竹束の陣へ）。毎回ちがう理由で止められ、毎回少し奥まで進む。
+  //   段ごとに depthStart をし直す（途中の保存は段の関数を順に流して作り直す：resumeSteps）
+
+  // 段の共通の作り（一度だけ作って使い回す）
+  ctx(rt) {
     const F = rt.flags;
-    if (F.begun) return;
-    F.begun = true; F.t0 = rt.t; F.step = 1;
-    rt.setPhase('siege');
-    // 11/9 二巡（豊臣A）：始まりの「篠山の頂まで登れ」が段の札（dp）と並んで戦の終わりまで残り、右上が「篠山の頂まで登れ／柵を破る組と…」の二行になった。段の札に任せる（締めで作り直す）
-    rt.objRemove('main');
-    sfx('horagai', 0.8);
-    rt.after(1.2, () => sfx('taiko', 0.8));
+    if (F.ctx) return F.ctx;
     // backing: false … 段の敵の後ろに見せかけの控えを付けない（AA）。数は本物の兵で出す
-    // fixedSpawn：打って出る兵は丸の左右の口から出る（見えない所から湧かせない。11/6 遊んだ：大助の隊が遠くで湧いて竹束の陣まで来なかった。九2）
-    const ctx = { faction: 'toyotomi', flag: 'sanada', armor: SANADA.armor, dmg: 0.4, mass: 0, backing: false, scale: 1.2, fixedSpawn: true, look: (l) => dress(l, SANADA),
-      // 帰陣の段は fallBack の移動命令を守る。共通の move が先手を「持ち場を守れ」に戻さない。
-      friends: () => F.step >= 5 ? [] : [F.yam, F.second].filter((g) => g && g.count && !g.routed), botSeek: 40,
-      // 素直な遊び手：③は目の前に敵がいなければ柵へ寄り、柵の方を向いて打つ（持ち場で南を向いて立ち尽くさない。九7）
+    // fixedSpawn：打って出る兵は丸の左右の口から出る（見えない所から湧かせない。九2）
+    F.ctx = { faction: 'toyotomi', flag: 'sanada', armor: SANADA.armor, dmg: 0.4, mass: 0, backing: false, scale: 1.2, fixedSpawn: true, look: (l) => dress(l, SANADA),
+      // 撤収の段は withdraw の移動命令を守る。共通の move が先手を「持ち場を守れ」に戻さない。
+      friends: () => F.step >= 6 ? [] : [F.yam, F.second].filter((g) => g && g.count && !g.routed), botSeek: 40,
+      // 素直な遊び手：柵を打つ段は、目の前に敵がいなければ竹束の陰から柵を打つ（持ち場で南を向いて立ち尽くさない。九7）
       botSteer: (b, inp) => {
-        const T = F.target, u = b.player.u;
-        // 通し確認：鉄砲のまま槍の間合いへ入らない。近くの敵への受けと反撃は共通の判断を守る。
+        const T = F.breakT, u = b.player.u;
+        // 鉄砲のまま槍の間合いへ入らない。近くの敵への受けと反撃は共通の判断を守る。
         const foe = b.army.nearestEnemy(u, 4, (o) => !o.isStruct && !o.noTarget && !o.woundOut && !o.fleeing && !o.invuln && Math.abs(o.pos.y - u.pos.y) < 3 && !b.army.wallBetween(u.pos, -1, o.pos));
         if (foe) {
           if (b.player.weapon === 'gun' || b.player.weapon === 'bow') inp.e.add('Digit1');
           return;
         }
-        if (F.step !== 3 || !T || !T.alive) return;
-        // 柵へ向き直っても古い敵への注視や構えが残ると、南を向いたり短い払いになって届かない。
+        if (!F.breaking || !T || !T.alive || T.invuln) return;
         if (b.player.lock) inp.e.add('KeyQ');
         if (b.player.weapon !== 'spear') inp.e.add('Digit1');
         inp.guardHold = false;
-        // 共通の敵追いの横歩き・後退を残すと、竹束の陰へ真っ直ぐ入れない。
         inp.k.delete('KeyA'); inp.k.delete('KeyS'); inp.k.delete('KeyD');
         const fx = (T.seg[0] + T.seg[2]) / 2, fz = (T.seg[1] + T.seg[3]) / 2;
-        // 柵へ一人で突っ込まず、柵に取り付く竹束の南側へ寄る。近い束を一つ選ぶだけで、配列を毎コマ作らない。
+        // 柵の外（丸から遠い側）の竹束の陰へ寄る。近い束を一つ選ぶだけで、配列を毎コマ作らない
+        const rf = rOf(fx, fz);
         let cover = null, best = Infinity;
         for (const g of F.rams) for (const a of g.units) {
-          if (!a.alive || !a.tatake || a.fleeing || a.woundOut || a.pos.z < fz || Math.hypot(a.pos.x - fx, a.pos.z - fz) > 12) continue;
-          const d = Math.hypot(a.pos.x - u.pos.x, a.pos.z + 1.6 - u.pos.z);
+          if (!a.alive || !a.tatake || a.fleeing || a.woundOut || rOf(a.pos.x, a.pos.z) < rf || Math.hypot(a.pos.x - fx, a.pos.z - fz) > 12) continue;
+          const d = Math.hypot(a.pos.x - u.pos.x, a.pos.z - u.pos.z);
           if (d < best) { best = d; cover = a; }
         }
         if (inp.leftPressed && !cover) return;
-        const tx = cover ? cover.pos.x : fx, tz = cover ? cover.pos.z + 1.6 : fz + 1.2, d = Math.hypot(tx - u.pos.x, tz - u.pos.z);
-        // 束の半幅は 0.42。八十糎のずれを許すと束の脇に立って撃たれる。
-        if (cover && d > 0.25) {
-          inp.leftPressed = false;
-          b.player.yaw = Math.atan2(tx - u.pos.x, tz - u.pos.z);
-          inp.k.add('KeyW');
-          return;
-        }
-        // 柵の端に付いた竹束の陰でも打てる。中央までの距離では、届く端を前にして止まり続ける。
+        let tx = fx, tz = fz;
+        if (cover) { const ca = angOf(cover.pos.x, cover.pos.z), q = polar(ca, rOf(cover.pos.x, cover.pos.z) + 1.6); tx = q.x; tz = q.z; }
+        else { const q = polar(angOf(fx, fz), rf + 1.2); tx = q.x; tz = q.z; }
+        const d = Math.hypot(tx - u.pos.x, tz - u.pos.z);
+        if (cover && d > 0.25) { inp.leftPressed = false; b.player.yaw = Math.atan2(tx - u.pos.x, tz - u.pos.z); inp.k.add('KeyW'); return; }
         const vx = T.seg[2] - T.seg[0], vz = T.seg[3] - T.seg[1];
         const along = clamp01(((u.pos.x - T.seg[0]) * vx + (u.pos.z - T.seg[1]) * vz) / (vx * vx + vz * vz || 1));
         const ax = T.seg[0] + vx * along, az = T.seg[1] + vz * along;
-        const fenceD = Math.hypot(ax - u.pos.x, az - u.pos.z);
-        if (cover && fenceD > 3) { inp.k.delete('KeyW'); inp.leftPressed = false; return; }
+        if (cover && Math.hypot(ax - u.pos.x, az - u.pos.z) > 3) { inp.k.delete('KeyW'); inp.leftPressed = false; return; }
         b.player.yaw = Math.atan2(ax - u.pos.x, az - u.pos.z);
         if (d > 2.2) inp.k.add('KeyW'); else { inp.k.delete('KeyW'); inp.leftPressed = b.player.cd <= 0 && !b.player.pending && b.player.sta >= 18; }
       } };
-    depthStart(rt, ctx, [
-      // ① 篠山を取る：夜明け、丘へ登る。真田の鉄砲は撃ちながら丸へ引き、頂はもぬけの殻（史実）
-      DP.move({ to: { x: SASA.x, z: SASA.z }, label: '篠山', r: 7, max: 240, obj: '篠山の頂まで登れ',
-        say: [['山崎長徳', '進め！　篠山の鉄砲を追い落とせ！']],
-        onEnd: (rt2) => this.taunt(rt2) }),
-      // ② 挑発に乗って丸の柵の前へ
-      DP.rest({ dur: 5, heal: 0.9 }),
-      DP.move({ to: { x: 4, z: C.z + FENCE_R + 12 }, label: '真田丸の柵', r: 8, max: 150, obj: '真田丸の外の柵の前まで寄せよ',
-        say: [['山崎長徳', 'おのれ、言わせておけば……！　柵まで寄せよ！']],
-        ambush: { d: 30, say: ['足軽', '堀の内に鉄砲がずらりと……！　西の口から槍も出てきた！'], foes: () => { this.openFire(rt); return [{ name: '西の口の真田の槍', from: PORT(-1), list: [uS(2), uA(10)] }]; } },
-        onEnd: (rt2) => this.fenceStart(rt2) }),
-      // ③ 堀の前：柵を破る組を守り、一斉射撃と横矢に耐える。城内の爆発で井伊・松平が殺到
-      DP.rest({ dur: 5, heal: 0.9 }),
-      this.fenceStep(DP.hold({ at: { x: 6, z: C.z + FENCE_R + 10 }, dur: 80, r: 16, label: '柵の前', title: '堀と柵', sub: '塀と櫓から鉄砲が並ぶ',
-        // 柵破りのほかに、札にない討ち取り数を満たすまで新手を足さない。
-        noRefill: true,
-        obj: '柵を破る組と一緒に、真田丸の柵を打ち倒せ',
-        waves: [
-          { t: 8, say: ['足軽', '東の口から真田の兵が出てきた！　柵を破る組を狙っておる！'], foes: () => [{ name: '東の口の真田の兵', from: PORT(1), list: [uS(2), uA(10)], mass: 160 }] },
-          { t: 30, say: ['山崎長徳', '横の櫓からも撃ってくる！　竹束は柵の組だけ、楯も持たずに寄せたのが仇じゃ……堀へは降りるな！'], foes: () => { rt.flags.volT = rt.t + 1; return []; } },
-          { t: 52, say: ['足軽', '西の口からもじゃ！　横を突かれる！'], foes: () => [{ name: '西の口の真田の兵', from: PORT(-1), list: [uS(2), uA(11)], mass: 180 }] },
-        ],
-        reward: '堀の前で踏みとどまった', onEnd: (rt2) => this.sortie(rt2) })),
-      // ④ 大御所の退きの下知（使番が伝える）：大助と伊木遠雄の打って出を受けて、竹束の陣まで
-      DP.rest({ dur: 5, heal: 0.9 }),
-      // 11/6 遊んだ：竹束の陣（丸から 80 余り）で待つと、大助の隊は途中で味方の退き勢と当たって止まり、一度も来なかった（九2）。
-      //   殿は堀から退く味方の後ろ、篠山の北の麓で受ける（打って出た真田と当たる所）
-      this.holdStep(DP.hold({ at: { x: 12, z: 32 }, dur: 60, r: 14, label: '篠山の北の麓', title: '退け', sub: '大御所の下知：寄せ手は引き揚げよ',
-        // 大助・伊木と追い討ちの寄せを押し返せば退く。本人の討ち取りは帰陣の条件にしない。
-        noRefill: true,
-        obj: '篠山の北の麓で、打って出た真田大助の隊を食い止めよ',
-        waves: [
-          { t: 1, say: ['足軽', '六文銭の旗！　真田が丸から打って出た！'], foes: () => [{ name: '真田大助の隊', from: PORT(1), list: [{ type: 'busho', n: 1, o: { name: '真田大助', horse: true, hat: 'kabuto_sanada', haori: 0x7a1a12 } }, uS(6), uA(10), uG(3)], noRout: 60, seek: 130, dmg: 0.4 }] },
-          // 五秒の立て直しを挟んでも、伊木の出撃は十六秒後の退き命令より先にする。
-          { t: 8, say: ['足軽', '西の口からも！　伊木遠雄の隊じゃ！'], foes: () => [{ name: '伊木遠雄の隊', from: PORT(-1), off: { x: -10, z: 0 }, list: [{ type: 'busho', n: 1, o: { name: '伊木遠雄', horse: true, hat: 'kabuto_m' } }, uS(4), uA(9)], noRout: 45, seek: 130, dmg: 0.4 }] },
-          { t: 48, say: ['山崎長徳', '塀の上で火縄が光った！　退く者を撃っておる、急げ！'], foes: () => { rt.flags.volT = rt.t + 0.5; return [{ name: '追い討ちの真田の槍', from: PORT(1), off: { x: 12, z: 0 }, list: [uS(2), uA(8)], seek: 130, dmg: 0.4 }]; } },
-        ],
-        reward: '真田の打って出を食い止めた', onEnd: (rt2) => this.fallBack(rt2) }), 60),
-      // ⑤ 落とせずに退く：味方と一緒に、撃たれながら竹束の陣まで（11/6 BV「最後は味方と退く所まで遊んで終わる」・十四4）
-      DP.move({ to: { x: RETREAT.x, z: RETREAT.z - 4 }, label: '竹束の陣', r: 9, max: 200, obj: '味方と一緒に、竹束の陣まで退け',
-        say: [['山崎長徳', '退け！　退けっ！　手負いを担いで竹束の陣まで下がれ！']] }),
-    ], (rt2) => this.win(rt2));
-    // 共通の放置・刻限による段飛ばしでは、登頂・柵破り・帰陣を果たしたことにしない。
-    for (const s of F.dp.steps) {
-      s.idleAdvance = false;
-      s.noHardCap = true;
-      if (s.kind === 'move') s.limit = Infinity;
+    return F.ctx;
+  },
+
+  // 共通の放置・刻限による段飛ばしで、着いた・守ったことにしない（七分の打ち切りだけは残す）
+  steps(rt, list, done) {
+    depthStart(rt, this.ctx(rt), list, done);
+    for (const s of rt.flags.dp.steps) { s.idleAdvance = false; if (s.kind === 'move') s.limit = Infinity; }
+  },
+
+  // 味方の先手と二の手を、行き先の脇へ連れて行く（共通の sendFriends と同じ並び）
+  lead(rt, at) {
+    const fr = this.ctx(rt).friends(rt);
+    fr.forEach((g, i) => { const k = i - (fr.length - 1) / 2; g.calm = false; g.anchor = { x: at.x + k * 7, z: at.z + 3 + (i % 2) * 4 }; g.order = 'hold'; g.aggro = 16; });
+  },
+
+  // 進む段：行き先のピンを一つずつ奥へ。stop が真なら（損害が増えた・刻が過ぎた）そこで退きの下知
+  push(o) {
+    const self = this;
+    return { kind: 'push', max: o.max || 200, limit: Infinity,
+      start(rt, C) {
+        C.k = 0; rt.obj('dp', o.obj, 'main');
+        C.pin = (k) => { C.at = o.pins[k]; C.goal = C.at; rt.marker('dp', C.at, o.label, { h: 3 }); rt.zone('dp', C.at.x, C.at.z, o.r || 5); self.lead(rt, C.at); };
+        C.pin(0);
+        for (const [w, t, d] of o.say || []) rt.say(w, t, d || 3.4);
+      },
+      tick(rt, C, m, ctx, el) {
+        const p = rt.player.u.pos, d = Math.hypot(p.x - C.at.x, p.z - C.at.z);
+        rt.objProgress('dp', `あと ${Math.round(d)}m`);
+        // 一人で駆け抜けない：味方の先手が寄るか、そのピンで十五秒待つまで次へ進まない（攻め一回を二分余りに。11/10 関所の流しで十四秒で済んだ）
+        const yc = gone(rt.flags.yam) ? null : rt.flags.yam.center();
+        const mates = !yc || Math.hypot(yc.x - C.at.x, yc.z - C.at.z) < 18 || el - (C.pinT || 0) > 15;
+        if (C.k < o.pins.length && d < (o.r || 5) && mates && el - (C.pinT || 0) > 10) {
+          C.k++; C.pinT = el;
+          const w = o.at && o.at[C.k - 1];
+          if (w) w(rt, C);
+          if (C.k >= o.pins.length) { if (!o.stop) return true; rt.objProgress('dp', 'あと少し……'); }
+          else C.pin(C.k);
+        }
+        return !!(o.stop && el >= (o.minT || 0) && o.stop(rt, C, el));
+      },
+      end(rt, C) { rt.unmark('dp'); rt.unzone('dp'); rt.objDone('dp'); if (o.onEnd) o.onEnd(rt, C); },
+    };
+  },
+
+  // 段の短さの下限：着いても el 秒までは済ませない（撤収は一分半ほど続く。11/10 関所の流しで五秒で済んだ）
+  minEl(st, sec, label) {
+    const tick = st.tick;
+    st.tick = (rt, C, m, ctx, el, dt) => {
+      const done = tick(rt, C, m, ctx, el, dt);
+      // 着いた後も行き先のピンは切らさない（関所3）
+      if (C.arr && !rt.markers.some((q) => q.id === 'dp')) rt.marker('dp', C.at, label, { h: 3 });
+      return done && el >= sec;
+    };
+    return st;
+  },
+
+  // 退きの下知：撃たれながら篠山の北の麓まで退いて、組を立て直す
+  back(rt, who, text, o = {}) {
+    return DP.move({ to: RALLY, label: '篠山の北の麓', r: 9, max: 160, obj: o.obj || '篠山の北の麓まで退け', say: [[who, text]],
+      onEnd: (rt2) => { const F = rt2.flags; for (const g of F.rams) if (!gone(g)) withdraw(g, { x: RALLY.x + 6, z: RALLY.z + 10 }); if (o.onEnd) o.onEnd(rt2); } });
+  },
+
+  begin(rt) {
+    const F = rt.flags;
+    if (F.begun) return;
+    F.begun = true; F.t0 = rt.t; F.step = 1;
+    rt.setPhase('siege');
+    // 始まりの「篠山の頂まで登れ」は段の札（dp）に任せる（右上が二行にならない。11/9 豊臣A）
+    rt.objRemove('main');
+    sfx('horagai', 0.8);
+    rt.after(1.2, () => sfx('taiko', 0.8));
+    // 攻めの間、本人の受ける傷は半分（一斉射は味方の寄せ手を薙ぐ場面。本人は「あと少し」を何度も味わって生き残る。11/9 見回り：③で必ず倒れた）
+    if (!F.k11Shield) {
+      F.k11Shield = true;
+      const pl = rt.player, td = pl.takeDamage.bind(pl);
+      // 11/10 bot act：③の横の鉄砲衆の前で、櫓と土塁の玉に317秒で倒れた。玉は三分の一ほどに（斬り合いは半分）
+      pl.takeDamage = (a, src) => td(F.step >= 2 && F.step <= 6 && src && src.team !== pl.u.team ? a * (src.type === 'gun' ? 0.35 : 0.5) : a, src);
     }
+    this.steps(rt, [
+      DP.move({ to: { x: SASA.x, z: SASA.z }, label: '篠山', r: 7, max: 240, obj: STAGES.k11_sanadamaru[0][0],
+        say: [['山崎長徳', '小さな出丸じゃ！　篠山の鉄砲を追い落とし、一気に落とすぞ！']],
+        onEnd: (rt2) => this.taunt(rt2) }),
+      DP.rest({ dur: 10, heal: 0.9, fn: (rt2) => rt2.marker('dp', polar(0.06, FENCE_R + 20), '真田丸の正面', { h: 3 }) }),
+    ], (rt2) => this.attack1(rt2));
   },
 
   // 篠山の鉄砲：寄せの太鼓で撃ち始め、遊び手が丘へ近づくと丸の東の口へ引き揚げ、口に着いたら丸の中へ逃げ込む
@@ -689,101 +730,276 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
     if (F.sasaOff && !F.sasaIn && Math.hypot(c.x - g.dest.x, c.z - g.dest.z) < 6) { F.sasaIn = true; g.noRout = false; g.morale = 0; }
   },
 
-  // 持ち場を離れて敵が退くのを待つだけでは果たさない。共通の終了判定と同じ滞在時間を満たすまで待つ。
+  // 守る段：指定した持ち場の内にいた刻だけを数える。寄せが丸へ引いて残っても、刻が過ぎれば済む（砦を守る AI の兵は追って来ない）
   holdStep(h, dur) {
     const tick = h.tick;
     h.limit = Infinity;
     h.tick = (rt, C, m, ctx, el, dt) => {
-      // 共通の三十歩の余裕では、柵の前に残ったままでも殿を果たせてしまう。
-      // 八歩の余裕でも柵の前まで届くので、指定した持ち場の内だけを数える（柵の段にも同じ判定）。
       const p = rt.player.u.pos;
       const present = rt.player.u.alive && Math.hypot(p.x - C.at.x, p.z - C.at.z) < C.botRadius;
       if (present) C.sanadaHoldT = (C.sanadaHoldT || 0) + dt;
-      const done = tick(rt, C, m, ctx, el, dt);
-      // 先に滞在時間を満たしていても、持ち場を捨てた先で敵が退いただけでは済ませない。
-      // 敵一人が口で詰まっても、防戦の上限まで守れば退ける。登頂・柵破り・帰陣は別に必須。
-      return (done || el >= h.max) && present && (C.sanadaHoldT || 0) >= dur * 0.45;
+      const done = tick(rt, C, m, ctx, el, dt) || el >= dur + 10;
+      return done && present && (C.sanadaHoldT || 0) >= dur * 0.45;
     };
     return h;
   },
 
-  // 柵の段：守る刻が過ぎても、柵を打ち倒すまでは済まない（時間で勝手に進めない。AB）。札に柵の残りを出す
-  fenceStep(h) {
-    this.holdStep(h, 80);
-    const start = h.start;
+  // 柵を打つ段：T を打ち倒す（clamp なら三割で真田の予備が押し返し、倒れずに傾いたまま残る）まで済まない。札に柵の残り
+  breakStep(h, T, clamp) {
+    const start = h.start, t0 = h.tick, end = h.end;
+    h.max = 360; h.limit = Infinity;
     h.start = (rt, C, m, ctx) => {
+      const F = rt.flags;
       start(rt, C, m, ctx);
-      // 持ち場の印と破る柵の印を重ねない。柵が既に倒れていれば持ち場の印を使う。
-      if (rt.flags.target.alive) rt.unmark('dp');
+      F.breaking = true; F.breakT = T; F.clamp = clamp;
+      // 遠くに残った組は退かせ、柵の近くの組（無ければ新しい組）で打つ
+      const tx = (T.seg[0] + T.seg[2]) / 2, tz = (T.seg[1] + T.seg[3]) / 2;
+      for (const g of F.rams) if (!gone(g)) { const c = g.center(); if (Math.hypot(c.x - tx, c.z - tz) > 50) { withdraw(g, { x: RALLY.x + 6, z: RALLY.z + 10 }); g.far = true; } else g.far = false; }
+      const R = F.rams.find((g) => !gone(g) && !g.far) || this.newRam(rt, T);
+      for (const g of F.rams) if (!gone(g) && !g.far) { g.keepMoveOrder = false; g.order = 'assault'; g.formation = 'line'; g.aggro = 2; g.dmgMult = 2.2; g.assault = () => (T.alive && !T.invuln ? T : null); for (const u of g.units) u.aiT = 0; }
+      if (!R) return;
+      // 持ち場の印と破る柵の印を重ねない
+      rt.unmark('dp');
+      rt.marker('fence', { x: (T.seg[0] + T.seg[2]) / 2, z: (T.seg[1] + T.seg[3]) / 2 }, T.name, { h: 3 });
     };
-    const t0 = h.tick;
-    h.max = 360;
-    h.limit = Infinity;
     h.tick = (rt, C, m, ctx, el, dt) => {
-      const done = t0(rt, C, m, ctx, el, dt), T = rt.flags.target;
-      if (!T.alive) {
-        // 柵を先に破っても、防戦が済むまでは持ち場の印を残す。
-        if (!done && !C.fenceHoldMark) {
-          C.fenceHoldMark = true;
-          rt.marker('dp', C.at, '柵の前', { h: 3 });
-        }
-        return done;
-      }
+      t0(rt, C, m, ctx, el, dt);
+      if (!T.alive || T.invuln) return true;
+      // 本人が打てなくても、柵を破る組の働きで柵は傷む（西は七十秒で押し返しの所まで、正面は百五十秒で倒れる。11/10 bot act：六分撃たれ続けた）
+      if (clamp && el > 70) { T.hp = T.maxHp * 0.3; T.invuln = true; return true; }
+      if (!clamp && el > 150 && T.alive) { rt.army.damage(T, T.hp + 1, null, { kind: 'melee' }); return !T.alive; }
       rt.objProgress('dp', `柵 残り${Math.max(1, Math.ceil(T.hp / T.maxHp * 100))}%`);
       return false;
     };
+    h.end = (rt, C, m) => { rt.flags.breaking = false; rt.unmark('fence'); C.inT = 1e9; end(rt, C, m); };
     return h;
+  },
+
+  // 柵を破る組（竹束を抱えた前の四人と槍）。倒れれば次の組が竹束の陣から来る
+  newRam(rt, T) {
+    const F = rt.flags;
+    if (liveN(rt) + 12 > LIVE_MAX) return null;
+    const q = polar(angOf((T.seg[0] + T.seg[2]) / 2, (T.seg[1] + T.seg[3]) / 2), FENCE_R + 28);
+    const g = allyGroup(rt, { faction: 'tokugawa', name: '柵を破る組', anchor: q, facing: Math.PI, width: 5, aggro: 2, noRout: true, order: 'assault' },
+      dress([{ type: 'ashigaru', n: 4, o: { hat: 'jingasa_n', tatake: true } }, { type: 'ashigaru', n: 8, o: { hat: 'jingasa_n' } }], MAEDA));
+    g.assault = () => (T.alive && !T.invuln ? T : null); g.dmgMult = 2.2;
+    F.rams.push(g);
+    return g;
   },
 
   // 篠山はもぬけの殻。真田の兵の挑発（必ず）
   taunt(rt) {
-    const F = rt.flags;
-    F.step = 2;
     rt.say('足軽', '頂は空じゃ……真田の兵は丸へ引いておった', 3);
     rt.after(3.2, () => rt.say('真田の兵', '篠山で雉狩りか！　暇ならこの丸へ来てみよ！', 4));
     rt.after(7.6, () => rt.say('足軽', 'あいつら、笑うておる……', 2.6));
-    // 利光は軍令違反と見て引き戻そうとしたが、先手は止まらなかった（専門家の目 11/6。docs/battle_learn）
-    rt.after(10.5, () => { if (!F.ending && F.step <= 3) rt.say('前田の使番', '殿より！　丸へは寄せるな、仕寄りへ戻れとの仰せ！', 3.4); });
-    rt.after(14.2, () => { if (!F.ending && F.step <= 3) rt.say('山崎長徳', 'ここまで笑われて戻れるか！　前の者はもう柵に取り付いておる！', 3.6); });
   },
 
-  // 柵の前：柵を破る組が柵にとりつく。塀と櫓が撃ち始める（一斉射撃）
+  // ② 第一の攻め：正面から。真田は近づくまで撃たない → 引きつけて一斉射。50m・30m・15m と寄せて、損害が増えて退きの下知
+  attack1(rt) {
+    const F = rt.flags;
+    F.step = 2; F.holdFire = true;
+    setWarStage(1);   // 戦の曲：寄せる所でテンポが上がる（music_war.js の段）
+    for (const g of [F.yam, F.second]) if (!gone(g)) { g.formation = 'line'; g.facing = Math.PI; g.width = 22; }
+    rt.say('山崎長徳', 'ここまで笑われて戻れるか！　正面から真田丸へ寄せよ！', 3.6);
+    // 利光は軍令違反と見て引き戻そうとしたが、先手は止まらなかった（専門家の目 11/6）
+    rt.after(4.5, () => { if (F.step === 2) rt.say('前田の使番', '殿より！　丸へは寄せるな、仕寄りへ戻れとの仰せ！', 3.4); });
+    rt.after(9, () => { if (F.step === 2) rt.say('足軽', '小さな出丸じゃ。これなら一気に落とせる！', 3); });
+    rt.after(24, () => { if (F.step === 2) rt.say('使番', '前田勢、真田丸へ寄せたり！　住吉の大御所様の陣へ注進！', 3.4); });
+    // 退きの下知までの損害：一斉射の後、味方が十二人倒れるか、撃たれて五十秒
+    const hurt = () => F.fireOn && ((F.ak || 0) - (F.ak0 || 0) >= 14 || rt.t - F.fireT > 70);
+    this.steps(rt, [
+      this.push({ obj: STAGES.k11_sanadamaru[1][0], label: '真田丸の正面', max: 200, r: 5,
+        pins: [polar(0.06, FENCE_R + 20), polar(0.04, FENCE_R + 12), polar(0.03, FENCE_R + 5)],
+        at: [
+          (rt2) => { if (!F.fireOn) { rt2.say('足軽', '……敵が撃ってこないぞ？', 3); rt2.after(3, () => { if (!F.fireOn) rt2.say('塀の上の声', '引きつけよ。まだ撃つな……', 3); }); } },
+          (rt2) => rt2.say('足軽', '柵まであと少しじゃ！', 2.6),
+          (rt2) => rt2.say('足軽', '柵が目の前に……！　じゃが堀が深い、前が詰まる！', 3),
+        ],
+        // 11/10 bot act：深手で下がって一つ目のピンに着かず、三分余り撃たれ続けて倒れた。刻でも退きの下知を出す
+        minT: 100, stop: (rt2, C, el) => (C.k >= 1 && hurt()) || (F.fireOn && rt2.t - F.fireT > 80) || el > 170 }),
+      this.back(rt, '山崎長徳', '鉄砲が多すぎる！　一度退け、篠山の麓で組を立て直せ！'),
+      DP.rest({ dur: 8, heal: 0.9, say: [['足軽', '正面は無理じゃ……塀の上から撃ち下ろされる'], ['山崎長徳', '同じ道は二度と通らぬ。横じゃ、西へ回り込む']], fn: (rt2) => rt2.marker('dp', polar(-1.2, FENCE_R + 30), '西の脇', { h: 3 }) }),
+    ], (rt2) => this.attack2(rt2));
+  },
+
+  // ③ 第二の攻め：左（西）から回り込む。正面より楽に見える → 別の土塁と櫓から横矢 → 横の鉄砲衆を抑える → 柵を倒しかけると予備の槍が押し返す
+  attack2(rt) {
+    const F = rt.flags;
+    F.step = 3;
+    rt.say('山崎長徳', '少ない人数で、西の脇から寄せる。横は手薄じゃ', 3.4);
+    const flankAt = polar(-1.72, FENCE_R + 7);
+    const fenceAt = polar((L_FENCE[0] + L_FENCE[1]) / 2, FENCE_R + 5);
+    this.steps(rt, [
+      this.push({ obj: STAGES.k11_sanadamaru[2][0], label: '西の脇', max: 200, r: 6,
+        pins: [polar(-1.2, FENCE_R + 30), polar(-1.4, FENCE_R + 15)],
+        at: [(rt2) => rt2.say('足軽', '撃ってこぬ……正面より楽かもしれん', 3)],
+        onEnd: (rt2) => this.flankFire(rt2, flankAt) }),
+      // 横の鉄砲衆：西の土塁の上から撃つ。倒せる（無敵ではない）。半ばを倒せば崩れて塀の内へ引く
+      this.subdue({ obj: '横の鉄砲衆を抑えよ', label: '横の鉄砲衆', max: 220 }),
+      DP.move({ to: fenceAt, label: '真田丸の西の柵', r: 6, max: 160, obj: '西の柵の前まで寄せよ',
+        say: [['足軽', 'ここなら崩せる！　柵を倒せ！']] }),
+      this.breakStep(DP.hold({ at: fenceAt, dur: 30, r: 12, noRefill: true, obj: '西の柵を打ち倒せ',
+        waves: [{ t: 10, say: ['山崎長徳', '柵が傾いだ！　もう一押し！'], foes: () => [] }] }), F.target2, true),
+      // 倒れかけた所へ、丸の中から予備の槍と侍（「まだ予備がいる」）
+      this.holdStep(DP.hold({ at: fenceAt, dur: 26, r: 12, noRefill: true, obj: '押し返してくる真田の槍を受けよ',
+        waves: [{ t: 0.5, say: ['足軽', '後ろから槍が！　真田にはまだ予備がおる！'], foes: () => [{ name: '西の口の真田の予備', from: PORT(-1), list: [uS(3), uA(12)], seek: 40, dmg: 0.4 }] }] }), 26),
+      this.back(rt, '山崎長徳', '柵まで行ったのに……！　退け、退けっ！'),
+      DP.rest({ dur: 8, heal: 0.9, say: [['足軽', '横から撃たれた……どこから攻めても、別の所から撃たれる'], ['足軽', '今度こそ……今度こそじゃ']], fn: (rt2) => rt2.marker('dp', polar(0, FENCE_R + 8), '真田丸の正面', { h: 3 }) }),
+    ], (rt2) => this.rush(rt2));
+  },
+
+  // 西の土塁の鉄砲衆が横矢を放つ。西の櫓も本人を狙う
+  flankFire(rt, at) {
+    const F = rt.flags;
+    if (F.flankG) return;
+    const n = Math.max(4, Math.min(10, LIVE_MAX - liveN(rt) - 2));
+    const g = enemyGroup(rt, { faction: 'toyotomi', name: '西の土塁の鉄砲衆', anchor: at, fixed: true, facing: angOf(at.x, at.z), width: 8, spacing: 1.5, aggro: 0, noRout: true },
+      dress([uG(n)], SANADA));   // 鉄砲だけ（11/10 bot act：抑えに寄ると付きの侍の一太刀 60 で倒れた）
+    g.fire = true; g.dmgMult = 0.4;
+    for (const u of g.units) if (u.type === 'gun') u.dmg *= 0.4;
+    F.flankG = g; F.fireGroups.push(g);
+    sfx('volley', 0.9);
+    rt.army.play('gun', at, 1.4);
+    for (let i = 0; i < 6; i++) rt.army.smoke(at.x + (i - 3) * 1.4, rt.world.heightAt(at.x, at.z) + 1.6, at.z, 0.5, 0.5);
+    rt.say('足軽', '横から撃たれた！　西の土塁にも鉄砲が！', 3);
+  },
+
+  // 横の鉄砲衆を抑える段：半ばを倒せば（崩れれば）済む
+  subdue(o) {
+    return { kind: 'fight', max: o.max, limit: Infinity,
+      start(rt, C, m, ctx) {
+        const g = rt.flags.flankG; C.n0 = g ? g.units.length : 0; rt.obj('dp', o.obj, 'main'); C.at = g ? g.center() : RALLY; C.goal = C.at; rt.marker('dp', C.at, o.label, { h: 3 });
+        // 先手と二の手も横の鉄砲衆へかかる（本人ひとりに任せない。11/10 bot act：討てずに十二分止まった）
+        if (g) for (const f of ctx.friends(rt)) { f.order = 'attack'; f.seekRange = 40; f.anchor = { x: C.at.x, z: C.at.z + 6 }; f.focus = null; }
+      },
+      tick(rt, C, m, ctx, el) {
+        const g = rt.flags.flankG;
+        if (gone(g)) return true;
+        const n = g.units.filter((u) => u.alive && !u.fleeing).length;
+        C.at = C.goal = g.center();
+        rt.objProgress('dp', `残り ${n}人`);
+        // 半ばを倒すか、寄せられて百秒で、横の鉄砲衆は塀の内へ引く
+        if (n <= Math.floor(C.n0 / 2) || el > 100) { g.noRout = false; g.morale = 0; return true; }
+        return false;
+      },
+      end(rt) { rt.unmark('dp'); rt.objDone('dp'); rt.say('足軽', '横の鉄砲が黙った！', 2.6); },
+    };
+  },
+
+  // ④ 味方の先走り：「今度こそ」の焦りで後の手が下知の前に突っ込み、狭い攻め道が詰まる。本人は前線を整理する（退く兵の道を空け、左右へ分ける）
+  rush(rt) {
+    const F = rt.flags;
+    F.step = 4;
+    F.jam = (F.jam || []).filter((g) => !gone(g));
+    for (let i = F.jam.length; i < 3; i++) {
+      const n = Math.min(14, LIVE_MAX - liveN(rt) - 2);
+      if (n < 5) break;
+      const x0 = [-14, 10, -2][i];
+      const g = allyGroup(rt, { faction: 'tokugawa', name: ['前田の後の手', '本多の後の手', '富田の組'][i], anchor: { x: x0, z: RETREAT.z - 4 - i * 4 }, facing: Math.PI, width: 6, aggro: 4, noRout: true, formation: 'column', speed: 4 },
+        dress([uS(1), uA(n - 1)], MAEDA));
+      g.order = 'move'; g.dest = polar((i - 1) * 0.1, FENCE_R + 6); g.anchor = g.dest; g.keepMoveOrder = true;
+      F.jam.push(g);
+    }
+    rt.say('足軽', '今度こそじゃ！　かかれっ！', 2.6);
+    rt.after(2.8, () => rt.say('山崎長徳', '待て！　下知はまだじゃ！　……ええい、後の手が勝手に出おった！', 3.6));
+    rt.after(16, () => { if (F.step === 4) rt.say('足軽', '前が詰まってる！　下がれない！', 3); });
+    rt.after(30, () => { if (F.step === 4) this.showNobu(rt); });
+    rt.after(48, () => { if (F.step === 4) rt.say('使番', '住吉の本陣へ注進！　前田勢の手負い・討死、数知れず！', 3.4); });
+    this.steps(rt, [
+      this.tidy({ obj: STAGES.k11_sanadamaru[3][0], label: '詰まった味方', max: 200 }),
+      DP.rest({ dur: 10, heal: 0.9, say: [['山崎長徳', 'これが最後じゃ。鉄砲で援け、槍と柵を破る組と予備を、皆で同時に入れる'], ['使番', '西の井伊・越前勢も、寄せる構えにござる！']], fn: (rt2) => rt2.marker('dp', polar(0, FENCE_R + 10), '真田丸の柵', { h: 3 }) }),
+    ], (rt2) => this.assault(rt2));
+  },
+
+  // 前線を整理する段：詰まった組の所へ行けば、その組は左右へ分かれて退き、道が空く。三組を整理すれば済む
+  tidy(o) {
+    return { kind: 'tidy', max: o.max, limit: Infinity,
+      start(rt, C) { C.n = 0; rt.obj('dp', o.obj, 'main'); C.at = C.goal = polar(0, FENCE_R + 8); rt.marker('dp', C.at, o.label, { h: 3 }); },
+      tick(rt, C, m, ctx, el) {
+        const F = rt.flags, p = rt.player.u.pos;
+        const left = F.jam.filter((g) => !gone(g) && !g.tidied);
+        let near = null, nd = Infinity;
+        // 詰まるのは柵の前に着いてから（駆けて来る途中の組は整理しない）
+        for (const g of left) { const c = g.center(), d = Math.hypot(c.x - p.x, c.z - p.z); if (rOf(c.x, c.z) < FENCE_R + 16 && d < nd) { nd = d; near = g; } }
+        if (near) {
+          const c = near.center(); C.at = C.goal = c; rt.marker('dp', c, o.label, { h: 3 });
+          if (nd < 7) {
+            near.tidied = true; C.n++;
+            const sd = C.n % 2 ? -1 : 1;
+            withdraw(near, { x: sd * 34, z: RETREAT.z - 10 });
+            rt.say(nm(rt), ['道を空けよ！　手負いを後ろへ！', '左右へ分かれよ！　柵際は鉄砲で援けよ！', '下がれ、下がって組を立て直せ！'][(C.n - 1) % 3], 2.8);
+          }
+        }
+        rt.objProgress('dp', `整理した組 ${C.n}/${F.jam.length}`);
+        return el > 70 && (!left.length || (left.length === 1 && C.n >= 2 && el > 110));
+      },
+      end(rt) { rt.unmark('dp'); rt.objDone('dp'); },
+    };
+  },
+
+  // 信繁を遠くに見せる：塀の上、六文銭の大旗の下で指揮する（降りて来ない。顔は見えなくてよい）
+  showNobu(rt) {
+    const F = rt.flags;
+    if (F.nobuShown) return;
+    F.nobuShown = true;
+    const u = F.nobu.units.find((q) => q.name === '真田信繁');
+    const q = polar(0.14, WALL_R - 1.4), y = rt.world.heightAt(q.x, q.z);
+    rt.scene.add(nobori(rt.world, q.x + 0.8, q.z - 0.6, 'sanada', 6));
+    if (u && u.alive) { u._crouch = false; u.invuln = true; u.pos.x = q.x; u.pos.z = q.z; u.pos.y = y; u.mesh.position.set(q.x, y, q.z); u.heading = Math.PI; u.anchorPos = { x: q.x, z: q.z }; }
+    revealName(rt, '真田信繁');
+    rt.say('足軽', '塀の上……六文銭の旗の下に一人立っておる。あれが真田左衛門佐か', 3.6);
+  },
+
+  // ⑤ 最大の攻め：鉄砲の援け・槍・柵を破る組・予備を同時に入れる。柵を破ると、中の二の構えと打って出の罠
+  assault(rt) {
+    const F = rt.flags;
+    F.step = 5;
+    this.fenceStart(rt);
+    const at = { x: 6, z: C.z + FENCE_R + 10 };
+    this.steps(rt, [
+      this.breakStep(DP.hold({ at, dur: 40, r: 16, noRefill: true, obj: STAGES.k11_sanadamaru[4][0],
+        waves: [
+          { t: 8, say: ['足軽', '東の口から真田の兵が出てきた！　柵を破る組を狙っておる！'], foes: () => [{ name: '東の口の真田の兵', from: PORT(1), list: [uS(2), uA(9)], seek: 40 }] },
+          { t: 26, say: ['山崎長徳', '横の櫓からも撃ってくる！　竹束の陰に入れ！　込め直す間に寄せよ！'], foes: () => { F.volT = rt.t + 1; return []; } },
+        ] }), F.target, false),
+      // 罠：柵が開いて殺到した所へ、中の二の構えの鉄砲と、六文銭の旗の下から打って出た槍。持ちこたえる
+      this.holdStep(DP.hold({ at: { x: 8, z: C.z + FENCE_R + 14 }, dur: 50, r: 14, noRefill: true, obj: '持ちこたえろ',
+        waves: [
+          { t: 4, say: ['足軽', '六文銭の旗！　真田が丸から打って出た！'], foes: () => [{ name: '真田大助の隊', from: PORT(1), list: [{ type: 'busho', n: 1, o: { name: '真田大助', horse: true, hat: 'kabuto_sanada', haori: 0x7a1a12 } }, uS(5), uA(9), uG(2)], noRout: 50, seek: 130, dmg: 0.4 }] },
+          { t: 10, say: ['足軽', '西の口からも！　伊木遠雄の隊じゃ！'], foes: () => [{ name: '伊木遠雄の隊', from: PORT(-1), off: { x: -10, z: 0 }, list: [{ type: 'busho', n: 1, o: { name: '伊木遠雄', horse: true, hat: 'kabuto_m' } }, uS(4), uA(8)], noRout: 40, seek: 130, dmg: 0.4 }] },
+          { t: 34, say: ['山崎長徳', '押し戻される……！　ここまで来たのに！'], foes: () => { F.volT = rt.t + 0.5; return []; } },
+        ] }), 50),
+    ], (rt2) => this.collapse(rt2));
+  },
+
+  // 最大の攻めの始まり：柵を破る組・先手・二の手が同時に。井伊・松平も寄せ、城内の爆発で殺到する
   fenceStart(rt) {
     const F = rt.flags;
-    F.step = 3; F.fenceT = rt.t;
-    // 11/9 徳川C（見回り）：③で本人が塀の下に一分半とどまると、塀の内と櫓の弾で必ず倒れた（bot 中学生：櫓48・塀の内46）。
-    //   一斉射撃は味方の寄せ手を薙ぐ場面なので組の強さは変えず、③の間だけ本人の受ける傷を半分にする
-    if (!F.k11Shield) {
-      F.k11Shield = true;
-      const pl = rt.player, td = pl.takeDamage.bind(pl);
-      pl.takeDamage = (a, src) => td(F.step === 3 && src && src.team !== pl.u.team ? a * 0.5 : a, src);   // 東の口の新手の槍も（bot：新手 50）
-    }
-    setWarStage(1);   // 戦の曲：柵へ寄せる所でテンポが上がる（music_war.js の段）
+    F.fenceT = rt.t;
+    setWarStage(1);
     this.openFire(rt);
-    const T = F.target, R = F.ram;
-    R.order = 'assault'; R.formation = 'line'; R.aggro = 2; R.dmgMult = 2.2; R.assault = () => (T.alive ? T : null);
-    for (const u of R.units) u.aiT = 0;
-    // 先手と二の手は柵の前に横一列に並び、前の者が詰まって後ろから押される形に（団子で四方を向かない。九4）
-    for (const g of [F.yam, F.second]) if (!gone(g)) { g.formation = 'line'; g.facing = Math.PI; g.width = 22; }
-    const tq ={ x: (T.seg[0] + T.seg[2]) / 2, z: (T.seg[1] + T.seg[3]) / 2 };
-    rt.marker('fence', tq, '真田丸の柵', { h: 3 });
-    // 井伊・越前松平は前田の抜け駆けと見て、遅れまいと爆発より前に寄せ始めた（爆発はそれを煽った。専門家の目 11/6）
+    if (!F.rams.some((g) => !gone(g))) this.newRam(rt, F.target);
+    // 先手と二の手は柵の前に横一列に並び、前の者が詰まって後ろから押される形に（九4）。鉄砲は塀を撃って援ける
+    for (const g of [F.yam, F.second]) if (!gone(g)) { g.formation = 'line'; g.facing = Math.PI; g.width = 22; g.fire = true; }
+    rt.say('山崎長徳', '今度こそじゃ！　鉄砲、放て！　柵を破る組、かかれっ！', 3.4);
+    // 井伊・越前松平は前田の抜け駆けと見て、遅れまいと爆発より前に寄せ始めた（専門家の目 11/6）
     rt.after(6, () => {
-      if (F.ending || F.blasted) return;
+      if (F.ending || F.blasted || F.step !== 5) return;
       F.surge.forEach((g, i) => { if (gone(g)) return; g.fixed = false; g.order = 'move'; g.dest = polar(-1.2 - i * 0.35, FENCE_R + 26); g.anchor = g.dest; });
-      rt.say('足軽', '西の井伊と越前の勢も寄せてくる！　前田の抜け駆けに遅れまいと……', 3.4);
+      rt.say('足軽', '西の井伊と越前の勢も寄せてくる！', 3);
     });
-    rt.after(18, () => this.blast(rt));
+    rt.after(18, () => { if (F.step === 5) this.blast(rt); });
   },
 
-  // 塀・櫓・堀の内の鉄砲が撃ち始める（一度だけ）。最初の一斉射撃は引きつけてから
+  // 塀・櫓・堀の内の鉄砲が撃ち始める（一度だけ）
   openFire(rt) {
     const F = rt.flags;
     if (F.fireOn) return;
-    F.fireOn = true; F.volT = rt.t + 5;
+    F.fireOn = true; F.fireT = rt.t; F.ak0 = F.ak || 0;
+    // 引きつけてから：寄せが近づいて撃ち始めた時は、すぐに一斉射
+    F.volT = rt.t + (F.holdFire ? 0.6 : 5);
     for (const g of F.fireGroups) g.fire = true;
-    // 信繁は丸の真ん中の本陣（柵から百間余り）。寄せ手に聞こえるのは塀の上の組頭の声だけ（専門家の目 11/6）
-    rt.say('塀の上の声', '引きつけよ。まだ撃つな……', 3);
+    if (!F.holdFire) rt.say('塀の上の声', '引きつけよ。まだ撃つな……', 3);
   },
 
   // 城の中で火薬が爆ぜる → 内応の合図と思い込んだ井伊・松平が堀へ殺到（必ず）
@@ -798,127 +1014,155 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
     rt.say('足軽', '西の惣構で火が上がった！　内応じゃ、裏切りの合図じゃ！', 3.5);
     rt.after(3.5, () => rt.say('井伊直孝', '遅れるな！　赤備え、堀へかかれ！', 3));
     rt.after(7, () => rt.say('松平忠直', '越前勢、井伊に先を越させるな！', 3));
-    // 西に構えていた井伊・越前松平が、丸の西の堀と惣構へ押し寄せる（丸の横矢を受ける）
     F.surge.forEach((g, i) => { if (gone(g)) return; g.fixed = false; g.aggro = 6; g.order = 'move'; g.dest = polar(-1.1 - i * 0.35, MOAT.r1 + 2); });
   },
 
-  // 一斉射撃（塀と櫓の鉄砲が揃えて放つ）：堀と柵の前の寄せ手が倒れる。遊び手も堀の縁にいれば撃たれる
-  volley(rt) {
+  // 一斉射撃（塀と櫓の鉄砲が揃えて放つ）。big：柵を破った直後の二の構えの近い一斉射（前列が一気に倒れる）
+  volley(rt, big = false) {
     const F = rt.flags;
-    // 生きた鉄砲衆だけが放つ。塀の組が全滅しても櫓・左右の持ち口は撃てるが、
-    // 撃ち手がいなければ傷を出さない（撃ち手なしでは竹束の当たりも調べられない）。
+    // 生きた鉄砲衆だけが放つ（撃ち手がいなければ傷を出さない）
     let shooter = null;
-    for (const g of [F.wallG, ...F.perch]) {
+    for (const g of [F.wallG, ...F.perch, F.inner]) {
+      if (!g) continue;
       shooter = g.units.find(canShoot);
       if (shooter) break;
     }
     if (!shooter) shooter = F.towerU.find(canShoot);
     if (!shooter) return;
     F.shot++;
-    sfx('volley', 0.9);
+    sfx('volley', big ? 1.2 : 0.9);
     for (let i = 0; i < 10; i++) {
       const a = -1.2 + i * 0.27, q = polar(a, WALL_R + 0.5);
-      rt.army.smoke(q.x, rt.world.heightAt(q.x, q.z) + (i % 2 ? 3.5 : 1.6), q.z, Math.sin(a), Math.cos(a));   // 二階造りの塀：上下二段の狭間から（『山口休庵咄』・冬の陣図屏風）
+      rt.army.smoke(q.x, rt.world.heightAt(q.x, q.z) + (i % 2 ? 3.5 : 1.6), q.z, Math.sin(a), Math.cos(a));   // 二階造りの塀：上下二段の狭間から
     }
-    // 丸の西の惣構（八丁目口・谷町口）からも撃つ（木村・長宗我部の持ち口。殺到した井伊・松平が受ける）
+    if (big) for (let i = 0; i < 12; i++) { const a = -0.45 + i * 0.08, q = polar(a, STEP1.r0 + 1.4); rt.army.smoke(q.x, rt.world.heightAt(q.x, q.z) + 1.5, q.z, Math.sin(a), Math.cos(a)); }
     if (F.blasted) for (const x of [-34, -60, -88, -116]) rt.army.smoke(x, rt.world.heightAt(x, -98) + 2.4, -98, 0.2, 1);
     for (let i = 0; i < 6; i++) {
       const a = (i < 3 ? -1.6 : 1.6) + (i % 3 - 1) * 0.22, q = polar(a, WALL_R + 0.5);   // 横の塀の横矢
       rt.army.smoke(q.x, rt.world.heightAt(q.x, q.z) + 1.6, q.z, Math.sin(a), Math.cos(a));
     }
-    rt.army.play('gun', polar(0, WALL_R), 1.5);
-    // 命懸けの戦場（lethal.js）：塀の前の堀と柵の前に、弾の筋の制圧を乗せる（身をすくめる・下がる）
+    rt.army.play('gun', polar(0, WALL_R), big ? 2 : 1.5);
     for (const a2 of [-0.5, 0, 0.5]) { const q = polar(a2, FENCE_R - 2); try { lethalNearMiss(rt.army, q.x, q.z, 1, 'volley', 9); } catch (e) { /* 無くても一斉射は撃つ */ } }
     let fell = 0;
+    const cap = big ? 18 : 10;
     for (const u of rt.army.units) {
-      if (!u.alive || u.team !== 0 || u.isPlayer || u.invuln || fell >= 11) continue;
+      if (!u.alive || u.team !== 0 || u.isPlayer || u.invuln || fell >= cap) continue;
       const ru = rOf(u.pos.x, u.pos.z);
-      if (ru < FENCE_R + 10 && Math.abs(angOf(u.pos.x, u.pos.z)) < SPAN && Math.random() < (ru < FENCE_R ? 0.7 : 0.35)) { rt.army.damage(u, u.maxHp * 0.9, shooter, { kind: 'gun', pierce: true }); fell++; }
+      if (ru < FENCE_R + (big ? 14 : 10) && Math.abs(angOf(u.pos.x, u.pos.z)) < SPAN && Math.random() < (big ? 0.8 : ru < FENCE_R ? 0.7 : 0.35)) { rt.army.damage(u, u.maxHp * 0.9, shooter, { kind: 'gun', pierce: true }); fell++; }
     }
     const p = rt.player.u;
     const rp = rOf(p.pos.x, p.pos.z);
-    // 柵の組の竹束の陰（三歩の内）に入れば弾はほとんど当たらない（「竹束の陰に入れ」の言葉どおり。柵を打つ務めで、ただ撃ち殺されない。十二3）
+    // 柵の組の竹束の陰（三歩の内）に入れば弾はほとんど当たらない（十二3）
     const cover = F.rams.some((g) => g.units.some((u) => u.alive && u.tatake && !u.fleeing && !u.woundOut && Math.hypot(u.pos.x - p.pos.x, u.pos.z - p.pos.z) < 3 && rOf(u.pos.x, u.pos.z) < rp + 0.5));
-    // 堀の中は逃げ場が無い。ただし一斉射だけで討たれはしない（命を二割は残す。柵の前で何度遊んでも倒れた 11/6）
+    // 一斉射だけで討たれはしない（命を二割は残す）
     const vd = Math.min(p.maxHp * (rp < FENCE_R ? 0.24 : 0.16), p.hp - p.maxHp * 0.2);
-    if (p.alive && !p.invuln && vd > 0 && rp < FENCE_R + 6 && Math.abs(angOf(p.pos.x, p.pos.z)) < SPAN && Math.random() < (cover ? 0.12 : rp < FENCE_R ? 0.7 : 0.4)) rt.army.damage(p, vd, shooter, { kind: 'gun' });
+    if (p.alive && !p.invuln && vd > 0 && p.hp > p.maxHp * 0.3 && rp < FENCE_R + 6 && Math.abs(angOf(p.pos.x, p.pos.z)) < (big ? SPAN : 0.7) && Math.random() < (cover ? 0.12 : rp < FENCE_R ? 0.7 : 0.4)) rt.army.damage(p, vd, shooter, { kind: 'gun' });
     if (F.blasted) for (const g of F.surge) if (!gone(g)) g.morale -= 12;
     if (F.shot === 1) rt.say('塀の上の声', '今じゃ、放て！', 2.4);
-    else if (F.shot === 3) rt.say('足軽', '堀の底で、味方が折り重なって倒れていく……！', 3.2);
-    else if (F.shot === 5) rt.say('山崎長徳', '柵の組の竹束の陰に入れ！　放った後の、込め直す間に寄せよ！', 3.4);
+    else if (F.shot === 2) rt.say('足軽', '前の者が……馬も倒れた！　身を低くせよ！', 3);
+    else if (F.shot === 4) rt.say('足軽', '空堀で足が止まる……固まった所を撃たれる！', 3.2);
   },
 
-  // 真田の打って出・家康の退き命令（必ず）
+  // 柵が破れた → 罠（必ず）：中の二の構えが立ち上がり近い一斉射、続いて真田が打って出る
+  trap(rt) {
+    const F = rt.flags;
+    if (F.trapped || F.ending) return;
+    F.trapped = true; F.trapT = rt.t;
+    rt.say('足軽', '柵が開いた！　中が見える……入れるぞ！', 2.6);
+    // 後の手も破れ口へ殺到する
+    for (const g of [...(F.waves || []), F.yam, F.second]) if (!gone(g)) { g.anchor = polar((Math.random() - 0.5) * 0.2, FENCE_R + 2); g.order = 'hold'; }
+    rt.after(2.4, () => {
+      if (F.ending) return;
+      // 二の構え：空堀の上の段で伏せていた鉄砲衆（外からは見えなかった。「まだこんなにいたのか」）
+      const n = Math.max(6, Math.min(16, LIVE_MAX - liveN(rt) - 2));
+      const q = polar(0, STEP1.r0 + 1.2);
+      const g = enemyGroup(rt, { faction: 'toyotomi', name: '二の構えの鉄砲衆', anchor: q, fixed: true, facing: 0, width: 14, spacing: 1.2, aggro: 0, noRout: true }, dress([uS(1), uG(n - 1)], SANADA));
+      g.fire = true; g.dmgMult = 0.4;
+      for (const u of g.units) if (u.type === 'gun') u.dmg *= 0.4;
+      F.inner = g; F.fireGroups.push(g);
+      rt.say('塀の上の声', '二の構え、立て！　放てっ！', 2.4);
+      this.volley(rt, true);
+      F.volT = rt.t + 6;
+      rt.after(3, () => rt.say('足軽', '罠じゃ……！　中にまだこんなに鉄砲が！', 3));
+      rt.after(5, () => this.sortie(rt));
+    });
+  },
+
+  // 真田の打って出（必ず）。外へ出るのはこの時が初めて
   sortie(rt) {
     const F = rt.flags;
-    F.step = 4; F.sortieT = rt.t;
+    F.sortieT = rt.t;
     setWarStage(2);   // 真田が打って出る：低音と太鼓が前へ
     rt.unmark('fence');
-    // 目標に名を挙げた大助・伊木は、出てきた時に「見えぬ敵の陣」と伏せない（使番が名を伝えた。十1）
     revealName(rt, '真田大助'); revealName(rt, '伊木遠雄');
     sfx('taiko', 1); sfx('horagai', 0.7);
-    // 史実の順：堀際で詰まった所へ大助・伊木が打って出る → そのあと大御所の退きの下知（Wikipedia・文春。専門家の目 11/6）
-    rt.after(3.5, () => rt.say('山崎長徳', '堀際で詰まった所を突かれる！　篠山の麓まで下がって、組を立て直せ！', 4));
     for (const g of F.rams) if (!gone(g)) withdraw(g, { x: 18, z: RETREAT.z + 14 });
-    rt.after(16, () => {
-      if (F.ending) return;
-      rt.say('使番', '大御所様の下知！　力攻めはやめよ、寄せ手は引き揚げよ！', 4);
-      rt.after(4.5, () => rt.say('山崎長徳', `${nm(rt)}、しんがりじゃ！　味方が退くまで、真田を止めよ！`, 4));
-      // 堀へ殺到した寄せ手は撃ち崩されて退く
-      F.retreatOrder = true;
-      for (const g of F.surge || []) if (!gone(g)) withdraw(g, { x: g.anchor.x, z: RETREAT.z + 20 });
-      (F.waves || []).forEach((g, i) => { if (!gone(g)) withdraw(g, { x: RETREAT.x - 24 + (i % 4) * 16, z: RETREAT.z + 14 }); });
-    });
     for (let i = 0; i < 10; i++) rt.world.addCarrion(C.x + (Math.random() - 0.5) * 70, C.z + MOAT.r1 + Math.random() * 10);
   },
 
-  // ④の後：寄せ手は全部、竹束の陣へ退く。真田の打って出は篠山の麓まで追ってから丸へ引く
-  fallBack(rt) {
+  // ⑥ 徳川の崩れ：使番「攻撃中止！」で任務が攻略から撤収へ。一斉に下がるので退き道が詰まる
+  collapse(rt) {
     const F = rt.flags;
-    F.step = 5; F.backT = rt.t;
+    F.step = 6; F.retreatOrder = true;
+    rt.say('使番', '攻撃中止！　大御所様の下知、力攻めはやめよ、寄せ手は引き揚げよ！', 4);
+    rt.after(4.4, () => rt.say('山崎長徳', '攻撃中止だ！　負傷者を運べ！', 3));
+    for (const g of F.surge || []) if (!gone(g)) withdraw(g, { x: g.anchor.x, z: RETREAT.z + 20 });
+    [...(F.waves || []), ...(F.jam || [])].forEach((g, i) => { if (!gone(g)) withdraw(g, { x: RETREAT.x - 24 + (i % 4) * 16, z: RETREAT.z + 14 }); });
+    for (const g of [F.yam, F.second]) if (!gone(g)) { g.fire = false; withdraw(g, { x: RALLY.x + (g === F.yam ? -8 : 8), z: RALLY.z + 6 }); }
+    this.steps(rt, [
+      this.minEl(DP.move({ to: RALLY, label: '篠山の北の麓', r: 9, max: 160, obj: STAGES.k11_sanadamaru[5][0],
+        say: [['足軽', '下がれ、下がれっ！　後ろが詰まって退けぬ！', 3]] }), 45, '篠山の北の麓'),
+    ], (rt2) => this.withdraw(rt2));
+  },
+
+  // ⑦ 撤収戦：取り残された味方を救い（全員を救おうとすると危ない）、竹束の陣まで退く。真田は鉄砲と小さな追い討ちで押すだけ
+  withdraw(rt) {
+    const F = rt.flags;
+    F.step = 7; F.backT = rt.t;
     setWarStage(0);
-    const dest = (g, i) => ({ x: RETREAT.x - 30 + (i % 5) * 15, z: RETREAT.z + 6 + Math.floor(i / 5) * 6 });
-    rt.army.groups.filter((g) => g.team === 0 && !g.isPlayerSquad && g.count && !gone(g) && g.center().z < RETREAT.z).forEach((g, i) => withdraw(g, dest(g, i)));
-    rt.after(14, () => {
-      // 先に竹束の陣へ着いて終幕に入っても、真田勢の帰城は取り消さない。
-      if (F.ending && !F.returned) return;
-      F.sortieBack = true;
-      // 下知の後は主人公への狙いを解き、共通の追撃判断でも帰城の行き先を変えない。
-      // 打って出の隊も fixedSpawn で口へ置いている。長い追撃範囲を持つ隊は固定を解いて帰す。
-      for (const g of rt.army.groups) if (g.team === 1 && g.count && g.order === 'attack' && (!g.fixed || g.seekRange >= 130)) {
-        g.fixed = false; g.focus = null; g.keepMoveOrder = true; g.aggro = 0;
-        g.order = 'move'; g.dest = PORT(g.center().x < C.x ? -1 : 1); g.anchor = g.dest;
-        for (const u of g.units) { u.target = null; u.aiT = 0; }
-      }
-      rt.say('足軽', '真田の兵が丸へ引いていく……追うては来ぬ', 3);
-    });
+    rt.say('山崎長徳', '柵の前にまだ味方が残っておる！　救える者は救え。じゃが深入りはするな', 4);
+    F.stranded = (F.stranded || []).filter((g) => !gone(g));
+    for (const [a, r, nmx] of [[-0.42, FENCE_R + 10, '取り残された前田の組'], [0.48, FENCE_R + 12, '取り残された本多の組']]) {
+      if (F.stranded.length >= 2 || liveN(rt) + 6 > LIVE_MAX) break;
+      const q = polar(a, r);
+      const g = allyGroup(rt, { faction: 'tokugawa', name: nmx, anchor: q, facing: Math.PI, width: 4, aggro: 6, noRout: true }, dress([uS(1), uA(5)], MAEDA));
+      for (const u of g.units) u.hp = u.maxHp * 0.5;
+      F.stranded.push(g);
+    }
+    rt.after(6, () => { if (F.step === 7 && !F.ending) rt.say('足軽', '真田の鉄砲がまだ撃ってくる……追うては来ぬが', 3); });
+    const pr = Math.min(8, LIVE_MAX - liveN(rt) - 2);
+    if (pr >= 4) {
+      const q = PORT(1);
+      const g = enemyGroup(rt, { faction: 'toyotomi', name: '追い討ちの真田の鉄砲', anchor: q, facing: 0, width: 6, aggro: 8, noRout: true, order: 'attack', seekRange: 40 }, dress([uS(1), uG(pr - 1)], SANADA));
+      g.fire = true; g.dmgMult = 0.4; g.sortie = true;
+    }
+    this.steps(rt, [
+      this.minEl(DP.move({ to: { x: RETREAT.x, z: RETREAT.z - 4 }, label: '竹束の陣', r: 9, max: 220, obj: STAGES.k11_sanadamaru[6][0],
+        say: [['山崎長徳', '退け！　退けっ！　手負いを担いで竹束の陣まで下がれ！']] }), 75, '竹束の陣'),
+    ], (rt2) => this.win(rt2));
   },
 
   win(rt) {
     const F = rt.flags;
-    if (F.ending || !rt.player.u.alive || F.step !== 5 || F.target.alive || Math.hypot(rt.player.u.pos.x - RETREAT.x, rt.player.u.pos.z - (RETREAT.z - 4)) > 9) return;
+    if (F.ending || !rt.player.u.alive || F.step !== 7 || Math.hypot(rt.player.u.pos.x - RETREAT.x, rt.player.u.pos.z - (RETREAT.z - 4)) > 9) return;
     F.ending = true;
-    F.returned = F.step === 5;
+    F.returned = true;
     rt.setPhase('end');
-    // 帰陣の印と勝ちの確定を分ける。段の任務は既に済んでいるため、ここで勝ちを立てると共通判定が和議の前に締めてしまう。
-    rt.award((t) => { t.special = { label: '真田丸の前で殿を務めた', pts: 40 }; }, '真田の打って出を食い止め、生きて戻った');
+    const saved = F.saved || 0;
+    rt.award((t) => { t.special = { label: saved ? `撤収の殿で味方 ${saved}人を救った` : '真田丸の前で殿を務めた', pts: 40 + saved * 4 }; }, '味方を退かせ、生きて戻った');
     rt.player.u.invuln = true;
-    F.victoryShown = true;   // 撃ち崩されて退いた日。勝鬨と「合戦に勝利」は上げない（札は「務めを果たした」。victory_card の DUTY）
-    rt.banner('真田丸攻略　失敗', '部隊撤収　成功');   // 合戦の結果と任務の結果を分ける（docs/rank_interlude_retry_spec_1108.md）
-    rt.say('山崎長徳', '……ようしのいだ。じゃが、堀の底に、どれだけの者を残してきたか', 4.4);
-    // 家康が力攻めをやめ、大筒へ（必ず）
-    // 三つの台詞と退いた余韻から和議・破却まで、この戦の終幕を流す。
-    rt.after(4.6, () => rt.say('使番', '大御所様より：力攻めは無理だ。あの出丸は捨て置け', 3.4));
-    // 締めの場面：竹束の陣から振り返ると、塀の上に六文銭の旗が並んだまま（落とせなかった丸。十四4）
-    rt.after(8.4, () => rt.say(nm(rt), '……あの丸は、ついに落ちなんだ', 3));
+    F.victoryShown = true;   // 勝鬨と勝ちの音は上げない（札は「務めを果たした」）
+    rt.banner('真田丸 攻略 失敗', '徳川軍 撤収　任務 味方部隊撤収 達成');   // 合戦の結果と任務の結果を分ける
+    rt.say('山崎長徳', '……攻め方を変えても、全部読まれておった。一歩も取れなんだ', 4.4);
+    rt.after(4.6, () => rt.say(nm(rt), '振り返ると……六文銭の旗が、まだ立っている', 3.4));
+    rt.after(8.4, () => rt.say('使番', '大御所様より：力攻めは無理だ。あの出丸は捨て置け', 3.4));
     // 続けて冬の陣の中間の場面（大筒・和議・堀が埋まる・丸の破却。k11/wagi.js）
     rt.after(12, () => {
-      setWarStage(3);   // 中間の場面：曲はほぼ黙り、大筒の音を聞かせる
+      setWarStage(3);
       const w = wagi(rt, { C, polar, MOAT, SPAN, FENCE_R, maru: F.maruObjs, osaka: F.osaka });
       rt.after((w && w.end) || 1, () => {
-        // 結果には最初の登頂ではなく、最後に果たした帰陣の務めを残す。
         rt.award((t) => { t.main = true; });
-        rt.obj('main', STAGES.k11_sanadamaru[4][0], 'main');
+        rt.obj('main', STAGES.k11_sanadamaru[6][0], 'main');
         rt.objDone('main'); rt.finish({ scriptedEnd: true }, 0);
       });
     });
@@ -929,8 +1173,7 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
     if (F.ending || !rt.canFailMission()) return;
     F.ending = true;
     rt.setPhase('end');
-    // 始まりの札は begin で外している。途中で失敗した時は、その段の場所と行いを結果へ残す。
-    const k = Math.max(0, Math.min(4, (F.step || 1) - 1));
+    const k = Math.max(0, Math.min(6, (F.step || 1) - 1));
     if (!rt.objectives.some((o) => o.id === 'main')) rt.obj('main', STAGES.k11_sanadamaru[k][0], 'main');
     rt.objFail('main');
     rt.tracker.main = false;
@@ -942,61 +1185,93 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
   update(rt, dt) {
     const F = rt.flags;
     KIT.backTick(rt);
-    // 櫓の射手は櫓の床に立たせ、床から動かさない（押されて櫓の外の宙へ出ない。11/6 BV の写真で塀の上に浮いた）
+    // 櫓の射手は櫓の床に立たせ、床から動かさない（11/6 BV の写真で塀の上に浮いた）
     for (const u of F.towerU) {
-      // 討たれた後は共通の倒れに任せる。床へ戻すと亡骸が宙へ引き上げられる。
       if (!u.alive) continue;
-      const y = rt.world.heightAt(u.tower.x, u.tower.z) + 2.5;   // 櫓の床（地面 -0.2 から 2.7 の板）
+      const y = rt.world.heightAt(u.tower.x, u.tower.z) + 2.5;
       u.pos.x = u.tower.x; u.pos.z = u.tower.z; u.pos.y = y;
       u.mesh.position.y = y;
     }
+    // 塀の上に立った信繁は動かない
+    if (F.nobuShown) { const u = F.nobu.units.find((q) => q.name === '真田信繁'); if (u && u.alive && u.anchorPos) { u.pos.x = u.anchorPos.x; u.pos.z = u.anchorPos.z; } }
     if (F.ending) return;
     depthTick(rt, dt);
     this.sasaTick(rt);
+    F.slowT = (F.slowT || 0) - dt;
+    const slow = F.slowT <= 0;
+    if (slow) {
+      F.slowT = 0.4;
+      // 真田は近づくまで撃たない：寄せ手（本人・先手・二の手）が柵の十五歩まで来たら撃ち始める
+      if (!F.fireOn && F.begun && F.step >= 2) {
+        let rmin = rOf(rt.player.u.pos.x, rt.player.u.pos.z);
+        for (const g of [F.yam, F.second]) if (!gone(g)) { const c = g.center(); rmin = Math.min(rmin, rOf(c.x, c.z)); }
+        if (rmin < FENCE_R + 15) this.openFire(rt);
+      }
+      // 篠山の段の前でも、丸に近づいた主人公は撃たれる（段より先に一人で寄っても無双させない）
+      if (!F.fireOn && F.begun && F.step < 2 && rOf(rt.player.u.pos.x, rt.player.u.pos.z) < FENCE_R + 22) this.openFire(rt);
+      // 砦を守る AI：打って出た兵は、柵から四十歩より先へは追わず、口へ戻って口を守る
+      for (const g of rt.army.groups) {
+        if (g.team !== 1 || !g.count || g.routed || g.home) continue;
+        if (g.order !== 'attack' || (g.seekRange || 0) < 40) continue;
+        const c = g.center();
+        if (rOf(c.x, c.z) > FENCE_R + 40 || (F.step >= 6 && rt.t - (F.backT || F.sortieT || rt.t) > 20)) {
+          g.home = true; g.focus = null; g.keepMoveOrder = true; g.aggro = 0;
+          g.order = 'move'; g.dest = PORT(c.x < C.x ? -1 : 1); g.anchor = g.dest;
+          for (const u of g.units) { u.target = null; u.aiT = 0; }
+        }
+      }
+      // 取り残された味方：本人が寄れば、一緒に退く（戦功＝味方救援）
+      if (F.step === 7) for (const g of F.stranded || []) {
+        if (gone(g) || g.saved) continue;
+        const c = g.center(), p = rt.player.u.pos;
+        if (Math.hypot(c.x - p.x, c.z - p.z) < 7) {
+          g.saved = true; F.saved = (F.saved || 0) + g.count;
+          withdraw(g, { x: RETREAT.x + 8, z: RETREAT.z + 6 });
+          rt.say('足軽', 'か、かたじけない……！', 2.4);
+        }
+      }
+    }
     // 塀と櫓の鉄砲は、柵の前の寄せ手の群れを狙う（横矢）
     F.aimT = (F.aimT || 0) - dt;
-    if (F.aimT <= 0 && F.step >= 3) {
+    if (F.aimT <= 0 && F.fireOn) {
       F.aimT = 1.5;
-      const pool = [...(F.surge || []), ...F.rams, ...(F.waves || []), F.second, F.yam].filter((g) => g && g.count);
+      const pool = [...(F.surge || []), ...F.rams, ...(F.waves || []), ...(F.jam || []), ...(F.stranded || []), F.second, F.yam].filter((g) => g && g.count);
       const P = rt.player.u;
       for (const sg of F.fireGroups) {
         if (!sg || !sg.count) continue;
         const c = sg.center();
         let best = null, bd = 58;
         for (const g of pool) for (const u of g.units) if (u.alive) { const d = Math.hypot(u.pos.x - c.x, u.pos.z - c.z); if (d < bd) { bd = d; best = u; } }
-        // 近づいた主人公は必ず狙う（十四8・BV「前や中に一人で立っても撃ってこない」）。出世するほど狙われる（一4）
+        // 近づいた主人公は必ず狙う（十四8）。出世するほど狙われる（一4）
         const dp = P.alive ? Math.hypot(P.pos.x - c.x, P.pos.z - c.z) : 1e9;
         if (dp < 62 && (dp < 30 || Math.random() < 0.55 + 0.05 * Math.min(6, rt.G?.rank || 0))) best = P;
         sg.focus = best;
       }
     }
-    // 櫓の鉄砲は、丸の前に出た主人公を狙い撃つ（十四8・BV「近づいたら死ぬと思うほど撃ってくる」）。弾は本物の玉で、竹束・柵・塀に当たれば止まる
+    // 櫓の鉄砲は、丸の前に出た主人公を狙い撃つ（十四8）。弾は本物の玉で、竹束・柵・塀に当たれば止まる
     F.snipeT = (F.snipeT || 0) - dt;
     const PU = rt.player.u;
-    if (F.fireOn && F.snipeT <= 0 && PU.alive && !PU.invuln && F.step <= 5) {
+    if (F.fireOn && F.snipeT <= 0 && PU.alive && !PU.invuln) {
       const rp = rOf(PU.pos.x, PU.pos.z), ap = Math.abs(angOf(PU.pos.x, PU.pos.z));
-      if (rp < 64 && ap < SPAN + 0.1) {   // 狙い撃つのは柵と堀の前まで（篠山の麓の殿は打って出た兵と戦う場）
-        F.snipeT = ((rp < 55 ? 0.85 : 1.4) + Math.random() * 0.5) * (PU.hp < PU.maxHp * 0.35 ? 2.2 : 1);   // 深手の時は間を空け、退く間を残す（十一1）
+      if (rp < 64 && ap < SPAN + 0.1 && PU.hp > PU.maxHp * 0.22) {   // 深手（二割余り）の者は狙い撃たず、退いて手当てする間を残す
+        F.snipeT = ((rp < 55 ? 0.85 : 1.4) + Math.random() * 0.5) * (PU.hp < PU.maxHp * 0.35 ? 2.2 : 1) * (F.step === 3 && !gone(F.flankG) || F.step === 5 && !F.trapped ? 2 : 1);   // 柵を打つ間も（11/10 bot act：⑤で塀と櫓の玉に倒れた）   // 横の鉄砲衆と斬り合う間は、櫓の狙いを間遠に   // 深手の時は間を空け、退く間を残す（十一1）
         const ready = F.towerU.filter((u) => canShoot(u) && rt.t - (u.snipeAt ?? -9) > 2.6 && Math.hypot(u.pos.x - PU.pos.x, u.pos.z - PU.pos.z) < 75);
         ready.sort((a, b) => Math.hypot(a.pos.x - PU.pos.x, a.pos.z - PU.pos.z) - Math.hypot(b.pos.x - PU.pos.x, b.pos.z - PU.pos.z));
         const u = ready[Math.floor(Math.random() * Math.min(8, ready.length))];
         if (u) { u.snipeAt = rt.t; u.heading = Math.atan2(PU.pos.x - u.pos.x, PU.pos.z - u.pos.z); rt.army.fireGun(u, PU); }
       } else F.snipeT = 0.8;
     }
-    // 篠山の段の前から、丸に近づいた主人公は塀と櫓から撃たれる（段より先に一人で寄っても無双させない）
-    if (!F.fireOn && F.begun && rOf(rt.player.u.pos.x, rt.player.u.pos.z) < FENCE_R + 22) this.openFire(rt);
-    // 塀の内の鉄砲・弓は玉薬と矢を運び込まれて、撃ち止まない（共通の持ち弾 20・24 を補う。BV「鉄砲・弓が止まず」）
+    // 塀の内の鉄砲・弓は玉薬と矢を運び込まれて、撃ち止まない（BV「鉄砲・弓が止まず」）
     F.ammoT = (F.ammoT || 0) - dt;
     if (F.ammoT <= 0) {
       F.ammoT = 4;
       for (const g of F.fireGroups) if (g) for (const u of g.units) if (u.alive) { if (u.gunAmmo !== undefined) u.gunAmmo = 20; if (u.arrowAmmo !== undefined) u.arrowAmmo = 24; }
     }
-    // 塀の上の筒音と矢の音：一斉射撃の間も、狭間から撃つ音が絶えない（BV「鉄砲の音・弓のヒュンという音をもっと」）
-    if (F.fireOn && F.step >= 2 && F.step <= 5) {
+    // 塀の上の筒音と矢の音：狭間から撃つ音が絶えない
+    if (F.fireOn && F.step >= 2) {
       F.popT = (F.popT || 0) - dt;
       if (F.popT <= 0) {
         F.popT = 0.5 + Math.random() * 1.1;
-        // 一斉射と同じく、生きて撃てる者がいない持ち口から筒音・硝煙を出さない。
         let firing = F.wallG.units.some(canShoot) || F.towerU.some(canShoot);
         if (!firing) for (const g of F.perch) if (g.units.some(canShoot)) { firing = true; break; }
         if (firing) {
@@ -1007,20 +1282,20 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
         }
       }
     }
-    // 破る柵：打たれるたびに揺れ、木屑が飛び、傷むほど外へ傾く（十四5）
-    const T = F.target;
-    if (T && T.mesh && T.alive) {
+    // 破る柵：打たれるたびに揺れ、木屑が飛び、傷むほど外へ傾く（十四5）。西の柵は三割で真田の予備が押し返し、傾いたまま残る（成果は残る）
+    for (const T of [F.target, F.target2]) {
+      if (!T || !T.mesh || !T.alive) continue;
+      if (T === F.target2 && F.clamp && F.breakT === T && !T.invuln && T.hp < T.maxHp * 0.3) { T.hp = T.maxHp * 0.3; T.invuln = true; }
       const hit = T.hp < T.lastHp - 0.5;
-      if (hit) { F.shakeT = 0.35; T.lastHp = T.hp; const q = { x: (T.seg[0] + T.seg[2]) / 2, z: (T.seg[1] + T.seg[3]) / 2 }; rt.army.spark?.(q.x, rt.world.heightAt(q.x, q.z) + 1.1, q.z, 4); }
-      F.shakeT = Math.max(0, (F.shakeT || 0) - dt);
-      const lean = (1 - T.hp / T.maxHp) * 0.42 + Math.sin(rt.t * 40) * F.shakeT * 0.12;
+      if (hit) { T.shakeT = 0.35; T.lastHp = T.hp; const q = { x: (T.seg[0] + T.seg[2]) / 2, z: (T.seg[1] + T.seg[3]) / 2 }; rt.army.spark?.(q.x, rt.world.heightAt(q.x, q.z) + 1.1, q.z, 4); }
+      T.shakeT = Math.max(0, (T.shakeT || 0) - dt);
+      const lean = (1 - T.hp / T.maxHp) * 0.42 + Math.sin(rt.t * 40) * T.shakeT * 0.12;
       T.mesh.quaternion.setFromAxisAngle(T.mesh.userData.axis, lean);
     }
-    // 寄せ続ける前田・本多の後の手：竹束の陣から次々に丸の柵へ寄せ、撃たれて倒れる（攻め手は一万を超える。BV・十四6）
-    if (F.step >= 3 && F.step <= 4 && !F.retreatOrder) {
+    // 最大の攻め：前田・本多の後の手が竹束の陣から次々に柵へ寄せ、撃たれて倒れる（攻め手は一万を超える。十四6）
+    if (F.step === 5 && !F.trapped) {
       F.waveT = (F.waveT ?? 4) - dt;
-      // 本物の兵は両軍で二百五十ほどまで。追加する二十七人も数えてから寄せる。
-      if (F.waveT <= 0 && rt.army.units.reduce((n, u) => n + (u.alive && !u.isStruct && !u.isPlayer ? 1 : 0), 0) + 27 <= 250) {
+      if (F.waveT <= 0 && liveN(rt) + 27 <= LIVE_MAX) {
         F.waveT = 16;
         F.waves = (F.waves || []).filter((g) => g.count);
         const k = F.waveN = (F.waveN || 0) + 1, x0 = [-34, 26, -8, 40, -22][k % 5];
@@ -1036,10 +1311,9 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
         if (!g.count || g.order !== 'move' || !g.dest) continue;
         const c = g.center();
         if (Math.hypot(c.x - g.dest.x, c.z - g.dest.z) > 7) continue;
-        // 一番近い柵だけを探す。各隊ごとの配列作りと全柵の並べ替えをしない。
         let seg = null, nearest = Infinity;
         for (const f of F.fence) {
-          if (!f.alive) continue;
+          if (!f.alive || f.invuln) continue;
           const d = Math.hypot((f.seg[0] + f.seg[2]) / 2 - c.x, (f.seg[1] + f.seg[3]) / 2 - c.z);
           if (d < nearest) { nearest = d; seg = f; }
         }
@@ -1047,24 +1321,18 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
       }
     }
     // 真田大助と伊木遠雄は、近くの主人公に馬を寄せて斬りかかる（十四8）
-    if (F.step >= 4 && !F.sortieBack) for (const u of rt.army.units) {
-      if (!u.alive || u.team !== 1 || (u.name !== '真田大助' && u.name !== '伊木遠雄') || !u.group) continue;
+    if (F.trapped && F.step <= 6) for (const u of rt.army.units) {
+      if (!u.alive || u.team !== 1 || (u.name !== '真田大助' && u.name !== '伊木遠雄') || !u.group || u.group.home) continue;
       const P = rt.player.u, d = Math.hypot(P.pos.x - u.pos.x, P.pos.z - u.pos.z);
       if (P.alive && d < 26) u.group.focus = P; else if (u.group.focus === P) u.group.focus = null;
     }
-    if (F.fireOn && F.step >= 2 && rt.t > F.volT) { F.volT = rt.t + (F.step === 3 ? 9 : 13) + Math.random() * 3; this.volley(rt); }
-    if (F.step === 3 && F.target.alive) {
-      // 竹束を持つ者だけが倒れた時も補う。槍の者が残っているだけでは、竹束の陰へ寄れなくなる。
+    if (F.fireOn && F.step >= 2 && rt.t > F.volT) { F.volT = rt.t + (F.step <= 5 ? 9 : 13) + Math.random() * 3; this.volley(rt); }
+    // 柵を打つ段：竹束を持つ者が倒れた時も、次の組を補う
+    const T = F.breakT;
+    if (F.breaking && T && T.alive && !T.invuln) {
       const left = F.rams.reduce((a, g) => a + g.count, 0);
       const covered = F.rams.some((g) => g.units.some((u) => u.alive && u.tatake && !u.fleeing && !u.woundOut));
-      // 累計の組数で補充を止めない。全滅した組が七つ残ると、以後は竹束が来なくなる。
-      if ((left < 4 || !covered) && rt.army.units.reduce((n, u) => n + (u.alive && !u.isStruct && !u.isPlayer ? 1 : 0), 0) + 12 <= 250) {
-        rt.say('山崎長徳', '柵の者が討たれた！　次の者、行けっ！', 3);
-        const g = allyGroup(rt, { faction: 'tokugawa', name: '柵を破る組', anchor: { x: 10, z: C.z + FENCE_R + 30 }, facing: Math.PI, width: 5, aggro: 2, noRout: true, order: 'assault' },
-          dress([{ type: 'ashigaru', n: 4, o: { hat: 'jingasa_n', tatake: true } }, { type: 'ashigaru', n: 8, o: { hat: 'jingasa_n' } }], MAEDA));
-        g.assault = F.ram.assault; g.dmgMult = 2.2;
-        F.rams.push(g);
-      }
+      if ((left < 4 || !covered) && rt.t - (F.ramT ?? -99) > 8 && this.newRam(rt, T)) { F.ramT = rt.t; rt.say('山崎長徳', '柵の者が討たれた！　次の者、行けっ！', 3); }
     }
   },
 
@@ -1095,14 +1363,14 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
     sfx('wood', 1.2);
     rt.unmark('fence');
     rt.award((t) => t.side.push('真田丸の柵を破った'), '真田丸の柵を破った');
-    rt.say('足軽', '柵を倒したぞ！　……む、堀が深い。これは登れぬ', 3.5);
+    this.trap(rt);
   },
 };
 
 // 両軍の総勢：大坂を囲む徳川方およそ二十万のうち、真田丸の前に並んだ前田・井伊・松平らを三万。真田丸の兵は五千ほど
 k11_sanadamaru.force = (rt) => {
   const F = rt.flags;
-  const shot = (F.shot || 0) * 180 + (F.step >= 4 ? Math.min(1, (rt.t - (F.sortieT || rt.t)) / 40) * 1500 : 0);
+  const shot = (F.shot || 0) * 180 + (F.trapped ? Math.min(1, (rt.t - (F.trapT || rt.t)) / 40) * 1500 : 0);
   return { a: Math.max(0, Math.round(30000 - (F.ak || 0) * 30 - shot)), a0: 30000, b: Math.max(0, 5000 - (F.ek || 0) * 12), b0: 5000 };
 };
 k11_sanadamaru.sides = { a: { name: '徳川方', mon: 'tokugawa' }, b: { name: '豊臣方 真田丸', mon: 'sanada' } };
@@ -1124,7 +1392,7 @@ k11_sanadamaru.botBrain = (b, inp, { goTo }) => {
 
 const st = (k) => (rt) => (rt.flags.step || 0) >= k;
 // 段の字は戦の中の目標の字と同じ（場所と行い。右上・終わりの札で言い替えない。十1）
-STAGES.k11_sanadamaru = [['篠山の頂まで登れ'], ['真田丸の外の柵の前まで寄せよ', st(2)], ['柵を破る組と一緒に、真田丸の柵を打ち倒せ', st(3)], ['篠山の北の麓で、打って出た真田大助の隊を食い止めよ', st(4)], ['味方と一緒に、竹束の陣まで退け', st(5)]];
+STAGES.k11_sanadamaru = [['篠山の頂まで登れ'], ['正面から真田丸へ進め', st(2)], ['左から回り込め', st(3)], ['前線を整理せよ', st(4)], ['真田丸を突破せよ', st(5)], ['味方を退かせろ', st(6)], ['攻撃を中止し、味方を撤収させろ', st(7)]];
 
 export { k11_sanadamaru };
 export default k11_sanadamaru;

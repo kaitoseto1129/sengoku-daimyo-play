@@ -4863,7 +4863,12 @@ const mitsukuri = {
         const present = u.alive && zoneGroundFighter(rt, u) && z.test(u.pos.x, u.pos.z);
         // 木戸が開いても、打って出た組を退けるまでは付け入り前。
         // 先に庭へ入った本人と仲間だけで二の丸を取り、迎撃を飛ばさない。
-        const ready = present && F.step >= 2 && (z.id !== 'ni' || F.gatePass);
+        // 脇道から先の郭へ入っても、松明・木戸・付け入りの段を飛ばさない。
+        // 奪い返す時も、手前の郭を取り戻してから奥の旗を立てる。
+        const unlocked = z.id === 'san' ? F.step >= 2
+          : z.id === 'ni' ? F.step >= 3 && F.sanFell && F.gatePass
+            : F.step >= 4 && F.sanFell && F.niFell && F.gatePass;
+        const ready = present && unlocked;
         // 本人と味方が郭で戦った時間だけ、控えが出る目安に数える。制圧に固定の待ち時間は足さない。
         if (ready && z.owner !== 'friend' && z.friends >= z.need) z._mkFightT = (z._mkFightT || 0) + dt;
         const elapsed = z._mkFightT || 0;
@@ -4992,7 +4997,7 @@ const mitsukuri = {
     //   味方が二十秒押さえたら残る組を本丸へ退かせ、四十秒たっても残る組は崩れて逃げる（付け入られた二の丸の兵が支えきれない）。
     if (F.step === 3 && F.gatePass && !F.niFell && !F.ending && F.SZ) {
       const z = F.SZ.byId.ni;
-      const pp = rt.player.u.pos, inNi = rt.player.u.alive && z.test(pp.x, pp.z) && zoneGroundFighter(rt, rt.player.u);
+      const pp = rt.player.u.pos, inNi = F.sanFell && rt.player.u.alive && z.test(pp.x, pp.z) && zoneGroundFighter(rt, rt.player.u);
       F.niAttackT = inNi ? (F.niAttackT || 0) + dt : 0;
       F.niPressT = inNi && z.friends >= z.need ? (F.niPressT || 0) + dt : Math.max(0, (F.niPressT || 0) - dt * 0.5);
       // 本人が庭で攻め続けて百二十秒。木戸の外で待つだけでは守りを崩さない。
@@ -5030,7 +5035,7 @@ const mitsukuri = {
     //   本丸に戦える敵がいなくなり、本人が本丸に入っていれば十二秒で本丸を取る。
     if (F.step >= 4 && F.niFell && !F.honFell && !F.ending && F.SZ) {
       const z = F.SZ.byId.hon;
-      const pp = rt.player.u.pos, inHon = rt.player.u.alive && z.test(pp.x, pp.z) && zoneGroundFighter(rt, rt.player.u);
+      const pp = rt.player.u.pos, inHon = F.sanFell && F.gatePass && rt.player.u.alive && z.test(pp.x, pp.z) && zoneGroundFighter(rt, rt.player.u);
       F.honAttackT = inHon ? (F.honAttackT || 0) + dt : 0;
       F.honPressT = inHon && z.friends >= z.need ? (F.honPressT || 0) + dt : Math.max(0, (F.honPressT || 0) - dt * 0.5);
       // 描いた遊び g：本丸の段で味方の組が石段の下に留まり、本人も西の切岸の下で迷って、残る城兵五人のまま七分止まった。
