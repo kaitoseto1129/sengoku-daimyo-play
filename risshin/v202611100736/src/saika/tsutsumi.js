@@ -104,7 +104,7 @@ export function install(rt, ctx) {
         rt.award((t) => t.side.push('川下の堤の雑賀の鉄砲陣を取り、取り返しも払った'), '堤の鉄砲陣を取った');
         rt.say('堀秀政', '堤は守った。……だが、川の向こうはまだ抜けぬ', 4);
         // 雑賀が退き、川が静まる間（和議の前の二十秒余り）
-        rt.after(6, () => { if (!F.ending) { F.bankCeasefire = true; for (const g of rt.army.groups) { g.fire = false; g.holdFire = true; for (const u of g.units) u.cd = 1e9; } sfx('kane', 0.4); rt.say('見張り', '向こう岸の鉄砲が止んだ……。柵の旗が下がっていくぞ', 4); } });
+        rt.after(6, () => { if (!F.ending) { F.bankCeasefire = true; for (const g of rt.army.groups) { g.fire = false; g.holdFire = true; for (const u of g.units) u.cd = 1e9; } sfx('kane', 0.4); rt.say('見張り', '向こう岸の鉄砲が止んだ……。こちらも撃つな', 4); } });
         rt.after(13, () => { if (!F.ending) rt.say('堀秀政', '撃ち返すな。何か言うて来るつもりじゃ', 3.5); });
         rt.after(20, () => { if (!F.ending && !rt.over) next(); });
       }

@@ -559,16 +559,16 @@ function countFallen(rt) {
     F.countedFallen.add(u); F.fallen[u.team]++;
   }
 }
-// 両軍の人数：楽田の羽柴方およそ十万・小牧山の徳川・信雄方およそ三万。本物の一人を二十人に見立てて討死を引く。
+// 両軍の人数：布陣図に合わせ、楽田の羽柴方およそ七万・小牧山の徳川・信雄方およそ三万。本物の一人を二十人に見立てて討死を引く。
 //   ⑥からは中入りの二万（池田・森・堀・秀次）とそれを追う徳川の数
 t03_komaki.force = (rt) => {
-  if (!rt?.flags || !rt.army) return { a: 100000, a0: 100000, b: 30000, b0: 30000, casualtiesCounted: true };
+  if (!rt?.flags || !rt.army) return { a: 70000, a0: 70000, b: 30000, b0: 30000, casualtiesCounted: true };
   const F = rt.flags;
   countFallen(rt);
   const [allyDead, dead] = F.fallen;
   // 砦を守った手の討死を、新たに出る中入りの二万から重ねて引かない。
   if ((F.stage || 0) >= 6) return { a: Math.max(0, 20000 - (allyDead - (F.departAllyDead0 || 0)) * 20), a0: 20000, b: Math.max(0, 30000 - dead * 20), b0: 30000, casualtiesCounted: true };
-  return { a: Math.max(0, 100000 - allyDead * 20), a0: 100000, b: Math.max(0, 30000 - dead * 20), b0: 30000, casualtiesCounted: true };
+  return { a: Math.max(0, 70000 - allyDead * 20), a0: 70000, b: Math.max(0, 30000 - dead * 20), b0: 30000, casualtiesCounted: true };
 };
 t03_komaki.date = (rt) => {
   const s = rt?.flags?.stage || 0;

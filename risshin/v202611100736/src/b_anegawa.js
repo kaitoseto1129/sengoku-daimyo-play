@@ -676,7 +676,7 @@ function anegawaRiver(rt) {
         float aneGd = vAneBank.z - aneGc;
         // 外の縁と東の先も、下地の砂が草へ戻り切るまで玉石を重ね、乾いた黄土の平たい帯を残さない（10/29）。
         float aneGravel = smoothstep(6.0, 9.0, aneGd) * (1.0 - smoothstep(31.0, 41.0, aneGd))
-          * (1.0 - smoothstep(-75.0, -95.0, aneGx)) * (1.0 - smoothstep(100.0, 130.0, aneGx));
+          * smoothstep(-95.0, -75.0, aneGx) * (1.0 - smoothstep(100.0, 130.0, aneGx));
         vec3 aneBig = texture2D(map, vAneBank.xz * 0.14 + vec2(0.37, 0.11)).rgb;   // 一枚 7m に大小の玉石（10/28）
         diffuseColor.rgb = mix(diffuseColor.rgb, vColor.rgb * aneBig * 1.04, aneGravel * 0.92);
         float aneTuft = smoothstep(0.42, 0.67, anePatch) * (1.0 - vAneWet) * (1.0 - aneTrod) * (1.0 - aneGravel);
@@ -4203,6 +4203,11 @@ const anegawa = {
     const attach = (gg) => {
       // 退く下知の後の到着も横槍に数えず、敗走を攻撃へ戻さない。
       if (F.inabaT || gg.anePending || gone(gg) || F.step !== 1 || F.ending || rt.over) return;
+      // 出発から四十五秒たっても、離れた所から取り付きと知らせない。
+      // 到着の呼び出しも同じ判定を通し、動く浅井の側面まで追い付いてから押す。
+      const at = gg.center(), target = aneInabaTarget(rt);
+      const point = target ? target.center() : F.inabaGoal;
+      if (!point || Math.hypot(at.x - point.x, at.z - point.z) > 22) return;
       gg.noAI = false; gg.stay = false;
       gg.order = 'attack'; gg.seekRange = 50; gg.aggro = 10; F.inabaT = rt.t;
       // 11/6 fixc0454：横槍の手（史実は千ほど）が十六人のまま磯野の三十余と当たり、取り付いて二十秒で逆に崩れて東へ逃げた。
@@ -4384,7 +4389,7 @@ const anegawa = {
     // 11/6 fixc1845（描いて遊んだ通し）：稲葉が駆け出すのが百八十秒の下限まで遅れ、横槍が二百五十七秒になり、本人は本陣の前で四十秒余り立って待った。
     //   磯野が本陣の方へ深く抜けた時（史実：段を破って本陣へ迫る→横槍）か、本人が②を果たした時にも駆け出す。
     const isoDeep = F.iso && !F.iso.anePending && !gone(F.iso) && F.iso.center().z > 80;
-    // 11/6 fixc1845（描かない通し nr8：駆け出して百十六秒、東の別手と組み合い、川向こうの三の手を追って取り付かなかった）：駆け出して四十五秒で取り付いた事にする（その場の浅井へ掛かる）。
+    // 到着の通知を逃した時は四十五秒後から取り付きを再判定する。離れていれば進み続ける。
     if (F.step === 1 && !F.ending && !rt.over && F.inaba && F.inabaGoT && !F.inabaT && !gone(F.inaba) && rt.t - F.inabaGoT > 45) F.inabaAttach?.(F.inaba);
     if (F.step === 1 && !F.ending && !rt.over && F.inaba && !F.inabaGoT && rt.t >= (F.aneYokoAt || 0) && (F.breach >= 1 || F.sakai.routed || F.sakaiSaid || isoDeep || (F.aneStage || 0) >= 2 || rt.t - F.stepT >= 110)) this.inabaGo(rt);
     // 11/6 fixc1845（描いて遊んだ通し：「浅井勢、崩れる」の後も磯野員昌の隊が南岸の本陣の近くで斬り合い続け、④の瀬へ行けず退き太鼓の負けになった）：
