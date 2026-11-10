@@ -21,10 +21,10 @@ const CSS = `
 #goal-sign .gs-tag span { padding:2px 6px; background:#14120f; border:0; border-radius:3px; color:#fff3ba; font:700 17px/1.3 "Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif; letter-spacing:.06em; max-width:min(260px, 40vw); box-sizing:border-box; white-space:normal; text-align:center; text-shadow:0 1px 2px #000; }
 #goal-sign .gs-frame { position:absolute; box-sizing:border-box; border:4px solid #fff3ba; border-radius:8px; box-shadow:0 0 0 3px #14120f; }
 /* 命・任務・目印の三枚に収める。 */
-#hud.gs-seen :is(#jk-map,#minimap,#maphint), #hud:has(#goal-sign:not([hidden])) :is(#jk-map,#jk-chap,#battle-notices,#tugbar,#minimap,#maphint,.field-names) { display:none !important; }
+#hud.gs-seen :is(#jk-map,#minimap,#maphint), #hud:has(#goal-sign:not([hidden])) :is(#jk-map,#jk-chap,#battle-notices,#minimap,#maphint), #hud:not(.keep-battle-signs):has(#goal-sign:not([hidden])) :is(#tugbar,.field-names) { display:none !important; }
 /* 命・今の手順と兵数・目標の矢印の三枚。名前の札は矢印へまとめる。 */
 #hud.action-guide:not(.photo):not(.ending) #h-prog.goal-mode:not([hidden]) { display:block !important; }
-#hud.field-clean .field-names { display:none !important; }
+#hud.field-clean:not(.keep-battle-signs) .field-names { display:none !important; }
 #hud:has(#goal-sign:not([hidden])) #armybar:not(#h-prog #armybar) { display:none !important; }
 #goal-sign .gs-tag span:empty { display:none; }
 #goal-sign .gs-tag i { width:30px; height:36px; background:#fff3ba; clip-path:polygon(32% 0,68% 0,68% 52%,100% 52%,50% 100%,0 52%,32% 52%); transform-origin:center; filter:drop-shadow(0 0 2px #14120f) drop-shadow(0 0 1px #14120f) drop-shadow(0 1px 2px rgba(0,0,0,.7)); }
@@ -75,6 +75,8 @@ export function goalSignTick(rt, root) {
   hud.actionGuideUnit = null;
   // 目標の▼が一度出た戦は、▼が消える間も右上の小さな地図を出さない（critic60 山中 33「途中から急に地図が出て目標に重なる」）
   if (root._gsRt !== rt) { root._gsRt = rt; root.classList.remove('gs-seen'); }
+  // 人数と武将名を常に出す戦では、行き先の印による省略から外す。次の戦では戻す。
+  root.classList.toggle('keep-battle-signs', !!rt.def.keepBattleSigns);
   // 地面のピンを使う戦は描画面に任せる。人物の金の▼や距離を重ねず、任務も隠さない。
   if (rt.def.goalSignGroundPin) {
     root.classList.remove('action-guide', 'enemy-action-guide');

@@ -7,6 +7,7 @@
 // ======================================================================
 import { enemyGroup } from '../bhelp.js';
 import { sfx } from '../audio.js';
+import { siegeFighter } from '../siege_zones.js';
 
 export function install(rt, ctx) {
   const F = rt.flags;
@@ -36,7 +37,7 @@ export function install(rt, ctx) {
     rt.army.play?.('eshout', { x: TOP.x, z: TOP.z + TOP.r }, 1.6);
     rt.say('組頭', '拒んだか！　本丸から打って出て来るぞ。槍をそろえよ！', 4);
     rt.obj('kousan', '本丸の口から打って出た松永の衆を払え', 'order');
-    rt.marker('kousanL', () => (L.units.some((u) => u.alive && !u.fleeing && !u.woundOut) ? L.center() : null), '打って出た松永の衆', { red: true, group: L });
+    rt.marker('kousanL', () => (L.units.some(siegeFighter) ? L.center() : null), '打って出た松永の衆', { red: true, group: L });
   });
   return {
     update(dt) {
@@ -46,13 +47,17 @@ export function install(rt, ctx) {
       const el = rt.t - t0;
       if (!L) return;
       let n = 0;
-      for (const u of L.units) if (u.alive && !u.fleeing && !u.woundOut) n++;
+      for (const u of L.units) if (siegeFighter(u)) n++;
       rt.objProgress('kousan', n ? `打って出た松永の衆 ${n}人` : '');
       if ((!n && el > 75) || el > 150) {
         done = true; F.kousanDone = true;
         rt.unmark('kousanL');
         if (!n) { rt.objDone('kousan'); rt.award((t) => t.side.push('降伏を拒んだ本丸の打って出を払った'), '本丸の打って出を払った'); }
-        else rt.objRemove('kousan');
+        else {
+          rt.objRemove('kousan');
+          // 上限で段を終える時も、残兵を退かせて南口への寄せを続ける。
+          for (const u of L.units) if (siegeFighter(u)) { u.fleeing = true; u.moraleFleeDir = { x: 0, z: -1 }; }
+        }
         onDone?.();
       }
     },

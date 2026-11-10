@@ -22,7 +22,10 @@ export function namedKill(rt, v) {
   if (done.has(name)) return;
   done.add(name);
   // 札へ印：その将を挙げた札を済みにする
-  for (const o of rt.objectives.slice()) if (!o.state && mentions(o.text, name)) rt.objDone(o.id);
+  // 到着や隊の撃退も必要な戦は、戦固有の判定に完了を任せる。
+  if (rt.def.namedKillCompletesObjectives !== false) {
+    for (const o of rt.objectives.slice()) if (!o.state && mentions(o.text, name)) rt.objDone(o.id);
+  }
   // 残り：まだ札に挙がっていて生きている敵の名のある将
   const open = rt.objectives.filter((o) => !o.state && o.kind === 'main');
   const left = [];

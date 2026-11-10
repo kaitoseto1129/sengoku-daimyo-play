@@ -33,7 +33,7 @@ import { sfx } from './audio.js';
 import { sightPoint, sightUnit } from './battle_sight.js';
 import { pinGuideOn } from './mission_pin.js';
 import { goalsTick } from './hud_goals.js';
-import { enemyGroup, allyGroup, nm, centerOf, unitPos } from './bhelp.js';
+import { enemyGroup, allyGroup, nm, centerOf } from './bhelp.js';
 import { evRemove } from './b_ev6.js';
 import { applyLook, dress, gone } from './b_inabayama.js';
 import { clash } from './b_sekigahara.js';
@@ -5235,7 +5235,8 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
     g.onArrive = (q) => { q.order = 'attack'; q.focus = null; q.seekRange = 12; };
     g.seekRange = 12; g.focus = null;
     F[id + 'On'] = true;
-    rt.marker(id, unitPos(g.units[0]), '道の先の番兵', { red: true, group: g });
+    // 先頭の一人が倒れても、残る番兵の組を示し続ける。空の組にも兵の参照を作らない。
+    rt.marker(id, centerOf(g), '道の先の番兵', { red: true, group: g });
     rt.say('先手組頭', AMBUSH_LINES[wave], 4);
   },
 
@@ -5262,7 +5263,7 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
     rt.say('組頭', gone(F.ono) ? '庭は取った！　南木戸から道へ戻り、小隊を退けよ'
       : F.onoInGarden ? '屋敷から新手じゃ！　庭の敵を味方と退けよ'
         : '屋敷から新手じゃ！　南木戸から庭へ進め', 4);
-    rt.marker('relief', unitPos(g.units[0]), '味方を押す敵の小隊', { red: true, group: g });
+    rt.marker('relief', centerOf(g), '味方を押す敵の小隊', { red: true, group: g });
   },
 
   reinforcementMarch(rt, g) {

@@ -1362,13 +1362,15 @@ export function storyCard({ year, title, text, button = '次の場面へ進む',
   const short = innerHeight < 520;
   // 初めての戦の前は、操作の言い添えを出さない（操作は戦の中で一つずつ、やって覚える）
   const first = S.hints && !hintSeen('c_move');
+  // 淀の野は主人公自身の旗で戦う。心得の原文にも存在しない上役を出さない。
+  const ownCommand = G && G.lord || bt?.id === 'k16_secret';
   const order = tips ? monjoHtml({
-    title: G && G.lord ? '出陣の覚え' : '出陣の下知',
-    body: G && G.lord ? '諸勢を率い、この戦の務めを果たすべきこと。' : '出陣の儀、上役の下知に従い、この戦の務めを果たすべきこと。',
+    title: ownCommand ? '出陣の覚え' : '出陣の下知',
+    body: ownCommand ? '諸勢を率い、この戦の務めを果たすべきこと。' : '出陣の儀、上役の下知に従い、この戦の務めを果たすべきこと。',
     plain: tips,
     date: `戦の時期：${String(year || '不明').replace(/（\d+）/g, '')}`,
-    sender: G && G.lord ? `${G.name || '当主'}の覚え` : `${boss || bt && bt.boss || '上役'}より`,
-    recipient: G && G.lord ? '諸将・旗本中' : `${G && G.name || '足軽衆'}殿`,
+    sender: ownCommand ? `${G?.name || '当主'}の覚え` : `${boss || bt && bt.boss || '上役'}より`,
+    recipient: ownCommand ? '諸将・旗本中' : `${G && G.name || '足軽衆'}殿`,
   }) : '';
   // 背の低い画面では、進む釦を心得の札より上に置く（下へ送らずに押せるように）
   const ROW = `<div class="row st-actions" style="justify-content:center"><button class="btn primary launch" id="b-next" title="話を読み終え、戦の支度へ進む。">${esc(button === '出陣' ? '支度をして出陣する' : button)}</button></div>`;

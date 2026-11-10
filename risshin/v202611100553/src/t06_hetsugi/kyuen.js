@@ -18,6 +18,14 @@ export function contact(rt) {
   if (target && target.team !== p.team && landed(p, target)) S.fought = true;
   if (crossed(rt) && Math.hypot(F.nobuU.pos.x - p.pos.x, F.nobuU.pos.z - p.pos.z) < 14 &&
     (landed(F.nobuU, F.suzukiU) || landed(F.suzukiU, F.nobuU))) S.bladesMet = true;
+  // 最期の乱戦は二人の一騎打ちだけに頼らない。本人のそばで信親の隊が戦った記録を残す。
+  const n = F.nobuU;
+  if (!S.ls || !n?.alive || Math.hypot(n.pos.x - p.pos.x, n.pos.z - p.pos.z) >= 14) return;
+  if (target && target.team !== p.team && landed(p, target) && Math.hypot(target.pos.x - n.pos.x, target.pos.z - n.pos.z) < 18) S.standFought = true;
+  if (n.swing?.target?.team === 1 && landed(n, n.swing.target)) S.standFought = true;
+  if (!S.standFought) for (const g of F.foes) for (const u of g.units) {
+    if (landed(u, n)) { S.standFought = true; return; }
+  }
 }
 
 function crossed(rt) {
@@ -105,6 +113,14 @@ export function update(rt, K, el) {
   // 六 m 内にいるだけでは、刀も長刀も届かないまま最期が進んでしまう。
   // 本人の見ている所で、二人のどちらかの刃が相手へ届いた事を確かめる（受け・甲冑で止まる時も含む）。
   contact(rt);
-  // 本人の見届ける所で刃を合わせてから討死へ進む。
-  if (meeting && near && S.bladesMet && S.clash >= 4 && S.near > 50 && rt.t - S.ls > 55) K.closeRing(rt);
+  // 鈴木一人が旗本や地形に阻まれても、救援している本人の前で包囲が崩れれば最期へ進む。
+  // 遠くでの待機や、交戦の無い時間だけでは討死にしない。
+  const pressed = S.ls && near && F.foes.some((g) => g.units.some((u) =>
+    u.alive && !u.gone && !u.dying && !u.noTarget && !u.woundOut && !u.rearWound &&
+    Math.hypot(u.pos.x - F.nobuU.pos.x, u.pos.z - F.nobuU.pos.z) < 18 &&
+    !rt.army.wallBetween(F.nobuU.pos, F.nobuU.team, u.pos) && !rt.army.terrainBlocks(F.nobuU.pos, u.pos)));
+  if (pressed) S.overrun = (S.overrun || 0) + dt;
+  const duel = meeting && S.bladesMet && S.clash >= 4 && rt.t - S.ls > 55;
+  const overrun = S.standFought && S.overrun >= 45 && pressed && rt.t - S.ls > 90;
+  if (near && S.near > 50 && (duel || overrun)) K.closeRing(rt);
 }

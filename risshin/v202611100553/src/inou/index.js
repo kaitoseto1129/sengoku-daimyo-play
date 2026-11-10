@@ -41,7 +41,8 @@ export function pinAt(rt, pos, label, unit = null, r = 3) {
   const pin = F.beginnerPin || (F.beginnerPin = { x: 0, z: 0, r: 0 });
   pin.x = pos.x; pin.z = pos.z; pin.r = r;
   pin.label = label;
-  pin.unit = unit; pin.enemy = !!unit; pin.flagDestination = !unit;
+  // 行軍では味方の組頭も渡される。人物がいるだけで敵の印にしない。
+  pin.unit = unit; pin.enemy = !!unit && unit.team !== rt.player.u.team; pin.flagDestination = !unit;
   F.beginnerPinTarget = pin;
   return pin;
 }
