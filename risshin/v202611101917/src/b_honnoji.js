@@ -27,6 +27,8 @@ import { makeWeapon, poseArms } from './units.js';
 import { FL, addDeck, groundAt } from './floors.js';
 import { battleEvent, EVENT_FIRE_START, EVENT_RETREAT } from './battle_events.js';
 import { sightScreenUnit, cameraWallBlocked } from './battle_sight.js';
+import { missionTarget as honMissionTarget } from './mission_pin_target.js';
+import { goalTarget as honGoalTarget } from './goals5.js';
 
 import { enemyGroup, allyGroup, nm, centerOf, unitPos, wallLine } from './bhelp.js';
 import { applyLook, DAWN, dress, gone } from './b_inabayama.js';
@@ -328,9 +330,9 @@ const HONNO_DAWN = { ...DAWN, sky: 0x4a5272, fog: 0x585d78, top: 0x222a48,
 function honnoPreDawn(rt) {
   const W = rt.world, U = W.skyMat.uniforms;
   W.scene.fog.color.set(HONNO_DAWN.fog); U.bottom.value.set(0x62647a);
-  U.glow.value.set(0xe9b98e); // 東の地平の白みは淡い橙、高い所は藍のまま
+  U.glow.value.set(0x626b86); // 日の出前の地平は青白くし、寺の火だけを橙にする。
   if (U.cloudDark) U.cloudDark.value = 0.62;
-  W.setSkyPhoto?.('dusk'); // 朝の写真は昼の雲。東の地平だけ焼ける夕の写真を日の向き（東）へ合わせて使う
+  W.setSkyPhoto?.('night'); // 夜の指定を夕焼けの写真で上書きしない。足元の明るさは既存の夜の持ち上げで保つ。
   W.updateEnv?.();
 }
 
@@ -1573,6 +1575,17 @@ const HONNO_SKINS = [0xb58c68, 0xa47a58, 0xc29a78, 0x9a7052, 0xb98f6c, 0xa98260]
 const NEMAKI = (col) => ({ kosode: 1, honnoCloth: true, kosodeCol: col, obi: 0x30251c, flag: null, hat: 'none', horo: 0 });
 const nS = (n) => ({ type: 'samurai', n, o: NEMAKI(0x2e3440) }), nA = (n) => ({ type: 'ashigaru', n, o: NEMAKI(0x4a4038) });   // 灰茶（オリーブ寄りだと灯りで緑の甲冑に見える）
 const uS = (n) => ({ type: 'samurai', n }), uA = (n) => ({ type: 'ashigaru', n }), uG = (n) => ({ type: 'gun', n }), uB = (n) => ({ type: 'bow', n });
+// 奥での最期は姿を消す処理なので、通常の討死とは別に人数へ反映する。
+// 既に戦闘で討たれた者は二度引かず、場面転換で片付ける生存者は引かない。
+function honnoLoss(rt, u) {
+  if (!u || u.honnoLossCounted || u.isPlayer || u.isStruct || u.civ || u.group?.civ || u.type === 'porter') return;
+  const F = rt.flags;
+  const key = u.team === 0 ? (!rt.G.lord && (F.step || 0) >= 3 ? 'lostA3' : 'lostA')
+    : u.team === 1 ? 'lostB' : null;
+  if (!key) return;
+  u.honnoLossCounted = true;
+  F[key] = (F[key] || 0) + 1;
+}
 // 門の扉（開いた二枚の扉。閉めると army の struct になる）
 function openLeaves(W, x, z, w) {
   const g = tobira(W, x, z, w, Math.PI / 2, { h: 3.1 });
@@ -2522,8 +2535,11 @@ function honFoe(rt) {
   const me = rt.player.u;
   const reach = rt.player.inRange && rt.player.rangeCueTarget;
   if (honFoeOk(reach) && reach.team !== me.team) return (F.honFoe = reach);
-  return (F.honFoe = rt.army.nearestEnemy(me, 14, (u) => honFoeOk(u) && Math.abs(u.pos.y - me.pos.y) < 3 &&
-    !rt.army.wallBetween(me.pos, me.team, u.pos)) || null);
+  const u = rt.army.nearestEnemy(me, 14, (o) => honFoeOk(o) && Math.abs(o.pos.y - me.pos.y) < 3 &&
+    !rt.army.wallBetween(me.pos, me.team, o.pos));
+  // 11/10 関所3：襖・板壁の陰の敵は頭上の▼が出ない（goal_sign の見通し）。その敵を的にすると印が一つも無くなった
+  //   （北の間へ迷い出て二十秒ピン無し）。見えない敵は外し、持ち場・道の印へ任せる。
+  return (F.honFoe = u && !cameraWallBlocked(rt, me.pos, u.pos, me.pos.y + 1.6, u.pos.y + 2.1) ? u : null);
 }
 // 守る段の持ち場（ピンを刺したまま、味方がそこに集まる所）。道の途中なら道の印に任せる。
 function honPost(rt) {
@@ -3520,6 +3536,21 @@ const honnoji = {
     return null;
   },
   missionSignTarget(rt) { return honFoe(rt); },
+  // 11/10 関所3：行き先のピンを始めから終わりまで切らさない。任務の印も目標の表も行き先を持たない間（門が破れた直後の表庭・
+  //   堂の口で寄せ手が途切れた間など。描かずの通しで十〜四十秒ピン無し）は、本能寺の段は表門の内か上様の居場所へ立てる。
+  goalSignTarget(rt) {
+    const d = honMissionTarget(rt);
+    if (d && !d.enemy && Number.isFinite(d.x)) return d;
+    const g = honGoalTarget(rt);
+    if (g) return g;
+    const F = rt.flags, me = rt.player?.u?.pos;
+    if (!me || rt.over || F.ending || rt.G.lord || F.step >= 3 || F.hp >= 8) return null;
+    const nb = F.nb, q = F.honLast || (F.honLast = { x: 0, z: 0 });
+    const p = F.hp >= 4 && nb?.alive && !nb.gone ? nb.pos : PT.gateIn;
+    if (Math.hypot(p.x - me.x, p.z - me.z) < 3) return null;
+    q.x = p.x; q.z = p.z;
+    return q;
+  },
   // 守る段：近い敵がいれば一番近い一人へ、いなければ持ち場へ刺したまま。退く段は道の印へ任せる（undefined）。
   missionPin(rt) {
     const F = rt.flags;
@@ -3621,6 +3652,8 @@ const honnoji = {
   } },
   armySignals: false, // 不意の襲撃。各隊の自動合図は止め、場面の突撃・退却だけ台本で鳴らす。
   noAllyReports: true, // 寺の中の声は使番に運ばせない（遅れて届く「○○殿より」を出さない）。
+  // 11/10 関所4：一万三千の寄せ手の一波が退いただけで「敵の隊が崩れた」の大きな見出しを出さない（明智は崩れない）。
+  bannerAllowed: (rt, t) => !/隊が崩れた/.test(t),
   noWake: true, // 寺の各口へ出す波だけを実兵にし、外の囲みと自動増援を重ねない。
   enemyTactics: { flank: false }, // 狭い境内では野戦の大回りで塀の外へ出ず、各口から攻める。
   guideMarker(rt) {
@@ -3906,6 +3939,10 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
     const bark = rt.bark.bind(rt);
     rt.bark = (text, ...args) => {
       if (!rt.G.lord && /退け|進め|寄れ|払え|守れ|下がれ|離れろ|しよう|印|長押し|急げ|通すな|押し返せ|斬り合わず/.test(String(text ?? ''))) return;
+      // 11/10 関所4：起きていない事を知らせない。静かな夜明け前に悲鳴・組の遅れ・足軽の呟き、火の出る前に「火が迫る」「煙を吸うな」が出ていた
+      const s = String(text ?? '');
+      if (rt.phase === 'brief' && /^悲鳴|組が遅れている|^(味方|敵)の(足軽|兵)「/.test(s)) return;
+      if (!(rt.flags.fireSt > 0) && /火が迫る|煙を吸うな/.test(s)) return;
       return bark(text, ...args);
     };
     rt.flags.rescued = true; rt.firstBattle = false;
@@ -4414,7 +4451,7 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
     rt.army.play('eshout', { x: -30, z: 50 }, 1.4);
     rt.unzone('gz'); rt.uninteract('gate');
     rt.banner(burned ? '火と寄せ手で表門が崩れる' : '表門、破らる', '明智勢が境内へなだれ込む');
-    if ((F.gateHold || 0) >= 8) rt.award((t) => t.side.push('上様と共に表門を守った'), '表門を守った');
+    if ((F.gateHold || 0) >= 8) rt.award((t) => t.side.push('上様と共に表門を守った'), '表門で時を稼いだ');   // 「破らる」と同時に「守った」と出さない（11/10 関所4）
     this.p4(rt);
   },
   // P4 本堂へ退く：表庭は開けて危ない。本堂の縁と堂の中で迎える（室内と室外の往復）
@@ -4663,6 +4700,8 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
     if (F.hp !== 8 || !rt.player.u.alive || rt.t - F.pT < 17.5 ||
         Math.hypot(rt.player.u.pos.x - PT.uraOut.x, rt.player.u.pos.z - PT.uraOut.z) >= 6) return;
     F.hp = 9;
+    honnoLoss(rt, F.nb);
+    honnoLoss(rt, F.ran);
     rt.obj('main', '町へ退き、織田の者と合流せよ', 'main', true);
     rt.unmark('next'); rt.unmark('uraG'); rt.unmark('nb');
     rt.unzone('gz'); rt.unzone('hz'); rt.unzone('gt'); rt.unzone('ng'); rt.uninteract('gate');
@@ -4792,7 +4831,7 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
     rt.after(4.8, () => { const u = F.tadaU; if (u?.alive) { u.invuln = false; rt.army.despawn(u); } });
     rt.after(8.5, () => { if (F.step === 5 && !F.ending && !rt.over) honnoSay(rt, '御所の組頭', '門は持たぬ。残る者が口を支える。北へ退け！', 3.5); });
     rt.after(16.5, () => { if (F.step === 5 && !F.ending && !rt.over) honnoSay(rt, '御所の組頭', '長益様は北の口から落ちられた。そなたも続け！', 3.2); });
-    rt.after(12, () => { if (F.step === 5 && !F.ending && !rt.over) { F.tadaFallen = true; honnoSay(rt, '', '――信忠は御所の奥で自害した。二十六の若さであった', 4); } });
+    rt.after(12, () => { if (F.step === 5 && !F.ending && !rt.over) { F.tadaFallen = true; honnoLoss(rt, F.tadaU); honnoSay(rt, '', '――信忠は御所の奥で自害した。二十六の若さであった', 4); } });
 
     rt.obj('main', '明智の兵を抜け、京の外れの木戸まで逃げよ', 'main', true);
     rt.marker('out', OUT, '京の外れ', { h: 2 });
@@ -5099,7 +5138,7 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
     const F = rt.flags;
     if (v.isStruct || v.civ || v.group?.civ || v.type === 'porter') return;
     // 11/8 critic60 十二1：倒れた数を両軍の数から引く（ずっと百と一万三千のままだった）
-    if (!v.isPlayer) { if (v.team === 0) { if (!rt.G.lord && (F.step || 0) >= 3) F.lostA3 = (F.lostA3 || 0) + 1; else F.lostA = (F.lostA || 0) + 1; } else if (v.team === 1) F.lostB = (F.lostB || 0) + 1; }
+    honnoLoss(rt, v);
     honnoFall(rt, v);
     if (v.team === 1 && v.group?.honnoStand && v.type === 'samurai' && killer?.isPlayer) {
       const n = v.group.honnoStand;

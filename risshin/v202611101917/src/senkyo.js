@@ -121,6 +121,10 @@ function sonaeName(rt, id) { const S = sonaeById(rt, id); return String((S && S.
 function fromKnows(rt, e, lvl) {
   const v = e.v;
   if (typeof v !== 'string') return;
+  // 11/10 関所4（本能寺）：敵方の軍が知った自分の崩れ・討死（rout:・taishoDown:）まで拾い、
+  //   明智の寄せ手が崩れるたびに「組頭、討死」「〇〇、崩れました」を味方の知らせとして出していた。自分の側が知った事だけ。
+  const mine = rt.player?.u?.team ?? 0;
+  if (e.team != null && e.team !== mine) return;
   let m = /^rout:(.+)$/.exec(v);
   if (m) { const S = sonaeById(rt, m[1]); if (inScope(rt, S, lvl)) notice(rt, `rout:${m[1]}`, `${sonaeName(rt, m[1])}、崩れました`, { warn: true }); return; }
   m = /^enemyRout:(.+)$/.exec(v);

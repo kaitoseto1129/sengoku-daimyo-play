@@ -1047,7 +1047,7 @@ const t10_oshi = {
       // 柵に残った一隊の全滅を待たず、討てない正木丹波守も退ける。
       for (const g of F.raids) if (fighting(g) && (g.units.filter((u) => u.alive && !u.gone && !u.fleeing).length <= 2 && g.units.length > 4 || rt.t - g.raidStartT > 90 && F.raidDefense >= 60)) {
         g.noRout = false; g.morale = 0; g.order = 'move'; g.dest = { x: GATE.x, z: GATE.z }; g.aggro = 0; g.onArrive = null;
-        for (const u of g.units) if (u.alive && !u.gone) { u.fleeing = true; u.target = null; }   // 前の手も残さず、討てない正木丹波守も城へ退く
+        for (const u of g.units) if (u.alive && !u.gone) { u.fleeing = true; u.target = null; u.watch = null; u.atk = null; }   // 前の手も残さず、討てない正木丹波守も城へ退く
       }
       // 次の夜討ちは、前が崩れて五秒後か、前が粘っても三十秒で浅瀬に寄せる（夜討ちは間を空けず次々と来る）
       // 11/8 15分の構成：夜討ちは四度。間に普請の進む間（十二秒）を置き、段は二分半から三分

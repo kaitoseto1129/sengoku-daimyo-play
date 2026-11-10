@@ -3281,7 +3281,8 @@ html:root body #hud#hud#hud.oke-goals :is(#armybar, #h-prog, #jk-vit) { z-index:
     (rt.cueAt || (rt.cueAt = {})).kakari = rt.t;
     rt.army.playFar('sig_kakari', rt.G.lord ? rt.player.u.pos : F.nob.center(), 1);
     localSay(rt, rt.hostGroup, '組頭', '攻めの合図じゃ！　道を塞ぐ松井の先手へ突きかかれ！', 4);
-    for (const g of F.enemies) g.fire = true;
+    // 雨宿りの鉄砲衆は火縄が濡れたまま退く。総懸かりでも射撃停止を解かない。
+    for (const g of F.enemies) if (!F.o15?.zeneiGs?.includes(g)) g.fire = true;
     for (let i = 0; i < F.cols.length; i++) {
       const g = F.cols[i];
       if (!g.count || g.routed) continue;

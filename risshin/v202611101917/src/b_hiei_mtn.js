@@ -2237,19 +2237,23 @@ function hieiPostRadius(F) {
   if (F.step === 3) return 6;
   return F.step === 2 || F.step === 4 && !F.bell2 ? 9 : 12;
 }
+function hieiResisting(u) {
+  return u?.alive && !u.gone && !u.dying && !u.rearWound && !u.woundOut && !u.fleeing && !u.noTarget && !u.group?.routed;
+}
 function hieiReady(u) {
-  return u?.alive && !u.gone && !u.dying && !u.downed && !u.rearWound && !u.woundOut && !u.fleeing && !u.noTarget && !u.group?.routed;
+  return hieiResisting(u) && !u.downed;
 }
 // 隊の人数には深手で戦列を離れた兵も残る。突破は戦える守り手で判じる。
 function hieiDefeated(g) {
   if (!g || g.routed) return true;
   let ready = 0;
-  for (const u of g.units) if (hieiReady(u)) ready++;
+  // 転倒は数秒で立ち直る。倒れた瞬間を討死・敗退として目標を果たさない。
+  for (const u of g.units) if (hieiResisting(u)) ready++;
   if (!ready) return true;
   // 隊長が討死・重傷で戦列を離れ、大半が倒れた守りまで最後の一人を探す条件にしない。
   // 到着や経過時間では崩さず、共通の敗走処理で実際に退いてから突破とする。
   const head = g._hieiLead || g.units[0], initial = g.initial || g.units.length;
-  if (head && !hieiReady(head) && initial - ready >= 2 && ready <= Math.ceil(initial * .2)) {
+  if (head && !hieiResisting(head) && initial - ready >= 2 && ready <= Math.ceil(initial * .2)) {
     g.noRout = false;
     g.morale = Math.min(g.morale, 21);
   }
