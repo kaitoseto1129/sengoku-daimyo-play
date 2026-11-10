@@ -268,6 +268,7 @@ const k12_kashii = {
     const st = document.createElement('style');
     st.textContent = `
 html:root body #hud#hud#hud#hud#hud.kashii-goals #armybar#armybar:not([hidden]) { display:grid !important; visibility:visible !important; opacity:1 !important; }
+html:root body #hud#hud#hud#hud#hud.kashii-goals #armybar#armybar .gauge.one { display:block !important; grid-column:1 / -1; width:100%; }
 html:root body #hud#hud#hud#hud.kashii-goals #h-prog#h-prog.goal-mode .pg-goals li { display:flex !important; }
 html:root body #hud#hud#hud#hud.kashii-goals #h-prog#h-prog.goal-mode .pg-goals .goals-toggle { display:none !important; }
 html:root body #hud#hud#hud.kashii-goals #armybar .clock { visibility:hidden !important; }

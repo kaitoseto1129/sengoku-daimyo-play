@@ -28,7 +28,7 @@ import { rainVolley } from './arrow_rain.js';
 import { allyGroup, enemyGroup, nm } from './bhelp.js';
 import { distToPolyline } from './world.js';
 import { heightOf, buildCastlePlan, rectPoly } from './castle_plan.js';
-import { addRamp } from './floors.js';
+import { addRamp, addWall } from './floors.js';
 import * as DP from './b_depth.js';
 import { depthStart, depthTick, depthBot } from './b_depth.js';
 import { withGuard } from './toyo_bot.js';
@@ -280,7 +280,7 @@ function bridgeAndSteps(rt) {
     const pos = new Float32Array(n * 3), nor = new Float32Array(n * 3), idx = []; let o = 0;
     for (const g of parts) { pos.set(g.attributes.position.array, o * 3); nor.set(g.attributes.normal.array, o * 3); for (const i of g.index.array) idx.push(i + o); o += g.attributes.position.count; g.dispose(); }
     const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('normal', new THREE.BufferAttribute(nor, 3)); geo.setIndex(idx);
-    const m = new THREE.Mesh(geo, mat); m.castShadow = false; m.receiveShadow = true; m.matrixAutoUpdate = false; m.updateMatrix(); rt.scene.add(m);
+    const m = new THREE.Mesh(geo, mat); m.castShadow = false; m.receiveShadow = true; m.userData.camBlock = true; m.matrixAutoUpdate = false; m.updateMatrix(); rt.scene.add(m);
   };
   // 曳橋：南の袂から北の袂へ。両岸の高さの差は、床をゆるく傾けてつなぐ
   const ax = BRIDGE_S.x, az = BRIDGE_S.z + 1, bx = BRIDGE_N.x, bz = BRIDGE_N.z - 1;
@@ -298,6 +298,9 @@ function bridgeAndSteps(rt) {
   }
   for (const s of [-1, 1]) {
     box(planks, 0.16, 0.16, len, mx + px * s * 1.6, y + 1.0, mz + pz * s * 1.6, ry, pitch);
+    // 見える手すりと同じ場所で横への通り抜けを止める。両端は開け、橋の床へ進める。
+    addWall({ ax: ax + px * s * 1.6, az: az + pz * s * 1.6, bx: bx + px * s * 1.6, bz: bz + pz * s * 1.6,
+      r: 0.12, y0: Math.min(ya, yb) - 0.2, y1: Math.max(ya, yb) + 1.2 });
     for (let k = -2; k <= 2; k++) {
       const cx = mx + ux * k * len / 5 + px * s * 1.6, cz = mz + uz * k * len / 5 + pz * s * 1.6, cy = y + (yb - ya) * k / 5;
       box(planks, 0.18, 1.0, 0.18, cx, cy + 0.5, cz);

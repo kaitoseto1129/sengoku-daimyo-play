@@ -55,10 +55,12 @@ export function update(rt, K) {
   // 段が進めば、start の予約も新手を出さない。
   // 新手が出る四十秒を過ぎ、大半を討ち払えば残り三人を探し回らせない。
   // 入る前に味方が大半を討った時は、残兵との再接触を要求しない。
-  // 本人が曲輪まで入り、新手の時刻を過ぎて初めて制圧とする。
+  // 味方だけが先に討ち払っても、本人が曲輪へ入る前に目標を済みにしない。
+  // 一度入った後は、残兵を追って曲輪の外へ出ても到着を取り消さない。
   const p = rt.player.u.pos;
-  const secured = el > 40 && left <= 3 && Math.hypot(p.x - NINO.x, p.z - NINO.z) < 14;
-  if (left === 0 || secured || (F.n4.fightT != null && ((el > 40 && left <= 3) || rt.t - F.n4.fightT > 185))) {
+  if (Math.hypot(p.x - NINO.x, p.z - NINO.z) < 14) F.n4.entered = true;
+  const secured = el > 40 && left <= 3;
+  if (F.n4.entered && (left === 0 || secured || (F.n4.fightT != null && rt.t - F.n4.fightT > 185))) {
     retreat(rt);
     return true;
   }
