@@ -1159,7 +1159,8 @@ t02_shizugatake.sides = { a: { name: '羽柴軍', mon: HASHIBA }, b: { name: '�
 t02_shizugatake.force = (rt) => {
   // 無傷の落ち武者も夜に場から去ると alive=false になるため、討死の知らせで数える。
   const lost = rt.flags.allyLost || 0;
-  return { a: Math.max(0, 50000 - lost * 40), a0: 50000, b: Math.max(0, 30000 - (rt.flags.kills || 0) * 40), b0: 30000 };
+  // 討死はこの戦で集計済み。共通の表示で援軍・退去の人数を重ねて補正しない。
+  return { a: Math.max(0, 50000 - lost * 40), a0: 50000, b: Math.max(0, 30000 - (rt.flags.kills || 0) * 40), b0: 30000, casualtiesCounted: true };
 };
 t02_shizugatake.date = (rt) => (rt.flags.phase >= 3 ? '天正十一年四月二十一日　夜明け' : '天正十一年四月二十日');
 t02_shizugatake.history = '天正十一年、羽柴秀吉と柴田勝家は、近江の余呉湖のまわりの砦に分かれて睨み合った。北の行市山・別所山・茂山には佐久間盛政・前田利家ら柴田方、南の堂木山・神明山・東野山・岩崎山・大岩山・賤ヶ岳・田上山には羽柴方が入った。\n'

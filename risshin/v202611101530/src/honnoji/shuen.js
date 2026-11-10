@@ -39,7 +39,7 @@ export function wrap(def) {
       const show = (k) => { const q = el?.querySelector(`[data-k="${k}"]`); if (q) q.style.opacity = '1'; };
       k15Afterglow(r, [
         [1, () => r.banner('京の空', '東の空に、本能寺と二条の煙が高く上る')],
-        [5, () => r.say('使者', '備中へ。羽柴様へ、必ず', 3)],
+        [5, () => r.say('使者', '備中高松へ。羽柴筑前守様へ、必ず', 3)],
         [4, () => { el = curtain(r); requestAnimationFrame(() => { if (el) el.style.opacity = '1'; }); sfx('neigh', 0.35); }],
         [2.5, () => show('b')],
         [3.5, () => show('h')],

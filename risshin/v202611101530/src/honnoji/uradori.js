@@ -23,7 +23,8 @@ export function wrap(def, K) {
 // 二条御所の守り手（docs/generals_oda_1108.md 32：福富秀勝）。信忠の手の脇に旗と供で構える
 function fukutomi(rt) {
   const F = rt.flags;
-  const t = () => { if (rt.over || F.ending) return; if (!F.tada) { rt.after(1, t, true); return; }
+  // 幕替えの待ちだけを繰り返す。討死や御所からの退却後に守り手を出さない。
+  const t = () => { if (rt.over || F.ending || !rt.player.u.alive || F.step >= 5) return; if (!F.tada) { rt.after(1, t, true); return; }
     const a = F.tada.anchor; evPerson(rt, 0, '福富秀勝', { x: a.x + 4, z: a.z + 6 }, -Math.PI / 2, { guard: 2, ash: 3, aggro: 6, mortal: true }); };
   rt.after(3, t, true);
 }
