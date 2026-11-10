@@ -7,6 +7,7 @@
 // ======================================================================
 import { enemyGroup } from '../bhelp.js';
 import { sfx } from '../audio.js';
+import { shooters } from './plus.js';
 
 export const BZ = -139;   // 破れ目（大宮前と柳田前の間）
 
@@ -70,10 +71,17 @@ export function tick(rt, dt) {
   // 一分たつと、隣の口の鉄砲組が破れ目へ向き直って撃ち込む（戦況が動く）
   if (!B.volley && rt.t - B.at1 > 55) {
     B.volley = true;
-    rt.say('前田利家', '鉄砲組、破れ目へ向き直れ！　放て！', 2.8);
-    try { sfx('volley', 1); } catch (e) { /* なし */ }
-    let k = 0;
-    for (const u of g.units) if (u.alive && u.name !== '山県昌景' && k < 3) { rt.army.kill(u, null); k++; }
+    // 射手の全滅・敗走や遠い持ち場を無視して、時刻だけで三人を倒さない。
+    // 近くで戦える鉄砲組だけに下知し、遮蔽物・射程・装填と命中は通常の射撃で判定する。
+    let guns = 0;
+    for (const q of c.guns()) {
+      if (!shooters(q)) continue;
+      const at = q.center();
+      if (Math.hypot(at.x - B.IN.x, at.z - B.IN.z) > 80) continue;
+      q.fire = true; q.holdFire = false;
+      guns++;
+    }
+    if (guns) rt.say('前田利家', '鉄砲組、破れ目へ向き直れ！　放て！', 2.8);
   }
   const lord = g.units.find((u) => u.name === '山県昌景');
   if (Math.hypot(p.x - B.IN.x, p.z - B.IN.z) < 32) B.there = true;

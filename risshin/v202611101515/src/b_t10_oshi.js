@@ -691,7 +691,7 @@ const t10_oshi = {
     // 通常の軍議と途中再開の両方で、退却中だけ止めた射撃を戻す。
     const K = F.chi;
     if (K) {
-      if (rt.world?.def) rt.world.def.strictFireOrders = K.strictWas;
+      if (rt.world?.def && Object.hasOwn(K, 'strictWas')) rt.world.def.strictFireOrders = K.strictWas;
       for (const g of K.fireWas || []) g.fire = true;
       for (const [u, a, b] of K.ammoWas || []) { u.arrowAmmo = a; u.gunAmmo = b; }
     }
@@ -765,6 +765,8 @@ const t10_oshi = {
     F.weirRaid = enemyGroup(rt, { faction: 'narita', name: '堰へ寄せる城兵', anchor: { ...WEIR_RAID }, facing: Math.PI * 0.85, fleeDir: { x: 0, z: -1 }, width: 4, noRout: true, formation: 'line', morale: 80,
       order: 'move', dest: { x: WEIR.x + 2, z: WEIR.z - 3 }, speed: 3.2, aggro: 6, dmgMult: 0.4 },
     dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 5 }, { type: 'bow', n: 1 }], HOJO));
+    // 固定の北向きに逃がすと沼の深みに入る。堤を戻り、浅瀬を伝って城へ退く。
+    F.weirRaid.oshiRetreat = [[WEIR.x + 2, WEIR.z - 3], [-30, 20], [KU.x - 8, KU.z - 8], [FORD.x, FORD.z], [FRONT.x, FRONT.z]];
     F.weirRaid.onArrive = (q) => { q.onArrive = null; q.order = 'attack'; q.seekRange = 26; q.aggro = 12; };
     rt.army.play('eshout', WEIR_RAID, 1.1);
     rt.say('石田勢の足軽', '城の者が沼の縁を来る！　堰を壊させるな！', 3);
