@@ -2797,7 +2797,8 @@ const nodafukushima = {
   reserveCombatCues: true, // 休む印が気力・間合いの札に重ならないよう、既存の回避を使う。
   edgeBehindWaymarks: true, // 後ろへ退く印を画面の端へ寄せ、槍の列を見せる。
   // 11/9 見回り（織田C）：井楼の段（登る・撃つ）は戦の頭の動きを保つ。アクション好きの癖が近くの槍へ構え直して「登る」の長押しを毎回放し、梯子の下で十五分止まった。
-  botEvacuating: rt => (rt.flags.retreating && !rt.flags.ending) || rt.flags.step === 1 || (rt.flags.step === 1.5 && !rt.flags.shotsDone),
+  // 三発を撃った後も、梯子を下り切るまで長押しを性格の構え直しに奪わせない。
+  botEvacuating: rt => (rt.flags.retreating && !rt.flags.ending) || rt.flags.step === 1 || (rt.flags.step === 1.5 && !rt.flags.shotsDone) || !!rt.flags.onSeirou || !!rt.flags.down || !!rt.player.u.climb,
   compactIntro: true,
   introTaskFirst: true,
   introKeepControls: true, // 開戦前は長押しの説明を省かず、そのまま読ませる。

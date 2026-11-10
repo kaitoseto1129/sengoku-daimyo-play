@@ -58,10 +58,10 @@ const NO_FOES = [];
 // 待機線へ着く前は進む向きを示す。距離は印の欄へまとめ、任務の文を折り返さない。
 function tanoWaitText(rt) {
   const C = rt.flags.dp?.cur, p = rt.player.u.pos;
-  if (!C?.waiting) return '射手の後ろで構えよ';
+  if (!C?.waiting) return '四郎作の射手の後ろで構えよ';
   const d = Math.hypot(p.x - C.waitAt.x, p.z - C.waitAt.z);
-  if (d > 4) return `鉄砲の待ち場へ${p.x > C.waitAt.x + 2 ? '下がれ' : '進め'}`;
-  return rt.flags.tgun?.order !== 'hold' ? '印の所で待て。射手が前へ出る' : 'ここで鉄砲の合図を待て';
+  if (d > 4) return `四郎作の射手の後ろへ${p.x > C.waitAt.x + 2 ? '下がれ' : '進め'}`;
+  return rt.flags.tgun?.order !== 'hold' ? '四郎作で待て。射手が前へ出る' : '四郎作で鉄砲の合図を待て';
 }
 // 山腹の上だけ傾きを徐々に寝かせる。高さ四十で急に折れる平らな稜線を作らない。
 // 下の二十までは従来と同じ。道・崖道の足場と川岸の低い段は動かさない。

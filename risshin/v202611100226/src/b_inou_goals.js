@@ -11,7 +11,7 @@ export const GOALS = [
 // 主人公が自分の槍で働いた事（その段で討った数）。何もしないうちに済みの印を付けない（kaito crit 11/6・九2・十二3）
 export const inouDid = (rt, stage, n) => ((rt.flags.ks || [])[stage] || 0) >= n;
 // 案内は、今も刃を合わせられる敵本人にだけ付ける。
-export const inouEnemyAlive = (u) => u?.alive && u.hp > 0 && !u.gone && !u.dying && !u.downed && !u.woundOut && !u.rearWound && !u.fleeing && !u.invuln && !u.noTarget;
+export const inouEnemyAlive = (u) => u?.alive && u.hp > 0 && !u.gone && !u.dying && !u.downed && !u.woundOut && !u.rearWound && !u.fleeing && !u.group?.routing && !u.group?.routed && !u.invuln && !u.noTarget;
 // 11/8 十五分の構成（docs/oda15_plan_1108.md の 1・prototype/src/inou/）：行軍・林の前衛・横槍の三つ
 export const GOALS15 = {
   march: '稲生村の街道で組頭について進め',

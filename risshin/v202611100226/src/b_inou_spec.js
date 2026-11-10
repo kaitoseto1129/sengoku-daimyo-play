@@ -21,7 +21,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { victoryMoment } from './victory_moment.js';
 import { sfx } from './audio.js';
 import { goalsTick } from './hud_goals.js';
-import { GOALS, inouDid } from './b_inou_goals.js';
+import { GOALS, inouDid, inouEnemyAlive } from './b_inou_goals.js';
 import * as I15 from './inou/index.js';
 import { DEPTH_INOU } from './inou/depth.js';   // 陣立ての表（army_depth.js）   // 11/8 十五分の構成（行軍・林の前衛・横槍・勝家・余韻）
 
@@ -322,7 +322,7 @@ function inouGoalBoard(rt) {
   };
 }
 
-const guideEnemyAlive = (u) => u?.alive && u.hp > 0 && !u.gone && !u.dying && !u.downed && !u.woundOut && !u.rearWound && !u.fleeing && !u.invuln && !u.noTarget;
+const guideEnemyAlive = inouEnemyAlive;
 
 const inou_spec = {
   missionStyle: 'lesson',
@@ -1129,7 +1129,7 @@ const inou_spec = {
   botBrain(b, inp, { goTo, patientStrike }) {
     const p = b.player, u = p.u, F = b.flags;
     if (F.holdPlayer) return;
-    const ok = (o) => !o.fleeing && !o.invuln && !o.noTarget && Math.abs(o.pos.y - u.pos.y) < 3;
+    const ok = (o) => inouEnemyAlive(o) && Math.abs(o.pos.y - u.pos.y) < 3;
     const prev = p.botStrikeFoe;
     // 始めの一分は北（前）の敵を先に突く：画面の奥へ乱戦が続き、赤い旗印も向きの先に入る
     const front = (o) => ok(o) && o.pos.z < u.pos.z + 0.5;

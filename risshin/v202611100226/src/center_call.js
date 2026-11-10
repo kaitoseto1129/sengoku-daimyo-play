@@ -1,4 +1,4 @@
-// 起きた出来事を画面の中央に短く大きく出し、すぐ消す（kaito 11/9 遊んだ声 6）。
+// 起きた出来事を画面の中央に短く大きく出し、読む時間を残す（kaito 11/9 遊んだ声 18）。
 //   出来事は senkyo.js の logEvent から拾う。ミッションが変わった時は hud_feedback.js の goalChanged から呼び、一瞬青く光らせる。
 //   決まり：同じ文は八秒に一度・同時に三つまで・「動きを減らす」では光らせない。
 import { onEvent } from './senkyo.js';
@@ -14,13 +14,14 @@ function css() {
   st.textContent = `
 #center-call { position:absolute; left:0; right:0; top:40%; display:flex; flex-direction:column; align-items:center; gap:6px; pointer-events:none; z-index:6; }   /* 11/9 二巡（姉川）：右上の任務の札と進みの棒に重ならないよう、少し下げて幅を詰める */
 #center-call .cc { font-family:var(--display, serif); font-weight:800; font-size:max(18px, calc(clamp(22px, 4.4vw, 44px) * var(--text-scale, 1))); letter-spacing:.12em; color:#fff; -webkit-text-stroke:1px rgba(30,6,4,.9); paint-order:stroke fill; text-shadow:0 2px 12px rgba(0,0,0,.85); padding:2px 16px; max-width:64vw; text-align:center; animation:cc-in 2.1s ease-out forwards; }
-#center-call .cc.blue { color:#e6f2ff; text-shadow:0 0 14px #4aa8ff, 0 0 30px #2a7de0, 0 2px 12px rgba(0,0,0,.85); animation:cc-in 2.1s ease-out forwards, cc-blue .9s ease-out 1; }
+#center-call .cc { background:rgba(18,22,28,.94); border-radius:4px; animation-duration:5s; }
+#center-call .cc.blue { color:#e6f2ff; background:rgba(12,39,69,.96); border:1px solid #79b9eb; text-shadow:0 2px 4px #061322; animation:cc-in 5s ease-out forwards, cc-blue .9s ease-out 1; }
 @keyframes cc-in { 0% { opacity:0; transform:scale(1.15); } 12% { opacity:1; transform:none; } 72% { opacity:1; } 100% { opacity:0; } }
 @keyframes cc-blue { 0% { filter:brightness(1.8) drop-shadow(0 0 18px #4aa8ff); } 100% { filter:none; } }
 body.rm #center-call .cc, html.rm #center-call .cc { animation:none; }
 @media (prefers-reduced-motion:reduce) { #center-call .cc { animation:none; } }
 body:has(#pause:not([hidden])) #center-call, body:has(#intro:not([hidden])) #center-call { visibility:hidden; }
-/* 11/9 二巡（太田城）：中央の大きな字が出ている二秒の間は、行き先の▼の名札を薄く（字が重なって読めなかった） */
+/* 中央の知らせが出ている間は、行き先の名札との重なりを防ぐ。 */
 body:has(#center-call .cc) #goal-sign .gs-tag { opacity:0; transition:opacity .2s; }
 `;
   document.head.appendChild(st);
@@ -35,11 +36,11 @@ export function centerCall(rt, text, blue = false) {
   if (box.children.length >= 3) return false;   // 同時に三つまで
   SEEN.set(text, t);
   const el = document.createElement('div');
-  el.className = 'cc' + (blue && !S.reduceMotion ? ' blue' : '');
+  el.className = 'cc' + (blue ? ' blue' : '');
+  if (S.reduceMotion) el.style.animation = 'none';
   el.textContent = text;
   box.appendChild(el);
-  const ms = S.reduceMotion ? 1800 : 2150;
-  setTimeout(() => el.remove(), ms);
+  setTimeout(() => el.remove(), 5000);
   return true;
 }
 
