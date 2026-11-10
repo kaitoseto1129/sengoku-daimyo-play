@@ -914,7 +914,8 @@ const t10_oshi = {
         if (F.weirT >= 2) this.openWeir(rt);
       }
     } else if (F.step === 6) {
-      if (!F.broken) return;
+      // 到着後は三成との会話を待つ。避難の追従で待機の下知を上書きしない。
+      if (!F.broken || F.arrived) return;
       // 人夫と兵は主人公の呼ぶ方へ付いて来る。離れただけで無作為に討死させない。
       let alive = 0, safe = 0;
       for (const g of F.evac) {

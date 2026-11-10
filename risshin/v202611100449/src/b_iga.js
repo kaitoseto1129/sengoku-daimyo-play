@@ -2947,7 +2947,7 @@ function igaWallStones(rt, dt) {
       st.t = -1; st.mesh.visible = false;
       sfx('wood', 0.25);
       for (const u of A.units) {
-        if (!u.alive || u.team !== 0 || u.isStruct || u.fleeing) continue;
+        if (!u.alive || u.team !== 0 || u.isStruct || u.fleeing || u.woundOut || u.noTarget || u.gone) continue;
         if (Math.hypot(u.pos.x - st.b.x, u.pos.z - st.b.z) > 1.4 || Math.abs(u.pos.y - st.b.y) > 2.5) continue;
         // 着弾点が近くても、竹束や柵の反対側には石を通さない。
         if (projectileCover(A, prevX, prevY, prevZ, u.pos.x, u.pos.y + 1, u.pos.z, null).q <= 1) continue;

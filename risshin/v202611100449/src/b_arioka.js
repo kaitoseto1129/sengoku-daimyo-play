@@ -3451,7 +3451,12 @@ function ariBot(b, inp, { goTo, patientStrike, strikeTarget }) {
   const p = b.player, u = p.u, F = b.flags;
   inp.quickCmd = null;
   inp.k.delete('KeyW'); inp.k.delete('KeyE');
-  if (u.alive && F.ending && F.kanbeAt && F.kanbePending && !F.kanbeMet) { goTo(p, inp, F.kanbeAt.x, F.kanbeAt.z, 2.5); return; }
+  if (u.alive && F.ending && F.kanbeAt && F.kanbePending && !F.kanbeMet) {
+    // 迎えに戻る時も案内と同じ通りをたどり、町屋へ直進しない。
+    const at = gateWay(b.army, u, F.kanbeAt);
+    goTo(p, inp, at.x, at.z, at === F.kanbeAt ? 2.5 : .5);
+    return;
+  }
   if (!u.alive || F.ending) return;
   if (F.dpOn) {
     if (F.dp?.cur?.failed) { goTo(p, inp, CAMP.x, CAMP.z, 3); return; }

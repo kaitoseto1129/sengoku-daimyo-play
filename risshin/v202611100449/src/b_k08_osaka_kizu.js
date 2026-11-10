@@ -86,6 +86,12 @@ const northTarget = (F, p) => fightingTarget(F.s4, p, F);
 // 北門をまたぐ時は、手当てに下がる場合も開いた門を通る。
 function goNorthTo(b, inp, goTo, target, radius) {
   const p = b.player, pos = p.u.pos;
+  // 北門の外から横塀の外の敵へ戻る時は、先に北門をくぐる。
+  // 横塀の切れ目へ先に向かうと、まだ残る北の塀を斜めに横切って止まる。
+  if (pos.z < WALL_N && Math.abs(pos.x) <= WALL_X && target.z >= WALL_N && b.army.wallBetween(pos, -1, target)) {
+    goTo(p, inp, NGATE.x, Math.abs(pos.x - NGATE.x) > 2.5 ? WALL_N - 8 : WALL_N + 4, 2);
+    return;
+  }
   // 東西の塀の外へ押し出された時も、③で開いた切れ目を通る。
   // 北門と同じ側にいるだけでは、北寄りの塀を斜めに横切れない。
   // 北門もまたぐ行き先では、横の塀の切れ目を先に通す。
