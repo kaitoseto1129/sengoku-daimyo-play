@@ -1150,16 +1150,13 @@ const tano = {
   // 民家はカメラを寄せる当たり（camBlock）を持つので、カメラと本人の間の家の面を抜かない（critic60 田野 23「近づくと家が透けて欠ける」）
   nearSlab: false,
   missionOf(rt) {
-    const F = rt.flags, C = F.dp?.cur;
-    if (F.ending || !C || C.s.kind === 'move') return 0;
-    if (C.waiting && C.s.phase === 'narrow' && !F.volley && !F.narrowPush &&
-        fighting(F.tgun) && fighting(F.defenders[2])) return 2;
-    if (this.missionSignTarget(rt)) return 1;
-    return C.s.phase === 'fence' ? 3 : C.s.phase === 'tano' ? 4 : 0;
+    // 敵の印や射撃待ちでは任務の番号を替えない。文と同じ進行段を示す。
+    if (rt.flags.lastView) return 4;
+    return Math.max(0, Math.min(this.missions.length - 1, rt.flags.dp?.i ?? 0));
   },
   missionHeading(rt) {
-    // ⑤は三人の最期まで続く。守兵を退けただけで集合の目標へ替えない。
-    if (rt.flags.lastView && !rt.flags.principalsDead && !rt.over) return this.missions[4];
+    // ⑤は三人の最期と語りまで続く。途中で集合の目標へ替えない。
+    if (rt.flags.lastView && !rt.over) return this.missions[4];
     if (rt.flags.ending || rt.over) return rt.flags.lastView || rt.tracker.main ? '味方と集まれ' : '味方と退け';
     const F = rt.flags, C = F.dp?.cur;
     // 待ち場への案内は印と鉄砲頭の下知に任せ、五つの目標の文は替えない。
