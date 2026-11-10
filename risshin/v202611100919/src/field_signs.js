@@ -588,9 +588,11 @@ export function fieldSignsTick(rt, root) {
     // 七十歩以遠へは滑らかに戻し、近い相手の白縁・命中の伸びと分ける。
     const inouMinPixels = lesson ? Math.max(16 * inouNear,
       (inouFocus ? 18 : 12) * Math.max(0, Math.min(1, (70 - Math.sqrt(meD2)) / 30))) : 0;
-    const k = Math.max(Math.max(moribeMinPixels, inouMinPixels) * moribePixelScale,
+    let k = Math.max(Math.max(moribeMinPixels, inouMinPixels) * moribePixelScale,
       Math.min(ford ? moribeLimit : lesson ? inouLimit : raid ? (u === missionEnemy || u === commander ? 1.6 : 1.1) : u === commander ? 32 : 3, (lesson || ford ? pixels : width) * moribePixelScale)) *
       (ford || lesson ? 1 : 1 + (pulse > 0 ? 1.2 * pulse : reachable && !raid ? .55 : 0));
+    // 戦ごとの所属印の上限。近接の拡大後に抑え、序盤三戦の命中の形は保つ。
+    if (!special && foe && rt.def.enemySignMaxPixels > 0) k = Math.min(k, rt.def.enemySignMaxPixels * moribePixelScale);
     dummy.position.copy(headPos);
     dummy.quaternion.copy(q);
     // 振りかぶりでも▼の向きは変えず、誰の頭上かを保つ。

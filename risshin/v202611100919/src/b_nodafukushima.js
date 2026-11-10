@@ -1175,11 +1175,23 @@ function floodRise(rt) {
   }
   F.flood.visible = true; F.floodTo = 0.45;
   // 火縄が濡れて鉄砲は撃てない（公記：十四日以降も潮が引かず鉄砲が使えなかった）。織田の鉄砲衆は込めたまま控える。
-  for (const g of [F.teppo, ...(F.seirouGuns || [])]) if (g) g.holdFire = true;
+  // 射撃待機だけでは近い敵へ撃つ。増援の鉄砲衆も含め、潮が引くまで発砲を止める。
+  if (!F.wetGuns) {
+    F.wetGuns = [];
+    for (const g of [F.teppo, ...(F.seirouGuns || []), F.nodaTeppo?.guns]) if (g) {
+      F.wetGuns.push({ g, fire: g.fire, holdFire: g.holdFire });
+      g.fire = false; g.holdFire = true;
+    }
+  }
   rt.after(6, () => { if (!F.ending && !F.retreating) rt.say('足軽', '潮じゃ！　堤が切れて陣へ水が入ったぞ！　火縄が濡れる！', 3.5); });
   rt.after(12, () => { if (!F.ending && !F.retreating) rt.say('前田利家', '鉄砲は使えぬ。槍を揃えて堤の背を守れ！', 3.5); });
 }
-function floodDrain(rt) { const F = rt.flags; if (F.flood) { F.flood.visible = false; F.flood.position.y = -0.35; F.floodTo = null; } }
+function floodDrain(rt) {
+  const F = rt.flags;
+  if (F.flood) { F.flood.visible = false; F.flood.position.y = -0.35; F.floodTo = null; }
+  for (const { g, fire, holdFire } of F.wetGuns || []) { g.fire = fire; g.holdFire = holdFire; }
+  F.wetGuns = null;
+}
 
 // 大鉄砲（十匁を超える筒）を井楼の上から砦の塀の内へ撃ち込む。昼の段（竹束〜砦の口）だけ、七〜十一秒に一発。
 //   重い音・大きな白煙・塀の内の守り手が倒れる。高潮で火縄が濡れた後と夜は撃たない。

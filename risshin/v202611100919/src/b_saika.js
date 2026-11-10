@@ -397,9 +397,8 @@ html:root body #hud#hud#hud.saika-goals #h-prog#h-prog.goal-mode .pg-goals li.no
 html:root body #hud#hud#hud.saika-goals #h-prog#h-prog.goal-mode .pg-goals li.done { color:#cfc9bc !important; }
 html:root body #hud#hud#hud.saika-goals #h-prog#h-prog.goal-mode .pg-goals :is(h3 b, li em) { display:none !important; }`;
   document.head.appendChild(style); hud.root.classList.add('saika-goals');
-  // 11/6 fix61（九3）：共通の▼は近い数人だけ。四十 m 内の見える敵（柵の鉄砲・寄せる組）には一人残らず同じ赤い▼を付ける。
-  //   使者は noTarget なので付かない。印は使い回し、毎コマ作らない。
-  const foeMarks = hud.foeMarks, tris = [], box = document.createElement('div'), v = new THREE.Vector3();
+  // 敵全員の▼は共通の印に任せる。古い補助の印を重ねず、名札だけ補う。
+  const foeMarks = hud.foeMarks, box = document.createElement('div'), v = new THREE.Vector3();
   box.style.cssText = 'position:absolute;left:0;top:0;width:0;height:0;overflow:visible;pointer-events:none';
   box.setAttribute('aria-hidden', 'true');
   hud.root.appendChild(box);
@@ -416,27 +415,6 @@ html:root body #hud#hud#hud.saika-goals #h-prog#h-prog.goal-mode .pg-goals :is(h
     if (battle !== rt) return out;
     const me = rt.player.u;
     const on = me.alive && !rt.over && !rt.flags.ending && !rt.choice && !this.introWaiting && !rt.player.camShot && !this.bigmap && !this.root.classList.contains('photo');
-    let n = 0;
-    if (on) for (const u of rt.army.units) {
-      if (!u.alive || u.gone || u.dying || u.woundOut || u.noTarget || u.isStruct || u.civ || u.team === me.team || u._nearSignOn ||
-          u.camHidden || (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2 > 1600) continue;
-      // 近い兵は human の体で描き、元の形（u.mesh）は隠れている。見えるかは camHidden と見通しで決める。
-      if (!(u._skSeenAt > rt.t - .34 && u._skSeenAt <= rt.t)) { u._skSeen = sightUnit(rt, u); u._skSeenAt = rt.t; }
-      if (!u._skSeen) continue;
-      v.set(u.pos.x, u.pos.y + (u.mounted ? 3.2 : 2.25), u.pos.z).project(rt.camera);
-      if (v.z < -1 || v.z > 1 || Math.abs(v.x) > 1 || Math.abs(v.y) > 1) continue;
-      let el = tris[n];
-      if (!el) {
-        el = tris[n] = document.createElement('span');
-        el.textContent = '▼';
-        el.style.cssText = 'position:absolute;left:0;top:0;color:#ff4a2e;font-size:18px;line-height:1;-webkit-text-stroke:1px #2a0d06;text-shadow:0 1px 2px #000;pointer-events:none';
-        box.appendChild(el);
-      }
-      n++;
-      el.hidden = false;
-      el.style.transform = `translate(${((v.x + 1) * innerWidth / 2).toFixed(1)}px,${((1 - v.y) * innerHeight / 2).toFixed(1)}px) translate(-50%,-100%)`;
-    }
-    for (let i = n; i < tris.length; i++) tris[i].hidden = true;
     // 11/6 c0443（九3・五2）：堀秀政・佐久間信盛の名が戦の間ずっと出なかった（共通の名札は雑賀では出ない）。
     //   九十 m 内で画面に入る名のある味方の将の頭上に名を出す。浜手の三将を含め、札は五枚を使い回す。
     let k = 0;
@@ -2016,6 +1994,7 @@ const saika = {
   // 共通の一件表示へ戻さず、最初から五件と達成の印を並べる。
   missionSingleLine: true, goalsAllRows: true, goalVisibleRows: 5, hideMissionDots: true, hideGuideSteps: true,
   enemyTriangleSigns: true, nearbyAllySignLimit: 0, noDodgeCard: true,
+  enemySignMaxPixels: 34,   // 近い敵の印が重なって視界を覆わず、届く一人も同じ上限へ収める。
   nameRange: 90,   // 11/6 c0443（九3・五2）：堀秀政・佐久間信盛の名が戦の間ずっと出なかった（共通は十八 m 内だけ）。九十 m 内の名のある将に名を出す
 
   quietMiss: true, noPlayerFoot: true,

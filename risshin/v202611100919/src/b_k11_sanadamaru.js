@@ -1153,9 +1153,31 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
     ], (rt2) => this.win(rt2));
   },
 
+  // 救援の下知と撤収完了を分け、陣まで戻った生存者だけを戦功に数える。
+  rescueTick(rt) {
+    const F = rt.flags;
+    if (F.step !== 7) return;
+    let saved = 0;
+    for (const g of F.stranded || []) {
+      if (gone(g)) continue;
+      if (!g.rescuing) {
+        const c = g.center(), p = rt.player.u;
+        if (!p.alive || Math.hypot(c.x - p.pos.x, c.z - p.pos.z) >= 7) continue;
+        g.rescuing = true;
+        withdraw(g, { x: RETREAT.x + 8, z: RETREAT.z + 6 });
+        rt.say('足軽', 'か、かたじけない……！', 2.4);
+      }
+      for (const u of g.units) {
+        if (u.alive && !u.gone && Math.hypot(u.pos.x - (RETREAT.x + 8), u.pos.z - (RETREAT.z + 6)) < 12) saved++;
+      }
+    }
+    F.saved = saved;
+  },
+
   win(rt) {
     const F = rt.flags;
     if (F.ending || !rt.player.u.alive || F.step !== 7 || Math.hypot(rt.player.u.pos.x - RETREAT.x, rt.player.u.pos.z - (RETREAT.z - 4)) > 9) return;
+    this.rescueTick(rt);
     F.ending = true;
     F.returned = true;
     rt.setPhase('end');
@@ -1231,16 +1253,7 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
           for (const u of g.units) { u.target = null; u.aiT = 0; }
         }
       }
-      // 取り残された味方：本人が寄れば、一緒に退く（戦功＝味方救援）
-      if (F.step === 7) for (const g of F.stranded || []) {
-        if (gone(g) || g.saved) continue;
-        const c = g.center(), p = rt.player.u.pos;
-        if (Math.hypot(c.x - p.x, c.z - p.z) < 7) {
-          g.saved = true; F.saved = (F.saved || 0) + g.count;
-          withdraw(g, { x: RETREAT.x + 8, z: RETREAT.z + 6 });
-          rt.say('足軽', 'か、かたじけない……！', 2.4);
-        }
-      }
+      this.rescueTick(rt);
     }
     // 塀と櫓の鉄砲は、柵の前の寄せ手の群れを狙う（横矢）
     F.aimT = (F.aimT || 0) - dt;
