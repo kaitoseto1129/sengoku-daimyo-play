@@ -135,7 +135,21 @@ Object.assign(takato, {
         // 出撃する城兵を受ける場所は、既存の味方の槍の列に合わせる。
         const marker = rt.markers.find(m => m.id === 'sally');
         point = marker && (typeof marker.pos === 'function' ? marker.pos() : marker.pos);
-        if (!point) point = F.oteSpear?.real?.pos || F.oteSpear?.pos;
+        // 先手が崩れて迎撃の印が消えても、討たれた隊の位置へ案内しない。
+        // 今も戦える後詰・第二陣の槍の列へ引き継ぐ。
+        if (!point) {
+          let best = Infinity;
+          for (const u of rt.army.units || []) {
+            const g = u.group;
+            if (!g || g.routed || u.noTarget || !takatoFighter(u) ||
+                g !== F.oteSpear?.real && g !== F.reserve?.real && g !== F.dan2?.real ||
+                Math.abs(u.pos.y - me.pos.y) >= 3 || rt.army.wallBetween(me.pos, -1, u.pos)) continue;
+            const d = (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2;
+            if (d < best) { best = d; point = u.pos; }
+          }
+          if (!point) point = F.roadGuide;
+        }
+        q.label = '大手門前の槍の列';
       }
       // 守る範囲を白い破線の大きな輪で囲まない（10/29 採点）。ピン一つで示し、着いたかの判定の広さは保つ。
       q.waiting = true; q.defend = false; q.r = q.hide = 1;
