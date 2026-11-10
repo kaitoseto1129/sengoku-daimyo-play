@@ -2241,8 +2241,9 @@ takato.siegeKit = {
   // 突くのは自分でなく、大手の先手（森長可の槍の列）の横腹。
   sorties: [{ from: 'plaza', fight: 15, again: 30, R: 11,
     strike: (rt) => { const p = rt.flags.oteSpear?.pos; return p ? { x: p.x, z: p.z + 4 } : { x: 100, z: 6 }; },
-    group: (rt, K) => enemyGroup(rt, { fixed: true, faction: 'takeda', name: '枡形の城兵', anchor: { ...K.at.plaza }, facing: Math.PI / 2, order: 'hold', width: 3, aggro: 4, morale: 85, fleeDir: { x: -1, z: 0 }, formation: 'yari' },
-      [{ type: 'ashigaru', n: 6 }]),
+    // 別の部品が出す城兵も、②で本人が受けた相手として記録する。
+    group: (rt, K) => (rt.flags.masuSally = enemyGroup(rt, { fixed: true, faction: 'takeda', name: '枡形の城兵', anchor: { ...K.at.plaza }, facing: Math.PI / 2, order: 'hold', width: 3, aggro: 4, morale: 85, fleeDir: { x: -1, z: 0 }, formation: 'yari' },
+      [{ type: 'ashigaru', n: 6 }])),
     when: (rt) => { const u = rt.player.u, F = rt.flags; return F.step >= 1 && rt.t > 24 && !F.sanFell && u.alive && Math.hypot(u.pos.x - 77, u.pos.z) < 55; },
     onTsukeiri: (rt) => { rt.flags.tsukeiri = true; } }],
 };
