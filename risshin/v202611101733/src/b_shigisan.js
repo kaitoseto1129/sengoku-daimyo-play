@@ -3546,7 +3546,8 @@ const shigisan = {
     }
     F.ending = true;
     rt.setPhase('end'); rt.objProgress('main', '');
-    for (const id of ['tsu', 'amb', 'branch', 'climb', 'gate', 'gather', 'rg1', 'rg2', 'yashiki', 'honmaru', 'l1', 'l2', 'tower']) rt.unmark(id);
+    // 南口の印は優先度が高く、残すと終幕の天主より先に案内される。
+    for (const id of ['tsu', 'amb', 'branch', 'climb', 'gate', 'gather', 'rg1', 'rg2', 'yashiki', 'honmaru', 'l1', 'l2', 'tower', 'enjou']) rt.unmark(id);
     rt.uninteract('yashikiRoute'); rt.uninteract('tower'); rt.uninteract('ramgate'); rt.unzone('tower');
     // 落城を見聞きできる本丸の兵だけに伝える。離れた曲輪の守りは残す。
     for (const q of F.last || []) if (!gone(q) && Math.hypot(q.center().x - TOP.x, q.center().z - TOP.z) < TOP.r + 12) { q.noRout = false; q.morale = Math.min(q.morale, 15); }

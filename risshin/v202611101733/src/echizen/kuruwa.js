@@ -9,6 +9,7 @@ import { sfx } from '../audio.js';
 import { toCourt } from './goryu.js';
 import { k15Fade } from '../oda15_kit.js';
 import { fighter, pursuer } from './fuchu.js';
+import { KINOME_PLAN } from '../castles/kinome.js';
 
 const ORDER = ['kinome_sou', 'kinome_fuku', 'kinome_hon'];
 
@@ -125,6 +126,27 @@ export function tick(rt, dt) {
       for (const q of rt.squadGroups || []) for (const v of q.units) if (!q.routed && v.alive && !v.fleeing && !v.woundOut && !v.rearWound && Math.hypot(v.pos.x - ox, v.pos.z - oz) < 40) { v.pos.x = z.pos.x + (Math.random() - 0.5) * 6; v.pos.z = z.pos.z + (Math.random() - 0.5) * 6; v.pos.y = rt.world.heightAt(v.pos.x, v.pos.z); }
     }
   } else S.out = 0;
+  // 11/10 クラウドの正式の流し：副郭から主郭の口へ向かう途中、副郭の西の塀際（-25,34）で塀越しに突き続け、刻限まで四百秒動かなかった。
+  //   郭の外で四十五秒、六歩の内から動けず、同じ高さの敵も近くにいなければ、暗転してその郭の口の手前へ送る（人が引っ掛かった時も同じ）
+  if (!z.test(P.x, P.z) && rt.player.u.alive) {
+    if (!S.stuck || Math.hypot(P.x - S.stuck.x, P.z - S.stuck.z) > 6) S.stuck = { x: P.x, z: P.z, t: rt.t };
+    let foe = false;
+    for (const u of rt.army.units) if (u.alive && u.team !== rt.player.u.team && !u.fleeing && !u.isStruct && Math.abs(u.pos.y - P.y) < 2 && Math.abs(u.pos.x - P.x) < 4 && Math.abs(u.pos.z - P.z) < 4) { foe = true; break; }
+    if (foe) S.stuck.t = rt.t;
+    const gaps = KINOME_PLAN.kuruwa.find((k) => k.id === id)?.gapAt;
+    if (rt.t - S.stuck.t > 45 && gaps?.length) {
+      let best = Infinity, g = gaps[0];
+      for (const q of gaps) { const d = Math.hypot(P.x - q[0], P.z - q[1]); if (d < best) { best = d; g = q; } }
+      const dz = g[1] < z.pos.z ? -4 : 4;
+      S.stuck = null;
+      const me = rt.player.u, ox = P.x, oz = P.z;
+      k15Fade(rt, () => {
+        const put = (u, x, zz) => { u.pos.x = x; u.pos.z = zz; u.pos.y = rt.world.heightAt(x, zz); u.vel && (u.vel.x = u.vel.z = 0); };
+        put(me, g[0], g[1] + dz);
+        for (const q of rt.squadGroups || []) for (const v of q.units) if (pursuer(v) && Math.hypot(v.pos.x - ox, v.pos.z - oz) < 30) put(v, g[0] - 2 + Math.random() * 4, g[1] + dz * 2);
+      });
+    }
+  } else S.stuck = null;
   // 11/10 クラウドの流し：木戸が破れた後、守兵が口の外へ打って出て本人と木戸の前で斬り合い続け、三百秒余り郭へ入れなかった。
   //   木戸が破れて百秒、本人が木戸の四十五歩の内で戦っていれば、残る守兵は奥へ退く（味方の手も口へ押し入っている）
   const gs = id === 'kinome_sou' ? F.gateKinome?.struct : null;
