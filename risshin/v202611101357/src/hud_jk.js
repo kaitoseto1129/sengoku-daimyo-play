@@ -387,6 +387,18 @@ function drawMap(s, rt, goal, stg) {
 
 // 顔：ゲームの中の自分の姿を、甲冑ごと胸から上で撮る（戦の始めと、ときどき撮り直す）
 const _headV = new THREE.Vector3();
+// 空や霧だけの単色画像を、本人の顔として保存・再利用しない。
+function hasPortraitBody(pixels) {
+  let body = 0, low = 255, high = 0;
+  for (let i = 0; i < pixels.length; i += 16) {
+    const r = pixels[i], g = pixels[i + 1], b = pixels[i + 2];
+    if (pixels[i + 3] < 128 || (r > 245 && g < 10 && b > 245)) continue;
+    body++;
+    const light = (r + g + b) / 3;
+    low = Math.min(low, light); high = Math.max(high, light);
+  }
+  return body >= pixels.length / 54 && high - low >= 24;
+}
 function capturePortrait(s, rt) {
   const R = window.__renderer, p = rt.player, u = p?.u;
   if (!R || window.__norender || !rt.scene || !u?.pos || !u.alive) return false;
@@ -453,10 +465,8 @@ function capturePortrait(s, rt) {
   if (sum < FACE * FACE * 4) return false;   // 真っ暗（まだ描けていない）
   // 本人の人の形がまだ出来ていないと、空の色だけの灰の四角が写り、四十秒そのままだった（金ヶ崎・越前一向一揆）。
   //   空は単色にして除き、実際に描かれた本人の画素だけを数える
-  let body = 0;
-  for (let i = 0; i < src.length; i += 16) if (!(src[i] > 245 && src[i + 1] < 10 && src[i + 2] > 245)) body++;
   // 11/8 critic60（姉川 36・田野 29・小田原 17）：白地に面頬だけ・黒い影の侍が撮れて、そのまま残った。体の写る画素が三割に満たなければ撮り直す
-  if (body < src.length / 54) return false;
+  if (!hasPortraitBody(src)) return false;
   // 夜の山の寺（大滝寺）は顔が黒い四角になった：暗い絵は平均が70ほどになるまで明るくする（三倍まで）
   const mean = sum / (FACE * FACE);
   if (mean < 60) { const k = Math.min(3, 70 / mean); for (let i = 0; i < dst.length; i += 4) { dst[i] = Math.min(255, dst[i] * k); dst[i + 1] = Math.min(255, dst[i + 1] * k); dst[i + 2] = Math.min(255, dst[i + 2] * k); } }
@@ -505,7 +515,23 @@ export function jkTick(rt, root, dt) {
     if (kept) {
       s.faceOk = true;
       const img = new Image(), forRt = rt;
-      img.onload = () => { if (s.rt === forRt) { s.faceG.clearRect(0, 0, FACE, FACE); s.faceG.drawImage(img, 0, 0, FACE, FACE); s.face.style.visibility = ''; } };
+      const retry = () => {
+        if (s.rt !== forRt) return;
+        s.faceOk = false; s.faceKeep = !waitForPortrait;
+        s.face.style.visibility = waitForPortrait ? 'hidden' : '';
+        try { localStorage.removeItem(s.faceKey); } catch (e) { /* 保存できなくても撮り直す */ }
+      };
+      img.onload = () => {
+        if (s.rt !== forRt) return;
+        const cv = document.createElement('canvas'); cv.width = cv.height = FACE;
+        const g = cv.getContext('2d');
+        try {
+          g.drawImage(img, 0, 0, FACE, FACE);
+          if (!hasPortraitBody(g.getImageData(0, 0, FACE, FACE).data)) { retry(); return; }
+          s.faceG.clearRect(0, 0, FACE, FACE); s.faceG.drawImage(cv, 0, 0); s.face.style.visibility = '';
+        } catch (e) { retry(); }
+      };
+      img.onerror = retry;
       img.src = kept;
     }
   }
