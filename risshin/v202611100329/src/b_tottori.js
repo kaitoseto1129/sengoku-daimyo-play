@@ -1771,7 +1771,8 @@ const tottori = {
       at = goal.at(); q.r = goal.r;
     } else if (F.step === 0) at = F.hide.anchor;
     else if (F.step === 1 && bankNeedsReturn(rt)) at = bankEntry(rt);
-    else if (this.missionOf(rt) === 2 && (q.unit = tottoriNearestFoe(rt))) {
+    // 舟焼きの行き先は番兵が近くても替えない。敵は各兵の頭上の印で示す。
+    else if (F.step === 2 && this.missionOf(rt) === 2 && (q.unit = tottoriNearestFoe(rt))) {
       at = q.unit.pos; q.enemy = q.approach = true; q.r = q.hide = .2;
       if (rt.player.inRange && rt.player.rangeCueTarget === q.unit) return null;
     } else if (F.step === 1) {

@@ -730,7 +730,9 @@ const k03_gifu = {
     const at = STEP_AT[F.step] || u.pos;
     const near4 = (o) => Math.hypot(o.pos.x - u.pos.x, o.pos.z - u.pos.z) < 4;
     const ok = (o) => fighting(o) && !o.invuln && (!o.group?._fallen || near4(o) && (o.atk || o.swing)) && Math.abs(o.pos.y - u.pos.y) < 3 && !((B.skip.get(o) || 0) > b.t) && (Math.hypot(o.pos.x - at.x, o.pos.z - at.z) < 30 || near4(o));   // 斬り掛かってくる敵は持ち場の外でも払う（突かれ続けて十分止まった。11/9 bot）
-    const e = b.army.nearestEnemy(u, 9, ok);
+    // 石垣や柵の向こうの兵は追わず、まず道を辿って口へ回る。
+    // 十二秒後の追跡打ち切りだけでは、別の兵へ狙いを替えて壁際に留まり得る。
+    const e = b.army.nearestEnemy(u, 9, (o) => ok(o) && !b.army.wallBetween(u.pos, -1, o.pos));
     if (e) {
       const d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
       // 追った時間は敵ごとに足していく（近い敵が二人で入れ替わると数え直しになり、石垣の下で矢を受け続けて十五分止まった。11/9 bot）

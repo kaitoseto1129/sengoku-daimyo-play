@@ -78,7 +78,8 @@ export function stageOf(rt) {
 export function bot(b, goTo, p, inp, strike, home) {
   const S = b.flags.shigaMonomi;
   if (!S || S.done || b.flags.step) return false;
-  if (S.k === 0) { goTo(p, inp, S.at.x, S.at.z, 3); return true; }
+  // 敵の到着待ちも辻に留まり、撃退前に町口へ戻らない。
+  if (S.k <= 1) { goTo(p, inp, S.at.x, S.at.z, 3); return true; }
   const u = p.u;
   if (S.k === 2 && S.g) {
     let e = null, best = Infinity;

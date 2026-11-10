@@ -3486,8 +3486,10 @@ const saika = {
     }
     rt.say('堀秀政', '鉦が二つ、止まれの合図じゃ。竹束の陰で列を整え、鉄砲衆を守れ', 5);
     rt.after(5, () => { if (F.step === 4 && !F.ending) rt.say('組頭', '竹束の陰で止まれ。列を整えよ。敵が来たら先に払え', 5); });
-    rt.addInteract('cover', COVER, '列を整える', () => {
+    // 作業半径だけでは束の敵側にも届く。端を回って東の陰へ入った時だけ札を出す。
+    rt.addInteract('cover', () => coverApproach(rt.player.u.pos) ? null : COVER, '列を整える', () => {
       if (F.ending || rt.over || !rt.player.u.alive || F.step !== 4 || F.cover) return;
+      if (coverApproach(rt.player.u.pos) || Math.hypot(rt.player.u.pos.x - COVER.x, rt.player.u.pos.z - COVER.z) >= 4) return;
       // 据えた束は動かさない。見回る槍の組に追わせると、人の手なしに滑ってしまう。
       moveGroup(F.teppo, { x: 10, z: 0 }, WEST); F.teppo.holdFire = false; F.teppo.facing = WEST;
       F.cover = true; rt.uninteract('cover');
@@ -3789,7 +3791,7 @@ const saika = {
       }
     } else if (F.step === 4) {
       if (notice) {
-        const close = Math.hypot(p.x - COVER.x, p.z - COVER.z) < 4;
+        const close = !coverApproach(p) && Math.hypot(p.x - COVER.x, p.z - COVER.z) < 4;
         const fighting = rt.army.nearestEnemy(rt.player.u, 4.5, (u) =>
           bankReady(u) && !u.noTarget && !u.isStruct && u.type !== 'gun' && u.type !== 'bow' &&
           Math.abs(u.pos.y - p.y) < 3 && !rt.army.wallBetween(p, -1, u.pos));
@@ -4143,11 +4145,12 @@ saika.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
       return;
     }
     const it = b.interacts.find((i) => i.id === 'cover');
-    if (it) {
-      const dc = Math.hypot(it.pos.x - u.pos.x, it.pos.z - u.pos.z);
+    const at = it && (typeof it.pos === 'function' ? it.pos() : it.pos);
+    if (at) {
+      const dc = Math.hypot(at.x - u.pos.x, at.z - u.pos.z);
       if (dc >= it.r - 0.4) {
         if (p.lock) inp.e.add('KeyQ');
-        goTo(p, inp, it.pos.x, it.pos.z, Math.max(0.6, it.r - 1.2));
+        goTo(p, inp, at.x, at.z, Math.max(0.6, it.r - 1.2));
         inp.guardHold = !!attacker && attackDist < reach;
         return;
       }
@@ -4200,12 +4203,14 @@ saika.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
     let nearest = null, distance = Infinity;
     // 今の作業場所を選ぶ。作業兵がいなくても長押しで杭を外す。
     for (const it of b.interacts) if (F.step === 4 ? it.id === 'cover' : work && it.id === 's' + work.i) {
-      const d = Math.hypot(it.pos.x - u.pos.x, it.pos.z - u.pos.z);
+      const at = typeof it.pos === 'function' ? it.pos() : it.pos;
+      if (!at) continue;
+      const d = Math.hypot(at.x - u.pos.x, at.z - u.pos.z);
       if (d < distance) { nearest = it; distance = d; }
     }
     // 杭の印へ近づきすぎず、長押しが届いたら作業する。回避で少し離れても戻りすぎない。
     // 指の棒は粗い。境目（半径ちょうど）で歩きと長押しを往復しないよう、一歩内へ入ってから押す。
-    if (nearest) { if (distance >= nearest.r - 0.15) goTo(p, inp, nearest.pos.x, nearest.pos.z, Math.max(0.6, nearest.r - 0.7)); else inp.k.add('KeyE'); }
+    if (nearest) { const at = typeof nearest.pos === 'function' ? nearest.pos() : nearest.pos; if (distance >= nearest.r - 0.15) goTo(p, inp, at.x, at.z, Math.max(0.6, nearest.r - 0.7)); else inp.k.add('KeyE'); }
     return;
   }
   // 脇の杭から西岸を直線で狙うと、残る杭列に当たる。東側で中央の口へ合わせてから渡る。
