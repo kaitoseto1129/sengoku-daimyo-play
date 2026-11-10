@@ -235,6 +235,8 @@ const k04_kuisegawa = {
     // 刈田は足軽が稲を刈る（侍が刀を持って突っ立つ形にしない。11/8 critic60 二1・二4）：侍は二人だけ、足軽十二人が田に屈む
     fl([{ type: 'busho', n: 1, o: { name: '蒲生備中', invuln: true, horse: true } }, { type: 'samurai', n: 2, o: { keep: true } }, { type: 'ashigaru', n: 12, o: { keep: true } }], 'ishida'));
     F.foes.push(F.gamo);
+    // 最初の小競り合いに使う備は変わらない。毎コマ配列を作り直さない。
+    F.baitBlocks = F.blocks.filter((b) => b !== B.arima);
     // 足軽は屈んで稲を刈っている（突っ立たない。槍を入れられると立ち上がる）
     for (const u of F.gamo.units) if (u.type === 'ashigaru') u._crouch = true;
     F.follow.push([F.gamo, B.bait, 0, 0]);
@@ -378,7 +380,7 @@ const k04_kuisegawa = {
       for (const g of [F.noi, F.kazu]) { g.order = 'move'; g.dest = RING; g.speed = 4.8; }
     } else if (n === 3) {
       this.ambush(rt);
-      rt.marker('noi', () => (F.noiU?.alive ? { x: F.noiU.pos.x, z: F.noiU.pos.z } : null), '野一色頼母');
+      rt.marker('noi', () => this.defensePoint(rt), '野一色頼母の旗');
     } else if (n === 4) {
       // 囮の実兵は隊列合わせを終え、退く先手を追う。追撃の下知を hold で上書きしない。
       F.follow = F.follow.filter(([g]) => g !== F.gamo);
@@ -424,7 +426,11 @@ const k04_kuisegawa = {
     for (const g of [F.noi, F.kazu]) if (live(g)) {
       const c = g.center();
       g.order = 'hold'; g.anchor = { x: c.x, z: c.z }; g.dest = null; g.seekRange = 14;
+      // 将が斬り合う兵の後ろへ下がり続け、目標の旗まで動き続けないようにする。
+      g.guardOn = true;
     }
+    const flag = F.noiU?.pos || F.noi.anchor;
+    F.defenseX = flag.x; F.defenseZ = flag.z;
     // 囮も向き直って戦う。備への隊列合わせで攻撃を待機に戻さない。
     F.follow = F.follow.filter(([g]) => g !== F.gamo);
     F.gamo.order = 'attack'; F.gamo.seekRange = 30;
@@ -467,7 +473,7 @@ const k04_kuisegawa = {
     rt.say(F.mine.leader?.name || '手勢の侍', `${nm(rt)}殿、頼母様が……！　川まで退くほかござらぬ`, 3.2);
     rt.after(3.4, () => rt.say('中村一栄', '退け！　杭瀬川を越えよ！', 3));
     F.follow = F.follow.filter((f) => f[0] !== F.noi && f[0] !== F.kazu);
-    for (const g of [F.noi, F.kazu]) if (live(g)) { g.order = 'move'; g.dest = T(90, -12); g.speed = 4; }
+    for (const g of [F.noi, F.kazu]) if (live(g)) { g.order = 'retreat'; g.dest = T(90, -12); g.speed = 4; g.focus = null; }
     rt.after(4, () => this.toStep(rt, 4));
   },
 
@@ -477,7 +483,7 @@ const k04_kuisegawa = {
     const P = rt.player.u, PL = L(P.pos);
     butaiTick(rt, dt);
     // 刈田の段は先手と刈田の兵の小競り合いだけ（囮が数で押されて先に崩れ、退くふりの前に川を越えて逃げないように）
-    if (F.step <= 2) fieldTick(rt, dt, { list: F.blocks.filter((b) => b !== B.arima), reach: 40, k: 0.004, routAt: 0 });
+    if (F.step <= 2) fieldTick(rt, dt, { list: F.baitBlocks, reach: 40, k: 0.004, routAt: 0 });
     // 史実の杭瀬川は討死数十人の小競り合い（東軍が千余り減る大敗に見えた。11/8 critic60 十二1・二1）。塊どうしの削り合いは浅く
     else fieldTick(rt, dt, { list: F.blocks, reach: 40, k: F.step === 3 ? 0.006 : 0.004 });
     if ((F.mineT = (F.mineT || 0) - dt) <= 0) {
@@ -492,7 +498,10 @@ const k04_kuisegawa = {
         if (engaged) { g.order = 'attack'; g.seekRange = 8; }
         else if (dist(c, P.pos) > 7 || F.step >= 4) {
           // 岸の向きは回してある。地図の正方向へずらすと手勢だけ川へ戻ってしまう。
-          g.order = 'move'; g.dest = T(PL.x + (F.step >= 4 ? 3 : -2), PL.z + 2); g.speed = 4.2;
+          // 移動の下知では十m先の敵へ戻る。退却なら手の届く追手だけ払い、岸へ進む。
+          g.order = F.step >= 4 ? 'retreat' : 'move';
+          g.dest = T(PL.x + (F.step >= 4 ? 3 : -2), PL.z + 2); g.speed = 4.2;
+          if (F.step >= 4) g.focus = null;
         }
         else { g.order = 'attack'; g.seekRange = 12; }
       }
@@ -506,7 +515,8 @@ const k04_kuisegawa = {
     }
     // 防戦の長さは実際の経過秒で数える。間引いた判定の回数で数えると、
     // 携帯でコマが遅れた時だけ百三十秒の防戦が長引いてしまう。
-    if (F.step === 3 && F.defended && F.noiU?.alive && dist(F.noiU.pos, P.pos) < 12) F.nearT = (F.nearT || 0) + dt;
+    // 旗の周りで槍を交わす範囲も防戦に含める。将一人の押し戻しや戦線離脱で止めない。
+    if (F.step === 3 && F.defended && dist(this.defensePoint(rt), P.pos) < 18) F.nearT = (F.nearT || 0) + dt;
     // 追撃も経過秒で数える。判定の間引きで携帯だけ間隔を延ばさない。
     if (F.step >= 4) F.chaseT = (F.chaseT ?? 0) - dt;
     if ((F.scanT = (F.scanT || 0) - dt) > 0) return;
@@ -526,7 +536,7 @@ const k04_kuisegawa = {
       for (const g of rt.army.groups) if (g.team === 1 && g.count && g.order === 'hold' && g.kind !== 'main' && g !== F.guns && !g.interiorHold && !g.units.every((u) => u.type === 'gun')) { g.order = 'attack'; g.seekRange = 30; g.aggro = 14; g.noRout = true; }
       // 防戦を始める前の待機時間を、後の一撃で達成扱いにしない。
       // 待つだけでは防戦を果たさない。頼母の横で敵を打つか、打撃を受け止める。
-      if (F.noiU?.alive && dist(F.noiU.pos, P.pos) < 12 && rt.player.lastHit?.blocked && rt.player.lastHit.t >= F.stepT && rt.t - rt.player.lastHit.t <= 0.5) F.defended = true;
+      if (dist(this.defensePoint(rt), P.pos) < 18 && rt.player.lastHit?.blocked && rt.player.lastHit.t >= F.stepT && rt.t - rt.player.lastHit.t <= 0.5) F.defended = true;
       if (F.defended && F.nearT > 130 && el > 130) this.closeRing(rt);   // 渡河・防戦・退却を合わせ四分以上遊ぶ
     // 川幅は中心線から両側十二。水中の x=52 で渡り終えた扱いにしない。
     } else if (F.step === 4 && PL.x > 60) this.toStep(rt, 5);
@@ -557,6 +567,13 @@ const k04_kuisegawa = {
       }
       // 鉄砲は岸へ進んだ F.guns の通常射撃に任せる。撃っていない場所で銃声を鳴らさない。
     }
+  },
+
+  defensePoint(rt) {
+    const F = rt.flags;
+    const p = F._defensePoint || (F._defensePoint = { x: 0, z: 0 });
+    p.x = F.defenseX ?? RING.x; p.z = F.defenseZ ?? RING.z;
+    return p;
   },
 
   // 生き残っていても川の向こうに残った兵は、生還した人数に含めない。
@@ -599,7 +616,7 @@ const k04_kuisegawa = {
   onPlayerHit(rt, target) {
     if (target.team !== 1 || target.isStruct || target.civ) return;
     if (rt.flags.step === 1 && rt.flags.gamo?.units.includes(target)) rt.flags.baitPlayerHit = true;
-    if (rt.flags.step === 3 && rt.flags.noiU?.alive && dist(rt.flags.noiU.pos, rt.player.u.pos) < 12) rt.flags.defended = true;
+    if (rt.flags.step === 3 && dist(this.defensePoint(rt), rt.player.u.pos) < 18) rt.flags.defended = true;
   },
 
   onKill(rt, v) {
@@ -639,7 +656,7 @@ const k04_kuisegawa = {
     const F = rt.flags, s = F.step || 1;
     if (F.ending) return null;
     // 始めの会話中も、すでに置いた刈田の行き先を隠さない。
-    const q = s === 1 ? (F.blk?.bait ? lightPos(F.blk.bait) : BAIT) : s === 2 ? RING : s === 3 ? (F.noiU?.alive ? F.noiU.pos : RING) : s === 4 ? T(64, 4) : ARIMA;
+    const q = s === 1 ? (F.blk?.bait ? lightPos(F.blk.bait) : BAIT) : s === 2 ? RING : s === 3 ? this.defensePoint(rt) : s === 4 ? T(64, 4) : ARIMA;
     const G = F._kTg || (F._kTg = { unit: null, boss: false });
     G.x = q.x; G.z = q.z;
     G.action = ['', '刈田の兵を追え', '川を東へ渡れ', '頼母の横で防げ', '川を西へ渡れ', '有馬の陣へ急げ'][s];
