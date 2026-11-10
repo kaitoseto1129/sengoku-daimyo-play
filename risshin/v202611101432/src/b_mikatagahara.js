@@ -2624,7 +2624,9 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
       rt.say('夏目吉信', '我こそは徳川三河守なり！　討って手柄にせよ！', 3.4);
       rt.after(3.6, () => { if (!F.ending) rt.say('徳川家康', '夏目、何をする……！', 2.4); });
       rt.after(6.2, () => { if (!F.ending) rt.say('夏目吉信', '殿は先へ！　振り返られますな！', 2.8); });
-      rt.after(4, () => { if (!F.ending && F.mkChase) F.mkChase(c.x - 2, c.z - 34, '夏目の手を囲む武田勢', [{ type: 'samurai', n: 1, o: { horse: true } }, { type: 'cavalry', n: 3 }, { type: 'ashigaru', n: 6 }]); });
+      // 家康の座標は退く間も書き換わる。残った夏目隊の地点から追手を寄せる。
+      const natsumeX = c.x - 2, natsumeZ = c.z - 34;
+      rt.after(4, () => { if (!F.ending && F.mkChase) F.mkChase(natsumeX, natsumeZ, '夏目の手を囲む武田勢', [{ type: 'samurai', n: 1, o: { horse: true } }, { type: 'cavalry', n: 3 }, { type: 'ashigaru', n: 6 }]); });
     }
     if (F.natsumeG && !F.yoshinobuFallSaid && (rt.t - F.natsumeT > 22 || p.z > F.natsumeG.anchor.z + 30 && rt.t - F.natsumeT > 12)) {
       F.yoshinobuFallSaid = true;
@@ -2636,7 +2638,8 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
     if (c.z > HAMA.z - 52 && !S.c) {
       S.c = true;
       rt.say('足軽', '城だ……！　浜松城が見えたぞ！', 2.8);
-      rt.after(5, () => { if (!F.ending && F.mkChase) { const g = F.mkChase(c.x + 18, c.z - 30, '門へ迫る武田の騎馬', [{ type: 'samurai', n: 1, o: { horse: true } }, { type: 'cavalry', n: 4 }]); if (g) rt.army.play('gallop', g.anchor, 1.8); } });
+      const chaseX = c.x + 18, chaseZ = c.z - 30;
+      rt.after(5, () => { if (!F.ending && F.mkChase) { const g = F.mkChase(chaseX, chaseZ, '門へ迫る武田の騎馬', [{ type: 'samurai', n: 1, o: { horse: true } }, { type: 'cavalry', n: 4 }]); if (g) rt.army.play('gallop', g.anchor, 1.8); } });
     }
     if (c.z > HAMA.z - 26 && !S.g) { S.g = true; rt.say('門番', '殿がお戻りだ！　門を開けよ、殿をお入れせよ！', 3); }
   },
