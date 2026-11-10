@@ -47,11 +47,8 @@ export function step(H) {
             u._crouch = true;
           }
         };
-        g.bornAt = el;
         C.groups.push(g);
       }
-      // 列が門の内の曲がりで詰まっても、見届けが止まらないように：出てから六十秒でその場に槍を置いて座る
-      for (const g of C.groups) if (!g.surrendered && el - g.bornAt > 60 && g.onArrive) g.onArrive(g);
       line(8, () => rt.say('黒田官兵衛', '城の者には手を出すな。殿下は命を助けると仰せじゃ', 3.6));
       line(14, () => rt.say(nm(rt), '総構えの堀の前では退いたが……今度は刃を交えずに城が開く', 3.6));
       line(21, () => rt.say('北条の兵', '鎧も槍もまだある。……それでも、置くのか', 3));

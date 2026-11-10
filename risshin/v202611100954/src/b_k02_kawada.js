@@ -98,12 +98,18 @@ function height(x, z) {
 
 const { way: wayRaw } = routeTools(ROUTE, 'k02');
 const { way: eastWay } = routeTools([[80, 78], [80, 46], [80, 4], [80, -38], [80, -56]], 'k02east');
+const EAST_EXIT = { x: 80, z: -56 };
 // 道の角は 1.5 歩の内で次へ送るが、着いたとみなす輪が 2 歩で、角の 2 歩手前で止まったままになった（11/6 流しで新加納の手前に四分）。輪を 1 歩に
 const kawadaWay = (army, u, want) => {
   // 退避で選んだ直進先は、歩く処理がもう一度道を選ぶ時にも維持する。
   const back = u._k02BackDirect;
   u._k02BackDirect = null;
   if (back && back.x === want.x && back.z === want.z) return want;
+  // 米野への下知が先に来ても、山内の手は東の浅瀬を渡りきってから西へ向く。
+  // 米野をそのまま渡すと道から三十歩以上離れて案内が外れ、北の筋の深みへ斜めに進んで止まる。
+  if (u.pos.x > 20 && u.pos.z >= NORTH.z && want.x <= 20 && want.z < NORTH.z) {
+    const q = eastWay(army, u, EAST_EXIT); if (q !== EAST_EXIT) q.botRadius = 1; return q;
+  }
   // 北の筋を上がった後は、柵を挟まない行き先へ隊幅を保って進む。
   // 道譲りや口の脇への一歩まで中央へ戻すと、百人余りが同じ筋へ集まり続ける。
   if (u.pos.z < -30 && want.z < -30 && !army.wallBetween(u.pos, -1, want, false)) return want;

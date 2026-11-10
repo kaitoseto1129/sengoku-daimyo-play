@@ -386,6 +386,7 @@ const k01_fushimi = {
     const n = RANKS[rt.G.rank].squad;
     if (n) rt.makeSquad({ x: 2, z: 69 }, 0, [{ kind: 'spear', n: Math.min(n, 12) }]);
     W.setTime('day');
+    rt.flags.k01Date = '六月十八日';
     rt.setPhase('brief');
     // 11/10 docs/fushimi_spec_1109.md：守り切る戦でなく「城を失うまでの時間を売る」戦。目標は「伏見城を守れ」とだけ言う（守り切れとは言わない）
     rt.obj('main', '伏見城を守れ', 'main');
@@ -399,12 +400,13 @@ const k01_fushimi = {
     rt.after(22.4, () => rt.say('鳥居の侍', '行かれましたな。', 2.6));
     rt.after(25.4, () => rt.say('鳥居元忠', 'ああ。', 2.2));
     // ---- 包囲されていく（南→西→東と、遠くの旗が増える）
-    rt.after(28, () => { rt.banner('七月十九日', '西の軍勢が伏見へ寄せる'); this.camps(rt, 1); });
+    rt.after(28, () => { rt.flags.k01Date = '七月十九日'; rt.banner('七月十九日', '西の軍勢が伏見へ寄せる'); this.camps(rt, 1); });
     // 小早川・島津・毛利の本陣は二十三日の段で着く。包囲の
     // 声だけで先に全陣を出すと、日付に合わせた着陣を壊してしまう。
     rt.after(31.5, () => rt.say('鳥居の侍', '……多いな。', 2.6));
     rt.after(35, () => rt.say('使番', '全周、敵勢！', 2.8));
-    rt.after(38, () => this.begin(rt));
+    rt.after(38, () => { rt.say('鳥居元忠', '城を明け渡せとの使いは追い返した。', 3.2); });
+    rt.after(41.5, () => this.begin(rt));
   },
 
   // 門を閉めた絵にする（通り道は塞がない。寄せ手が破って入る時に開ける）
@@ -701,7 +703,7 @@ const k01_fushimi = {
     if (i !== F.lastI) {
       F.lastI = i;
       // 別れから包囲、内応、落城へ時が飛ぶ所は日付を知らせる。
-      if (STAGE_DATES[i]) rt.banner(...STAGE_DATES[i]);
+      if (STAGE_DATES[i]) { F.k01Date = STAGE_DATES[i][0]; rt.banner(...STAGE_DATES[i]); }
       if (i === 3) this.guardSan(rt);
       if (i === 3 && F.ie && !F.ieAway) { F.ieAway = true; Object.assign(F.ie, { anchor: { x: -17, z: -7 }, order: 'hold', fixed: true, stay: true, noAI: true, aggro: 10, facing: Math.PI / 2, focus: null }); }
       if (D?.cur?.s.kind !== 'rest') F.restNext = null;
@@ -771,7 +773,7 @@ k01_fushimi.bannerAllowed = (rt, t) => !(((rt.flags.dp?.i ?? 0) >= 6 && /味方�
 // 本丸で城方が討ち減らされても「味方の旗へ寄れ」とは言わない（死守の城で退く先は無い）
 k01_fushimi.missionDangerSpeech = (rt) => ((rt.flags.dp?.i ?? 0) >= 11 ? '本丸の裏口へ。城を抜け、内府様へ届けよ' : (rt.flags.dp?.i ?? 0) >= 6 ? '味方は討ち減らされた。元忠殿の旗の下で戦え' : '味方が討ち減らされておる。持ち場の旗の下へ寄れ');
 k01_fushimi.sides = { a: { name: '徳川勢', mon: 'tokugawa' }, b: { name: '寄せ手', mon: 'ukita' } };
-k01_fushimi.date = (rt) => (rt.flags.burned ? '慶長五年（1600）八月一日　夕・本丸に火' : rt.flags.matsuBurned ? '慶長五年（1600）八月一日　昼・松の丸に火' : '慶長五年（1600）七月　初秋・昼');
+k01_fushimi.date = (rt) => (rt.flags.burned ? '慶長五年（1600）八月一日　夕・本丸に火' : rt.flags.matsuBurned ? '慶長五年（1600）八月一日　昼・松の丸に火' : `慶長五年（1600）${rt.flags.k01Date || '六月十八日'}　昼`);
 k01_fushimi.canSkip = (rt) => (rt.phase === 'brief' && rt.t > 3 ? '下知まで待つ' : '');
 k01_fushimi.skip = (rt) => { for (const tm of rt.timers) tm.t = Math.min(tm.t, 0.2); };
 k01_fushimi.history = '慶長五年（1600）、徳川家康は会津の上杉景勝を討つため東へ発つ前に、京の入り口の伏見城を家臣の鳥居元忠に預けた。伝えでは、家康は「城を死守してくれ」と告げ、二人は別れの盃を交わしたという。七月、石田三成らが挙兵して西軍が成った。城方は七月十九日に打って出て、城の外の長束正家・前田玄以の屋敷を焼いた。寄せ手は日ごとに増え、二十二日に宇喜多秀家、二十三日に小早川秀秋らが加わり、毛利秀元・吉川広家・小西行長・鍋島勝茂・長束正家らも寄せて四万ほどになり（攻め始めを十九日とも二十五日とも伝える）、築山に据えた大筒や鉄砲で昼夜城を撃ち、堀を埋めて迫った。城には鳥居元忠（本丸）・松平家忠と松平近正（三の丸）・内藤家長と元長の父子（西の丸）・深尾清十郎と甲賀衆（松の丸）・宇治の茶師の家の上林竹庵（太鼓の丸）・佐野綱正ら千八百ほどしかいなかったが、十日あまり持ちこたえた。八月一日の昼、甲賀衆の内応で松の丸から火の手が上がり、寄せ手は四方から一斉に乗り込んだ。元忠は足が不自由で刀を杖に戦ったと伝わり、雑賀孫一（鈴木重朝）が敬って腹を切るのを待ち、首を取ったともいう。城は炎上して落ちた（落ちた刻を昼ごろとも夕とも伝える）。城方の死者は三百数十とも八百とも全員とも伝わる。討死した者の血に染まった床板は、のちに京の寺々の天井に上げられ、血天井として今に残る。この足止めが、家康が東から戻って美濃へ進む時を稼いだ。\n島津義弘が初め城に入ろうとして断られたという話は江戸時代の書物の伝えで、確かではない。曲輪の並びと寸法は遊びのために縮めて復元したもので、内応や元忠の最期の細部は伝えにより異なる。';

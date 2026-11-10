@@ -1478,6 +1478,9 @@ const arioka = {
   missionSingleLine: true,
   goalsAllRows: true, // 九1・十1：最初から五件を並べ、済んだ目標と現在の目標を示す。
   hideMissionDots: true,
+  keepBattleSigns: true, // 行き先の印を出す間も、名のある将の名札を残す。
+  goalSignOnly: true, // 曲がり角・持ち場・官兵衛を、任務と同じ一点の印で案内する。
+  goalSignTriangle: true, // 画面の外でも矢印に替えず、行き先の▼を保つ。
   // 敵全員の赤い▼は共通の頭上印に任せ、字の▼を重ねない。
   enemyTriangleSigns: false,
   nearbyAllySignLimit: 0,
@@ -1534,7 +1537,7 @@ const arioka = {
   missionPin(rt) {
     const F = rt.flags, C = F.dpOn && F.dp?.cur;
     if (rt.over || !rt.player.u.alive || F.ending && !F.kanbePending) return null;
-    const pin = F.ariMissionPin || (F.ariMissionPin = { x: 0, z: 0, r: 3, hide: 3 });
+    const pin = F.ariMissionPin || (F.ariMissionPin = { x: 0, z: 0, r: 3, hide: 3, hideDistance: 0 });
     const stage = this.missionOf(rt);
     const post = F.ariMissionPost || (F.ariMissionPost = { x: 0, z: 0 });
     const at = stage === 4 ? F.kanbeAt || F.kanbeMeet || ARI_JUNCTION : stage === 0 ? AR_OPEN.pin(rt, ariOpenCtx()) || { x: GATE.x - 30, z: GATE.z } : stage === 1 ? C?.at || { x: GATE.x + 12, z: GATE.z } : C?.at || ARI_JUNCTION;
