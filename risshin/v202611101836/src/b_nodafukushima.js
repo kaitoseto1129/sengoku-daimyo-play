@@ -4351,7 +4351,8 @@ const nodafukushima = {
     if (F.step === 2 && F.sally) {
       // 岸へ来た本人と、打って出た槍が向き合ってから防戦の時間を数える。
       // 門内で足止めされたまま百十秒たっても、撃退した事にはしない。
-      if (F.sallyMetAt == null && p.u.alive && Math.hypot(p.u.pos.x, p.u.pos.z + 21) < 12 &&
+      if (F.sallyMetAt == null && !F.sallyTimedOut && F.sally.order !== 'retreat' && !F.sally.routed &&
+          p.u.alive && Math.hypot(p.u.pos.x, p.u.pos.z + 21) < 12 &&
           F.sally.units.some(u => canJoin(u) && Math.abs(u.pos.y - p.u.pos.y) < 3 &&
             Math.hypot(u.pos.x - p.u.pos.x, u.pos.z - p.u.pos.z) < 8 &&
             !rt.army.wallBetween(p.u.pos, -1, u.pos) && !rt.army.terrainBlocks(p.u.pos, u.pos))) F.sallyMetAt = rt.t;
@@ -4404,8 +4405,11 @@ const nodafukushima = {
       if ((gone(F.sally) || F.sallyTimedOut) && !F.nightAt && p.u.alive && !F.onSeirou &&
           Math.hypot(p.u.pos.x, p.u.pos.z + 21) < 12) {
         F.nightAt = rt.t + 8; F.sallyDone = true;
-        rt.award((t) => t.side.push('打って出た三好勢を浅瀬で退けた'), '三好勢を退けた');
-        rt.say('前田利家', '押し返したぞ！　追うな、塀の狭間の前へ出るな。岸で列を整えよ', 3.5);
+        // 接敵せずに時間の上限で退いた敵を、本人の撃退の戦功にしない。
+        if (F.sallyMetAt != null) {
+          rt.award((t) => t.side.push('打って出た三好勢を浅瀬で退けた'), '三好勢を退けた');
+          rt.say('前田利家', '押し返したぞ！　追うな、塀の狭間の前へ出るな。岸で列を整えよ', 3.5);
+        } else rt.say('前田利家', '三好は塀の内へ退いた。追うな、浅瀬の岸で列を整えよ', 3.5);
       }
       // 長く押し合ったら三好は塀の内へ退く（史実でも砦は落ちない）
       // 11/10 クラウド：打って出た槍が門の前で固まり、岸で向き合えないまま十二分止まった（act bot）。
