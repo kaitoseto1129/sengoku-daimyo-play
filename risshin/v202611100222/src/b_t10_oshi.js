@@ -677,7 +677,8 @@ const t10_oshi = {
     rt.obj('main', MISSIONS[5], 'main');
     // 逃がす組：人夫と区の足軽。数えるのは今生きている者
     // 区の足軽も人夫と同じ下知で動く（前は自由な AI に戻し、陣の水の中に立ち尽くした）
-    F.porters.fixed = false; F.guard.ai = false; F.porters.stay = F.guard.stay = false;
+    // 避難中も下知を優先する。途中の到着待ちで hold に戻っても、共通の突撃で人夫や足軽を城兵へ向かわせない。
+    F.porters.fixed = false; F.guard.ai = false; F.porters.stay = F.guard.stay = true;
     F.evac = [F.porters, F.guard].filter(live);
     F.evac0 = F.evac.reduce((a, g) => a + g.units.filter((u) => u.alive && !u.gone).length, 0);
     // 逃がす組は散り散りに逃げ出さず、呼ぶ声の方へ寄る（夜討ちで崩れた足軽も立て直して付いて来る）
