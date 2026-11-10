@@ -364,7 +364,8 @@ html:root body #hud#hud#hud.kashii-goals #h-prog#h-prog.goal-mode .pg-goals :is(
   setup(rt) {
     timeslipField(rt);   // 身の回りの踏み荒らした地面・倒れた槍と旗・季節の草（def.timeslip）
     const F = rt.flags, W = rt.world;
-    F.step = 0; F.holdPlayer = true; F.foes = []; F.ending = false; F.ek = 0; F.ak = 0;
+    // 下知は歩きながら聞く。八丁畷へ向かう操作を冒頭の台詞で止めない。
+    F.step = 0; F.holdPlayer = false; F.foes = []; F.ending = false; F.ek = 0; F.ak = 0;
     // 樫井の村：熊野街道の両側に家並み（街道沿いの村。家には当たりがあり、カメラも壁で止まる）。畑の箱・竹林・炊事の煙は置かない
     //   （住む者は逃げた後。11/5 n6：緑の箱の畑・傘を重ねたような竹が作り物に見えた）
     //   カメラは家の壁と屋根で止める（茅葺きの中へめり込まない。十一2）

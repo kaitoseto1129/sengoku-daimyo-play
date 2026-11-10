@@ -114,6 +114,7 @@ export function receivedSally(F) { return (F.sallyContact || 0) >= 4 || !!F.sall
 // 門前で実際に斬り合っても、所属の違いで②が残り続けないようにする。
 function sallyFoe(F, u) {
   return u.group === F.reserveDef.real ||
+    !!F.sallyRelief && u.group === F.sallyRelief.real ||
     !!F.masuSally && u.group === F.masuSally ||
     !!F.gateBrawl && (u.group === F.gateBrawl[2] || u.group === F.gateBrawl[3]) ||
     u.group === F.sanSpear.real && Math.hypot(u.pos.x - OTE.x, u.pos.z - OTE.z) < 12;
@@ -143,6 +144,26 @@ function sallyContactTick(rt, dt) {
       return;
     }
   }
+}
+
+// 控えが先に討たれた時も、既存の三の丸の槍を大手へ出す。
+// 人を足したり、待つだけで迎撃を果たした扱いにはしない。
+function sallyReliefTick(rt) {
+  const F = rt.flags;
+  if (receivedSally(F) || F.sanFell || F.step < 1 || !deadB(F.reserveDef)) return;
+  const b = F.sallyRelief || F.sanSpear;
+  if (deadB(b)) return;
+  if (!F.sallyRelief) {
+    F.sallyRelief = b;
+    for (const q of F.sallyGates) {
+      if (q.gate === F.gates.gateNi) continue;
+      q.passed = true;
+      if (!q.gate.breached) q.gate._openNow(false);
+    }
+    setRoute(b, [...ROAD_OTE.slice(1, 8).reverse(), [97, 0]]);
+    rt.say('森長可', '三の丸から城兵が打って出るぞ！　大手門の前で受けよ', 4);
+  }
+  F.sallyOut = true; F.sallyBegun = true;
 }
 
 function mainObj(rt, stage) {
@@ -1970,6 +1991,7 @@ const takato_siege = {
         if (!F.tsukeiri) for (const q of F.sallyGates) if (!q.gate.breached && !F.DA.usingGate(q.gate)) q.gate.close();
         rt.unmark('sally');
       }
+      sallyReliefTick(rt);
       // 門へ着く前から半平面の向こうにいる兵もいる。曲がった道の該当の門を抜けてから閉める。
       if (F.sallyOut && !F.reserveDef._route && !deadB(F.reserveDef)) {
         F.sallyOut = false; F.sallyUntil = rt.t + 90;

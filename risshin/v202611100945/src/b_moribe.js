@@ -3148,8 +3148,9 @@ const moribe = {
     if (!q || F.ending || rt.over) return null;
     // 人を追う印と地面の小旗を区別し、段が変わったら追う相手を消す。
     q.unit = null; q.enemy = false; q.approach = false; q.gatherArea = false;
-    q.label = ''; q.hideDistance = undefined;
-    // 着いた後の足元や画面端へ、移動を促す印を残さない。
+    // 到着して槍列を支える間も、その持ち場の▼を残す（共通の六メートル以内の省略を使わない）。
+    q.label = ''; q.hideDistance = 0;
+    // 前の段の到着・待機の状態を次の行き先へ持ち越さない。
     q.waiting = false; q.arrived = false; q.crossing = false; q.progress = 0; q.guardArea = false; q.waitDuration = 0;
     // 渡河の下知前は南岸の柳へ。北岸の渡河地点へ先走らせない。
     if (F.m15?.ph === 'kishi') {
@@ -3621,6 +3622,7 @@ const moribe = {
     // 11/6 fixc（kaito 四-5）：輪中の平らな野に大きな山が迫って見えた。養老・伊吹は十キロ余り先なので、地平に低く霞ませる。
     mountainScale: .2, mountainHaze: .85,
     fogFar: 480,   // 雨は残し、終盤に振り返っても低い遠山と田の地平を霧に埋めない。
+    rainFogLift: 70,   // 雨中は fogFar が雨の見通しへ戻される。地平の霞だけ薄め、兵の描画距離は増やさない。
     battleViewDistance: 140,   // 描画の上限内で両翼と控えを見せる。遠い兵は既存の軽い姿を使う。
     trees: 140,
     rocks: 30,   // 11/6 fixc（kaito 八-1）：輪中の田に大きな灰の岩はほぼ無い。道の上ののっぺりした大岩を減らす

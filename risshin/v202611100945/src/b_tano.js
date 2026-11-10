@@ -358,7 +358,7 @@ function valleyWay(army, u, want) {
 }
 
 // 道筋と前後の間隔を下知の時だけ用意する。隊の要は歩いて移る。
-function roadOrder(g, x, z = 0, formation = 'column') {
+function roadOrder(g, x, z = 0, formation = 'column', attackOnArrival = false) {
   if (!g || !g.count || g.routed) return;
   const path = [[g.anchor.x, g.anchor.z]];
   const forward = x >= g.anchor.x;
@@ -380,7 +380,13 @@ function roadOrder(g, x, z = 0, formation = 'column') {
   // 崖道と柵の口では三列、広い谷でも六列まで。人数を増やしても川へ広げない。
   g.yariRanks = Math.ceil(g.initial / (x >= NARROW.x0 && x <= NARROW.x1 || x >= 90 ? 3 : 6));
   g.order = 'path'; g.path = path; g.pathIdx = 1; g.focus = null;
-  g.onArrive = () => { g.order = 'hold'; g.path = null; g.formation = formation; g.facing = forward ? Math.PI / 2 : -Math.PI / 2; g.onArrive = null; };
+  g.onArrive = () => {
+    g.order = attackOnArrival ? 'attack' : 'hold'; g.path = null; g.formation = formation;
+    g.facing = forward ? Math.PI / 2 : -Math.PI / 2; g.onArrive = null;
+    if (attackOnArrival) {
+      g.noAI = false; g.guardOn = false; g.frontlineMobilize = true; g.seekRange = 18;
+    }
+  };
 }
 function sendColumn(rt, at, phase) {
   const F = rt.flags;
@@ -1939,12 +1945,7 @@ const tano = {
       if (s.phase === 'fence') {
         // 柵の内で待つだけにせず、既存の十人が西の口から打って出る。
         g.aggro = 12;
-        roadOrder(g, s.at.x - 10, s.at.z, 'yari');
-        g.onArrive = () => {
-          g.path = null; g.onArrive = null; g.order = 'attack';
-          g.noAI = false; g.guardOn = false; g.frontlineMobilize = true;
-          g.seekRange = 18;
-        };
+        roadOrder(g, s.at.x - 10, s.at.z, 'yari', true);
         D.cur.sortieAt = rt.t + 4;
         continue;
       }
@@ -2044,7 +2045,8 @@ const tano = {
           nearest = Math.min(nearest, Math.hypot(u.pos.x - p.x, u.pos.z - p.z));
         }
         // 既に打ち合っている時は、下知で槍の動きを止めない。
-        if (nearest > 12 && g.order !== 'path' && g.order !== 'attack') roadOrder(g, Math.max(62, Math.min(98, p.x + 6)), 0, 'yari');
+        // 寄せ直した時も、到着後は待機に戻さず打って出た侍の攻撃を続ける。
+        if (nearest > 12 && g.order !== 'path' && g.order !== 'attack') roadOrder(g, Math.max(62, Math.min(98, p.x + 6)), 0, 'yari', true);
       }
     }
     // 敵将は姿が近づいてから名と声を結ぶ。味方の将は下知が届く距離で話す。
