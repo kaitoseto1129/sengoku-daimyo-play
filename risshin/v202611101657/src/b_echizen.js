@@ -2341,9 +2341,10 @@ function gatePress(rt) {
       // 前で斬り結ぶ同じ組の者（敵に自分より近い者）の背へ
       let fr = null, best = 20;
       for (const o of g.units) {
-        if (o === u || !o.alive || o.fleeing || o.mounted || o.type === 'gun' || o.type === 'bow') continue;
+        // 負傷して離脱した者の背を追うと、後列も戦えない場所で止まる。
+        if (o === u || !EC_FUCHU.pursuer(o) || o.mounted || o.type === 'gun' || o.type === 'bow') continue;
         const ot = o.swing?.target || o.atk?.target || o.target;
-        if (!ot?.alive || ot.isStruct || ot.team === o.team) continue;
+        if (!canPress(ot)) continue;
         if (Math.hypot(ot.pos.x - o.pos.x, ot.pos.z - o.pos.z) > (o.reach || 2) + 1) continue;
         if (Math.hypot(foe.pos.x - o.pos.x, foe.pos.z - o.pos.z) > d - 0.6) continue;
         const k = (o.pos.x - u.pos.x) ** 2 + (o.pos.z - u.pos.z) ** 2;

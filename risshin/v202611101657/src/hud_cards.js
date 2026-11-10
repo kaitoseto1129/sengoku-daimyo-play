@@ -238,7 +238,8 @@ export class HudCards {
     if (on) for (const u of rt.army.units) {
       if (n === this.enemyTriangles.length) break;
       if (rt.def.enemySignVisible?.(rt, u) === false) continue;
-      if (!u.alive || u.gone || u.dying || u.woundOut || u.noTarget && !(markedGroup && u.group === markedGroup) || u.isStruct || u.team === me.team ||
+      // 討てない本陣の兵も、戦が所属印を指定した時は敵として示す。
+      if (!u.alive || u.gone || u.dying || u.woundOut || u.noTarget && !(markedGroup && u.group === markedGroup) && !rt.def.foeMarkVisible?.(rt, u) || u.isStruct || u.team === me.team ||
           u.mesh?.visible === false || u.camHidden) continue;
       this.tmpV.set(u.pos.x, u.pos.y + (u.mounted ? 3.2 : 2.25), u.pos.z).project(rt.camera);
       if (this.tmpV.z < -1 || this.tmpV.z > 1 || Math.abs(this.tmpV.x) > 1 || Math.abs(this.tmpV.y) > 1) continue;
