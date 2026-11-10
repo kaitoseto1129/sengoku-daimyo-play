@@ -1814,7 +1814,10 @@ function survival(rt, label) {
   if (rt.flags.survivalAwarded) return;
   rt.flags.survivalAwarded = true;
   const sq = rt.squad || [];
-  rt.award((t) => t.side.push(`${label}（組 ${sq.filter((x) => x.alive).length}/${sq.length}）`), `${label}・生還の働き`);
+  // 生存だけでは生還にしない。退き口へ届いた手負いも含め、締めの人数と同じ範囲で数える。
+  let returned = 0;
+  for (const u of sq) if (u.alive && !u.gone && Math.hypot(u.pos.x - KUTSUKI.x, u.pos.z - KUTSUKI.z) < 30) returned++;
+  rt.award((t) => t.side.push(`${label}（組 ${returned}/${sq.length}）`), `${label}・生還の働き`);
 }
 
 // 退く下知ごとに道筋と到着処理を入れ替える。前の備の処理で引き戻さない。

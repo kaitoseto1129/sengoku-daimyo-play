@@ -2,7 +2,7 @@
 export function live(g) {
   if (!g || g.routed || g.order === 'retreat' || g.order === 'flee') return 0;
   let n = 0;
-  for (const u of g.units) if (u.alive && !u.gone && !u.dying && !u.fleeing && !u.evacuatedWound && !u.woundOut && !u.rearWound && !u.noTarget) n++;
+  for (const u of g.units) if (u.alive && !u.gone && !u.dying && !u.fleeing && !u.evacuatedWound && !u.woundOut && !u.rearWound && !u.downed && !u.noTarget) n++;
   return n;
 }
 

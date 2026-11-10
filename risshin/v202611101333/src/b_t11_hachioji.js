@@ -286,10 +286,12 @@ function bridgeAndSteps(rt) {
   const ax = BRIDGE_S.x, az = BRIDGE_S.z + 1, bx = BRIDGE_N.x, bz = BRIDGE_N.z - 1;
   const ya = W.heightAt(ax, az) + 0.3, yb = W.heightAt(bx, bz) + 0.3, len = Math.hypot(bx - ax, bz - az), ry = Math.atan2(bx - ax, bz - az);
   const mx = (ax + bx) / 2, mz = (az + bz) / 2, ux = Math.sin(ry), uz = Math.cos(ry), px = uz, pz = -ux;
-  const y = (ya + yb) / 2, pitch = -Math.asin(Math.max(-0.5, Math.min(0.5, (yb - ya) / len)));
+  // len は地図上の長さ。傾ける桁と手すりには斜面の実長を使い、
+  // 見える両端を歩行床・横の当たりと同じ袂まで届かせる。
+  const y = (ya + yb) / 2, rise = yb - ya, slopeLen = Math.hypot(len, rise), pitch = -Math.atan2(rise, len);
   const planks = [], boards = [[], [], []];
   // 床：二本の桁の上に、渡り板を一枚ずつ横に並べる（一枚板の箱に見えた。11/8 critic60）。板の幅・色・反りを少しずつ違える
-  for (const s of [-0.9, 0.9]) box(planks, 0.3, 0.34, len, mx + px * s, y - 0.25, mz + pz * s, ry, pitch);
+  for (const s of [-0.9, 0.9]) box(planks, 0.3, 0.34, slopeLen, mx + px * s, y - 0.25, mz + pz * s, ry, pitch);
   const nb = Math.floor(len / 0.34);
   for (let k = 0; k < nb; k++) {
     const t = (k + 0.5) / nb - 0.5, r = Math.sin(k * 12.9898) * 43758.5453 % 1;
@@ -297,7 +299,7 @@ function bridgeAndSteps(rt) {
     box(boards[k % 3], 3.4 + Math.abs(r) * 0.3, 0.09, 0.31, cx + px * r * 0.12, cy - 0.02 + Math.abs(r) * 0.03, cz + pz * r * 0.12, ry);
   }
   for (const s of [-1, 1]) {
-    box(planks, 0.16, 0.16, len, mx + px * s * 1.6, y + 1.0, mz + pz * s * 1.6, ry, pitch);
+    box(planks, 0.16, 0.16, slopeLen, mx + px * s * 1.6, y + 1.0, mz + pz * s * 1.6, ry, pitch);
     // 見える手すりと同じ場所で横への通り抜けを止める。両端は開け、橋の床へ進める。
     addWall({ ax: ax + px * s * 1.6, az: az + pz * s * 1.6, bx: bx + px * s * 1.6, bz: bz + pz * s * 1.6,
       r: 0.12, y0: Math.min(ya, yb) - 0.2, y1: Math.max(ya, yb) + 1.2 });
@@ -564,6 +566,7 @@ const t11_hachioji = {
   noFrontFill: true, kumiLead: false, noGoalCount: true, goalSignNameOnly: true, noLeaderFollow: true,
   goalSignTriangle: true,   // 行き先は金の▼。共通の既定の矢印へ戻さない。
   keepBattleSigns: true,   // 行き先の印が出ている間も、両軍の人数の棒と武将の名札を隠さない。
+  enemySignMinPixels: 28,   // 普通の敵も大きな赤い▼。共通の最後の縮小で小さな所属印へ戻さない。
   ownEnding: true,   // 終幕の段で落城を見せるため、共通の落城場面を重ねない。
   goalVisibleRows: 5, goalRowsAhead: true,   // 始めから今の五件を並べ、後半も現在の目標と続きの場所・行いを残す
   waitForPortrait: true,   // 顔を撮れるまで影の顔を出さず、本人の顔だけを一度表示する（critic60 五6）。
@@ -864,7 +867,7 @@ const t11_hachioji = {
       // 本人の傷で城方の射撃まで止めない。近くの寄せ手も同じ矢にさらされる。
       if (P.alive) for (const g of D.cur.groups) {
         // 退く下知を受けた組と、重傷で戦列を離れた射手には射させない。
-        const bow = live(g) > 0 && g.units.find((u) => u.alive && !u.gone && !u.dying && !u.fleeing && !u.evacuatedWound && !u.woundOut && !u.rearWound && !u.noTarget && u.type === 'bow' && Math.hypot(u.pos.x - P.pos.x, u.pos.z - P.pos.z) < 55);
+        const bow = live(g) > 0 && g.units.find((u) => u.alive && !u.gone && !u.dying && !u.fleeing && !u.evacuatedWound && !u.woundOut && !u.rearWound && !u.downed && !u.noTarget && u.type === 'bow' && Math.hypot(u.pos.x - P.pos.x, u.pos.z - P.pos.z) < 55);
         if (!bow) continue;
         const a = Math.random() * Math.PI * 2, r = 2 + Math.random() * 5, x = P.pos.x + Math.cos(a) * r, z = P.pos.z + Math.sin(a) * r;
         rainVolley(rt.army, g, bow, { x, y: rt.world.heightAt(x, z), z }, Math.hypot(x - bow.pos.x, z - bow.pos.z));

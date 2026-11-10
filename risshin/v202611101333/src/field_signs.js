@@ -770,6 +770,13 @@ export function fieldSignsTick(rt, root) {
       const fit = Math.min(1, limit / dummy.scale.x, limit / dummy.scale.y);
       dummy.scale.multiplyScalar(fit);
     }
+    // 八王子など、普通の敵にも読み取れる大きさを指定した戦は、
+    // 所属印の縮小を終えた後で下限を守る。討たれた印の閉じ方はそのまま。
+    if (foe && !defeated && rt.def.enemySignMinPixels > 0) {
+      const pixelScale = -v.z * 2 / (VIEW.h * cam.projectionMatrix.elements[5]);
+      dummy.scale.x = Math.max(dummy.scale.x, rt.def.enemySignMinPixels * pixelScale / .34);
+      dummy.scale.y = Math.max(dummy.scale.y, rt.def.enemySignMinPixels * pixelScale / .28);
+    }
     dummy.updateMatrix();
     if (foe) {
       // 森部も残る命をそのまま赤の面積にし、討った本人は赤を満杯へ戻さず空の▼を閉じる。
