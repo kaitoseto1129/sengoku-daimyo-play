@@ -592,7 +592,7 @@ const k05_ueda = {
       const oc = live(F.oi) && F.oi.center();
       // 追手が町屋の道で詰まって岸へ来ない時（11/9 見回り 徳川D：本人が岸で八百秒待った）は、七十秒で岸の本人へ向かわせる
       if (F.oi) F.oiT ??= rt.t;
-      if (oc && !F.oiHot && F.oiT && rt.t - F.oiT > 70 && dist(P.pos, FORD_W) < 30) { F.oi.onArrive = null; F.oi.order = 'attack'; F.oi.seekRange = 120; F.oi.aggro = 30; F.oi.anchor = { ...FORD_W }; }
+      if (oc && !F.oiHot && rt.t - F.oiT > 70 && dist(P.pos, FORD_W) < 30) { F.oi.onArrive = null; F.oi.order = 'attack'; F.oi.seekRange = 120; F.oi.aggro = 30; F.oi.anchor = { ...FORD_W }; }
       // 時間だけで接敵済みにしない。先頭が岸の本人へ届いた時も、隊の中心を待たず交戦に移る。
       const reached = F.oi?.units.some((u) => u.alive && !u.gone && !u.fleeing && dist(u.pos, FORD_W) < 30 && dist(u.pos, P.pos) < 16);
       if (oc && !F.oiHot && (dist(oc, FORD_W) < 16 || reached)) { F.oiHot = true; F.oiHotT = rt.t; F.oi.onArrive = null; F.oi.aggro = 16; F.oi.seekRange = 40; F.oi.order = 'attack'; F.oi.anchor = { ...FORD_W }; }
@@ -770,7 +770,7 @@ KILLS[ID] = (rt) => {
   if (F.step === 1) return cut(F.w1N, aliveN(F.sortie), F.w1N - Math.round(F.w1N * 0.6));
   if (F.step === 3) return cut(F.w3N, aliveN(F.yari), F.w3N - Math.round(F.w3N * 0.6));
   if (F.step === 4) return cut(F.w4N, aliveN(F.nobushige), F.w4N - Math.round(F.w4N * 0.5));
-  if (F.step === 6) return F.oi ? cut(F.w6N, aliveN(F.oi), F.w6N - Math.round(F.w6N * (F.oiHot ? 0.5 : 0.6))) : null;
+  if (F.step === 6) return F.oi ? cut(F.w6N, aliveN(F.oi), F.w6N - Math.round(F.w6N * (F.oiEngaged ? 0.5 : 0.6))) : null;
   return null;
 };
 
