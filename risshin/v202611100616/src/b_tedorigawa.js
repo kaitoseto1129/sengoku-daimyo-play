@@ -51,8 +51,10 @@ function huntPlayer(rt, dt) {
   if ((F._huntT = (F._huntT || 0) - dt) > 0) return;
   F._huntT = 0.5;
   const P = rt.player.u;
-  if (!P?.alive) return;
-  const weak = P.hp < P.maxHp * 0.4;
+  if (!P) return;
+  // 個人の追加追撃と同じく、決着・一騎打ち・無敵中は隊全体にも本人を追わせない。
+  // 前の狙いも下の走査で外し、ほかの味方を攻める隊の狙いは保つ。
+  const weak = !P.alive || P.invuln || rt.over || F.ending || rt.army.duel || P.hp < P.maxHp * 0.4;
   // 11/6 kaito 一4：敵は味方の兵も攻める。本人へ向けるのは一番近い一組だけ。
   let best = null, bestD = 30, held = null;
   for (const g of rt.army.groups) {

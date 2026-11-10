@@ -7,6 +7,7 @@
 // ======================================================================
 import { sfx } from '../audio.js';
 import { pinAt } from './index.js';
+import { inouEnemyAlive } from '../b_inou_goals.js';
 
 const live = (g) => g && g.units.some((u) => u.alive && !u.gone);
 
@@ -26,6 +27,16 @@ export function start(rt, def, C) {
 
 export function pin(rt) {
   const v = rt.flags.v15;
+  if (v.flankHit) {
+    const P = rt.player.u.pos;
+    let target = null, best = Infinity;
+    for (const g of v.flankEnds || []) for (const u of g.units) {
+      if (!inouEnemyAlive(u)) continue;
+      const d = (u.pos.x - P.x) ** 2 + (u.pos.z - P.z) ** 2;
+      if (d < best) { best = d; target = u; }
+    }
+    if (target) return pinAt(rt, target.pos, '小川沿いの畦', target, 3);
+  }
   return pinAt(rt, v.C.FLANK, '小川沿いの畦', null, 6);
 }
 

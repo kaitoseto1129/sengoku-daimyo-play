@@ -267,8 +267,13 @@ const t09_yamanaka = {
     else if (F.step === 2) { x = CROSS_X; z = SHOJI.z0 - 5; label = '障子堀'; }
     else if (F.step === 3) { const a = F.gateOpen ? SP.at.plaza : F.sub === 'back' ? SP.at.gate : SP.at.mouths[1].far; x = a.x; z = a.z; label = F.gateOpen ? '三の丸' : F.sub === 'back' ? '大手門' : '馬出し'; }
     else {
-      if (F.signRoute == null) F.signRoute = 2;
-      let i = F.signRoute;
+      // 初表示・途中再開・印から離れて登った時も、通過済みの虎口へ戻さない。
+      let i = F.signRoute ?? 2;
+      let distance = Math.hypot(p.x - UP_ROUTE[i][0], p.z - UP_ROUTE[i][1]);
+      for (let j = i + 1; j < UP_ROUTE.length; j++) {
+        const d = Math.hypot(p.x - UP_ROUTE[j][0], p.z - UP_ROUTE[j][1]);
+        if (d < distance) { i = j; distance = d; }
+      }
       while (i < UP_ROUTE.length - 1 && Math.hypot(p.x - UP_ROUTE[i][0], p.z - UP_ROUTE[i][1]) < 7) i++;
       F.signRoute = i; [x, z] = UP_ROUTE[i];
       label = i < 4 ? '三の丸' : i < 6 ? '二の丸' : i < 8 ? '本丸の土橋' : '本丸';

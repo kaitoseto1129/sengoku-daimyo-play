@@ -28,7 +28,6 @@ export function pinAt(rt, pos, label, unit = null, r = 3) {
   F.beginnerPinTarget = null;
   if (!pos) { F.farPin = null; return null; }
   const d2 = (pos.x - P.x) ** 2 + (pos.z - P.z) ** 2;
-  if (!unit && d2 <= r * r) { F.farPin = null; return null; }
   if (d2 > FAR * FAR) {
     const far = F.farPinObj || (F.farPinObj = { x: 0, z: 0, r: 0, label: '' });
     far.x = pos.x; far.z = pos.z; far.r = FAR - 2; far.label = label;
@@ -40,6 +39,8 @@ export function pinAt(rt, pos, label, unit = null, r = 3) {
   F.farPin = null;
   const pin = F.beginnerPin || (F.beginnerPin = { x: 0, z: 0, r: 0 });
   pin.x = pos.x; pin.z = pos.z; pin.r = r;
+  // 到着後も任務が続く畦・守備地点は消さない。段の切替で次の印へ渡す。
+  pin.hideDistance = 0;
   pin.label = label;
   // 行軍では味方の組頭も渡される。人物がいるだけで敵の印にしない。
   pin.unit = unit; pin.enemy = !!unit && unit.team !== rt.player.u.team; pin.flagDestination = !unit;
@@ -60,7 +61,7 @@ export function heading(rt) {
   if (rt.flags.ending) return undefined;
   if (v.ph === 'march') return GOALS15.march;
   if (v.ph === 'van' || v.vanT && !((rt.flags.stage || 0) >= 1)) return GOALS15.van;
-  if (v.ph === 'flank') return GOALS15.flank;
+  if (v.ph === 'flank' || v.ph === 'flankHit') return GOALS15.flank;
   if (v.ph === 'raid') return GOALS15.raid;
   return undefined;
 }
@@ -75,7 +76,7 @@ export function pin(rt) {
   if (rt.flags.ending) return undefined;
   if (v.ph === 'march') return march.pin(rt);
   if (v.ph === 'van') return vanguard.pin(rt);
-  if (v.ph === 'flank') return flank.pin(rt);
+  if (v.ph === 'flank' || v.ph === 'flankHit') return flank.pin(rt);
   if (v.ph === 'raid') return raid.pin(rt);
   return undefined;
 }
@@ -126,7 +127,7 @@ export function bot(b, inp, goTo) {
   const v = S(b), u = b.player.u;
   let T = null;
   if (v.ph === 'van') T = vanguard.target(b)?.pos || null;
-  else if (v.ph === 'flank') T = v.C?.FLANK;
+  else if (v.ph === 'flank' || v.ph === 'flankHit') T = flank.pin(b)?.unit?.pos || v.C?.FLANK;
   else if (v.ph === 'raid') T = raid.target(b)?.pos || b.flags.nobuG?.center?.() || null;
   if (!T) return false;
   if (Math.hypot(T.x - u.pos.x, T.z - u.pos.z) < 2.2) return false;

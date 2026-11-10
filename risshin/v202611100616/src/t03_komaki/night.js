@@ -123,7 +123,8 @@ export function tickDawn(rt, K) {
       A.moveTo(at.x + 70, 118, 50);
     }
     for (const s of F.depth?.B?.sonae || []) {
-      if (!s.bound) moveSonae(rt, 'B', s.id, s.x + 70, 118);
+      // 本多忠勝は小牧の留守を守る。追撃の知らせで留守居の備まで出さない。
+      if (!s.bound && s.id !== 'honda') moveSonae(rt, 'B', s.id, s.x + 70, 118);
     }
     rt.after(4, () => rt.say('森長可', '気取られたか。……かまわぬ、前へ進め', 3));
     rt.after(8, () => rt.say('三好信吉', '後ろは堀が守る。岡崎を目指せ', 3));
