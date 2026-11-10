@@ -2402,7 +2402,8 @@ export class Battle {
     this.regroupT = this.t + 3;
     let best = null, bd = 45, bestReady = 0;
     for (const g of this.army.groups) {
-      if (g.team !== P.team || g.isPlayerSquad || g.routed || g.count < 4 || g.guard || g === this.tomoGroup || g === this.hostGroup) continue;
+      // def.noRegroupFrom(rt, g)：戦の筋で数を数える組（金ヶ崎の殿など）からは抜かない
+      if (g.team !== P.team || g.isPlayerSquad || g.routed || g.count < 4 || g.guard || g === this.tomoGroup || g === this.hostGroup || this.def.noRegroupFrom?.(this, g)) continue;
       let ready = 0, helpers = 0;
       for (const u of g.units) {
         if (!u.alive || u.fleeing || u.woundOut || u.rearWound || u.downed || u.noTarget || u.dropped || u.dragging) continue;

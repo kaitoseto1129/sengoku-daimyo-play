@@ -180,6 +180,7 @@ const k14_yao_wakae = {
   nearbyAllySignLimit: 0,
   foeMarks: true,
   enemyTriangleSigns: true,
+  enemyTriangleAll: true,   // 遠い木村勢・長宗我部勢も、密集を理由に敵の印を省かない（critic60 九3）。
   horseHurtMul: 0.45,   // 11/8 critic60（BH7）：馬がすぐ死んで八尾まで歩いた。馬の傷を軽く
   playerAtkMax: 3,
   playerTaken: 0.5,
@@ -418,6 +419,17 @@ const k14_yao_wakae = {
     if (!canProgress(rt)) { rt.flags.pendingStep = n; return; }
     const F = rt.flags;
     F.pendingStep = 0;
+    // 予約した討死が共通処理で見送られても、二将を生かしたまま若江へ移らない。
+    // 一人ずつ実際の討死を確かめ、知らせを読み終えてから伝令を出す。
+    if (n === 2 && F.step === 1) {
+      for (const [g, name, line] of [[F.takanoriG, '藤堂高刑', '八尾で藤堂高刑様、お討死！'],
+        [F.kuwanaG, '桑名吉成', '桑名吉成様もお討死！　藤堂勢、崩れかかっております']]) {
+        if (!g.units.some((u) => u.name === name && u.alive && !u.gone)) continue;
+        this.fall(rt, g, name, line);
+        rt.after(3.6, () => this.toStep(rt, 2));
+        return;
+      }
+    }
     if (F.step) rt.objDone('s' + F.step);
     F.next = false; F.pushed = false; F.stepNear = false;
     F.step = n; F.st0 = rt.t; F.stepT = rt.t;

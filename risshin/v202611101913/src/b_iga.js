@@ -3755,14 +3755,14 @@ function igaB(rt) {
 // 11/6 fix4：蒲生は天正九年には忠三郎賦秀（氏郷と名乗るのは天正十二年から）。陣口の手に「蒲生忠三郎」として置き、名簿の氏郷は足さない（十4）。
 iga.bushou = [];
 // 城攻めの部品（siege_kit.js。battle.js が組み、毎コマ動かす）：南の木戸の左右の曲輪の柵を狭間に借り、
-// 夜討ちから木戸を破るまで、柵の上の頭と銃口・閃光と白煙・矢を見せる（伊賀衆の鉄砲と弓）。兵・塀は足さない。
+// 夜討ちから城兵が退くまで、柵の上の頭と銃口・閃光と白煙・矢を見せる（伊賀衆の鉄砲と弓）。兵・塀は足さない。
 // 11/4 jin（BJ3・標準 二-7）：矢弾は本当に当たる（開けた所の味方は倒れ、自分にも弱く当たる。竹束・塀の陰は当たらない）。
 iga.siegeKit = {
   plan: { x: SHU_SOUTH[0], z: SHU_SOUTH[1], rot: 0, W: 30, yokoya: false, moat: false, kirigishi: 0, umadashi: false, sakamogi: false, shiyori: false },
   build: { team: 1, gate: false, walls: false, bridge: false, heads: true, fire: { hurt: 0.4, near: 85, close: 14, base: .7, peak: 3.5, arrows: .45 } },
   borrow: { r: 34, flank: true },
-  // 包囲の夜に城兵が北へ退き始めたら、借りた狭間の射撃も止める。
-  when: (rt) => { const F = rt.flags; return F.step >= 1 && F.step < 3 && !F.castleRetreatStarted && F.gate?.alive && !F.ending && !rt.over; },
+  // 木戸が破れても土塁の守りは残る。包囲の夜に城兵が北へ退き始めたら、借りた狭間の射撃も止める。
+  when: (rt) => { const F = rt.flags; return F.step >= 1 && F.step < 3 && !F.castleRetreatStarted && !F.ending && !rt.over; },
 };
 export { iga };
 

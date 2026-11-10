@@ -2538,8 +2538,6 @@ const tonezaka = {
       html body #hud[data-tonezaka] #battle-notices #battle-message{gap:4px !important}
       html body #hud[data-tonezaka] #battle-notices #battle-message > :is(#subtitle,.battle-notice){padding:4px 8px !important;line-height:1.45 !important}
     }`;
-    // 守りの間だけ、携帯でも残り秒数の一行を見せる。札は増やさない。
-    style.textContent += '#hud[data-tonezaka-holding] #objectives:not(.expand) #obj-list li.cur > small:first-of-type{display:block !important}';
     // 退く札も左上の欄へ戻す。地面の輪を追う配置で主人公と敵の槍を覆わない。
     style.textContent += `@media(max-height:500px){
       html body #hud[data-tonezaka].single-guide #battle-notices:not(.choosing) #objectives.travel-retreat.ground-order.destination-sign:not(.expand){
@@ -3204,6 +3202,7 @@ const tonezaka = {
     const F = rt.flags;
     if (F.ending) return;
     F.ending = true; rt.setPhase('end'); rt.unmark('inner'); rt.unzone('inner');
+    delete rt.hud.root.dataset.tonezakaHolding;
     toneClearWaitSpeech(rt, INNER_HOLD_LINE);
     toneClearWaitSpeech(rt, INNER_RESTART_LINE);
     toneClearWaitSpeech(rt, INNER_WAIT_LINE);
