@@ -1126,6 +1126,8 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
     const F = rt.flags;
     F.step = 7; F.backT = rt.t;
     setWarStage(0);
+    // 麓で殿を務めた先手と二の手も、最後は竹束の陣へ戻す。
+    for (const g of [F.yam, F.second]) if (!gone(g)) withdraw(g, { x: RETREAT.x + (g === F.yam ? -8 : 8), z: RETREAT.z + 6 });
     rt.say('山崎長徳', '柵の前にまだ味方が残っておる！　救える者は救え。じゃが深入りはするな', 4);
     F.stranded = (F.stranded || []).filter((g) => !gone(g));
     for (const [a, r, nmx] of [[-0.42, FENCE_R + 10, '取り残された前田の組'], [0.48, FENCE_R + 12, '取り残された本多の組']]) {
@@ -1336,8 +1338,15 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
     // 柵を打つ段：竹束を持つ者が倒れた時も、次の組を補う
     const T = F.breakT;
     if (F.breaking && T && T.alive && !T.invuln) {
-      const left = F.rams.reduce((a, g) => a + g.count, 0);
-      const covered = F.rams.some((g) => g.units.some((u) => u.alive && u.tatake && !u.fleeing && !u.woundOut));
+      let left = 0, covered = false;
+      // 前の攻めから退いた組や戦闘不能の者は、今の柵を打つ人数に数えない。
+      for (const g of F.rams) {
+        if (gone(g) || g.far) continue;
+        for (const u of g.units) {
+          if (!u.alive || u.gone || u.fleeing || u.woundOut) continue;
+          left++; if (u.tatake) covered = true;
+        }
+      }
       if ((left < 4 || !covered) && rt.t - (F.ramT ?? -99) > 8 && this.newRam(rt, T)) { F.ramT = rt.t; rt.say('山崎長徳', '柵の者が討たれた！　次の者、行けっ！', 3); }
     }
   },
@@ -1398,7 +1407,7 @@ k11_sanadamaru.botBrain = (b, inp, { goTo }) => {
 
 const st = (k) => (rt) => (rt.flags.step || 0) >= k;
 // 段の字は戦の中の目標の字と同じ（場所と行い。右上・終わりの札で言い替えない。十1）
-STAGES.k11_sanadamaru = [['篠山の頂まで登れ'], ['正面から真田丸へ進め', st(2)], ['左から回り込め', st(3)], ['前線を整理せよ', st(4)], ['真田丸を突破せよ', st(5)], ['味方を退かせろ', st(6)], ['攻撃を中止し、味方を撤収させろ', st(7)]];
+STAGES.k11_sanadamaru = [['篠山の頂まで登れ'], ['正面から真田丸へ進め', st(2)], ['真田丸の西へ回り込め', st(3)], ['真田丸の柵前で前線を整理せよ', st(4)], ['真田丸を突破せよ', st(5)], ['篠山の北の麓へ味方を退かせろ', st(6)], ['攻撃を中止し、味方を竹束の陣へ撤収させろ', st(7)]];
 
 export { k11_sanadamaru };
 export default k11_sanadamaru;

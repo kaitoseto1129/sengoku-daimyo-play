@@ -4202,7 +4202,10 @@ function kgSignDrawn(u) {
   for (let p = u.mesh; p; p = p.parent) if (p.visible === false) return false;
   if (u.human && !u.vatOn && !u.efuda && !u.imp)
     return !!(u.human.root?.visible && u.human.root.parent);
-  return true;
+  // 全身の準備がまだ無い兵は、旗の親だけ見えていても表示済みにしない。
+  // 軽い兵への切替中も、代わりの胴が実際に戻ってから印を出す。
+  if (u.vatOn || u.efuda || u.imp) return true;
+  return !!(u.body?.visible && u.body.parent);
 }
 // 頭上だけが斜面や柵を越えても印を浮かせない。体の見通しを地面と壁で確かめる。
 function kgSignSeen(rt, u) {

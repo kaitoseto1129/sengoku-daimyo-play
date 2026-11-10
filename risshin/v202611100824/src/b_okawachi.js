@@ -2254,7 +2254,11 @@ const okawachi = {
     // 闇で狙いは鈍る。弓の威力を特別に弱めず、昼になれば明るさの補正を戻す。
     { const g = F.gateDef && F.gateDef.real; if (g && !g._rain) { g._rain = true; g._okBaseDmg = g.dmgMult || 1; }
       if (g) g.dmgMult = g._okBaseDmg * nightAccuracyMult(rt.world); }
-    if (F.ending || rt.over) return;
+    if (F.ending || rt.over) {
+      // 投石の途中で討死・撤退が決まっても、石を空中へ残さない。
+      if (F.gateStone) F.gateStone.mesh.visible = false;
+      return;
+    }
     // 封鎖の完了は深い段の判定だけで扱い、別の七十五秒の判定で短縮しない。
     // 崩れた小勢の残兵を坂に置き去りにしない。生きた城兵が道を通って帰る。
     for (const g of F.sorties) if (g._sortieSent && !g._okReturning && !gone(g) && sortieBroken(g)) returnSortie(g);
@@ -4434,7 +4438,7 @@ function okChaseTick(rt) {
 function okGateStones(rt, dt) {
   const F = rt.flags, u = rt.player.u, stone = F.gateStone;
   const attacking = F.step === 1 && F.assaultMoving || F.step === 2 || F.step === 2.5;
-  if (!attacking || !u?.alive) {
+  if (F.ending || rt.over || !attacking || !u?.alive) {
     if (stone) stone.mesh.visible = false;
     return;
   }

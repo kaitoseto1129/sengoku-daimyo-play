@@ -4888,9 +4888,17 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
           }
         }
         const pp = rt.player.u.pos;
+        // 組を離れた本人を殿が追い続けない。生きて戦える組の前へ寄せる。
+        const squad = rt.squadGroups.find((g) => g.units.some((u) => u.team === 0 && moribeRemainFoe(u)));
+        const squadPoint = squad ? fightingCenter(squad) : pp;
+        const rearAim = Math.hypot(squadPoint.x - pp.x, squadPoint.z - pp.z) <= 24 ? pp : squadPoint;
         let shN = 0, shNear = 0;
         // 隊が崩れた印だけでは、まだ槍を向けている生き残りを数から外さない。
-        for (const g of F.shingari) for (const u of g.units) if (moribeRemainFoe(u)) { shN++; if (Math.hypot(u.pos.x - pp.x, u.pos.z - pp.z) < 25) shNear++; }
+        for (const g of F.shingari) for (const u of g.units) if (moribeRemainFoe(u)) {
+          shN++;
+          if (Math.hypot(u.pos.x - pp.x, u.pos.z - pp.z) < 25 ||
+              squad && Math.hypot(u.pos.x - squadPoint.x, u.pos.z - squadPoint.z) < 25) shNear++;
+        }
         // 一度も槍を合わせていない殿は省かない。戦った後に遠くへ散った最後の二人は、四十秒待たせず退かせる。
         const scatteredRear = F.ownHatamoto && F.pursuit.contactAt !== undefined && el >= 15 && shN > 0 && shN <= 2 && shNear === 0;
         const rearHolding = !F.ownHatamoto || !F.shingariBroke && !scatteredRear && (F.pursuit.contactAt === undefined || rt.t - Math.max(F.pursuit.contactAt, F.pursuit.t) < 40);
@@ -4898,7 +4906,7 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
         // 11/6 fixc（kaito 九-2「目標に書いた敵は必ず来る」）：殿は本人の組の前まで寄せて槍を合わせる。棒立ちで待たせない。
         for (const g of F.shingari) if (!gone(g) && rearHolding) {
           const c = fightingCenter(g);
-          if (Math.hypot(c.x - pp.x, c.z - pp.z) > 10) { const d = g._moribeShDest || (g._moribeShDest = { x: 0, z: 0 }); d.x = pp.x; d.z = pp.z - 3; g.order = 'move'; g.dest = d; g.speed = 2.4; g.onArrive = g._moribeShArrive || (g._moribeShArrive = (a) => { a.order = 'attack'; a.seekRange = 30; }); }
+          if (Math.hypot(c.x - rearAim.x, c.z - rearAim.z) > 10) { const d = g._moribeShDest || (g._moribeShDest = { x: 0, z: 0 }); d.x = rearAim.x; d.z = rearAim.z - 3; g.order = 'move'; g.dest = d; g.speed = 2.4; g.onArrive = g._moribeShArrive || (g._moribeShArrive = (a) => { a.order = 'attack'; a.seekRange = 30; }); }
           else { g.order = 'attack'; g.seekRange = 30; }
         }
         if (rearHolding) for (const g of F.shingari) {

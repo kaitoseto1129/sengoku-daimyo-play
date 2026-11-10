@@ -577,9 +577,11 @@ function mikataOrderText(rt, speaker, text) {
     return '平手の槍列に続け！　隙間を空けるな！';
   if (speaker === '組頭' && /味方が討ち減らされておる|味方がもう持たぬ/.test(text)) {
     if (F.step === 3) return '味方が崩れた！　崖の東の道を下り、浜松城へ退け！';
-    if (F.dpOn && F.dpB) return F.dp?.i >= 2
-      ? '味方が崩れた！　坂の上で追手を支え、味方を先に通せ！'
-      : '味方が崩れた！　南の坂へ退け！';
+    if (F.dpOn && F.dpB) return F.mkSub === 'escort'
+      ? '味方が崩れた！　上様を守り、浜松城へ退け！'
+      : F.mkSub === 'go' || F.mkSub === 'honjin'
+        ? '敵が本陣へ迫る！　家康の本陣を守れ！'
+        : '味方が崩れた！　第二線まで退け！';
     return '味方が減っておる！　平手の槍列で構え、深追いするな！';
   }
   return text;
@@ -895,7 +897,7 @@ function mikataPostRadius(rt) {
   return F.step === 2 ? 5 : 8;
 }
 // 持ち場へ寄せる一番近い残りの敵。半秒ごとに選び直し、毎コマ全員を見ない。
-const mikataFoeOk = (u, team) => u?.alive && !u.gone && !u.dying && !u.fleeing && !u.woundOut && !u.downed && !u.noTarget &&
+const mikataFoeOk = (u, team) => u?.alive && !u.gone && !u.dying && !u.fleeing && !u.woundOut && !u.rearWound && !u.downed && !u.noTarget &&
   !u.isStruct && !u.civ && u.team !== team && u.team <= 1 && u.group && !u.group.routed && !u.group.noAI && u.type !== 'dummy';
 function mikataNearestFoe(rt) {
   const F = rt.flags, me = rt.player.u, post = mikataPost(rt);
@@ -1333,6 +1335,9 @@ const mikatagahara = {
     const F = rt.flags;
     if (F.mkStage === -1) return '平手の列の後ろへ';
     if (F.mkStage === 0) return '根洗の松へ';
+    // 本陣へ戻る途中は、前の坂への案内や一時退避先の名を持ち越さない。
+    if (F.step !== 3 && F.dpOn && F.dpB) return F.mkSub === 'escort' ? '上様と浜松城へ'
+      : F.mkSub === 'go' || F.mkSub === 'honjin' ? '家康の本陣へ' : '第二線へ';
     if (this.distanceText(rt, rt.missionGuide?.distance || 0) === '持ち場で構えよ') return 'この持ち場で構えよ';
     return F.step === 3 ? RETREAT_LABELS[F.retreatIdx] :
       F.dpOn ? rt.missionGuide?.label || '南の坂の持ち場へ' :
@@ -1438,13 +1443,13 @@ const mikatagahara = {
   // 専用の札を使うと、共通の配置処理で任務札を避けて上端へ収まる。
   dodgeGuideLabel(rt, reached, rain) {
     if (rt.flags.ending) return '城に着いた。仲間を待て';
-    // 坂への移動と殿の下知待ちも移動案内を優先するが、まだ城へ退く段ではない。
-    // 回避先への到着を坂への到着とは扱わず、今の持ち場へ戻す。
+    // 回避先への到着と、本来の行き先への到着を取り違えない。
+    // 第二線から本陣へ戻る段でも、古い坂の殿の下知に替えない。
     if (rt.flags.step !== 3 && mikatagahara.routeGuidePriority(rt)) {
-      if (rt.flags.dp?.i < 2) return reached ? '味方と南の坂へ退け'
-        : rain ? '矢をよけ、南の坂へ退け' : '刃をよけ、南の坂へ退け';
-      return reached ? '北の追手へ構え、味方を先に通せ'
-        : rain ? '矢をよけ、坂の上で味方を守れ' : '刃をよけ、坂の上で味方を守れ';
+      const sub = rt.flags.mkSub;
+      const order = sub === 'escort' ? '上様を守り、浜松城へ退け'
+        : sub === 'go' || sub === 'honjin' ? '家康の本陣へ戻れ' : '第二線まで退け';
+      return reached ? order : `${rain ? '矢' : '刃'}をよけ、${order}`;
     }
     if (mikatagahara.routeGuidePriority(rt)) return reached
       ? '東の道を下り、浜松城の口へ退け'
