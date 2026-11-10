@@ -666,8 +666,11 @@ const k09_imafuku = {
         u.reload || u.atk ||
         u.k09Shot > 0) continue;
       u.k09Shot = 7 + Math.random() * 4;
-      const t = rt.army.nearestEnemy(u, 55, (o) => !o.isStruct && !o.gone && !o.fleeing &&
-        !o.dying && !o.woundOut && !o.downed && !o.rearWound && Math.abs(o.pos.z) < WADE);
+      // 専用射撃も共通の鉄砲と同じ射線の決まりに従う。近い相手が柵や味方に隠れていれば、撃てる別の相手を探す。
+      const t = rt.army.nearestEnemy(u, 55, (o) => !o.isStruct && !o.noTarget && !o.gone && !o.fleeing &&
+        !o.dying && !o.woundOut && !o.downed && !o.rearWound && Math.abs(o.pos.z) < WADE &&
+        !rt.army.shotBlocked(u, o.pos) && !rt.army.hiddenBehind(u, o) &&
+        !rt.army.allyInLine(u, o, Math.hypot(o.pos.x - u.pos.x, o.pos.z - u.pos.z)));
       if (t) {
         u.heading = Math.atan2(t.pos.x - u.pos.x, t.pos.z - u.pos.z);
         rt.army.fireGun(u, t);

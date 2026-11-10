@@ -44,7 +44,7 @@ export function install(rt, ctx) {
   for (const g of new Set([F.hori, ...(F.escorts || [])])) if (g && !g.routed && g.count) {
     // 二組を一点へ重ねず、堤の東側から間を空けて寄せる。
     moveGroup(g, { x: DIKE.x + 8 + sent * 6, z: DIKE.z - 10 - sent * 8 }, Math.PI);
-    g.onArrive = (q) => { q.order = 'attack'; q.aggro = 26; q.seekRange = 30; };
+    g.onArrive = (q) => { q.order = 'attack'; q.retreatOnly = false; q.guard = false; q.aggro = 26; q.seekRange = 30; };
     if (++sent >= 2) break;
   }
 

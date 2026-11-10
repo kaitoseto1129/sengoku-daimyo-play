@@ -2448,6 +2448,8 @@ function installNodaWater(rt) {
       // 既存の流れ・濁りの材質を使い、水際だけを薄くする。描画の回数は増やさない。
       // rippleWater は不透明へ戻すため、ここで透過を有効にしないと岸の薄さが描かれず板の縁になる。
       st.mesh.material.transparent = true;
+      // 薄い水際で奥行きだけを塞ぐと、後から描く葦や水面が角形に欠ける。
+      st.mesh.material.depthWrite = false;
       const compile = st.mesh.material.onBeforeCompile;
       st.mesh.material.onBeforeCompile = function (shader, renderer) {
         compile.call(this, shader, renderer);
@@ -4638,14 +4640,10 @@ nodafukushima.botBrain = (b, inp, { goTo, patientStrike, canStrike }) => {
         return;
       }
       if (p.weapon !== 'gun') { if (!(b._ndSw > b.t)) { b._ndSw = b.t + 1; inp.e.add('Digit3'); } return; }
-      let foe = null, best = Infinity;
-      for (const g of [F.fortGun, ...(F.fortTowerGuns || [])]) for (const o of g?.units || []) {
-        if (!o.alive || o.fleeing) continue;
-        const d = Math.hypot(o.pos.x - u.pos.x, o.pos.z - u.pos.z);
-        if (d < best) { best = d; foe = o; }
-      }
-      const tx = foe ? foe.pos.x : 0, tz = foe ? foe.pos.z : FORT_Z - 12;
-      seirouAim(p, b.camera, tx, (foe ? foe.pos.y : b.world.heightAt(tx, tz)) + 1.2, tz);
+      // 任務は塀の内への撃ち込み。外へ動いた守兵や高い櫓の兵を追うと、
+      // 実弾が曲輪へ入らず三発をいつまでも数えられない。塀を越える内側の空間へ狙う。
+      const tx = 0, tz = FORT_Z - 12;
+      seirouAim(p, b.camera, tx, b.world.heightAt(tx, tz) + 4.5, tz);
       if (p.gunLoaded && !p.shot && !(b._ndShot > b.t)) { b._ndShot = b.t + 0.6; inp.leftPressed = true; }
       return;
     }

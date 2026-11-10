@@ -4171,6 +4171,8 @@ const kanegasaki = {
 
   onKill(rt, v, k) {
     const F = rt.flags;
+    // 民や建物・置き物の破壊を、両軍の戦闘員の損害や殿の手柄へ混ぜない。
+    if (v.civ || v.isStruct || v.type === 'dummy' || (v.team !== 0 && v.team !== 1)) return;
     if (v.team === 1) F.ek = (F.ek || 0) + 1; else F.ak = (F.ak || 0) + 1;
     const L = LINES[F.line];
     // 深追いの首取りではなく、旗を守った自分と組の働き。各備で一度だけ。
