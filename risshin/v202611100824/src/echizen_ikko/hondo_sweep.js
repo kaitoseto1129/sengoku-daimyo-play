@@ -20,6 +20,9 @@ export function resume(rt, u) {
     // 最寄りの兵への道が塞がっていても、ほかの寄せ手へ出られる道を探す。
     const candidate = rt.def.world.moveWay(rt.army, u, v.pos);
     if (!candidate || rt.army.wallBetween(u.pos, -1, candidate)) continue;
+    // 戸口の折り返しが現在地を返す時は、そこへ歩き直しても詰まりが続く。
+    // その兵への案内だけを飛ばし、ほかの寄せ手へ踏み出せる道を探す。
+    if (Math.hypot(candidate.x - u.pos.x, candidate.z - u.pos.z) < .35) continue;
     const point = u._ikSweepWay || (u._ikSweepWay = { x: 0, z: 0 });
     point.x = candidate.x; point.z = candidate.z;
     way = point; nearest = d;

@@ -4313,7 +4313,7 @@ const echizen_ikko = {
           setRoute(b, [[0, Math.min(b.pos.z, P.z + 12)]], false, Math.PI);
         }
       }
-      // 奥山の後備えは三十秒ずつ間をあける。初めから全隊で押し寄せない。
+      // kaito 10/31：山道の守りに続き、後備え二組も一斉に攻め返す。
       if (F.step === 5 && F.roadWaveNext < F.roadWaves.length && rt.t >= F.roadWaveAt) {
         const b = F.roadWaves[F.roadWaveNext++];
         F.roadWaveAt = rt.t; b._nightReleased = true;

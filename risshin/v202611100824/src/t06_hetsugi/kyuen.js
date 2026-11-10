@@ -99,10 +99,10 @@ export function update(rt, K, el) {
   // 本人の見ている所で、二人のどちらかの刃が相手へ届いた事を確かめる（受け・甲冑で止まる時も含む）。
   contact(rt);
   // 一度押し返した後、元親の使番と横からの新手 →「元親を退かせろ」。斬り結ぶ所を見届けたか、救援が長引いたら（詰まらない決まり）
-  if (S.st === 1 && S.ls && ((meeting && near && S.bladesMet && S.clash >= 4 && S.near > 40 && rt.t - S.ls > 30) || rt.t - S.ls > 100)) toMoto(rt, K);
+  if (S.st === 1 && S.ls && ((meeting && near && S.bladesMet && S.clash >= 4 && S.near > 40 && rt.t - S.ls > 30) || (near && S.standFought && rt.t - S.ls > 100))) toMoto(rt, K);
   if (S.st === 2) {
     const m = motoAt(rt);
-    if (Math.hypot(P.x - m.x, P.z - m.z) < 12 || rt.t - S.tM > 70) { S.st = 3; S.tR = rt.t; retreatMoto(rt, K); }
+    if (rt.t - S.tM >= 10 && Math.hypot(P.x - m.x, P.z - m.z) < 12) { S.st = 3; S.tR = rt.t; retreatMoto(rt, K); }
   }
   // 元親と浅瀬へ退く間に、後ろで信親の旗が倒れる
   if (S.st === 3 && rt.t - S.tR > 12) K.closeRing(rt);

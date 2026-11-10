@@ -834,7 +834,8 @@ const t06_hetsugi = {
 
   win(rt) {
     const F = rt.flags;
-    if (F.ending) return;
+    // 岸へ早く着いても、殿に残った十河の最期の知らせを飛ばさない。
+    if (F.ending || !F.sogoDead) return;
     F.ending = true;
     rt.objDone('main');
     rt.tracker.main = true;

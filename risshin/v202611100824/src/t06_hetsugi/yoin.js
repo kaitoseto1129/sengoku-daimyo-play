@@ -12,7 +12,6 @@ export function play(rt, K) {
   try { for (let i = 0; i < 6; i++) W.addFire(K.FORD.x - 30 + i * 12, -24 - (i % 2) * 6, { torch: true, smoke: false }); } catch (e) { /* 飾り */ }
   try { W.addFire(K.CASTLE.x - 6, K.CASTLE.z + 4, { size: 4.2, h: 0.4, blackSmoke: true }); } catch (e) { /* 飾り */ }
   // 11/9 夜 kaito の最後の一枚：向こう岸を振り返ると、水辺の島津は整然と止まって追って来ない。こちらはばらばら
-  try { rt.player.yaw = Math.PI; } catch (e) { /* 向きは飾り */ }
   rt.after(1, () => rt.say('手勢の侍', '……追って、来ぬ。', 2.6));
   rt.after(4, () => rt.say('土佐の足軽', '島津は、川の向こうで並んだままじゃ……', 3));
   rt.after(7.5, () => { rt.army.play('toki', { x: K.FORD.x, z: -30 }, 1.2); });
