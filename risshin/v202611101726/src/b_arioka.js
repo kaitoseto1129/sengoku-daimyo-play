@@ -2728,6 +2728,16 @@ const arioka = {
       }
       const kanbe = kg.units[0];
       F.kanbeAt = kanbe ? kanbe.pos : at;
+      // 官兵衛だけ先に着いても、肩を貸す善助が町屋の裏に残る間は迎え終わらない。
+      const canMeet = (b) => {
+        const u = b.player.u, helper = sg.units[0];
+        if (!u.alive || !kanbe?.alive || !helper?.alive) return false;
+        for (const v of [kanbe, helper]) {
+          if (Math.hypot(u.pos.x - v.pos.x, u.pos.z - v.pos.z) >= 3.5
+            || Math.abs(u.pos.y - v.pos.y) > 3 || b.army.wallBetween(u.pos, -1, v.pos)) return false;
+        }
+        return true;
+      };
       evReach(rt, 'kanbe', () => F.kanbeAt, 3.5, ARI_GOALS[4], '小寺官兵衛', () => {
         F.kanbePending = false;
         rt.award((t) => { t.main = true; t.special = { label: '惣構えに入り、侍町の辻を守った', pts: 20 }; }, '任務達成・侍町の辻を守った');
@@ -2746,8 +2756,7 @@ const arioka = {
         if (!u.alive || !kanbe?.alive || !sg.units[0]?.alive || !p) return false;
         // 七十五秒の救済は達成の代行にせず、二人が安全に並べる対面場所を先に確かめる。
         // 四方とも壁や段差なら印を残し、本人が通りへ戻るまで迎えた事にしない。
-        if ((b.flags._ev_kanbe?.t || 0) > 75 && (Math.hypot(u.pos.x - p.x, u.pos.z - p.z) >= 3.5
-          || Math.abs(u.pos.y - p.y) > 3 || b.army.wallBetween(u.pos, -1, p))) {
+        if ((b.flags._ev_kanbe?.t || 0) > 75 && !canMeet(b)) {
           // 視点のある背後へは置かず、正面か左右で迎える。空きが無ければ通りへ戻るのを待つ。
           for (const a of [0, Math.PI / 2, -Math.PI / 2]) {
             const h = (b.player.yaw || 0) + a;
@@ -2766,8 +2775,7 @@ const arioka = {
             break;
           }
         }
-        return Math.hypot(u.pos.x - p.x, u.pos.z - p.z) < 3.5 && Math.abs(u.pos.y - p.y) <= 3
-          && !b.army.wallBetween(u.pos, -1, p);
+        return canMeet(b);
       } });
     });
   },
