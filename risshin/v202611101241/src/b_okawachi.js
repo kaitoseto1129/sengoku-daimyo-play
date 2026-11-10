@@ -777,13 +777,6 @@ const okawachi = {
   missionHeadingText(rt) {
     if (rt.flags.ending) return rt.flags.failed ? '退き太鼓：味方と退け' :
       rt.flags.peaceAnnounced ? '法螺二声：槍を収めよ' : '持ち場を保ち、囲みを続けよ';
-    // 一行の任務札にも、いま鳴る合図と声に対応する下知を残す。
-    if (rt.t < Math.max(rt.flags.signalQuietUntil || 0, rt.flags.sortieVoiceUntil || 0,
-        rt.flags.chaseVoiceUntil || 0, rt.flags.wetGunUntil || 0))
-      return this.taskLabel(rt, this.missions[this.missionOf(rt)]);
-    if ((rt.flags.step === 0 || rt.flags.step === 1 && !rt.flags.assaultMoving) && !okAtWaitCover(rt)) return '竹束の陰へ';
-    if (rt.flags.step === 3 && Math.hypot(rt.player.u.pos.x - CAMP_LINE.x, rt.player.u.pos.z - CAMP_LINE.z) <= 8) return '南の陣で組を立て直し、追っ手を防げ';
-    if (rt.flags.step === 4 && !okAtSouthLine(rt)) return '南の鹿垣へ進め';
     return this.missions[this.missionOf(rt)];
   },
   enemyOrder: (rt) => okawachi.missionHeading(rt),
@@ -928,57 +921,8 @@ const okawachi = {
   goalSignDistance: (rt, target, distance) => rt.flags.step === 3 && target.label === '南の陣'
     ? okCampDistance(rt) : distance,
   taskLabel(rt, text) {
-    // 短い任務札にも、台詞と同じ合図を残す。北大手の陽動では動かせない。
-    if (!rt.flags.ending) {
-      // 「待て」だけの目標にしない（三1）。場所と行いで言う。
-      if (rt.flags.step === 0) return !okAtWaitCover(rt) ? '手前の竹束の陰へ戻れ' :
-        rt.flags.day < 12 ? '竹束の陰に伏せ、夜攻めに備えよ' : '竹束の陰に伏せ、槍を揃えよ';
-      if (rt.flags.step === 1) {
-        if (rt.t < (rt.flags.wetGunUntil || 0)) return '火縄は湿って撃てぬ。竹束の陰で槍を揃えよ';
-        if (rt.t < (rt.flags.nearVoiceUntil || 0)) return rt.flags.nearVoiceText;
-        if (rt.flags.assaultMoving) return 'かかり太鼓：丹羽の竹束と進め';
-        if (!okAtWaitCover(rt)) return '手前の竹束の陰へ戻れ';
-        return rt.flags.assaultSignalT === undefined ? '北の太鼓は陽動。竹束の陰に伏せよ' : '法螺に鬨を返して進め';
-      }
-      if (rt.flags.step === 3) {
-        if (rt.t < (rt.flags.chaseVoiceUntil || 0)) return '追っ手の声！　槍を返し、組を守って退け';
-        return rt.flags.roadGuideMarked ? '退き太鼓：道の印で角を曲がり、陣へ' : '退き太鼓：組と南の陣へ退け';
-      }
-      // 短い任務札にも、いま聞こえた追っ手の声と組頭の下知を残す。
-      // 坂を守る段なので、帰陣中の「組を守って退け」とは分ける。
-      if (rt.flags.step === 2.5) return rt.t < (rt.flags.chaseVoiceUntil || 0)
-        ? '追っ手の声！　坂の旗で槍を返し、先に退く組を守れ'
-        : '止まれの鉦：坂の旗で退路を守れ';
-      if (rt.flags.step === 2) return rt.t < (rt.flags.sortieVoiceUntil || 0)
-        ? '城兵の声！　坂の旗で槍を揃え、退き口を守れ'
-        : '止まれの鉦：坂の旗で城兵を止めよ';
-    }
-    if (rt.flags.step !== 4 || rt.flags.ending) return text;
-    // 破られる猶予は道案内より先に出す。残り秒数を「南の鹿垣へ」で隠さない。
-    if (rt.flags.dp?.cur?.dangerT) return `あと${Math.max(0, Math.ceil(10 - rt.flags.dp.cur.dangerT))}秒で列が崩れる。柵の味方へ戻れ`;
-    // 槍不足の下知を優先し、安全な間は鳴っている合図を短い札にも残す。
-    if (rt.flags.dp?.cur?.shortLineThreat) return okShortLineOrder(rt, rt.flags.dp.cur);
-    const task = rt.flags.dp?.cur;
-    if (task && rt.t < task.signalUntil && task.signalCue === rt.flags.signalCue) return task.signalText;
-    // 前段に使った時間と迎撃の延長も、実際の交代判定と揃える。
-    const left = Math.max(0, Math.ceil(okBlockDeadline(rt) - rt.t));
-    if (okAtSouthLine(rt)) {
-      const C = rt.flags.dp?.cur;
-      // 旗の範囲に入っただけでは、槍の列に合流したことにはしない。
-      if (!C || C.lineCount < 3) {
-        return C ? okShortLineOrder(rt, C) : '南の鹿垣の旗で番の組と槍を揃えよ';
-      }
-      if (!C.holding) return '南の鹿垣の味方へ寄り、列を守れ';
-      if (C.blockade) return C.holdLeft > 0
-        ? `南の鹿垣であと${C.holdLeft}秒、囲みを保ち、兵糧を断つ`
-        : '南の鹿垣で囲みを保ち、兵糧を断つ';
-      if (C.repelling) return '城兵を追わず、柵の列を守れ';
-      if (!C.engaged) return '柵の旗で道を守れ。列を離れるな';
-      return C.holdLeft > 0 ? `柵であと${C.holdLeft}秒。城兵を止めよ` : '柵の列を守り、城兵を押し返せ';
-    }
-    if (left <= 45) return `交代まで${left}秒。南の鹿垣の旗へ進め`;
-    if (rt.flags.roadGuideMarked) return '道の印で南の鹿垣へ進め';
-    return '南の鹿垣の旗で、番の組と合流せよ';
+    // 任務は最初に並べた場所と行いを保つ。合図・不足人数・危険は声と戦況で伝える。
+    return rt.flags.ending ? text : this.missions[this.missionOf(rt)];
   },
   terrainLookWeight: 1, // 切岸で視点が寄った時は本人へ向け、前方の土壁だけを映さない。
   nearSpearFade: true, // 肩越しに重なる味方の長柄は既存の透かしで道を空ける。

@@ -4031,21 +4031,19 @@ function fieldHeight(x, z) {
     const k = 1 - fade * fade * (3 - 2 * fade);
     h += (y - h) * k;
   }
-  // 追撃路では交差する退却路の高い中腹を平均しない。組と主人公が通る道の高さを優先する。
-  // 折れの高さと計算用の点列は初めに一度だけ作る。
-  if (!CHASE_HEIGHTS) CHASE_HEIGHTS = CHASE_PATH.map(([px, pz]) => [px, pz, heightRaw(px, pz)]);
-  let chaseWeight = 0, chaseY = 0, chaseBlend = 0;
-  for (let i = 1; i < CHASE_HEIGHTS.length; i++) {
-    const a = CHASE_HEIGHTS[i - 1], b = CHASE_HEIGHTS[i], dx = b[0] - a[0], dz = b[1] - a[1];
+  // 追撃路は陣と麓を一枚の坂でつなぐ。元の山肌や隣の折れの高さを
+  // 混ぜると、道の中心にも二倍以上の勾配が生まれ、兵が崖へ張り付く。
+  // 両端の高さだけ初めに保存し、麓の集合場所へ入る前になだらかにつなぐ。
+  if (!CHASE_HEIGHTS) CHASE_HEIGHTS = [heightRaw(...CHASE_PATH[0]), heightRaw(FOOT.x, FOOT.z)];
+  let chaseBlend = 0;
+  for (let i = 1; i < CHASE_PATH.length; i++) {
+    const a = CHASE_PATH[i - 1], b = CHASE_PATH[i], dx = b[0] - a[0], dz = b[1] - a[1];
     const t = Math.max(0, Math.min(1, ((x - a[0]) * dx + (z - a[1]) * dz) / (dx * dx + dz * dz || 1)));
     const d = Math.hypot(x - a[0] - dx * t, z - a[1] - dz * t);
-    if (d >= 16) continue;
-    // 近い道が切り替わる境も高さをつなぐ。六メートルの格子に二列分の道幅を残す。
-    const fade = Math.max(0, (d - 6) / 10), k = 1 - fade * fade * (3 - 2 * fade);
-    chaseWeight += k; chaseY += (a[2] + (b[2] - a[2]) * t) * k;
+    if (d >= 24) continue;
+    const fade = Math.max(0, (d - 8) / 16), k = 1 - fade * fade * (3 - 2 * fade);
     chaseBlend = Math.max(chaseBlend, k);
   }
-  if (chaseWeight > 0) h += (chaseY / chaseWeight - h) * chaseBlend;
   // 最後の折れから麓の集合場所までを一つの平場へつなぐ。
   // 待つ輪のすぐ脇に急な段を残すと、味方の後列が坂へ張り付き、合流できない。
   const footD = Math.hypot(x - FOOT.x, z - FOOT.z);
@@ -4055,6 +4053,12 @@ function fieldHeight(x, z) {
     const t = Math.max(0, (footD - 20) / 44), k = 1 - t * t * (3 - 2 * t);
     if (FOOT_HEIGHT === null) FOOT_HEIGHT = heightRaw(FOOT.x, FOOT.z);
     h += (FOOT_HEIGHT - h) * k;
+  }
+  // 平場の外周をならした後で道を通し、坂を再び急に削らない。
+  if (chaseBlend > 0) {
+    const t = Math.max(0, Math.min(1, (z - FOOT.z - 12) / (CHASE_PATH[0][1] - FOOT.z - 12)));
+    const y = CHASE_HEIGHTS[1] + (CHASE_HEIGHTS[0] - CHASE_HEIGHTS[1]) * t;
+    h += (y - h) * chaseBlend;
   }
   // 添え小屋・堂・社・侍屋敷の通路だけ幅二メートルを確保し、その外は元の斜面へ戻す。
   // 重なる通路の高さは平均し、道の途中で段差を作らない。床下は下の平場を優先する。

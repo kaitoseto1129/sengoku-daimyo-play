@@ -4213,8 +4213,9 @@ function kgSignDrawn(u) {
   // 遠景の束で描く兵は、元の個別の形だけを隠す。親の場面が隠れた時は印も消す。
   if (!u.imp && u.mesh.visible === false) return false;
   for (let p = u.mesh.parent; p; p = p.parent) if (p.visible === false) return false;
-  if (u.human && !u.vatOn && !u.efuda && !u.imp)
-    return !!(u.human.root?.visible && u.human.root.parent);
+  // 詳細な人を休ませても、表示中の軽い胴があれば敵の印を残す。
+  // 人の控えが存在するだけで戻らない（dropHuman・支度の先読みで起きる）。
+  if (u.human?.root?.visible && u.human.root.parent) return true;
   // 全身の準備がまだ無い兵は、旗の親だけ見えていても表示済みにしない。
   // 軽い兵への切替中も、代わりの胴が実際に戻ってから印を出す。
   if (u.vatOn || u.efuda || u.imp) return true;
