@@ -1599,8 +1599,8 @@ function nfTick(rt, dt) {
     if (nearRear && N.babaFight > 0) N.babaStay = (N.babaStay || 0) + dt;
     const babaCap = N.babaStay > 150;
     const rearLeft = nfRearReady(rt);
-    // 渡河時に殿が一、二人まで減っていても、端数の切り上げだけで馬場を討死にしない。
-    const rearWeakened = rearLeft < N.babaN0 && rearLeft <= Math.ceil(N.babaN0 * 0.6);
+    // 損耗による決着も、本人の近くで実際に槍を合わせてから。遠方の戦いや到着だけでは馬場を討死にしない。
+    const rearWeakened = nearRear && N.babaFight > 0 && rearLeft < N.babaN0 && rearLeft <= Math.ceil(N.babaN0 * 0.6);
     if (!N.babaDead && baba?.alive && (rearWeakened || N.babaFight > 60 || babaCap)) rt.army.kill(baba, null);
     if (R.order !== 'hold' || R.anchor.x !== NF_REAR.x) { R.order = 'hold'; R.path = null; R.dest = null; R.anchor.x = NF_REAR.x; R.anchor.z = NF_REAR.z; R.focus = null; }
     // 味方だけが殿を討っても、本人が退き口へ来るまでは最後の目標を果たさない。

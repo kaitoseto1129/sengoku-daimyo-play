@@ -175,7 +175,7 @@ function checkedStep(step) {
       }
       // 伊達勢が三人を割った時は、水野・本多らが持ち場を引き継ぐ。
       // 伊達勢が遠いだけなら到着を待ち、本人だけでは守備を進めない。
-      if (near && rt.flags.dp?.i === 5 && available < 3) for (const g of ctx.friends?.(rt) || []) {
+      if (near && rt.flags.dp?.i === 5 && (rt.flags.date || rt.flags.katakura) && available < 3) for (const g of ctx.friends?.(rt) || []) {
         if (!g || line.includes(g) || g.routed || g.order === 'retreat' || g.order === 'flee') continue;
         for (const u of g.units) if (u.alive && !u.isPlayer && !u.fleeing && !u.woundOut &&
           !u.gone && !u.rearWound && !u.downed && !u.noTarget &&
@@ -416,6 +416,13 @@ const k13_domyoji = {
   stageGoalsOnly: true,   // 目標は五つの段だけ（「敵を何人討つ」で埋めない。三1）
   goalsAllRows: true,     // 共通の札でも①〜⑤を作り、今の一つ以外も最初から並べる（九1・十1）
   goalVisibleRows: 5,     // 共通の札が実際に作る行数も五つにする（既定の一行では残りが消える）。
+  // 下知を待つ間も、先手が向かう小松山の斜面を示す（全戦の通し確認で開始直後の印が無かった）。
+  missionPinFallback: true,
+  missionPin(rt) {
+    if (rt.flags.ending || rt.over) return null;
+    if (!rt.flags.begun) return { x: SLOPE.x, z: SLOPE.z, r: 6, label: '小松山' };
+    return undefined;
+  },
   // 歩こうとした強さを覚える（動けなくなった時に抜け出す。BH8）。速さはそのまま返す
   playerVelocity(rt, vx, vz) { const F = rt.flags, q = F.pv || (F.pv = { x: 0, z: 0 }); F.want = Math.hypot(vx, vz); q.x = vx; q.z = vz; return q; },
   // 作り物の遠景の軍勢・奥の乱戦を出さない（kaito 11/3 AA・AF・AQ6）
