@@ -361,7 +361,8 @@ const inou_spec = {
     const F = rt?.flags;
     if (!F || !F.l1N) { FORCE.a = 700; FORCE.b = 1700; return FORCE; }
     if ((F.stage || 0) < 2) {
-      const r1 = Math.max(0, Math.min(1, aliveIn(F.l1) / F.l1N));
+      // 二陣も柴田勢千の内訳。加わった人数で割り直すと、敵味方の討死が戻ってしまう。
+      const r1 = Math.max(0, Math.min(1, 1 - (F.l1N - aliveIn(F.l1)) / (F.l1InitialN || F.l1N)));
       // 11/7 fixc2103：柴田勢との乱戦の後の信長方は四百ほど（台詞と『信長公記』）。前は 280 まで減り、台詞の「四百ほど」と合わなかった
       // 敵の減りだけで味方を数えると、味方だけが討たれた時に棒が止まる。
       // 押される流れに加え、本物の味方の損耗も反映し、四百の下限で全滅を隠さない。
@@ -622,6 +623,7 @@ const inou_spec = {
     F.allies.slotX = FRONT_X;
     F.l1 = L1_X.map((x, i) => this.foeLine(rt, x + L1_DX, L1_Z0 - 6, i, L1_N, '柴田勢', x));
     F.l1N = F.l1.reduce((n, g) => n + g.units.length, 0);
+    F.l1InitialN = F.l1N;
     // 紙（battle_events_1101）：柴田勝家は敵将として必ず出る。馬上で先手の後ろに立ち、先手が崩れると北へ退く（討てない）
     F.shibaG = enemyGroup(rt, { faction: 'nobukatsu', name: '柴田勝家', anchor: { x: FRONT_X + 4, z: L1_Z0 - 12 }, facing: 0, fleeDir: { x: 0, z: -1 }, width: 3, noRout: true, noAI: true,
       order: 'hold', aggro: 0, morale: 100, dmgMult: 0.3, fixed: true },

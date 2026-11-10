@@ -1752,7 +1752,7 @@ const tottori = {
   // 経家は城内の大将として示す。討ち取りの目標にはせず、開城の史実を保つ。
   commanderSignTarget(rt) {
     const u = rt.flags.ehon?.general;
-    return !rt.flags.ending && !rt.over && u?.alive && !u.gone && !u.dying ? u : null;
+    return rt.flags.step < 3 && !rt.flags.ending && !rt.over && u?.alive && !u.gone && !u.dying ? u : null;
   },
   namedGuideTarget(rt) { return this.commanderSignTarget(rt); },
   missionPin(rt) {
@@ -2886,6 +2886,9 @@ const tottori = {
     const F = rt.flags;
     if (F.step >= 3 || F.ending || rt.over || !rt.player.u.alive) return;
     F.step = 3; F.stepT = rt.t;
+    // 二十五日の朝には城内で自害している。山上の本陣にも生きた経家を残さず、討ち取りの手柄にはしない。
+    const castleLord = F.ehon?.general;
+    if (castleLord && !castleLord.gone) rt.army.despawn(castleLord);
     // 停戦後に「強い突き」の札を残さず、使いへの案内へ譲る。
     rt.hintQ.length = 0;
     clearTimeout(rt.hud.hintDefer); clearTimeout(rt.hud.hintTimer);
