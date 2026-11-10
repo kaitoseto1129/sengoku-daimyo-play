@@ -2566,6 +2566,30 @@ const HIEI_GOALS = [
 ];
 const hiei_mtn = {
   resumeSteps: [[1, 'p1'], [2, 'p2'], [3, 'p3'], [4, 'p4'], [5, 'p6'], [6, 'p7']],   // 戦の途中の保存（battle_checkpoint.js）：段の始まりを、段の関数を順に流して作り直す
+  resumeAt(rt, step, from) {
+    const F = rt.flags;
+    // 中堂の守りは到着時に出るため、段を流すだけでは参照が戻らない。
+    // 共通の保存処理が復元した隊を、命中・敗退の判定と敵への案内へつなぎ直す。
+    for (const [key, name] of [['chudoG', '根本中堂の前の僧兵'], ['courtBow', '廻廊の弓'], ['kodoG', '大講堂の僧兵']]) {
+      const g = rt.army.groups.find((g) => g.team === 1 && g.name === name);
+      if (!g) continue;
+      F[key] = g;
+      if (!F.foes.includes(g)) F.foes.push(g);
+      g.noRout = true;
+      // 復元された隊には途中の経路が無い。中庭から通常の攻撃へ戻す。
+      attackFrom(g, 16);
+    }
+    if (F.courtDone && !F.courtHand) {
+      F.courtGuard = F.chudoG?.units.find(hieiReady);
+      if (F.courtGuard) F.chudoG.focus = rt.player.u;
+    }
+    if (step === 4 && F.bell2) {
+      // 中堂制圧後も同じ第四段。済んだ中堂へ戻さず、西塔の入口を示す。
+      rt.unmark('court');
+      rt.marker('west', P.westGate, () => rallyGuideLabel(rt, P.westGate, 12, '西の道の入口', '西塔への山道・道なり'), { h: 2, guidePriority: 250, guideAlways: true, guideNear: 1.2, routeDistance: () => hieiGuideDistance(rt) });
+    }
+    return from;
+  },
   stageGoalsOnly: true, // 勝利の星も、戦場と同じ場所・行いの五つだけ。
   goalsAllRows: true, // 共通の目標札にも五つを最初から並べる。
   goalsVisibleRows: 5, // 西塔・横川を含む七目標も、画面には今の五件まで。

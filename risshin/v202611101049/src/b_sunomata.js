@@ -4492,7 +4492,7 @@ const sunomata = {
     });
 
     rt.setPhase('brief');
-    sunoObj(rt, 'defend', '材木を一度届け、柵の内で人足と小屋を守れ', 'main');
+    sunoObj(rt, 'defend', '岸の舟着きから南門まで人足を守り、北と西の柵を守れ', 'main');
     rt.banner('敵が来る。砦はまだ組みかけじゃ', '人足が柵を結ぶ間、内から槍で守れ');
     sunoObj(rt, 'perfect', '追加の手柄：柵を一か所も破らせずに守れ（破れても主任務は続く）', 'side');
     rt.say('木下藤吉郎', '北の口へ。柵の内から槍で守れ。人足が柵を結ぶぞ', 3.5);
@@ -5460,8 +5460,8 @@ const sunomata = {
       for (const id of ['post3', 'gate', 'nida', 'porterGuide', 'heal', 'hut', 'scout', 'ke', 'pr1', 'pr2']) rt.unmark(id);
       rt.uninteract('heal'); sunoRemove(rt, 'gate'); sunoRemove(rt, 'porters');
       sunoDone(rt, 'defend');
-      const deed = F.perfect ? '墨俣の人足と小屋を守り、柵を破らせず普請を仕上げた'
-        : '墨俣の柵は破られたが、人足と小屋を守り、普請を仕上げた';
+      const deed = F.perfect ? '墨俣の柵を破らせず普請を仕上げた'
+        : '墨俣の柵は破られたが、結び直して普請を仕上げた';
       rt.award((t) => {
         t.main = true; t.side.push(deed);
         if (F.perfect) t.special = { label: '砦の完全防衛', pts: 30 };
@@ -5469,9 +5469,9 @@ const sunomata = {
       if (F.perfect) { sunoDone(rt, 'perfect'); rt.grantTitle('perfect'); }
       if (F.flagOffered && !F.flagTaken) sunoFail(rt, 'flag');
       rt.world.setTime('morning');
-      rt.banner(F.perfect ? '夜明けまで守りきった' : '辛うじて朝まで砦を残した', F.perfect ? '墨俣に砦が建つ' : '柵は破られたが、人足と小屋を守り、普請を仕上げた');
+      rt.banner(F.perfect ? '夜明けまで守りきった' : '辛うじて朝まで砦を残した', F.perfect ? '墨俣に砦が建つ' : '破れた柵を結び直し、普請を仕上げた');
       rt.say('木下藤吉郎', F.perfect ? `守りきったぞ！　${nm(rt)}、お主のおかげじゃ！`
-        : '柵は破られた。じゃが、人足と小屋は残った。辛うじて普請を仕上げたな', 4);
+        : '柵は破られた。じゃが、結び直して砦は残った。辛うじて普請を仕上げたな', 4);
       this.fortDone(rt);
       sfx('horagai', 0.8);
       sunoRemove(rt, 'post');
@@ -5479,7 +5479,7 @@ const sunomata = {
       battleEvent(rt, EVENT_RETREAT, { x: 0, z: -FORT }, F.W3a, 1, true, F.perfect
         ? '寄せ手が退く。墨俣の普請を守りきった' : '寄せ手が退く。破れた柵を直し、辛うじて砦を残した');
       for (const id of TASK_ORDER) sunoRemove(rt, id);
-      sunoObj(rt, 'complete', '人足と小屋を守り、普請を仕上げた', 'main');
+      sunoObj(rt, 'complete', '墨俣の柵を守り、普請を仕上げた', 'main');
       rt.uninteract('woodPick'); rt.uninteract('woodDrop'); rt.unmark('woodPick'); rt.unmark('woodDrop');
       F.carriedWood.visible = false;
       rt.finish({ scriptedEnd: true }, 16);
@@ -5487,7 +5487,12 @@ const sunomata = {
       // 勝鬨が上がり、川向こうの旗が退き、次の戦（稲葉山）へ思いを向けて閉じる。
       rt.after(1.5, () => rt.army.play('eiei', { x: 0, z: 0 }, 1.1));
       rt.after(2.5, () => rt.say('前野長康', '……できた。', 2.5));   // 11/10 夜明け、振り返ると昨日の河原に城
-      rt.after(4, () => rt.say('人足', F.woodDelivered ? 'あんたの材木が役に立った。杭も結び目も、これで持つぞ' : '槍で守ってくれたおかげじゃ。わしらの手で柵が結べた', 3));
+      rt.after(4, () => {
+        const workers = F.wk?.units.some((u) => u.alive && u.hp > 0 && !u.dying && !u.gone && !u.woundOut && !u.fleeing);
+        rt.say(workers ? '人足' : '前野長康', workers
+          ? '槍で守ってくれたおかげじゃ。杭も結び目も、これで持つぞ'
+          : '人足を失ったが、残る兵で柵を結び直した。砦は守ったぞ', 3);
+      });
       rt.after(7.5, () => rt.say('', '信長公記には、信長が墨俣の守りを固めたとある。一夜城は後に伝わった物語。', 4));
       rt.after(12, () => rt.say('木下藤吉郎', '夜が明けた。墨俣は美濃攻めの足場じゃ。次は稲葉山ぞ', 3));
     }

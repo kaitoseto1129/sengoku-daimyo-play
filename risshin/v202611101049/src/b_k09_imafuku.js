@@ -431,7 +431,10 @@ const k09_imafuku = {
           sfx('horagai', 0.8);   // 見つかったからには忍ばず、貝を吹いて柵へかかる
           rt2.world.setTime('morning');   // 砦の前に着く頃に夜が明ける（二十秒ほどで移ろう）
           // 葦の鉄砲は撃ち掛けたあと砦へ逃げ込む（砦の段で横から撃ち続けない）
-          for (const g of rt2.army.groups) if (g.team === 1 && /葦の鉄砲|今福村の鉄砲/.test(g.name || '') && g.count && !g.routed) { g.noRout = false; g.morale = 0; }
+          // 生きた組頭がいる鉄砲衆は士気を零にするだけでは退かない。砦へ退く下知を明示する。
+          for (const g of rt2.army.groups) if (g.team === 1 && /葦の鉄砲|今福村の鉄砲/.test(g.name || '') && g.count && !g.routed) {
+            g.noRout = false; g.morale = 0; g.routed = true; g.order = 'flee';
+          }
         } }), { idleAdvance: false }),
       DP.rest({ dur: 5, heal: 0.7 }),
       // ② 砦を奪う
