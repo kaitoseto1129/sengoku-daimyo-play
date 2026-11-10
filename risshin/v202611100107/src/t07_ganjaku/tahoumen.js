@@ -26,7 +26,9 @@ export function install(rt) {
 // 段ごとの別の口の知らせ
 export function stage(rt, s) {
   const F = rt.flags, E = F.fronts || {}, say = (t, who, line) => rt.after(t, () => { if (!F.ending) rt.say(who, line, 3); });
-  if (s === 1) { E.west?.go?.(); say(20, '使番', '西の尾根、蒲生の手が梯子を掛けました！'); }
+  // 坂の下へ十五秒で着くと、着陣中の六十二秒の開始処理を通らない。
+  // 東もここで攻め始め、動いていない隊の突破だけを知らせない。
+  if (s === 1) { E.east?.go?.(); E.west?.go?.(); say(20, '使番', '西の尾根、蒲生の手が梯子を掛けました！'); }
   else if (s === 2) { E.east?.push?.('A', 0.5); say(10, '物見', '東の尾根の塀に、羽柴の旗が上がっていく'); }
   else if (s === 3) {
     say(4, '使番', '東門突破！　羽柴秀勝様の手、城内へ！');
