@@ -69,6 +69,16 @@ export function install(rt, K) {
     return { x: w[0], z: w[1] };
   };
   const stop = () => F.k15stage !== 'taiko';
+  // 開始位置から秀吉へ斜めに進むと、口の外の楯列に当たる。
+  // まず楯の南で中央へ寄り、幕の口を真っすぐ通る。到着は秀吉の前で判定する。
+  const audienceEntry = { x: T.x, z: T.z + 12 };
+  const audienceGoal = { x: T.x, z: T.z };
+  let audienceEntered = false;
+  const audience = () => {
+    const me = rt.player.u.pos;
+    if (Math.hypot(me.x - audienceEntry.x, me.z - audienceEntry.z) < 1.8) audienceEntered = true;
+    return audienceEntered ? audienceGoal : audienceEntry;
+  };
   k15Go(rt, 'tk-hide', { x: T.x, z: T.z }, 7, '本陣で、秀吉の下知を聞け', '羽柴秀吉', () => {
     k15Scenes(rt, [
       [0.5, () => rt.say('羽柴秀吉', 'よう来た。あの山の上を見よ。吉川式部少輔が籠もる鳥取の城じゃ', 5)],
@@ -106,7 +116,7 @@ export function install(rt, K) {
         }, { progress: '坂の途中、傷ついた兵とすれ違う' }), stop);
       }), stop);
     }), stop);
-  }, { limit: 40 });
+  }, { guide: audience });
   // 大手口へ下る道でも、遠くの火と声で囲みの広さを見せる
   rt.after(1, () => { if (!stop()) rt.say('組頭', '殿の前じゃ。膝をつけよ', 3); });
 }

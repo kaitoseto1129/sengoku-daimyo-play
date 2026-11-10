@@ -576,6 +576,8 @@ export const t05_ichinomiya = {
   // 人数の棒は常に出し、行き先の▼による共通の省略からも外す。
   // 名札だけの表示対策では、五万対九千の棒が戦の間ずっと消えていた。
   forceBarAlways: true, keepBattleSigns: true,
+  // 空だけの顔絵を固定せず、本人が撮れた時に一度だけ表示する。
+  waitForPortrait: true,
   // 表示の設定だけでは共通の字幕抑制を通らない。水の手の下知と開城の会話を届ける。
   missionDialogue: true,
   // 段の時間送りを止めても、共通の十八分打ち切りで未達のまま負けていた。

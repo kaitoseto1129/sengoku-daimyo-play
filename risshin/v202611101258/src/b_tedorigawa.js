@@ -29,7 +29,8 @@ import { dress, gone } from './b_inabayama.js';
 import { KIT } from './b_nagashinojo.js';
 import { depthStart, depthTick, hold, depthBot } from './b_depth.js';
 import { uS, uA, uC, round, gunLine, camp } from './b_mid.js';
-import { sightUnit, sightScreenUnit } from './battle_sight.js';
+import { sightUnit, sightScreenUnit, sightPoint } from './battle_sight.js';
+import { VIEW } from './viewport.js';
 import { goalTarget } from './goals5.js';
 import { goalsTick } from './hud_goals.js';
 import { timeslipField } from './timeslip_field.js';
@@ -1764,6 +1765,15 @@ html:root body #hud#hud#hud.tedo-goals #h-prog#h-prog.goal-mode .pg-goals :is(h3
   };
 }
 
+// 雨夜の遠い頭上に▼だけ並べない。兵の胴が見え、姿を読める大きさの時に出す。
+function tedoEnemySignVisible(rt, u) {
+  if (rt.flags.ending || u.group?.tedoFrom && !u.group.tedoActive || !sightScreenUnit(rt, u)) return false;
+  const camera = rt.camera, p = u.pos, e = camera.matrixWorldInverse.elements;
+  const depth = -(e[2] * p.x + e[6] * (p.y + 0.9) + e[10] * p.z + e[14]);
+  if (depth <= 0 || (u.bodyHeight || 1.72) * VIEW.h * camera.projectionMatrix.elements[5] / (2 * depth) < 16) return false;
+  return sightPoint(rt, p, 55, true, u.mounted ? 2 : 1.2);
+}
+
 const tedorigawa = {
   resumeSteps: [[1, 'retreat'], [2, 'rearguard'], [3, 'cross'], [4, 'south']],   // 戦の途中の保存（battle_checkpoint.js）：段の始まりを、段の関数を順に流して作り直す
   // 稲生と同じ一行・ピン一本。退き口なので謙信の討取りを任務にはしない。
@@ -1775,7 +1785,7 @@ const tedorigawa = {
   enemyTriangleSigns: true,
   // 印は共通の赤い▼一本。専用の補助印を重ねず、体の見通しをカメラから確かめる。
   keepBattleSigns: true,
-  enemySignVisible: (rt, u) => !rt.flags.ending && (!u.group?.tedoFrom || !!u.group.tedoActive) && sightScreenUnit(rt, u),
+  enemySignVisible: tedoEnemySignVisible,
   nearbyAllySignLimit: 0,
   noLeaderFollow: true, // 11/4：印は一つだけ（AL・BH6）。行き先のピンに青い▼を重ねない
   noDodgeCard: true,
