@@ -237,6 +237,8 @@ const ino = {
   retireG(g, dest, speed, exposed = false) {
     if (!live(g)) return;
     g.inouRetiring = true; g.retreatOnly = true; g.peaceful = true;
+    // 攻撃対象から外した新六や退く旗本も、持ち場に着いた人数へ数える。
+    g.arriveNoncombat = true;
     g.noAI = true; g.routing = false; g.focus = null; g.aggro = 0; g.fire = false;
     g.anchor = { ...g.center() }; g.dest = { ...dest };
     g.path = [[dest.x, dest.z]]; g.pathIdx = 0; g.order = 'path'; g.speed = speed;

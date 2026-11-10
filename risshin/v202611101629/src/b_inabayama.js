@@ -3116,7 +3116,7 @@ function inabaPacingWait(rt) {
     if (F.nudgeKey !== k) { F.nudgeKey = k; F.nudgeKeyT = rt.t; }
   }
   // 待機や斬り合いだけでは先へ移さない。歩こうとして三秒詰まった本人だけを救う。
-  if (F.step === 3 && rt.player.u.alive && rt.player.u.hp > 0 && !rt.player.u.dying && !rt.retryOpen
+  if (F.step === 3 && rt.player.u.alive && rt.player.u.hp > 0 && !rt.player.u.dying && !rt.player.u.downed && !rt.retryOpen
     && (rt.player.blockedWalkT || 0) >= 3
     && (rt.t - (F.pacingClimbT || F.stepT) > 60 || rt.t - F.nudgeKeyT > 75) && rt.t >= (F.climbNudgeAt || 0)) {
     const trail = F.tsuke ? NANA : KARA_TRAIL;
@@ -6742,11 +6742,13 @@ const inabayama = {
     // 達成後に退き口や竹束の古い下知を残し、次の働きがあるように見せない。
     rt.objRemove('carry');
     const S = F.sig;
-    rt.world.addFire(S.x, S.z, { h: 1.6 });
+    // 救済で火付け口を床の上へ移した時は、炎と煙も同じ足場から出す。
+    const signalY = F.sigMoved ? groundAt(rt.world, S.x, S.z, S.y) : rt.world.heightAt(S.x, S.z);
+    rt.world.addFire(S.x, S.z, { h: signalY - rt.world.heightAt(S.x, S.z) + 1.6 });
     // 小さな合図の火は大火の出来事に数えられないため、着火のはぜる音をここで一度だけ鳴らす。
     // 法螺の集合とは別の音。既存の合成音と火元の座標を使う。
     rt.army.play('fireSpread', S, 0.8);
-    rt.world.addSmokeColumn(S.x, rt.world.heightAt(S.x, S.z) + 6, S.z, { size: 3 });
+    rt.world.addSmokeColumn(S.x, signalY + 6, S.z, { size: 3 });
     rt.objDone('main');
     rt.tracker.main = true;
     rt.award((t) => { t.main = true; t.special = { label: F.tsuke ? '七曲りから本丸に合図の火を放った' : '搦手から本丸に火を放った', pts: 20 }; }, '任務達成・本丸に合図の火');
