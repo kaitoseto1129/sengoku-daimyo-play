@@ -1780,7 +1780,7 @@ function prepareGateWorkers(rt) {
     if (b === F.reserve || b.kind === 'gun' || b.kind === 'bow') continue;
     // 後備えにも門の的を渡す。突撃だけでは門前で持ち場へ戻ってしまう。
     b.assault = () => b._routeGate?.alive ? b._routeGate : null;
-    const u = b.real?.units.find((u) => u.alive && !u.keep && u.hand && u.wpn);
+    const u = b.real?.units.find(IK_SANMON.workerReady);
     if (!u) continue;
     const tool = new THREE.Group(); tool.add(new THREE.Mesh(KAKeyaHandle, KAKeyaMat), new THREE.Mesh(KAKeyaHead, KAKeyaMat));
     tool.visible = false; u.hand.add(tool);
@@ -1810,8 +1810,8 @@ function tickGateWorkers(rt, dt) {
   const pickWorker = rt.t >= (F.pickGateWorkerAt || 0);
   if (pickWorker) F.pickGateWorkerAt = rt.t + 1;
   for (const w of F.gateWorkers) {
-    if (!w.u.alive || w.u.woundOut || w.u.fleeing) {
-      const next = w.b.real?.units.find((u) => u.alive && !u.fleeing && !u.woundOut && !u.rearWound && !u.keep && u.hand && u.wpn);
+    if (!IK_SANMON.workerReady(w.u)) {
+      const next = w.b.real?.units.find(IK_SANMON.workerReady);
       w.tool.visible = false;
       if (w.u.wpn) w.u.wpn.visible = true;
       w.t = 0;
@@ -1823,8 +1823,7 @@ function tickGateWorkers(rt, dt) {
       const x = (gate.seg[0] + gate.seg[2]) / 2, z = (gate.seg[1] + gate.seg[3]) / 2;
       let next = null, nearest = 3.5;
       for (const mate of w.b.real?.units || []) {
-        if (!mate.alive || mate.fleeing || mate.woundOut || mate.rearWound || mate.downed ||
-            mate.stagger > 0 || mate.keep || !mate.hand || !mate.wpn) continue;
+        if (!IK_SANMON.workerReady(mate) || mate.stagger > 0) continue;
         const d = Math.hypot(mate.pos.x - x, mate.pos.z - z);
         if (d <= nearest) { nearest = d; next = mate; }
       }
@@ -1834,11 +1833,12 @@ function tickGateWorkers(rt, dt) {
       }
     }
     const u = w.u;
-    let work = !F.ending && u.alive && !u.fleeing && !u.woundOut && !u.rearWound && !u.downed && !(u.stagger > 0) && !w.b.real.routed && gate?.alive && w.b._gateWait;
+    let work = !F.ending && IK_SANMON.workerReady(u) && !(u.stagger > 0) && !w.b.real.routed && gate?.alive && w.b._gateWait;
     if (work) {
       const x = (gate.seg[0] + gate.seg[2]) / 2, z = (gate.seg[1] + gate.seg[3]) / 2;
       work = Math.hypot(u.pos.x - x, u.pos.z - z) <= 3.5 && Math.abs(u.pos.y - rt.world.heightAt(x, z)) < 2;
-      if (work) for (const foe of rt.army.units) if (foe.alive && foe.team !== u.team && !foe.isStruct && !foe.noTarget && !foe.fleeing && !foe.woundOut && Math.hypot(foe.pos.x - u.pos.x, foe.pos.z - u.pos.z) < 3 && !rt.army.wallBetween(u.pos, -1, foe.pos)) { work = false; break; }
+      // 倒れた敵や後送中の敵を、掛矢を止める斬り合いの相手に数えない。
+      if (work) for (const foe of rt.army.units) if (foe.team !== u.team && siegeFighter(foe) && foe.hp > 0 && !foe.dying && !foe.rearWound && Math.hypot(foe.pos.x - u.pos.x, foe.pos.z - u.pos.z) < 3 && !rt.army.wallBetween(u.pos, -1, foe.pos)) { work = false; break; }
     }
     w.tool.visible = !!work;
     if (u.wpn) u.wpn.visible = !work;

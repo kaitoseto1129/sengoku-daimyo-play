@@ -1118,6 +1118,8 @@ const tano = {
     kind: 'stage', k, text,
     check: (rt) => k === 4 ? !!rt.flags.principalsDead : (rt.flags.dp?.i ?? -1) > k,
   })),
+  // 将一人の討ち取りでは衆の撃退にならない。屋敷の任務は三人の最期まで待つ。
+  namedKillCompletesObjectives: false,
   // 勝頼父子は平屋敷の奥。柵の口を破って屋敷へ入るまでは、手前の兵の頭の上に名札を出さない（critic60 田野 12）
   hideNameTag: (u, rt) => u.group?.name === '武田父子の居所' && !u.nameOpen ||
     !!rt && u.team === 1 && Math.hypot(u.pos.x - rt.player.u.pos.x, u.pos.z - rt.player.u.pos.z) > tano.nameRange,
