@@ -13,7 +13,7 @@ export function start(rt, ctx, done) {
   const F = rt.flags;
   if (F.k15Monomi) return;
   F.k15Monomi = 'on';
-  const { SPOT, CASTLE } = ctx;
+  const { SPOT } = ctx;
   // 物見の小勢は三の郭の柵（z=-44）より手前の中央道から寄せる。
   // 十八〜二十ｍ奥では柵の内へ出てしまい、物見の兵に城内用の道案内が無いため届かなかった。
   depthStart(rt, { ...ctx, scale: 1.2 }, [
@@ -24,10 +24,7 @@ export function start(rt, ctx, done) {
       ambush: { d: 10, title: '城の構えが見えた', sub: '坂の柵・二の丸の木戸・山上の本丸', say: ['足軽', '脇の藪から六角の物見じゃ！'],
         foes: () => [{ name: '六角の物見', from: { x: SPOT.x - 1, z: SPOT.z - 6 }, width: 3, list: [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 6 }, { type: 'bow', n: 1 }], mass: 0 }] },
       onEnd: (rt2) => {
-        // 着いた時に見えた物：三段の旗を短く示す（字は旗の名だけ）
-        const marks = [['k15m1', CASTLE.san, '三の郭'], ['k15m2', CASTLE.ni, '二の丸の木戸'], ['k15m3', CASTLE.hon, '本丸']];
-        for (const [id, at, label] of marks) rt2.marker(id, at, label, { h: 4 });
-        rt2.after(9, () => { for (const [id] of marks) rt2.unmark(id); });
+        // 三段の構えは実物の旗と使番で伝え、次の行き先に三つの印を重ねない。
         rt2.say('使番', '城の構えは三段。坂の柵、二の丸の木戸、山上の本丸にござる！', 3.8);
       },
     }),
@@ -55,6 +52,13 @@ export function start(rt, ctx, done) {
         const finished = tick(rt2, C, m, context, el, dt);
         if (s.kind === 'move' && !finished) return false;
         if (s.kind === 'fight' && C.later.length) return false;
+        // 一度物見へ来てから離れた場合も、仲間の迎撃だけで合流を済ませない。
+        // 組の平均位置は斜面や柵の中に落ちるため、敵が退いた後は物見の場へ戻す。
+        const p = rt2.player.u.pos;
+        if (!rt2.player.u.alive || Math.hypot(p.x - SPOT.x, p.z - SPOT.z) >= 5) {
+          C.goal = SPOT;
+          return false;
+        }
         for (const g of C.groups) {
           if (g.routed || g.count <= 2) continue;
           // 重傷・倒れた物見は迎撃済み。生存数だけでは三人以上残ると永久に止まる。

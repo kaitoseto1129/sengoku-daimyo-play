@@ -1242,6 +1242,9 @@ const mikatagahara = {
   hideMissionDots: true,
   enemyTriangleSigns: true,
   enemySignVisible: mikataEnemySignVisible,
+  // 備の中心へまとめて浮かぶ印をやめ、実際に描かれる軽い兵の胴へ見通しを取る。
+  lightEnemyTriangleSigns: true,
+  lightEnemySignVisible: (rt, p) => sightPoint(rt, p, 170, true, 1.2),
   sightFromCamera: true,
   nearbyAllySignLimit: 0,
   noDodgeCard: true,

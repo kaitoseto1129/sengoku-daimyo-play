@@ -4267,7 +4267,7 @@ const mitsukuri = {
       fixedSpawn: true, withdrawWay: sanKuchiWay,
       // 物見の間も、塀・切岸・上階の向こうの城兵へ張り付かず、歩いて届く相手を払う。
       botFoeAllowed: (o) => !courtyardHouse(rt, o) && Math.abs(o.pos.y - rt.player.u.pos.y) < 1.6 && sanDirect(rt.army, rt.player.u, o.pos),
-      friends: () => [], aid: { name: '木下の手の足軽', faction: 'oda', flag: 'oda', list: [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 5 }] }, aidBacking: false, SPOT: { x: OPEN_PT[0], z: OPEN_PT[1] + 5 },   // 開きの持ち場のすぐ後ろの小高い所（東西は竹束と柵で塞がる）。11/9 見回り：+12 は z −26 の柵の向こうで着けず、物見の段から先へ進めなかった（bot 十八分）
+      friends: () => [], aid: { name: '木下の手の足軽', faction: 'oda', flag: 'oda', list: [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 5 }] }, aidBacking: false, SPOT: { x: ROAD_OTE[7][0], z: ROAD_OTE[7][1] }, // 物見も実際の大手道の中心へ置く。開きの位置への加算では、九十九折りの外の急斜面へずれる。
      
       CASTLE: { san: SAN_C, ni: NI_C, hon: HON_C } }, () => this.climb(rt)));
   },

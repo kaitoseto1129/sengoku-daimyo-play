@@ -521,6 +521,21 @@ function canGuideSally(rt, u) {
     Math.abs(u.pos.y - p.y) < 3 && !rt.army.wallBetween(p, -1, u.pos) &&
     !rt.army.terrainBlocks(p, u.pos);
 }
+// 堤を守る間は、草の下の固定点でなく、持ち場へ来た門徒を示す。
+// 遠い新手や柵の向こうへは誘わず、寄せの合間は堤の印へ戻す。
+function holdGuideTarget(rt) {
+  const p = rt.player.u.pos;
+  let target = null, best = 24 * 24;
+  for (const g of rt.flags.waves || []) for (const u of g?.units || []) {
+    if (!canJoin(u) || u.isStruct || u.civ || u.farSim ||
+        Math.hypot(u.pos.x - 8, u.pos.z - LEVEE_Z - 4) > 22 ||
+        Math.abs(u.pos.y - p.y) >= 3) continue;
+    const d = (u.pos.x - p.x) ** 2 + (u.pos.z - p.z) ** 2;
+    if (d >= best || rt.army.wallBetween(p, -1, u.pos) || rt.army.terrainBlocks(p, u.pos)) continue;
+    best = d; target = u;
+  }
+  return target;
+}
 // 生き残りが別の場所で戦っていても、無人の詰め陣へ案内しない。
 // 到着の判定と同じ十歩以内で、実際に迎えられる守兵だけを数える。
 function campJoinAvailable(rt) {
@@ -2646,6 +2661,7 @@ const nodafukushima = {
   namedGuideTarget(rt) { return this.commanderTarget(rt); },
   missionSignTarget(rt) {
     const F = rt.flags;
+    if (F.step === 3 && !F.retreating && !F.ending && !(F.recoveryShown && F.recoveryFound)) return holdGuideTarget(rt);
     if (F.step !== 2 || F.retreating || F.ending || F.recoveryShown && F.recoveryFound || gone(F.sally)) return null;
     if (rt.t < (F.foePinAt || 0) && canGuideSally(rt, F.foePinUnit)) return F.foePinUnit;
     F.foePinAt = rt.t + .25;
@@ -2688,7 +2704,9 @@ const nodafukushima = {
       to = F.fordPin || (F.fordPin = { x: 0, z: -20 });
       q.r = 8; q.waiting = true;
     } else if (stage === 4) {
-      to = F.holdPin || (F.holdPin = { x: 8, z: LEVEE_Z + 4 });
+      const u = holdGuideTarget(rt);
+      to = u ? u.pos : F.holdPin || (F.holdPin = { x: 8, z: LEVEE_Z + 4 });
+      q.unit = u; q.enemy = !!u;
       q.r = 12; q.waiting = true; q.always = true; q.defend = true;
       q.progress = Math.min(1, (rt.t - F.stepT) / (F.holdMerit ? 168 : 185));
     } else if (stage === 5) {
