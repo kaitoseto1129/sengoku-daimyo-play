@@ -113,8 +113,11 @@ function endHeroFrontClash(rt) {
   const H = rt.flags._hfc;
   if (!H || H.done) return;
   for (const [g, s] of H.saved) {
+    // 新しい下知で動き始めた隊にも、演出だけの判断停止を残さない。
+    const borrowed = g.noAI;
+    if (borrowed) g.noAI = s.noAI;
     // 既に敗走した組や、新しい下知で郭へ向かった組を古い命令へ戻さない。
-    if (g.routed || g.order !== 'hold' || !g.noAI) continue;
+    if (g.routed || g.order !== 'hold' || !borrowed) continue;
     g.order = s.order; g.path = s.path; g.pathIdx = s.pathIdx; g.noAI = s.noAI; g.aggro = s.aggro;
     // 下知だけ戻しても、持ち場と向きが本人の前のままだと元の隊列へ戻れない。
     g.anchor.x = s.x; g.anchor.z = s.z; g.facing = s.facing;
@@ -2886,7 +2889,8 @@ function echizenAdvanceTick(rt) {
            !rt.army.wallBetween(q.pos, -1, TAIL_AT, false)))) {
       tail.seekRange = 40; tail.aggro = 40; tail.stay = false; tail.order = 'attack';
     }
-    if (near(u.pos, 28) && !inKannon(u.pos)) {
+    if (near(u.pos, 28) && !inKannon(u.pos) &&
+        !rt.army.wallBetween(u.pos, -1, TAIL_AT, false)) {
       F.echGateReached = true;
       rt.objDone('fuchu');
       rt.obj('tail', '峠道の登り口で、西光寺真敬の殿を討つ', 'main', true);

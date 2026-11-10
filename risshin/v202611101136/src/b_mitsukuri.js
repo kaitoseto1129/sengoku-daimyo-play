@@ -969,8 +969,10 @@ function roadDistance(x, z) {
 // 一歩の高低差だけでは、切岸を横へ歩けてしまう。道の平らな幅から外れた急斜面には足を置かない。
 // 石段・板床・屋内は実際の足場を使う。共通の移動判定や、ほかの戦の斜面は変えない。
 function mitsukuriStepAllowed(rt, x, z, y) {
+  return mitsukuriGroundAllowed(rt.world, x, z, y);
+}
+function mitsukuriGroundAllowed(W, x, z, y) {
   if (NAKA.cur) return true;
-  const W = rt.world;
   if (W.slopeTan(x, z) <= W.def.climbTan) return true;
   const floor = groundAt(W, x, z, y), ramp = rampAt(x, z, y);
   if ((ramp != null && Math.abs(ramp - floor) < 0.25) || floor > W.heightAt(x, z) + 0.35) return true;
@@ -2287,7 +2289,9 @@ function sanGroundPassage(army, from, goal) {
   for (let i = 1; i <= n; i++) {
     const x = from.x + (goal.x - from.x) * i / n, z = from.z + (goal.z - from.z) * i / n;
     const h = groundAt(W, x, z, y);
-    if (!W.walkable(x, z, y) || Math.abs(h - y) > rise) return false;
+    // 主人公が歩けない道外の急斜面を、敵への近道や道への復帰先に選ばない。
+    // 高低差だけでは、切岸を横切る案内が通り、石段の下で追い続けてしまう。
+    if (!W.walkable(x, z, y) || !mitsukuriGroundAllowed(W, x, z, y) || Math.abs(h - y) > rise) return false;
     y = h;
   }
   return true;
@@ -5305,11 +5309,12 @@ mitsukuri.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
   inp.k.delete('KeyW'); inp.k.delete('KeyE');
   if (!u.alive || F.ending) return;
   // 物見だけでなく火入れ・木戸・郭への移動も山道を通す。切岸や柵へ直進させない。
-  const move = F._mkBotMove || (F._mkBotMove = (player, input, x, z, r, run) => {
+  const move = F._mkBotMove || (F._mkBotMove = (player, input, x, z, r) => {
     const goal = player._mkBotGoal || (player._mkBotGoal = { x: 0, z: 0 });
     goal.x = x; goal.z = z;
     const q = courtyardWay(b, goal);
-    goTo(player, input, q.x, q.z, q === goal ? r : 0.6, run);
+    // 第六引数は走る指定ではなく、道を計算済みという指定。戸口への案内も二度選び直さない。
+    goTo(player, input, q.x, q.z, q === goal ? r : 0.6, true);
   });
   if (F.dp && F.dp.on) {   // 15分の構成の段
     // 二巡 11/9 豊臣B：三の郭の火入れ（「火を移す」の長押し）は段の頭が押さず、松明の前で十五分止まった。遊ぶ人と同じく松明へ寄って長押しする
