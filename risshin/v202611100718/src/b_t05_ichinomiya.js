@@ -31,7 +31,7 @@ import { depthStart, depthTick, depthBot, rest, fight, hold, move } from './b_de
 import { STAGES } from './stages.js';
 // 約15分の段（docs/toyo15_plan_1108.md の 8）：足した段の中身は src/t05_ichinomiya/ の各ファイル
 import { install as ichiIntro } from './t05_ichinomiya/intro.js';
-import { oshiStep } from './t05_ichinomiya/oshimodoshi.js';
+import { oshiStep, withdraw } from './t05_ichinomiya/oshimodoshi.js';
 import { depth as ichiDepth } from './t05_ichinomiya/depth.js';
 import { withGuard } from './toyo_bot.js';
 import { fallB } from './toyo15/kit.js';
@@ -369,6 +369,21 @@ function steps(rt) {
       // 11/9 三巡（織田C）：act も素の bot も門の内の鉄砲と加勢に六十秒で削られて倒れた（打ち込み 0.28→0.18）。
       max: 130, reward: '搦手の門を破り、小倉丸を取った', onEnd: () => { F.step = 6; } })),
   ].map((stage, i) => {
+    if (stage.kind === 'fight') {
+      const start = stage.start, end = stage.end;
+      stage.start = (r, C, m, ctx) => {
+        start(r, C, m, ctx);
+        // 前線の兵が後ろの正勝の旗本へ付き直し、本人だけが谷や門へ出るのを防ぐ。
+        C.advanceOrders = [...ctx.friends(r), ctx.aidG].filter((g) => g && g.count).map((g) => [g, g.keepMoveOrder]);
+        for (const [g] of C.advanceOrders) g.keepMoveOrder = true;
+      };
+      stage.end = (r, C, m, ctx) => {
+        for (const [g, keepMoveOrder] of C.advanceOrders || []) g.keepMoveOrder = keepMoveOrder;
+        // 組頭の生存に関係なく、退く下知が出た残兵は次の段で戦い続けない。
+        for (const g of C.groups) withdraw(g);
+        end(r, C, m, ctx);
+      };
+    }
     if (stage.kind === 'hold') {
       // noGroundGuide は画面の案内だけに効く。守備範囲の輪も消し、坑道の口の▼だけを残す。
       const start = stage.start;
@@ -408,8 +423,7 @@ function steps(rt) {
             C.nudgeT = el;   // 共通の呼び寄せで、今出した退却の下知を攻撃へ戻さない。
             let retreating = false;
             for (const g of C.groups) if (g.count > 2 && !g.routed && g.units.some((u) => u.alive && !u.fleeing)) {
-              g.noRout = false; g.morale = 0; g.focus = null; g.order = 'retreat';
-              g.dest = { x: HON_GATE.x, z: HON_GATE.z + 8 };
+              withdraw(g);
               retreating = true;
             }
             if (retreating) r.say('足軽', '残る城兵が城の奥へ退いてゆくぞ！', 3);
@@ -689,7 +703,9 @@ export const t05_ichinomiya = {
     // 付け入りで寄せ手が門に取り付いたら、門の脇の鉄砲は小倉丸の奥へ退く（撃たれ続けて門の前で物陰に釘付けになり、四十五秒で段が流れた。11/6 描いた通し）
     if (F.step === 5 && F.cGuns && !F.gunsOff && Math.hypot(rt.player.u.pos.x - HON_GATE.x, rt.player.u.pos.z - HON_GATE.z) < 12) {
       F.gunsOff = true;
-      for (const g of F.cGuns) if (g.count) { g.noRout = false; g.morale = 0; }
+      for (const g of F.cGuns) withdraw(g);
+      // 江村も旗本と本丸へ退く。討てない城将が入城口で斬り続けないようにする。
+      withdraw(F.emura);
     }
     if (F.step <= 2) lurkTick(rt);
     const ma = MASAKATSU_AT[Math.min(6, F.step || 0)];
@@ -701,7 +717,7 @@ export const t05_ichinomiya = {
     const F = rt.flags;
     if (F.ending) return;
     F.ending = true; fallB(rt);
-    for (const g of rt.army.groups) if (g.team === 1 && g.count) { g.noRout = false; g.morale = 0; }
+    for (const g of rt.army.groups) if (g.team === 1 && g.count) withdraw(g);
     // 塀に隠れない曲輪の内側で使者を迎え、台詞と帰城の動きを見せてから締める。
     const pp = rt.player.u.pos;
     // 奥へ踏み込んだ時も背後へ出さず、主人公の向いている先で迎える。

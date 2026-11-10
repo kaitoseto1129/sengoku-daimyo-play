@@ -7,7 +7,7 @@ export function sunomataNorthStopped(F) {
   // 11/10 詰まらない決まり：柵へ来る前に「主な兵が二割以下・最大の時間」で退いた時も止めた事にする（fushin.js）
   return (!!F.northAtFence && (g.routed || !g.units.some((u) =>
     u.alive && !(u.hp <= 0) && !u.dying && !u.gone && !u.fleeing && !u.woundOut && !u.noTarget))) ||
-    (g.routed && g._fsT != null) ||
+    (g.routed && (g._fsT != null || (F.fsForce && F.foughtWave === 3))) ||
     (g.units.length > 0 && g.units.every((u) => (!u.alive && u.hp <= 0) || u.dying || u.woundOut));
 }
 
@@ -20,9 +20,7 @@ export function sunomataPincerDone(F) {
 
 export function sunomataBossKilled(F) {
   // 生きて退場した兵も despawn で alive=false になる。討死は命が尽きた事まで確かめる。
-  // 11/10：大将一人の討死だけに頼らない。大将の組が退いた・大将が退いた時も済む
   const B = F.yoseBoss;
-  if (F.wave === 3 && B && (B.group?.routed || B.fleeing || B.gone)) return true;
   return F.wave === 3 && !!B && B.alive === false && B.hp <= 0;
 }
 
@@ -32,5 +30,7 @@ export function sunomataFinalGoalsDone(F) {
 
 export function sunomataBossStopped(F) {
   // 討死と退却を区別したまま、最後の寄せを退けた戦果を共有する。
-  return sunomataBossKilled(F) || (F.wave === 3 && !!F.s15?.lastRetreat && !!F.W3b?.routed);
+  const B = F.yoseBoss;
+  return sunomataBossKilled(F) || (F.wave === 3 &&
+    (!!B && (B.group?.routed || B.fleeing || B.gone) || !!F.s15?.lastRetreat && !!F.W3b?.routed));
 }

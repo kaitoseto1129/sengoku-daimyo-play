@@ -4059,27 +4059,27 @@ function honTargetGroup(rt) {
   }
   return best;
 }
-function nearestFoeOf(rt, group) {
+function nearestFoeOf(rt, group, visibleOnly = false) {
   const F = rt.flags;
-  if (F.foePickT === rt.t && F.foePickG === group && (!F.foePick || inabaFoe(F.foePick))) return F.foePick;
-  F.foePickT = rt.t; F.foePickG = group;
+  if (F.foePickT === rt.t && F.foePickG === group && F.foePickVisible === visibleOnly && (!F.foePick || inabaFoe(F.foePick))) return F.foePick;
+  F.foePickT = rt.t; F.foePickG = group; F.foePickVisible = visibleOnly;
   if (!group) return (F.foePick = null);
   const list = Array.isArray(group) ? group : [group];
   const has = (u) => list.includes(u.group);
   const p = rt.player, me = p.u.pos, reach = p.inRange && p.rangeCueTarget;
-  if (inabaFoe(reach) && has(reach)) return (F.foePick = reach);
+  if (inabaFoe(reach) && has(reach) && (!visibleOnly || !reach.offscreen && sightScreenUnit(rt, reach))) return (F.foePick = reach);
   let best = null, bd = Infinity;
   for (const g of list) {
     if (gone(g) || g.hidden || g.noAI || g.sent === false) continue;
     for (const u of g.units) {
-      if (!inabaFoe(u)) continue;
+      if (!inabaFoe(u) || visibleOnly && (u.offscreen || !sightScreenUnit(rt, u))) continue;
       const d = Math.hypot(u.pos.x - me.x, u.pos.z - me.z) + Math.abs(u.pos.y - me.y) * 4;
       if (d < bd) { bd = d; best = u; }
     }
   }
   // 少しの前後では替えず、別の兵が三歩以上近い時だけ渡す。
   const prev = F.foePrev;
-  if (best && best !== prev && inabaFoe(prev) && has(prev) && bd + 3 >= Math.hypot(prev.pos.x - me.x, prev.pos.z - me.z) + Math.abs(prev.pos.y - me.y) * 4) best = prev;
+  if (best && best !== prev && inabaFoe(prev) && has(prev) && (!visibleOnly || !prev.offscreen && sightScreenUnit(rt, prev)) && bd + 3 >= Math.hypot(prev.pos.x - me.x, prev.pos.z - me.z) + Math.abs(prev.pos.y - me.y) * 4) best = prev;
   F.foePrev = best;
   return (F.foePick = best);
 }
@@ -4592,7 +4592,8 @@ const inabayama = {
       const u = nearestFoeOf(rt, honTargetGroup(rt));
       return u && !honGateStep(rt, u) ? u : null;
     }
-    if (F.step === 3 && F.tsuke) return F.tsukeGate ? nearestFoeOf(rt, [F.oteGate, F.nigeru]) : inabaClimbGuideEnemy(rt);
+    // 木戸の奥や別の折れに隠れた城兵へ印を出さず、見える兵がいなければ道の案内を保つ。
+    if (F.step === 3 && F.tsuke) return F.tsukeGate ? nearestFoeOf(rt, [F.oteGate, F.nigeru], true) : inabaClimbGuideEnemy(rt);
     if (F.step === 3 && F.guardOn && !gone(F.kguard) && inabaAtWoodGate(rt)) return nearestFoeOf(rt, F.kguard);
     if (F.step === 3) return inabaClimbGuideEnemy(rt);
     if (F.step === 2) return this.objectiveEnemies(rt)[0] || null;
@@ -6191,15 +6192,18 @@ const inabayama = {
     // 搦手と同じく、角へ着くか次の区間へ踏み出してから、順に進める。
     while (F.nanaNext < NANA.length && roadCornerPassed(rt.world, p, NANA, F.nanaNext, 1.2)) F.nanaNext++;
     // 11/9 二巡（織田E）：七曲りの登り口の手前（鹿垣の内）で十歩余り離れたまま角へ寄れず、十分止まった（流し：角 2 の手前 (-30,40)）。
-    //   同じ角で四十五秒進まず、角の二十五歩内にいる時は、本人と組をその角へ寄せる（列に押されて口を抜けた事にする）
+    //   同じ角で四十五秒進まず、実際に歩こうとして三秒詰まった時だけ救う。待っている本人を時計だけで登らせない。
     if (F.nanaNext < NANA.length) {
       if (F.nanaStuckI !== F.nanaNext) { F.nanaStuckI = F.nanaNext; F.nanaStuckT = rt.t; }
       const c = NANA[F.nanaNext];
-      if (rt.t - F.nanaStuckT > 45 && rt.player.u.alive && !rt.retryOpen && Math.hypot(p.x - c[0], p.z - c[1]) < 25) {
+      if (rt.t - F.nanaStuckT > 45 && (rt.player.blockedWalkT || 0) >= 3
+        && rt.player.u.alive && rt.player.u.hp > 0 && !rt.player.u.dying && !rt.retryOpen
+        && Math.hypot(p.x - c[0], p.z - c[1]) < 25 && Math.abs(p.y - rt.world.heightAt(c[0], c[1])) < 6) {
         F.nanaStuckT = rt.t;
-        const put = (u, x, z) => { u.pos.x = x; u.pos.z = z; u.pos.y = rt.world.heightAt(x, z); };
+        const put = (u, x, z) => { u.pos.x = x; u.pos.z = z; u.pos.y = rt.world.heightAt(x, z); u.mesh?.position.copy(u.pos); };
         put(rt.player.u, c[0], c[1]);
-        for (const q of rt.squadGroups || []) for (const u of q.units) if (u.alive) put(u, c[0] + (Math.random() - 0.5) * 3, c[1] + (Math.random() - 0.5) * 3);
+        rt.player.blockedWalkT = 0;
+        for (const q of rt.squadGroups || []) for (const u of q.units) if (u.alive && u.hp > 0 && !u.dying && !u.gone && !u.woundOut) put(u, c[0] + (Math.random() - 0.5) * 3, c[1] + (Math.random() - 0.5) * 3);
       }
     }
     const last = F.nanaNext >= NANA.length;
