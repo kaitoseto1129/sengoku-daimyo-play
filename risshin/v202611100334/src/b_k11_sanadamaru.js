@@ -980,10 +980,15 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
       F.popT = (F.popT || 0) - dt;
       if (F.popT <= 0) {
         F.popT = 0.5 + Math.random() * 1.1;
-        const a = (Math.random() - 0.5) * 3.4, q = polar(a, WALL_R + 0.4);
-        rt.army.play('gun', q, 0.7 + Math.random() * 0.5);
-        rt.army.smoke(q.x, rt.world.heightAt(q.x, q.z) + 1.7, q.z, Math.sin(a), Math.cos(a));
-        if (Math.random() < 0.35) sfx('arrowRain', 0.45);
+        // 一斉射と同じく、生きて撃てる者がいない持ち口から筒音・硝煙を出さない。
+        let firing = F.wallG.units.some(canShoot) || F.towerU.some(canShoot);
+        if (!firing) for (const g of F.perch) if (g.units.some(canShoot)) { firing = true; break; }
+        if (firing) {
+          const a = (Math.random() - 0.5) * 3.4, q = polar(a, WALL_R + 0.4);
+          rt.army.play('gun', q, 0.7 + Math.random() * 0.5);
+          rt.army.smoke(q.x, rt.world.heightAt(q.x, q.z) + 1.7, q.z, Math.sin(a), Math.cos(a));
+          if (Math.random() < 0.35) sfx('arrowRain', 0.45);
+        }
       }
     }
     // 破る柵：打たれるたびに揺れ、木屑が飛び、傷むほど外へ傾く（十四5）
