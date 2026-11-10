@@ -84,7 +84,7 @@ const coastZ = (x) => (x > -2 ? 46 - (x + 2) * 0.62 : 46 + (-2 - x) * 3.4);
 const TOYO = { flag: 'toyotomi' };
 const KURODA = { flag: 'kuroda' };
 // 開城を説きに入る使いは鎧を着ず、刀を預けた小袖の姿（黒田家譜：肩衣・袴で刀を帯びずに入城。肩衣の形は共通の人の作りに無いので小袖で代える）
-const CALM = { kosode: 1, obi: 0x2a231c, hat: 'none', flag: null, haori: 0, sode: false, kote: 0, menpo: 0, horo: 0, horse: false };
+const CALM = { kosode: 1, obi: 0x2a231c, hat: 'none', flag: null, haori: 0, sode: false, kote: 0, menpo: 0, horo: 0, horse: false, weapon: 'none', dmg: 0 };
 const II = { armor: 0xa52b1c, lace: 0xb8342a, flag: 'ii' };   // 井伊の赤備え（天正十年から。史実の家の色）
 const TOKU = { flag: 'tokugawa' };
 const HOJO = { armor: 0x2e2a24, lace: 0x8a7a3a, flag: 'hojo' };

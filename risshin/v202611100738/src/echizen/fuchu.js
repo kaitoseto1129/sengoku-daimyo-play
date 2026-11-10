@@ -38,10 +38,17 @@ export function tick(rt) {
   const p = rt.player.u.pos, g = P.g;
   if (P.s === 0) {
     F.echExitAt = P.pos;   // 金の▼と bot の行き先（本体の echExitAt）
+    // 先に追いついた味方にも応戦する。本人が遠い間は下知を達成にしない。
+    if (g.order === 'hold' && rt.army.units.some(u =>
+        u.team === rt.player.u.team && fighter(u) &&
+        Math.hypot(u.pos.x - P.pos.x, u.pos.z - P.pos.z) < 26 &&
+        !rt.army.wallBetween(u.pos, -1, P.pos, false))) {
+      g.order = 'attack'; g.stay = false; g.aggro = 40; g.seekRange = 40;
+    }
     // 時間だけでは追撃先へ着いた事にしない。
     if (Math.hypot(p.x - P.pos.x, p.z - P.pos.z) < 26) {
       P.s = 1; P.at1 = rt.t; F.echExitAt = null;
-      g.order = 'attack'; g.aggro = 40; g.seekRange = 40;
+      g.order = 'attack'; g.stay = false; g.aggro = 40; g.seekRange = 40;
       rt.say('一揆の門徒', '南無阿弥陀仏……ここで死ねば極楽じゃ！', 3.2);
     }
     return;

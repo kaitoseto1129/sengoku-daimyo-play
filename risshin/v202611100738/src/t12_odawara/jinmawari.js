@@ -46,7 +46,6 @@ export function step(H) {
       }
       if (!C.arrived && C.looked && el - C.looked > 16 && Math.hypot(P.x - H.IE_FRONT.x, P.z - H.IE_FRONT.z) < 14) {
         C.arrived = el;
-        rt.unmark('dp');
         sfx('taiko', 0.5);
         rt.say('徳川家康', 'よう来た。殿下は石垣山の向こうの早雲寺におられる。下知は一つじゃ', 3.8);
         rt.after(4.2, () => rt.say('徳川家康', '城は攻めるな。囲みを保て。城の者が自ら折れるまで待つ', 3.8));

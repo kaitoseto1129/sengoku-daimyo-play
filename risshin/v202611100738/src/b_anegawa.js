@@ -38,7 +38,8 @@ import { goalsTick } from './hud_goals.js';
 // 15分の構成（kaito 11/8 夜・docs/oda15_plan_1108.md の 9）：段の中身は anegawa/ の一段一ファイル
 import * as JIN from './anegawa/jindate.js';     // 0〜3分：両軍の布陣と物見・物見の小勢
 import * as NIJIN from './anegawa/nijin.js';     // 3〜9分：段崩し（浅井の新手が続く・横槍は九分ごろ）
-import * as TSUI from './anegawa/tsuigeki.js';   // 12〜15分：野村への追い討ちと遠藤直経
+import * as TSUI from './anegawa/tsuigeki.js';
+import * as SEN from './anegawa/sensen.js';      // 動く戦線（FRONTLINE_POSITION）・追撃停止と勝鬨   // 12〜15分：野村への追い討ちと遠藤直経
 let aneDem = null;
 useTerrain('dem_anegawa', (data) => { aneDem = data; });
 
@@ -676,7 +677,7 @@ function anegawaRiver(rt) {
         float aneGd = vAneBank.z - aneGc;
         // 外の縁と東の先も、下地の砂が草へ戻り切るまで玉石を重ね、乾いた黄土の平たい帯を残さない（10/29）。
         float aneGravel = smoothstep(6.0, 9.0, aneGd) * (1.0 - smoothstep(31.0, 41.0, aneGd))
-          * (1.0 - smoothstep(-75.0, -95.0, aneGx)) * (1.0 - smoothstep(100.0, 130.0, aneGx));
+          * smoothstep(-95.0, -75.0, aneGx) * (1.0 - smoothstep(100.0, 130.0, aneGx));
         vec3 aneBig = texture2D(map, vAneBank.xz * 0.14 + vec2(0.37, 0.11)).rgb;   // 一枚 7m に大小の玉石（10/28）
         diffuseColor.rgb = mix(diffuseColor.rgb, vColor.rgb * aneBig * 1.04, aneGravel * 0.92);
         float aneTuft = smoothstep(0.42, 0.67, anePatch) * (1.0 - vAneWet) * (1.0 - aneTrod) * (1.0 - aneGravel);
@@ -3715,11 +3716,11 @@ const anegawa = {
     // 横槍は後世の伝承を交えた復元。公記は騎馬だけの別手とは記さない。
     // 兵種の内訳は確定せず、既存の混成の備えで徒歩と馬上の武者を示す。五十人と進路は保つ。
     // 史料の検討：https://www.library-archives.pref.fukui.lg.jp/tosyo/file/614648.pdf
-    F.sakaki = DA(-1220 / 5, 790 / 5, 18, 16, 50, Math.PI, TK, 'sakakibara', 33, 'mixed');
+    F.sakaki = DA(-1220 / 5, 790 / 5, 18, 16, 50, Math.PI, TK, 'sakakibara', 33, 'mixed', { general: '榊原康政' });
     F.sakaki.m.army.team = 0;
     // 朝倉は西の三田村、浅井は東の野村。大依山は会戦前の陣で、当日の本陣にしない。
     // 11/4：朝倉八千（信長公記。書状は一万五千）は徳川五千より厚い。二の手を百七十に
-    F.akDA = [DA(ASAKURA_SECOND.x, ASAKURA_SECOND.z, 36, 14, 170, 0, ASAKURA.armor, 'asakura', 41, 'mixed'), DA(MITAMURA.x, MITAMURA.z, 30, 20, 110, 0, ASAKURA.armor, 'asakura', 42, 'honjin', { people: mitamuraHonjinPeople() })];
+    F.akDA = [DA(ASAKURA_SECOND.x, ASAKURA_SECOND.z, 36, 14, 170, 0, ASAKURA.armor, 'asakura', 41, 'mixed', { general: '真柄直隆', secondGeneral: '真柄直澄' }), DA(MITAMURA.x, MITAMURA.z, 30, 20, 110, 0, ASAKURA.armor, 'asakura', 42, 'honjin', { people: mitamuraHonjinPeople() })];
     // 庭の指定配置だけを使う。主屋に野陣の陣幕を重ねず、接近時は従来どおり軍勢として替える。
     F.akDA[1].m.army.people = false;
     F.akDA[1].m.army.lord = '朝倉景健';   // 本陣へ寄れば旗本が迎え撃つ（b_nagashinojo.js の wake）
@@ -3844,6 +3845,7 @@ const anegawa = {
     // https://nagahama-rekihaku.jp/digital-museum/70
     // 先行する秒数は遊び用の復元。西も東も既存の兵数・幅・密度を保つ。
     F.clash[0].go();
+    SEN.holdWest(rt);
     // 西の主戦場は北岸。徳川の本隊も既存の瀬を渡り、先手の後ろへ詰める。
     // 先手の乱戦は続けたまま、既存の百六十人を動かす。道筋・所要時間は復元。
     // 幅四十・奥行き十六の本隊を、中心だけでなく前後列まで岸へ収める。
@@ -4032,6 +4034,7 @@ const anegawa = {
     rt.after(62, () => this.shibata(rt));
     // 徳川の横槍・稲葉の横槍（15分の構成では中の段 anegawa/nijin.js が九分ごろに出す）
     NIJIN.install(rt, aneCtx(rt, this));
+    SEN.install(rt);
     if (!F.aneTkAt) rt.after(70, () => this.tokugawa(rt));
   },
 
@@ -4164,6 +4167,7 @@ const anegawa = {
     rt.after(62, () => {
       if (rt.over || F.ending) return;
       F.clash[0].shake('B', 20); F.clash[0].push('A', 0.25);
+      SEN.tkPush(rt);
     });
     // 浅井は朝倉の崩れを見る前に、残る旗本を押し出す（三の手）
     rt.after(4, () => this.pushReserve(rt));
@@ -4203,6 +4207,11 @@ const anegawa = {
     const attach = (gg) => {
       // 退く下知の後の到着も横槍に数えず、敗走を攻撃へ戻さない。
       if (F.inabaT || gg.anePending || gone(gg) || F.step !== 1 || F.ending || rt.over) return;
+      // 出発から四十五秒たっても、離れた所から取り付きと知らせない。
+      // 到着の呼び出しも同じ判定を通し、動く浅井の側面まで追い付いてから押す。
+      const at = gg.center(), target = aneInabaTarget(rt);
+      const point = target ? target.center() : F.inabaGoal;
+      if (!point || Math.hypot(at.x - point.x, at.z - point.z) > 22) return;
       gg.noAI = false; gg.stay = false;
       gg.order = 'attack'; gg.seekRange = 50; gg.aggro = 10; F.inabaT = rt.t;
       // 11/6 fixc0454：横槍の手（史実は千ほど）が十六人のまま磯野の三十余と当たり、取り付いて二十秒で逆に崩れて東へ逃げた。
@@ -4375,7 +4384,7 @@ const anegawa = {
     const F = rt.flags;
     // 討死後は追加された物見・追撃も含め、固有の進行を止める。
     if (rt.over || !rt.player?.u?.alive) return;
-    F.aneJin?.tick?.(); F.aneTsui?.tick?.();
+    F.aneJin?.tick?.(); F.aneTsui?.tick?.(); F.aneSen?.tick?.(dt);
     anegawaRiverTick(rt, dt);
     aneBankMarch(rt);
     if (!rt.over && !F.ending && rt.player?.u) aneAdvance(rt);
@@ -4384,7 +4393,7 @@ const anegawa = {
     // 11/6 fixc1845（描いて遊んだ通し）：稲葉が駆け出すのが百八十秒の下限まで遅れ、横槍が二百五十七秒になり、本人は本陣の前で四十秒余り立って待った。
     //   磯野が本陣の方へ深く抜けた時（史実：段を破って本陣へ迫る→横槍）か、本人が②を果たした時にも駆け出す。
     const isoDeep = F.iso && !F.iso.anePending && !gone(F.iso) && F.iso.center().z > 80;
-    // 11/6 fixc1845（描かない通し nr8：駆け出して百十六秒、東の別手と組み合い、川向こうの三の手を追って取り付かなかった）：駆け出して四十五秒で取り付いた事にする（その場の浅井へ掛かる）。
+    // 到着の通知を逃した時は四十五秒後から取り付きを再判定する。離れていれば進み続ける。
     if (F.step === 1 && !F.ending && !rt.over && F.inaba && F.inabaGoT && !F.inabaT && !gone(F.inaba) && rt.t - F.inabaGoT > 45) F.inabaAttach?.(F.inaba);
     if (F.step === 1 && !F.ending && !rt.over && F.inaba && !F.inabaGoT && rt.t >= (F.aneYokoAt || 0) && (F.breach >= 1 || F.sakai.routed || F.sakaiSaid || isoDeep || (F.aneStage || 0) >= 2 || rt.t - F.stepT >= 110)) this.inabaGo(rt);
     // 11/6 fixc1845（描いて遊んだ通し：「浅井勢、崩れる」の後も磯野員昌の隊が南岸の本陣の近くで斬り合い続け、④の瀬へ行けず退き太鼓の負けになった）：
@@ -4504,7 +4513,7 @@ const anegawa = {
           if (rt.over || F.ending || F.step !== 1) return;
           F.westReported = true;
           // 11/6 fixc0834：稲葉の横槍が取り付いた後に「横槍が入るまで」と言わない（通しで取り付きの五十秒後に届いた）。
-          rt.say('使番', F.inabaT ? '西の朝倉、退き始め申した！　浅井も揺らいでおる、押し切られよ！' : '西の朝倉、退き始め申した！　横槍が入るまで正面を支えられよ！', 4);
+          rt.say('使番', F.inabaT ? '徳川勢、朝倉を破りました！　浅井も揺らいでおる、押し切られよ！' : '徳川勢、朝倉を破りました！　横槍が入るまで正面を支えられよ！', 4);
         } }, { team: 0, faction: 'tokugawa', name: '西の戦況' });
         for (const g of [F.iso, F.second, F.third]) if (g && !gone(g)) g.morale = Math.max(0, g.morale - 12);
       }
@@ -4683,6 +4692,7 @@ const anegawa = {
     rt.objDone('main'); rt.objRemove('mori'); rt.objRemove('stay');
     for (const id of ['iso', 'flank', 'eastPost', 'third', 'rear', 'stop', 'sakai', 'ford', 'pursuitPost', 'hqGuard', 'honjinHelp', 'river']) rt.unmark(id);
     rt.banner('浅井・朝倉、退く', shortPursuit ? '追い討ちはここまで。組を集めよ' : '姉川の戦、終わる');
+    SEN.end(rt);
     if (shortPursuit) {
       for (const g of [F.rear, F.counterChase, F.flankG]) if (g && !gone(g)) {
         g.order = 'move'; g.dest = { x: g.anchor.x - 64, z: -180 }; g.formation = 'column';

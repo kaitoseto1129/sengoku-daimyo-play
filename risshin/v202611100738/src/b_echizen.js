@@ -2824,7 +2824,8 @@ function echTailTarget(rt) {
     let best = Infinity, chosen = null;
     for (const q of F.echFuchu.g.units) {
       if (!passFighter(q)) continue;
-      const d = (q.pos.x - me.x) ** 2 + (q.pos.z - me.z) ** 2;
+      const d = (q.pos.x - me.x) ** 2 + (q.pos.z - me.z) ** 2 +
+        (rt.army.wallBetween(me, -1, q.pos, false) ? 1e6 : 0);
       if (d < best) { best = d; chosen = q; }
     }
     return chosen;

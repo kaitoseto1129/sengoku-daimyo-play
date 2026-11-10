@@ -254,6 +254,7 @@ const k07_sawayama = {
   spawn: { x: START.x - 4, z: START.z, heading: -Math.PI / 2 },
   stageGoalsOnly: true,   // 目標は五つの段だけ（「敵を八人討つ」で埋めない・三の1）
   goalsAllRows: true,     // 共通の既定は今の一行だけ。始めから五つとも並べる。
+  keepBattleSigns: true,  // 行き先の▼を出している間も、朝成らの名札と両軍の数を隠さない。
   // 始まりの話の間（段の前）は、印を①の大手門へ（前は戦の大目標の言葉から「山の頂の本丸 35m」と出て、指す所と名が違った）
   goalSignTarget: (rt) => {
     const F = rt.flags, D = F.dp;
@@ -602,6 +603,10 @@ html body #hud.enemy-action-guide:has(#h-prog[data-battle="k07_sawayama"]) #goal
   tanaka(rt) {
     const F = rt.flags;
     if (F.tanakaGo || !F.tanaka) return;
+    // 休みの始まりには、まだ開城の使いも秀秋の承知も出ていない。
+    // 話を聞き終えてから開門し、水の手の隊を動かす。
+    const D = F.dp;
+    if (!D || D.i < 7 || (D.i === 7 && rt.t - D.cur.t0 < OPEN_CASTLE_WAIT)) return;
     F.tanakaGo = true;
     F.tanaka.fixed = false; F.tanaka.aggro = 12; F.tanaka.seekRange = 60;
     // 水の手から西の丸の尾根を登り、西の丸を抜けて本丸の西の口へ（まっすぐ寄せると西の丸の土塁の下に詰まった）

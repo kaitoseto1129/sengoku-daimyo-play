@@ -1509,7 +1509,7 @@ const guardedRoad = (rt, p) => {
 
 // 復帰先も地図にある場所の名で示す。段が変わっても「本道」だけにしない。
 const hieiRoadName = (F) => (F.step || 0) <= 1 ? '日吉社の参道'
-  : F.step <= 3 ? '本坂' : F.step === 4 ? '根本中堂前の道'
+  : F.step <= 3 ? '本坂' : F.step === 4 ? (F.bell2 ? '西塔への山道' : '根本中堂前の道')
     : F.step === 5 ? '西塔の山道' : '横川への山道';
 
 // 到着を待つ間も、目前の守りと道への復帰を先に知らせる。突破の条件は変えない。
@@ -4088,8 +4088,8 @@ const hiei_mtn = {
       F._gp.x = exit.x; F._gp.z = exit.z;
       if (!F.exitMarked) {
         F.exitMarked = true;
-        rt.marker('hiei-exit', F.exitWay, '戸口から本道へ戻る', { h: 1.2, guidePriority: 600, guideAlways: true });
-        rt.bark('戸口の印から外へ出て、本道の印へ戻る');
+        rt.marker('hiei-exit', F.exitWay, () => `戸口から${hieiRoadName(F)}へ戻る`, { h: 1.2, guidePriority: 600, guideAlways: true });
+        rt.bark(`戸口の印から外へ出て、${hieiRoadName(F)}の印へ戻る`);
       }
     } else if (F.exitMarked) {
       F.exitMarked = false; F._gKey = null; F._botKey = null;
