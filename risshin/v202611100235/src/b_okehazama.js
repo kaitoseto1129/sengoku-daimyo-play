@@ -3370,7 +3370,7 @@ html:root body #hud#hud#hud.oke-goals :is(#armybar, #h-prog, #jk-vit) { z-index:
       if (late > 35) {
         let near = null, best = 3.5 ** 2;
         for (const g of F.attackers) for (const o of g.units) {
-          if (!readyUnit(o) || o.isPlayer) continue;
+          if (!readyUnit(o) || o.isPlayer || Math.abs(o.pos.y - m.pos.y) >= 3) continue;
           const d = (o.pos.x - m.pos.x) ** 2 + (o.pos.z - m.pos.z) ** 2;
           if (d < best && !rt.army.wallBetween(o.pos, -1, m.pos) && !rt.army.terrainBlocks(o.pos, m.pos)) { best = d; near = o; }
         }
@@ -3565,6 +3565,7 @@ html:root body #hud#hud#hud.oke-goals :is(#armybar, #h-prog, #jk-vit) { z-index:
     // 描画で隠した姿やカメラの向きは、戦の決着の条件にしない。
     const morCanFinish = F.yoshiDown && readyUnit(mor) &&
       Math.hypot(p.x - y.pos.x, p.z - y.pos.z) <= 12 &&
+      Math.abs(p.y - y.pos.y) < 3 &&
       !rt.army.wallBetween(p, -1, y.pos) && !rt.army.terrainBlocks(p, y.pos) &&
       Math.abs(mor.pos.y - y.pos.y) < 3 && !rt.army.wallBetween(mor.pos, 0, y.pos) &&
       !rt.army.terrainBlocks(mor.pos, y.pos);
