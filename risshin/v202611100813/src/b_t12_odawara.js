@@ -301,7 +301,8 @@ function sogamaeWall(rt) {
   // 11/6 kaito 四5：前は茅葺の家と丸太の物見だけで村の砦に見えた。五代の本城らしく、主殿（大きな入母屋の御殿）・蔵・土塁の角の隅櫓（板壁・瓦。低い台）・南の大手の櫓門（土の城の門）
   try {
     rt.scene.add(dou(W, CASTLE.x + 3, CASTLE.z - 3, 16, 10, 0));
-    rt.scene.add(kuruwaBldg(W, 'kura', CASTLE.x - 9, CASTLE.z + 4, Math.PI / 2, { ita: true, boardRoof: true }));
+    // 開城の列の後ろが蔵の中に出ないよう、門へ続く通路の北西に寄せる。
+    rt.scene.add(kuruwaBldg(W, 'kura', CASTLE.x - 11, CASTLE.z - 5, Math.PI / 2, { ita: true, boardRoof: true }));
     rt.scene.add(kuruwaBldg(W, 'kura', CASTLE.x + 11, CASTLE.z + 6, 0, { ita: true, boardRoof: true }));
     for (const [x, z] of [[HON.x0 + 2.5, HON.z0 + 2.5], [HON.x1 - 2.5, HON.z0 + 2.5], [HON.x1 - 2.5, HON.z1 - 2.5]]) rt.scene.add(sumiyagura(W, x, z, { w: 4.2, d: 3.6, base: 0.3, inside: false }));
     rt.scene.add(yaguramon(W, HON.x0 + 6, HON.z1 - 1.4, 5, 0, { doors: false, inside: false, earth: true }));
@@ -378,12 +379,18 @@ function requiredStep(step) {
       if (step.kind === 'fight') {
         const p = rt.player.u.pos;
         const near = Math.hypot(p.x - C.at.x, p.z - C.at.z) < 18;
+        // 打って出の段は全滅を待たない。上限を無効にした後も、現地で
+        // 元の刻限まで持ちこたえれば、塀に残った兵は end の下知で退く。
+        // 普請の物見は独自の撤退条件を持つため、この数え方には入れない。
+        if (C.later && near && rt.player.u.alive) C.repulseHold = (C.repulseHold || 0) + dt;
+        const repulsed = C.later?.length === 0 && C.repulseHold >= step.max;
+        if (repulsed && !done) rt.say('井伊直政', '北条勢が退くぞ。追うな、山王川の岸へ戻れ！', 3.6);
         // 味方だけが木戸の敵を返しても、本人が陣に残ったまま達成にしない。
         if (done && !near) {
           C.goal = C.at;
           rt.objProgress('dp', step.key === 'ishigaki' ? '石垣山の普請場へ戻れ' : step.key === 'sortie' || step.key === 'kuzure' ? '山王川の岸へ戻れ' : '篠曲輪の木戸の前へ戻れ');
         }
-        return done && near;
+        return (done || repulsed) && near;
       }
       if (step.kind !== 'hold') return done;
       const p = rt.player.u.pos;

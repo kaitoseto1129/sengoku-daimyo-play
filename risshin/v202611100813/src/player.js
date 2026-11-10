@@ -917,7 +917,8 @@ export class Player {
     // 馬（足軽大将から）。始めは乗っている
     this.step = ladderStep(G);
     // 谷道や屋内など、馬を使わない戦では本人も徒歩で出陣する。
-    this.canRide = canRide(G) && !rt.def.noHorse;
+    // 徒歩の軍勢でも、戦が指定した本人の馬は組頭から使える。
+    this.canRide = rt.world.def.playerHorse ? this.step >= 1 : canRide(G) && !rt.def.noHorse;
     // 乗れる身分か（足軽大将から）。雑兵・足軽は主を失った空馬も捕らえて乗らない（11/6 共通 馬・乗り手：天王寺・長島・三木「足軽が空馬に乗る」）
     this.mayRide = this.canRide; this.u.mayRide = this.canRide;
     this.mounted = false;
