@@ -61,7 +61,8 @@ export function tick(rt, dt) {
   const p = rt.player.u.pos, c = H.ctx, g = H.g, gz = c.SB.gates[1] + 4.5;
   if (!H.said && g.center().x < c.SB.x0 + 40) { H.said = true; rt.say('原昌胤', '柵の口を押し開け！　続け！', 2.8); try { sfx('hooves', 0.6); } catch (e) { /* なし */ } }
   // 柳田前への到着は本体が移動中から記録している。別の持ち場へ移った後も守った事を消さない。
-  if (F.nf?.defendedCenter || Math.hypot(p.x - (c.SB.x0 - c.SB.gap - 3), p.z - gz) < 30) H.there = true;
+  if (F.nf?.defendedCenter || p.x < c.SB.x0 &&
+      Math.hypot(p.x - (c.SB.x0 - c.SB.gap - 3), p.z - gz) < 30) H.there = true;
   const lord = g.units.find((u) => u.name === '原昌胤');
   // 全列の到着待ちで先頭の斬り合いを数え落とさない。
   if (H.arrive == null && g.units.some((u) =>

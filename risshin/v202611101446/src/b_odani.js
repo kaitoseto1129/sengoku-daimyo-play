@@ -592,6 +592,13 @@ function trailAhead(rt, path, index) {
   if (F.guideBlocked) returnTrail(rt);
   return index;
 }
+// 平面の範囲だけで、曲輪の下や櫓の屋根を占領済みにしない。
+// 庭と同じく、本人の足が曲輪の地面へ届いた時だけ到着と数える。
+function inOdaniKuruwa(rt, id) {
+  const p = rt.player.u.pos;
+  return rt.flags.C.kuruwa[id].test(p.x, p.z) &&
+    Math.abs(p.y - rt.world.heightAt(p.x, p.z)) < 1.8;
+}
 // 庭に入ったら道の終点を追わせず、見えていて歩いて届く守りへ案内する。
 // 塀の外から敵へ直進させない。調べるのは既存の案内と同じ半秒ごと。
 // 庭の上空や屋根を通っただけでは、庭へ入った事にしない。
@@ -642,7 +649,7 @@ function retreatCareText(rt) {
 // 遠い木戸だけを見出しにすると、庭から西の塀や切岸へ直進してしまう。
 function onogiExitTask(rt) {
   const F = rt.flags, p = rt.player.u.pos;
-  if (!F.onoDone || F.C.kuruwa.kyogoku.test(p.x, p.z)) return '';
+  if (!F.onoDone || inOdaniKuruwa(rt, 'kyogoku')) return '';
   if (Math.abs(p.x - ONOGI.x) < ONOGI.hw + .5 &&
     p.z > ONOGI.z - ONOGI.hd - .5 && p.z < ONOGI.z + ONOGI.hd + 1.5)
     return '屋敷の南木戸から出よ';
@@ -663,7 +670,7 @@ function assaultTrailLabel(rt) {
   const gate = F.westGate?.struct;
   if (gate && !gate.opened && gate.hp > 0)
     return F.westCanStrike ? `西木戸へ${westAttackControl(rt)}` : '清水谷の道を登り、西木戸へ進め';
-  return F.C.kuruwa.kyogoku.test(rt.player.u.pos.x, rt.player.u.pos.z)
+  return inOdaniKuruwa(rt, 'kyogoku')
     ? F.kyoTarget ? '京極丸の残る守りへ' : '京極丸を味方と守れ'
     : '西木戸を抜け、京極丸へ';
 }
@@ -762,10 +769,10 @@ function odaniNearestFoe(rt) {
     else if (F.step === 2 && !F.onoDone) eligible = (u.group === F.ono || F.reliefOn && u.group === F.relief) &&
       (F.onoInGarden || Math.hypot(u.pos.x - p.x, u.pos.z - p.z) < 12);
     else if (F.step === 2 || F.step === 3 && !F.komaAttack) eligible =
-      F.C.kuruwa.kyogoku.test(p.x, p.z) && F.C.kuruwa.kyogoku.test(u.pos.x, u.pos.z);
+      inOdaniKuruwa(rt, 'kyogoku') && F.C.kuruwa.kyogoku.test(u.pos.x, u.pos.z);
     else if (F.step === 3 && F.honAttack) eligible = u.group === F.honGuard || u.group === F.south || u.group === F.kyoAid || u.group === F.nagamasa && !!F.nagaCharge;
     else if (F.step === 3 && F.komaAttack) eligible =
-      F.C.kuruwa.koma.test(p.x, p.z) && F.C.kuruwa.koma.test(u.pos.x, u.pos.z);
+      inOdaniKuruwa(rt, 'koma') && F.C.kuruwa.koma.test(u.pos.x, u.pos.z);
     if (!eligible) continue;
     const d = (u.pos.x - p.x) ** 2 + (u.pos.z - p.z) ** 2 + (u.pos.y - p.y) ** 2 * 4;
     if ((F.step === 1 || F.honAttack) && d > 24 * 24) continue;
@@ -2930,9 +2937,9 @@ const odani = {
       const gate = F.westGate?.struct;
       if (gate && !gate.opened && gate.hp > 0) return 4;
       if (F.masuClosed && F.outerOpenT) return 13;
-      return F.C.kuruwa.kyogoku.test(p.x, p.z) ? 6 : 5;
+      return inOdaniKuruwa(rt, 'kyogoku') ? 6 : 5;
     }
-    return F.C.kuruwa.koma.test(p.x, p.z) ? 8 : 7;
+    return inOdaniKuruwa(rt, 'koma') ? 8 : 7;
   },
   missionHeading(rt) {
     const F = rt.flags, text = this.missionOrder(rt);
@@ -2958,11 +2965,11 @@ const odani = {
     if (F.step === 2 && F.onoDone && F.westCanStrike && gate && !gate.opened && gate.hp > 0)
       return `${westAttackControl(rt)}で西木戸を破れ あと${Math.max(1, Math.ceil(gate.hp / gate.maxHp * 10))}割`;
     const p = rt.player.u.pos;
-    if (F.step === 2 && F.onoDone && F.westEnteredOrder && !F.kyoTarget && F.C.kuruwa.kyogoku.test(p.x, p.z))
+    if (F.step === 2 && F.onoDone && F.westEnteredOrder && !F.kyoTarget && inOdaniKuruwa(rt, 'kyogoku'))
       return '京極丸の広場を押さえよ';
-    if (F.step === 3 && !F.komaAttack && F.counterRepelled && !F.cutTarget && F.C.kuruwa.kyogoku.test(p.x, p.z))
+    if (F.step === 3 && !F.komaAttack && F.counterRepelled && !F.cutTarget && inOdaniKuruwa(rt, 'kyogoku'))
       return '尾根を北へ、小丸へ攻め入れ';
-    if (F.komaAttack && !F.honAttack && !F.komaTarget && F.C.kuruwa.koma.test(p.x, p.z))
+    if (F.komaAttack && !F.honAttack && !F.komaTarget && inOdaniKuruwa(rt, 'koma'))
       return '小丸の広場を押さえよ';
     return rt.objectives.find((o) => o.id === 'main')?.text || this.missions[this.missionOf(rt)];
   },
@@ -3006,7 +3013,7 @@ const odani = {
     // 曲輪の中心を直接指すと、谷の曲がり角や屋敷の塀を越える向きになる。
     // 移動中は足元の道案内と同じ点を指す。持ち場の内と、打てる門前では元の印を保つ。
     const atPlace = hold && (F.step === 1 ? Math.hypot(p.x - BELOW.x, p.z - BELOW.z) <= 5
-      : F.komaAttack ? F.C.kuruwa.koma.test(p.x, p.z) : F.C.kuruwa.kyogoku.test(p.x, p.z));
+      : F.komaAttack ? inOdaniKuruwa(rt, 'koma') : inOdaniKuruwa(rt, 'kyogoku'));
     if (F.step >= 1 && !F.retreatOn && !F.fallen && !(F.komaDown && !F.honAttack)
       && (!atPlace || F.guideReturning || F.guideBlocked) && !(pin.gate && Math.hypot(p.x - pos.x, p.z - pos.z) <= 3)
       && Number.isFinite(F.trailPoint?.x) && Number.isFinite(F.trailPoint?.z)) {
@@ -3136,9 +3143,9 @@ const odani = {
       if (F.valleyFighting) return '味方と番兵を退けよ';
     }
     if (F.step === 2) return assaultTrailLabel(rt);
-    if (F.step === 3 && !F.komaAttack && F.C.kuruwa.kyogoku.test(p.x, p.z))
+    if (F.step === 3 && !F.komaAttack && inOdaniKuruwa(rt, 'kyogoku'))
       return F.cutTarget ? '京極丸の敵を退けよ' : '京極丸を守れ';
-    if (F.komaAttack && F.C.kuruwa.koma.test(p.x, p.z))
+    if (F.komaAttack && inOdaniKuruwa(rt, 'koma'))
       return F.komaTarget ? '小丸の敵を退けよ' : '小丸を守れ';
     return '道の先へ';
   },
@@ -3167,12 +3174,12 @@ const odani = {
       return `${westAttackControl(rt)}で西木戸を破れ`;
     // 制圧中は歩く距離でなく残りの秒数。足元の印で待つ理由を伝える。
     if (F.step === 2 && F.onoDone && F.westEnteredOrder && !F.kyoTarget
-      && F.C.kuruwa.kyogoku.test(p.x, p.z))
+      && inOdaniKuruwa(rt, 'kyogoku'))
       return '京極丸の広場を押さえよ';
-    if (F.step === 3 && !F.komaAttack && !F.cutTarget && F.C.kuruwa.kyogoku.test(p.x, p.z))
+    if (F.step === 3 && !F.komaAttack && !F.cutTarget && inOdaniKuruwa(rt, 'kyogoku'))
       return F.counterRepelled ? '尾根を北へ、小丸へ攻め入れ'
         : `南は${F.southRepelled ? '退いた' : F.south.odaniReachedKyo ? '反撃中' : '接近中'}、北は${F.northRepelled ? '退いた' : F.north.odaniReachedKyo ? '反撃中' : '接近中'}。内で迎えよ`;
-    if (F.komaAttack && !F.komaTarget && F.C.kuruwa.koma.test(p.x, p.z))
+    if (F.komaAttack && !F.komaTarget && inOdaniKuruwa(rt, 'koma'))
       return '小丸の広場を押さえよ';
     const metres = Math.max(0, Math.round(distance));
     // 同じ道案内の印を小丸・本丸でも使う。登り終えた後まで清水谷と呼ばない。
@@ -4708,7 +4715,7 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
             : F.westGate?.struct && !F.westGate.struct.opened && F.westGate.struct.hp > 0
               ? F.westCanStrike ? '中丸から新手じゃ！　西の木戸を破れ！'
                 : '中丸から新手じゃ！　谷道を登り、西木戸へ進め'
-              : F.C.kuruwa.kyogoku.test(rt.player.u.pos.x, rt.player.u.pos.z)
+              : inOdaniKuruwa(rt, 'kyogoku')
                 ? '中丸から新手じゃ！　京極丸の内で迎えよ！'
                 : '中丸から新手じゃ！　西木戸を抜け、京極丸へ入れ', 3);
     });
@@ -4747,7 +4754,7 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
   // ③ 分断：京極丸を取り、本丸と小丸が切れる
   cut(rt) {
     const F = rt.flags;
-    if (F.step >= 3 || !F.onoDone || !F.C.kuruwa.kyogoku.test(rt.player.u.pos.x, rt.player.u.pos.z)) return;
+    if (F.step >= 3 || !F.onoDone || !inOdaniKuruwa(rt, 'kyogoku')) return;
     F.step = 3; F.stepT = rt.t; F.captureT = 0;
     rt.setPhase('cut');
     rt.unmark('kyo'); rt.unmark('kyoAid'); rt.unmark('trail');
@@ -4764,7 +4771,7 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
     // 二つに切れた城を見せる（南の本丸・北の小丸に印を少しの間）
     // 攻めない奥に目標の印を置かず、今守る京極丸へ案内する。
     F.trailPoint.x = KC.x; F.trailPoint.z = KC.z;
-    rt.marker('cutHon', () => F.trailPoint, () => F.retreatOn || F.guideBlocked ? '' : retShown(rt) ? '来た道の角へ戻れ' : F.C.kuruwa.kyogoku.test(rt.player.u.pos.x, rt.player.u.pos.z) ? F.cutTarget ? '京極丸の敵を退けよ' : '京極丸を守れ' : '清水谷の道を通り、京極丸へ戻れ', { h: 2, guideAlways: true, alwaysDistance: true });
+    rt.marker('cutHon', () => F.trailPoint, () => F.retreatOn || F.guideBlocked ? '' : retShown(rt) ? '来た道の角へ戻れ' : inOdaniKuruwa(rt, 'kyogoku') ? F.cutTarget ? '京極丸の敵を退けよ' : '京極丸を守れ' : '清水谷の道を通り、京極丸へ戻れ', { h: 2, guideAlways: true, alwaysDistance: true });
     rt.say('羽柴秀吉', '京極丸の内で反撃を退けよ。櫓へは登るな', 4.5);
     rt.after(5, () => { if (F.step === 3 && !F.ending && !F.komaAttack && !F.retreatOn) rt.say('先手組頭', '南北へ味方を回す。おぬしは内に残って守れ', 4); });
     rt.after(10, () => { if (F.step === 3 && !F.ending && !F.komaAttack && !F.retreatOn && !gone(F.north)) rt.say('浅井の兵', '北の久政様へ道を開け！　京極丸を取り返せ！', 3); });
@@ -4929,7 +4936,7 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
     const path = [[KC.x, KC.z], [GATE_KYO_KOMA.x, KYO.z0 + 2], [GATE_KYO_KOMA.x, GATE_KYO_KOMA.z], [KOM.x, KOM.z1 - 2], [KOM.x, KOM.cz + 4]];
     F.komaPath = path; F.komaIdx = 0;
     F.trailPoint.x = path[0][0]; F.trailPoint.z = path[0][1];
-    rt.marker('trail', () => F.trailPoint, () => F.retreatOn || F.guideBlocked ? '' : retShown(rt) ? '来た道の角へ戻れ' : F.C.kuruwa.koma.test(rt.player.u.pos.x, rt.player.u.pos.z) ? F.komaTarget ? '小丸の残る守りへ' : '小丸を押さえよ' : '北の木戸から小丸へ', { h: 1.3, guideAlways: true, alwaysDistance: true });
+    rt.marker('trail', () => F.trailPoint, () => F.retreatOn || F.guideBlocked ? '' : retShown(rt) ? '来た道の角へ戻れ' : inOdaniKuruwa(rt, 'koma') ? F.komaTarget ? '小丸の残る守りへ' : '小丸を押さえよ' : '北の木戸から小丸へ', { h: 1.3, guideAlways: true, alwaysDistance: true });
     // 南北の押さえは別の組へ移した兵が守る。残る先手も小丸へ続き、秀吉だけに後続を任せない。
     for (const g of F.oda) {
       g.odaniPlayerPause = false;
@@ -4961,7 +4968,7 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
   // 小丸が落ちる：孤立した久政は館で自害。小丸の残りは逃げ、戦線は本丸へ移る。
   komaFall(rt) {
     const F = rt.flags;
-    if (F.ending || F.komaDown || !F.C.kuruwa.koma.test(rt.player.u.pos.x, rt.player.u.pos.z)) return;
+    if (F.ending || F.komaDown || !inOdaniKuruwa(rt, 'koma')) return;
     F.komaDown = true;
     nextObj(rt, '尾根を南へ、本丸へ進め');
     rt.award((t) => t.side.push('小丸を落とした'), '小丸を落とした');
@@ -5061,7 +5068,7 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
     const F = rt.flags, p = rt.player.u.pos;
     if (F.fallen) return;
     // 北木戸の外で時を待つだけでは本丸の任務を済ませない。
-    if (F.C.kuruwa.hon.test(p.x, p.z)) F.honEntered = true;
+    if (inOdaniKuruwa(rt, 'hon')) F.honEntered = true;
     if (F.nagaDead) { this.castleFall(rt); return; }
     if (updateHud) {
       let idx = F.honIdx;
@@ -5401,7 +5408,7 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
       if (point) {
         const distance = Math.hypot(point.x - rt.player.u.pos.x, point.z - rt.player.u.pos.z);
         F.trailSign.visible = distance > (F.guideReturning ? .5 : 1.6) && distance < 18 && !F.ending && rt.player.u.alive
-          && !(F.komaAttack && !F.retreatOn && F.C.kuruwa.koma.test(rt.player.u.pos.x, rt.player.u.pos.z));
+          && !(F.komaAttack && !F.retreatOn && inOdaniKuruwa(rt, 'koma'));
         const fx = distance > .01 ? (point.x - rt.player.u.pos.x) / distance : Math.sin(rt.player.yaw);
         const fz = distance > .01 ? (point.z - rt.player.u.pos.z) / distance : Math.cos(rt.player.yaw);
         const pos = F.trailSign.geometry.attributes.position, base = F.trailBase;
@@ -5675,7 +5682,7 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
       if (F.onoDone && breached && !F.westEnteredOrder) {
         F.westEnteredOrder = true;
         const exit = onogiExitTask(rt);
-        const inside = F.C.kuruwa.kyogoku.test(p.x, p.z);
+        const inside = inOdaniKuruwa(rt, 'kyogoku');
         nextObj(rt, exit || (inside
           ? '京極丸の内の敵を退け、味方と押さえよ'
           : '西木戸を抜け、京極丸の内へ進め'));
@@ -5688,7 +5695,7 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
               : '西木戸が開いた！　木戸を抜け、京極丸へ入れ', 4);
         }
       }
-      const inside = F.C.kuruwa.kyogoku.test(p.x, p.z);
+      const inside = inOdaniKuruwa(rt, 'kyogoku');
       // 組の中心ではなく、制圧を妨げている生きた兵本人へ案内する。
       // 退いた兵や曲輪外の兵を追わせず、元の制圧条件と同じ名簿から選ぶ。
       let left = 0, target = null, targetDistance = Infinity;
@@ -5831,7 +5838,7 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
       if (F.captureT >= 2) { (F.trig ||= []).push('cut:player'); this.cut(rt); }
     }
     if (F.step === 3) {
-      const inside = F.C.kuruwa.kyogoku.test(p.x, p.z);
+      const inside = inOdaniKuruwa(rt, 'kyogoku');
       if (!F.komaAttack) {
         if (!(F.holdersAt > rt.t)) { F.holdersAt = rt.t + 1; this.staffHolders(rt); }
         let south = 0, north = 0;
@@ -5923,8 +5930,8 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
         this.honTick(rt, dt, updateHud);
       } else if (!F.komaDown) {
         // 小丸の外へ退いても印は残す。戻る道の角を半秒ごとに示す。
-        if (updateHud && !F.C.kuruwa.koma.test(p.x, p.z)) F.komaIdx = wayTrail(rt, F.komaPath, F.komaIdx);
-        if (F.C.kuruwa.koma.test(p.x, p.z)) {
+        if (updateHud && !inOdaniKuruwa(rt, 'koma')) F.komaIdx = wayTrail(rt, F.komaPath, F.komaIdx);
+        if (inOdaniKuruwa(rt, 'koma')) {
           F.komaEntered = true;
           // 久政は奥の居所に留まる。下知だけを聞かせ、討取りの任務にはしない。
           if (!F.hisamasaCalled) {
@@ -5946,7 +5953,7 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
         F.komaFriends = friends;
         // 入った後も同じ印を使い、制圧を妨げる兵へ通れる道で案内する。
         // 居所の久政や曲輪の外の兵は、元の制圧判定どおり追わせない。
-        if (updateHud && F.C.kuruwa.koma.test(p.x, p.z)) {
+        if (updateHud && inOdaniKuruwa(rt, 'koma')) {
           F.guideBlocked = false; F.guideReturning = false;
           // 小丸も、敵がいなければ内に残る。中心へ動かして守りを中断させない。
           const q = target ? roadWay(rt.army, rt.player.u, target.pos) : p;
@@ -5971,7 +5978,7 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
             }
           }
         }
-        const inKoma = F.C.kuruwa.koma.test(p.x, p.z);
+        const inKoma = inOdaniKuruwa(rt, 'koma');
         if (updateHud) {
           const order = retShown(rt) ? '来た道の角へ戻れ'
             : F.guideBlocked ? '来た道へ戻る足場を探せ'
@@ -5988,7 +5995,7 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
           F.komaCaptureCalled = true;
           rt.say('先手組頭', '小丸の敵は退いた！', 4);
         }
-        if (updateHud) rt.objProgress('main', !F.C.kuruwa.koma.test(p.x, p.z) ? retShown(rt) ? '来た道の角へ戻れ。そこから北木戸へ進め' : F.guideBlocked ? '塀や切岸を避け、来た道の角へ戻れ' : F.komaEntered ? '北木戸を抜け、小丸へ戻れ' : '北木戸を抜け、小丸へ進め' : enemies > 0 ? `小丸の敵あと${enemies}人。小丸の内で味方と退けよ` : '小丸の広場を押さえよ');
+        if (updateHud) rt.objProgress('main', !inOdaniKuruwa(rt, 'koma') ? retShown(rt) ? '来た道の角へ戻れ。そこから北木戸へ進め' : F.guideBlocked ? '塀や切岸を避け、来た道の角へ戻れ' : F.komaEntered ? '北木戸を抜け、小丸へ戻れ' : '北木戸を抜け、小丸へ進め' : enemies > 0 ? `小丸の敵あと${enemies}人。小丸の内で味方と退けよ` : '小丸の広場を押さえよ');
         // 奥の残兵で止まらぬよう、本人が到着してから守りの士気を崩す。
         // 時間だけで陥落にせず、残兵が退いた後の占領を待つ。
         if (F.komaAttackT0 === undefined) F.komaAttackT0 = F.komaAttackT;
