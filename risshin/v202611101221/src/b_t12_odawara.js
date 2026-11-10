@@ -384,6 +384,16 @@ function requiredStep(step) {
         // 元の刻限まで持ちこたえれば、塀に残った兵は end の下知で退く。
         // 普請の物見は独自の撤退条件を持つため、この数え方には入れない。
         if (C.later && near && rt.player.u.alive) C.repulseHold = (C.repulseHold || 0) + dt;
+        // 木戸や塀の奥に残った敵を追わせず、刻限後は守る場所を示す。
+        // 持ち場で耐えた時間だけを数えるため、陣で待つだけでは済まない。
+        if (C.later?.length === 0 && el >= step.max && !done) {
+          C.goal = C.at;
+          if (!C.repulseMarked) {
+            C.repulseMarked = true;
+            rt.unmark('dp');
+            rt.marker('dp', C.at, '篠曲輪の木戸の前', { h: 3 });
+          }
+        }
         const repulsed = C.later?.length === 0 && C.repulseHold >= step.max;
         if (repulsed && !done) rt.say('井伊直政', '北条勢が退くぞ。追うな、山王川の岸へ戻れ！', 3.6);
         // 味方だけが木戸の敵を返しても、本人が陣に残ったまま達成にしない。

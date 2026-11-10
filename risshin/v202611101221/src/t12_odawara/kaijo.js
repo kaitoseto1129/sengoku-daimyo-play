@@ -33,7 +33,8 @@ export function step(H) {
         const g = enemyGroup(rt, { faction: 'hojo', name: '城を出る北条の兵', anchor: { x: H.KGATE.x, z: H.KGATE.z - 13 }, facing: 0, width: 3, formation: 'column', aggro: 0, morale: 100, noRout: true, noAI: true,
           // 列の後ろも櫓門を抜けてから左右へ分かれる。門内から斜めに向かうと後列が板塀に当たる。
           order: 'path', roadColumn: true, followColumnRoad: true, pathIdx: 0,
-          path: [[H.KGATE.x, H.KGATE.z - 13], [H.KGATE.x, H.KGATE.z + 6], [H.WATCH.x - 8 + k * 5, H.WATCH.z + 6]],
+          // 十人の後列の長さも門外へ収まるよう、曲がる所と終点を南へ伸ばす。
+          path: [[H.KGATE.x, H.KGATE.z - 13], [H.KGATE.x, H.KGATE.z + 16], [H.WATCH.x - 8 + k * 5, H.WATCH.z + 18]],
           speed: 1.4, arriveNoncombat: true },
         H.dress([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 8 }], H.HOJO));
         g.peaceful = true; g.fire = false;
@@ -41,7 +42,7 @@ export function step(H) {
         C.groups.push(g);
       }
       for (const g of C.groups) {
-        if (g.surrendered) continue;
+        if (g.seated) continue;
         const last = g.path[g.path.length - 1];
         let outside = 0, living = 0;
         for (const u of g.units) if (u.alive && !u.gone) {
@@ -55,9 +56,11 @@ export function step(H) {
             u.wpn = null; u.wpnKind = 'none';
           }
         }
-        // 全員が門外へ出れば見届けられる。狭い所で一人の整列が遅れても止めない。
+        // 各列の六割が実際に門外で槍を置けば、開城を見届けたことになる。
+        // 残りの兵は歩き続ける。一人の整列待ちを戦全体の条件にしない。
+        if (living > 0 && outside >= Math.ceil(living * 0.6)) g.surrendered = true;
         if (living > 0 && outside === living) {
-          g.order = 'hold'; g.surrendered = true;
+          g.order = 'hold'; g.seated = true;
           for (const u of g.units) if (u.alive && !u.gone) u._crouch = true;
         }
       }
@@ -68,7 +71,7 @@ export function step(H) {
       line(32, () => rt.say('黒田官兵衛', '氏直殿は滝川殿の陣へ参られる。……北条の百年が、今日で終わる', 4));
       const P = rt.player.u.pos;
       C.near = Math.hypot(P.x - H.WATCH.x, P.z - H.WATCH.z) < 16;
-      // 三番目の列も門外に着くまで、時間だけで見届けを済ませない。
+      // 三番目の列も主な兵が門外で槍を置き、本人が門前にいる時だけ済ませる。
       return el > 38 && C.near && C.groups.length === 3 && C.groups.every((g) => g.surrendered);
     },
     end(rt) {

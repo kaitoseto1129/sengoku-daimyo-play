@@ -774,7 +774,7 @@ const k06_sekigahara = {
       // 春日神社に残ったまま味方が敵を減らしても、藤下へ続いた目標は済ませない。
       if (near(P, UKITA_F, 55)) { F.joined4 = true; F.fought4 += dt; }
       // 散った残兵だけで止めない。前線で槍を合わせ続ければ宇喜多の反撃へ移る。
-      if (F.joined4 && (left <= Math.round(F.akaN * 0.85) || F.fought4 >= 120)) this.stage5(rt);
+      if (F.joined4 && near(P, UKITA_F, 55) && (left <= Math.round(F.akaN * 0.85) || F.fought4 >= 120)) this.stage5(rt);
     } else if (F.step === 5) {
       // 宇喜多は崩れない。福島隊のそばで押し返しを受けた時間だけを数える（討ち減らしの数でなく持ちこたえ）
       if (near(P, UKITA_F, 55)) F.held5 += dt;
