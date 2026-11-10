@@ -49,7 +49,12 @@ export function tick(rt, dt, ctx) {
   // 味方の大船が漕ぎ出して荷船を追う（九鬼の船団の動き）
   if (!S.ally && t >= 30) {
     S.ally = true;
-    for (const e of F.escorts || []) { e.sortie = true; e.nextSortie = rt.t + 999; e.t.x = e.homeX - 40; e.t.z = e.homeZ + 20; }
+    // 下知を受けた二番・三番船だけを出す。残る三艘は川口をふさぐ持ち場に残す。
+    for (let i = 0; i < Math.min(2, F.escorts?.length || 0); i++) {
+      const e = F.escorts[i];
+      if (e.group?.routed) continue;
+      e.sortie = true; e.nextSortie = rt.t + 999; e.t.x = e.homeX - 40; e.t.z = e.homeZ + 20;
+    }
     rt.say('九鬼嘉隆', '二番・三番船、漕ぎ出せ！　荷船の行く手を塞げ！', 3);
     sfx('horagai', 0.5);
   }

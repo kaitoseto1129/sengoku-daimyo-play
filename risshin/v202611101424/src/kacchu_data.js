@@ -489,8 +489,9 @@ for (const [name, bowl, crest, armor, lace, doStyle, haori, menpo, mon, ref] of 
   // 賢忠寺蔵・革包茶糸威二枚胴具足による復元。大坂当日の着用は未確認（出所は docs/generals_look_1108/水野勝成.md）。
   ["水野勝成", "zunari", "mizuno_shikami", 0x4a3222, 0x6a4026, "okegawa", 0, 0x3a2a20, "mizuno", ""],
   ["本多忠政", "namban", "moon", 0x151312, 0x2a2a2a, "kebiki", 0x2a2a2a, 0x151312, "honda", ""],
-  ["京極高知", "namban", "sun", 0x29251f, 0x413e32, "kebiki", 0x4a3a22, 0x29251f, "tokugawa", ""],
-  ["田中吉政", "namban", "kuwa_wide", 0x29251f, 0x413e32, "kebiki", 0x302b32, 0, "tokugawa", ""],
+  // 11/10：東軍に付いた外様の四人（京極・田中・可児・真田信之）が徳川葵の紋になっていたのを、家の紋（田中・可児は確かな紋の形が無いので無し）に。
+  ["京極高知", "namban", "sun", 0x29251f, 0x413e32, "kebiki", 0x4a3a22, 0x29251f, "kyogoku", ""],
+  ["田中吉政", "namban", "kuwa_wide", 0x29251f, 0x413e32, "kebiki", 0x302b32, 0, "none", ""],
   ["浅野長政", "namban", "horn", 0x29251f, 0x413e32, "okegawa", 0x302b32, 0x29251f, "tokugawa", ""],
   ["浅野長晟", "momonari", "none", 0x1c1a1a, 0x6a4026, "okegawa", 0, 0, "asano", ""],
   // 樫井・1615年。所用品は未確認。東京国立博物館の桃山期黒糸威二枚胴具足を時代の手本に、頭形・縹威・紺羽織の伝統色の復元案：https://online.bunka.go.jp/heritages/detail/132537
@@ -502,10 +503,10 @@ for (const [name, bowl, crest, armor, lace, doStyle, haori, menpo, mon, ref] of 
   // 樫井・1615年。所用品は未確認。東京国立博物館の桃山期黒糸威二枚胴具足を時代の手本に、筋兜・紫威・緋羽織の伝統色の復元案：https://online.bunka.go.jp/heritages/detail/132537
   ["岡部則綱", "suji", "none", 0x1c1a1a, 0x703d78, "okegawa", 0x9a2e20, 0, "none", ""],
   ["仙石秀久", "sengoku_kasa", "sengoku_shida", 0x1c1a1a, 0x232c40, "kebiki", 0, 0x1c1a1a, "eiraku", "https://museum.umic.jp/hakubutsukan/collection/item/0009-2.html"],
-  ["可児才蔵", "namban", "bellflower", 0x29251f, 0x413e32, "sugake", 0x302b32, 0x29251f, "tokugawa", ""],
+  ["可児才蔵", "namban", "bellflower", 0x29251f, 0x413e32, "sugake", 0x302b32, 0x29251f, "none", ""],
   ["平野長泰", "zunari", "kuwa", 0x24221f, 0xb0a890, "sugake", 0, 0, "tokugawa", ""],
   ["糟屋武則", "zunari", "moon", 0x24221f, 0xa88a3a, "sugake", 0, 0x24221f, "tokugawa", ""],
-  ["真田信之", "zunari", "sun", 0x24221f, 0xa88a3a, "kebiki", 0, 0x24221f, "tokugawa", ""],
+  ["真田信之", "zunari", "sun", 0x24221f, 0xa88a3a, "kebiki", 0, 0x24221f, "sanada", ""],
   // 伝所用・皺革包胴丸具足を参考にした略復元。革包は既存の平滑な胴で近似し、未確認の日輪は付けない。
   // 黒と威の色・頭形の鉢は復元案。出所：docs/generals_look_1108/小西行長.md
   ["小西行長", "zunari", "none", 0x1c1a1a, 0xb0a890, "hotoke", 0, 0, "konishi", ""],
@@ -1049,6 +1050,11 @@ Object.assign(KACCHU["島左近"], { bowl: "suji", sujiPlates: 52, crest: "sanko
 // 配色の散らしと必須表の後で揃える。父の水牛脇立は継承を断定せず、面頬・羽織・馬印も補わない。
 // 出所と補完範囲：docs/generals_look_1108/浅野長晟.md
 Object.assign(KACCHU["浅野長晟"], { bowl: "momonari", crest: "none",
+  armor: 0x1c1a1a, helm: 0x1c1a1a, lac: "kuro", fuki: "kuro", lace: 0x6a4026, odo: 0x6a4026,
+  doStyle: "okegawa", menpo: 0, haori: 0, mon: "asano", flag: "asano", uma: null, fukigaeshiBadge: false });
+// 11/10 浅野長政（長吉）：大阪城天守閣蔵「茶糸威桶側五枚胴具足（伝浅野長政所用）」の桃形鉢・大水牛脇立・茶糸威・桶側胴・違い鷹の羽。
+//   前の南蛮鉢・徳川葵は根拠が無いので改める。正則の大水牛とは威（茶と縹）と紋で分かれる。出所：docs/generals_look_1108/浅野長政.md
+Object.assign(KACCHU["浅野長政"], { bowl: "momonari", crest: "bull",
   armor: 0x1c1a1a, helm: 0x1c1a1a, lac: "kuro", fuki: "kuro", lace: 0x6a4026, odo: 0x6a4026,
   doStyle: "okegawa", menpo: 0, haori: 0, mon: "asano", flag: "asano", uma: null, fukigaeshiBadge: false });
 // 11/9 徳川C：蜂須賀至鎮。本人所用と確定できる具足は未確認。徳島城博物館の「萌葱糸威二枚胴具足 唐冠形兜付」は、
