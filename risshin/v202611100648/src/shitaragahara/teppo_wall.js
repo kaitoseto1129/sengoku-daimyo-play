@@ -12,7 +12,12 @@
 // 兵は増やさない（本物の鉄砲組の番を回すだけ）。毎コマ new しない（点の入れ物を使い回す）。
 // ======================================================================
 
+import { bigVolley } from './plus.js';
+// 追加改善（docs/shitaragahara_plus_1109.md）：鉄砲兵が討たれると、その口の斉射の当たり・白煙が本当に減る。
+//   柵の内へ武田が入った口は射撃をやめ（鉄砲は下がり槍組が前へ）、寄せの近い口で大斉射を十五分に六回まで（plus.js）。
+
 const PT = { x: 0, z: 0 };
+const alive = (q) => q.units.reduce((n, u) => n + (u.alive && !u.woundOut ? 1 : 0), 0);
 
 // ctx：{ SB, MOUTHS, ZONES }
 export function install(rt, ctx) {
@@ -21,6 +26,8 @@ export function install(rt, ctx) {
   const W = F.shWall = { ctx, t: 0, far: 0, near: [0, 0, 0], band: [0, 0, 0], hits: new Map(), on: false };
   // 口ごとの三組（A・B・C）。F.guns は口ごとに三つずつ並ぶ
   W.mouthGuns = ctx.MOUTHS.map((m) => F.guns.filter((q) => Math.abs(q.anchor.z - m.z) < 40));
+  W.n0 = W.mouthGuns.map((gs) => gs.reduce((n, q) => n + alive(q), 0) || 1);
+  W.inT = ctx.MOUTHS.map(() => -99); W.thin = ctx.MOUTHS.map(() => false);
   return W;
 }
 
@@ -40,7 +47,17 @@ function foesAt(rt, z, SB, span = 60) {
 }
 
 // 斉射の当たり：二〜四人がよろめき、一、二人が倒れる。一隊の四割までしか斉射では倒さない
-function volleyHit(rt, W, z, SB) {
+// 二の柵より奥（鉄砲の列の中）まで入った武田の兵。虎口の際の斬り合いは数えない
+function insideAt(rt, z, SB) {
+  let n = 0;
+  for (const u of rt.army.units) {
+    if (u.team !== 1 || !u.alive || u.fleeing || u.gone || u.noTarget || u.woundOut) continue;
+    if (u.pos.x < SB.x0 - SB.gap - 1 && u.pos.x > SB.x0 - 40 && Math.abs(u.pos.z - z) < 32) n++;
+  }
+  return n;
+}
+
+function volleyHit(rt, W, z, SB, power = 1) {
   const cand = [];
   for (const u of rt.army.units) {
     if (u.team !== 1 || !u.alive || u.fleeing || u.gone || u.noTarget || u.group?.shWaiting || u.invuln || u.type === 'busho') continue;
@@ -50,7 +67,7 @@ function volleyHit(rt, W, z, SB) {
     if (cand.length >= 12) break;
   }
   if (!cand.length) return;
-  const n = Math.min(cand.length, 2 + Math.floor(Math.random() * 3));
+  const n = Math.min(cand.length, Math.max(1, Math.round((2 + Math.floor(Math.random() * 3)) * power)));
   let killed = 0;
   for (let i = 0; i < n; i++) {
     const u = cand.splice(Math.floor(Math.random() * cand.length), 1)[0];
@@ -81,17 +98,36 @@ export function tick(rt, dt) {
     W.near[i] = 2.4 + Math.random() * 0.6;
     const gs = W.mouthGuns[i].filter((q) => q.count && !q.routed);
     if (!gs.length) continue;
+    // 柵の内へ入られた口は撃たない。鉄砲は下がり、槍組と本人が守る
+    if (insideAt(rt, m.z, SB) >= 3) {
+      for (const q of gs) { q.fire = false; q.holdFire = true; }
+      if (rt.t - W.inT[i] > 75 && Math.abs(P.z - m.z) < 80) { W.inT[i] = rt.t; rt.say('鉄砲頭', '敵が柵の内へ入った！　鉄砲は下がれ、槍組前へ！', 3); }
+      W.near[i] = 1.5;
+      continue;
+    }
+    // 鉄砲兵の残り。討たれた分だけ当たりと白煙が減る
+    const cur = gs.reduce((n, q) => n + alive(q), 0);
+    W.n0[i] = Math.max(W.n0[i], cur);   // 後から並んだ組も元の数に入れる
+    const power = Math.max(0.25, Math.min(1, cur / W.n0[i]));
+    if (!W.thin[i] && power < 0.6) { W.thin[i] = true; rt.say('前田利家', '鉄砲衆が討たれた。この口の鉄砲が薄うなったぞ！', 3.2); }
+    // 大斉射の見せ場（十五分に六回まで・七十秒は空ける）
+    if ((W.big || 0) < 6 && rt.t - (W.bigT ?? -999) > 70 && foes >= 6) {
+      W.near[i] = 9;
+      bigVolley(rt, W, gs, m.z, SB, power, (z, pw) => volleyHit(rt, W, z, SB, pw));
+      continue;
+    }
     const g = gs[W.band[i]++ % gs.length];
     // この番の組だけ構えを解いて撃たせ、ほかの組は込めて待つ
     for (const q of gs) { q.fire = q === g; q.holdFire = q !== g; }
     const c = g.center();
     PT.x = SB.x0 + 2; PT.z = c.z;
-    try { rt.army.play('volley', PT, 1.2); } catch (e) { /* 音が無くても進む */ }
-    for (let k = -1; k <= 1; k++) {
+    try { rt.army.play('volley', PT, 0.6 + 0.6 * power); } catch (e) { /* 音が無くても進む */ }
+    for (let k = power < 0.6 ? 0 : -1; k <= (power < 0.4 ? 0 : 1); k++) {
       try { rt.army.smoke(SB.x0 + 1.5, rt.world.heightAt(SB.x0 + 1.5, c.z + k * 4) + 1.5, c.z + k * 4, 1, 0); } catch (e) { /* なし */ }
     }
     try { rt.world.gunSmoke?.(SB.x0 + 4, c.z); } catch (e) { /* なし */ }
-    volleyHit(rt, W, c.z, SB);
+    const cz = c.z;
+    rt.after(0.15 + Math.random() * 0.15, () => volleyHit(rt, W, cz, SB, power));   // 撃ってから少し遅れて倒れる
   }
   // ---- 遠い区画：軽い鉄砲の列の一斉射（本人から 150m 外の柵だけ）。寄せの来ている区画ほど多く ----
   if ((W.far -= dt) > 0) return;

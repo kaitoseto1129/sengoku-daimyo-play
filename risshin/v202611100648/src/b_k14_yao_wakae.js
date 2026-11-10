@@ -151,6 +151,7 @@ const k14_yao_wakae = {
   goalsAllRows: true,        // 五つを開戦前から並べ、果たした目標にも印を残す
   goalVisibleRows: 4,        // 現在の四段を最初から全部並べる（共通の札の既定は一行）
   goalRowsAhead: true,
+  goalSignOnly: true,       // 共通の目標推測より、この戦が選んだ横の備・伏せ槍・木村への案内を優先する。
   goalSignNoLabel: true,     // ▼の上に「印へ進め」を出さない（何の印か分からない。三の1・AR1。n6 X7）
   goalSignDistanceAlways: true, // 十歩以内でも行き先の距離を消さない（critic60 五3）。
   distanceUnit: 'metres',    // 今の共通案内にも、場所名と距離を渡す。
@@ -186,7 +187,7 @@ const k14_yao_wakae = {
     // 下知を待つ間も、最初の目標と同じ八尾の場所を示す。
     if (!F.step) {
       PIN.x = FLANK.x; PIN.z = FLANK.z; PIN.r = 8;
-      PIN.destinationName = PIN_NAME[1]; PIN.destinationDistance = Math.ceil(dist(rt.player.u.pos, PIN));
+      PIN.label = PIN.destinationName = PIN_NAME[1]; PIN.destinationDistance = Math.ceil(dist(rt.player.u.pos, PIN));
       return PIN;
     }
     const g = F.step === 1 && aliveN(F.stepG) <= Math.floor(F.stepG.units.length * KEEP) && live(F.fuseG) ? F.fuseG : F.stepG;
@@ -200,7 +201,7 @@ const k14_yao_wakae = {
     if (F.step === 1 && F.fuseG?.ambush && aliveN(F.stepG) <= Math.floor(F.stepG.units.length * KEEP)) p = FUSE;
     if (F.step === 4 && F.kimuraU?.alive) p = F.kimuraU.pos;
     PIN.x = p.x; PIN.z = p.z; PIN.r = 8;
-    PIN.destinationName = g === F.fuseG ? '長瀬川の伏せ槍' : PIN_NAME[F.step];
+    PIN.label = PIN.destinationName = g === F.fuseG ? '長瀬川の伏せ槍' : PIN_NAME[F.step];
     PIN.destinationDistance = Math.ceil(dist(rt.player.u.pos, PIN));
     return PIN;
   },

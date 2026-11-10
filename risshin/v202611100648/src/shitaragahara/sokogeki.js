@@ -41,7 +41,7 @@ export function tick(rt, dt) {
       u.alive && !u.fleeing && !u.gone && !u.woundOut && !u.rearWound && !u.noTarget &&
       Math.hypot(u.pos.x - S.IN.x, u.pos.z - S.IN.z) < 18)) S.arrive = rt.t;
   if (!S.call && (g.center().x < c.SB.x0 + 4 || rt.t - S.at > 40)) {
-    S.call = true;
+    S.call = true; S.capT = rt.t;
     rt.say('組頭', S.arrive != null
       ? '破れ目に土屋隊が入った！　鉄砲組がやられる、走れ！'
       : '土屋隊が破れ目へ寄せておる！　鉄砲組を守りに走れ！', 3.4);
@@ -53,13 +53,15 @@ export function tick(rt, dt) {
   const fighting = g.units.some((u) => {
     const target = u.atk?.target || u.swing?.target || u.target;
     return u.alive && !u.fleeing && !u.gone && !u.woundOut && !u.rearWound && !u.noTarget &&
-      target?.alive && target.team !== u.team && !target.fleeing && !target.gone &&
+      target?.alive && target.pos && target.team !== u.team && !target.fleeing && !target.gone &&
       !target.woundOut && !target.rearWound && !target.noTarget &&
       Math.hypot(u.pos.x - target.pos.x, u.pos.z - target.pos.z) < 8 &&
       !rt.army.wallBetween(u.pos, -1, target.pos);
   });
   if (fighting && Math.hypot(p.x - S.IN.x, p.z - S.IN.z) < 32) S.fight = (S.fight || 0) + dt;
-  const end = S.there && (!lord?.alive || left <= Math.ceil(S.n0 * 0.35) || S.fight > 60);
+  // 波の最大の長さ（docs/sunomata_spec_1109.md の決まり 7・8）：呼ばれてから三分半で土屋は鉄砲に倒れ、隊は退く
+  const cap = S.capT != null && rt.t - S.capT > 210;
+  const end = cap || S.there && (!lord?.alive || left <= Math.ceil(S.n0 * 0.35) || S.fight > 60);
   if (!end) return;
   S.done = true;
   if (lord?.alive) { lord.invuln = false; rt.army.kill(lord, null); }
