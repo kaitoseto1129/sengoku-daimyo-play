@@ -518,6 +518,7 @@ const t10_oshi = {
   // 行き先は頭上の印一つ（kaito AL・AS・AV15）。ついていく相手の青い印は出さない。名札は近くの将だけ
   // 11/8 critic60（五2・N・AS）：途中で出たり消えたりする小さな地図は出さない。城代の長親の名札は門の前から見せない
   noMiniMap: true, hideNameTag: (u) => u?.name === '成田長親',
+  keepBattleSigns: true,   // 行き先を案内する間も、敵全員の赤い▼・両軍の人数・武将名を残す。
   nearAllyFadeRadius: 3,   // 11/8 critic60 九7：堤を走る時、カメラの前の味方の黒い背中が自分を塞いだ。視線の上の味方を広めに透かす
   goalSignDistanceAlways: true,   // 堰や門前へ近づいても、場所の名から距離を消さない。
   noLeaderFollow: true, nameRange: 30, goalSignOnly: true,   // 本丸の城代（成田長親）の名と命の棒を門の前から見せない（kaito AS：総大将は討てる所に見せない）
@@ -913,6 +914,16 @@ const t10_oshi = {
   missionPin(rt) {
     const F = rt.flags;
     if (F.ending || rt.over || !rt.player.u.alive) return null;
+    const q = this.destinationPin(rt);
+    if (q) {
+      // 新しい行き先案内にも地名と距離を渡す。古い goalSign の指定だけでは字が消える。
+      q.destinationName = q.label;
+      q.destinationDistance = Math.round(Math.hypot(q.x - rt.player.u.pos.x, q.z - rt.player.u.pos.z));
+    }
+    return q;
+  },
+  destinationPin(rt) {
+    const F = rt.flags;
     for (const st of [chikara, kobuneSt, kaijo]) { const q = st.pin(rt, C); if (q !== undefined) return q; }
     if (F.step <= 3) return { x: RAIDAT.x, z: RAIDAT.z, r: 10, label: '浅瀬の口' };
     // 水が入る間と決壊前の知らせの間も、段が替わるまで行き先を保つ。

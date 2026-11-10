@@ -4144,7 +4144,7 @@ const nodafukushima = {
         // 火と煙が出た鉄砲だけ。塀の奥・背後・不発・遠い撃ち合いでは声を出さない。
         if (u.team === rt.player.u.team || u.type !== 'gun' || !u.alive || u.fleeing || u.woundOut || u.noTarget || !(u.fireT > 0) || !u.reload || !sightPoint(rt, u.pos, 50, false, 1.4)) continue;
         F.reloadSayAt = rt.t + 40;
-        rt.say('組頭', F.step >= 3 ? '敵が放った！　堤を守れ！' : F.step === 2.5 ? '敵が放った！　砦前で味方と並べ！' : ['敵が放った！　玉込めの間に詰めよ！', '煙が上がった！　味方と寄せよ！'][F.reloadVoice++ % 2], 2.5);
+        rt.say('組頭', F.step >= 3 ? '敵が放った！　堤を守れ！' : F.step === 1.5 ? '敵が放った！　井楼の上から狭間を狙え！' : F.step === 2 ? '敵が放った！　浅瀬の岸で味方と防げ！' : '敵が放った！　堤の陰へ入れ！', 2.5);
         break;
       }
     }
