@@ -3011,9 +3011,10 @@ const shigisan = {
     for (const g of F.oda) g.noAI = true;
     // 城攻めの段（siege_stages.js・docs/siege_honjin_spec_1107.md 5・13章）：尾根道の伏兵 → 木戸 → 曲輪（下・上・屋敷）→ 本丸。
     //   今の段の守りだけが打って出て、奥の曲輪は持ち場で構えて待つ。段が長引けば使番が知らせる（11章）
+    F.gateStageGroups = [F.arch, F.sally];
     F.stages = siegeStages(rt, [
       { groups: [F.amb], at: { x: GATE.x, z: GATE.z - 6 }, done: () => F.step >= 3, report: '尾根道の伏兵、まだ退きませぬ！', reportAfter: 70 },
-      { groups: [F.arch, F.sally], at: { x: RIDGE1.x, z: RIDGE1.z }, done: () => F.step >= 3.5, report: '木戸、まだ破れず！　櫓から射られております！', reportAfter: 60 },
+      { groups: F.gateStageGroups, at: { x: RIDGE1.x, z: RIDGE1.z }, done: () => F.step >= 3.5, report: '木戸、まだ破れず！　櫓から射られております！', reportAfter: 60 },
       { groups: [F.rg1, F.rg2, F.ryk], at: { x: TOP.x, z: TOP.z + TOP.r - 4 }, done: () => F.step >= 4, report: '曲輪の松永勢、しぶとく持ちこたえております！', reportAfter: 80 },
       { groups: F.last, at: { x: TOP.x, z: TOP.z }, done: () => false },
     ], { runner: '使番' });
@@ -3293,8 +3294,14 @@ const shigisan = {
       // 11/6 fixc1845：退く兵の周りは寄せ手だらけなので、傷ついた守りの「退く道が空いているか」の見張りが道を塞がれたと見て、
       //   付け入りの退きを門前の持ち場（hold）へ戻していた（打って出た二十余人が門前に三分残り、本人も門前で止まった）。付け入りの後は見張りから外す。
       if (F.withdraw) F.withdraw = F.withdraw.filter((w) => w.g !== S);
+      // 段替えの共通処理も、消耗した守兵を hold に戻す。付け入りの退路はこの戦の行軍で保つ。
+      const stageIndex = F.gateStageGroups.indexOf(S);
+      if (stageIndex >= 0) F.gateStageGroups.splice(stageIndex, 1);
       march(rt, S,[[GATE.x, GATE.z + 2]].concat(ROAD.slice(g0, a1 + 1)));
-      S.onArrive = (g) => { g.order = 'hold'; g.retreatOnly = false; g.formation = 'yari'; g.facing = Math.PI; };
+      S.onArrive = (g) => {
+        g.order = F.rg1Out ? 'attack' : 'hold'; g.retreatOnly = false; g.formation = 'yari'; g.facing = Math.PI;
+        if (F.rg1Out) { g.seekRange = 30; g.aggro = 24; }
+      };
     }
     rt.award((t) => t.side.push('打って出た松永勢を土橋で退けた'), '打って出た敵を退けた');
     rt.banner('付け入り', '退く松永勢に紛れて、門の内へ');
@@ -4047,7 +4054,8 @@ const shigisan = {
         //   寄せ手が口へ四十歩まで来たら、下の曲輪の兵と退いて来た打って出の兵が槍をそろえて口へ出て来る（九2・一3）。
         if (!F.rg1Out && Math.hypot(pp.x - RIDGE1.x, pp.z - RIDGE1.z - RIDGE1.r) < 40) {
           F.rg1Out = true;
-          for (const g of [F.rg1, F.sally]) if (!gone(g)) {
+          // 付け入りで退く兵は曲輪へ着いてから反撃する。門前で退きの行軍を取り消さない。
+          for (const g of [F.rg1, F.sally]) if (!gone(g) && !g.retreatOnly) {
             g.noAI = false; g.fixed = false; g.retreatOnly = false; g.ambush = false;
             g.anchor = { x: RIDGE1.x, z: RIDGE1.z + RIDGE1.r }; g.order = 'attack'; g.formation = 'yari'; g.seekRange = 30; g.aggro = 24;
             for (const u of g.units) { u.aiT = 0; u.target = null; }

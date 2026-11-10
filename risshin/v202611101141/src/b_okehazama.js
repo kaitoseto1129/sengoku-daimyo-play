@@ -3574,7 +3574,9 @@ html:root body #hud#hud#hud.oke-goals :is(#armybar, #h-prog, #jk-vit) { z-index:
       // 討取りの馬廻は九歩後ろの持ち場へ戻さず、義元の今いる場所へ歩かせる。
       F.nob.anchor.x = y.pos.x; F.nob.anchor.z = y.pos.z;
     }
-    if (hat && hat.alive && !hat.woundOut && !hat.fleeing && !hat.noTarget && Math.hypot(hat.pos.x - y.pos.x, hat.pos.z - y.pos.z) < 3 && !rt.army.wallBetween(hat.pos, 0, y.pos)) F.hattoriMet = true;
+    if (readyUnit(hat) && Math.hypot(hat.pos.x - y.pos.x, hat.pos.z - y.pos.z) < 3 &&
+        Math.abs(hat.pos.y - y.pos.y) < 3 && !rt.army.wallBetween(hat.pos, 0, y.pos) &&
+        !rt.army.terrainBlocks(hat.pos, y.pos)) F.hattoriMet = true;
     // 深手、旗本の損失、服部の接触、毛利の到着がそろった時だけ討取りへ。
     if (F.yoshiDown && !F.moriClose && mor && mor.alive && Math.hypot(mor.pos.x - y.pos.x, mor.pos.z - y.pos.z) < 7 && sightPoint(rt, y.pos)) {
       F.moriClose = true;
@@ -3597,11 +3599,14 @@ html:root body #hud#hud#hud.oke-goals :is(#armybar, #h-prog, #jk-vit) { z-index:
     if (morCanFinish && F.koshiLeft && rt.t - F.yoshiDownT >= 5 && (guards <= 10 || longDown) && hattoriDone && Math.hypot(mor.pos.x - y.pos.x, mor.pos.z - y.pos.z) < reachMori) {
       y.invuln = false; rt.army.kill(y, mor);
     }
-    // 公記：旗本三百が五十ほどに討ち減らされて義元に槍が届く。退き始めて四十五秒で寄せた槍が届き、
-    // 七十五秒で必ず届く（自分が追いつけなくても物語は進む・kaito 二5）。
-    // 11/6 夜：退き始めから深手まで七十五秒かかっていた。二十秒で寄せた槍が届き、三十五秒で必ず届く。
-    if (F.koshiLeft && !F.yoshiDown && y.alive && rt.t - F.koshiLeftT > 20 && O15.woundOk(rt) && (rt.t - F.koshiLeftT > 35 ||
-        rt.army.nearestEnemy(y, 8, (u) => readyUnit(u) && !u.isPlayer))) y.onWound?.();
+    // 旗本が退いて向き直った後、実際に槍が届く味方だけが義元に深手を負わせる。
+    // 時間切れや、幕・丘の反対側にいる兵だけでは傷の場面を起こさない。
+    if (F.koshiLeft && !F.yoshiDown && y.alive && rt.t - F.koshiLeftT > 20 && O15.woundOk(rt)) {
+      const striker = rt.army.nearestEnemy(y, 3.5, (u) => readyUnit(u) && !u.isPlayer &&
+        Math.abs(u.pos.y - y.pos.y) < 3 && !rt.army.wallBetween(u.pos, u.team, y.pos) &&
+        !rt.army.terrainBlocks(u.pos, y.pos));
+      if (striker) y.onWound?.();
+    }
     // 深手と退却がそろって十二秒後は、六歩まで寄せた毛利が討つ。兵の押し合いで止めない。
     // 遠方・手当て中や幕・地形越しでは首を挙げず、実際に討てる間合いを待つ。
     // 11/6：囲みが退き始める前（③④の間）に深手を負っても、首は旗本が五十に減ってから（史実の順を飛ばさない）。
