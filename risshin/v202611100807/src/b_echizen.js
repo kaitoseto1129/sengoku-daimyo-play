@@ -96,6 +96,12 @@ function huntPlayer(rt, dt) {
     if (g.focus && !mine) continue;
     if (g.routed || weak || g.order !== 'attack' || g.isPlayerSquad) { if (mine) { g.focus = null; hunters--; } continue; }
     const c = g.center(), d = Math.hypot(c.x - P.pos.x, c.z - P.pos.z);
+    // 同じ距離でも塀の向こうには寄せない。追跡中に壁を挟んだ時も
+    // 注視を返し、兵自身が通れる所の敵を選べるようにする。
+    if (d < 45 && rt.army.wallBetween(c, -1, P.pos, false)) {
+      if (mine) { g.focus = null; hunters--; }
+      continue;
+    }
     if (!mine && d < 30 && hunters < 2) { g.focus = P; hunters++; }
     else if (mine && d > 45) { g.focus = null; hunters--; }
   }
@@ -246,12 +252,17 @@ function passZone(rt) {
 // 本道の小勢は、塀で隔てられていない寄せ手を開門前でも迎え撃つ。
 function passRoadEngage(rt) {
   const F = rt.flags;
+  if (rt.t < F.roadEngageAt) return;
+  F.roadEngageAt = rt.t + .5;
   for (const b of F.roadGuards || []) {
     const g = b.real;
     if (!g?.count || g.routed || b._roadEngaged) continue;
     const p = rt.player.u.pos, a = F.ake?.pos, c = b.pos;
     const near = Math.hypot(c.x - p.x, c.z - p.z) < 45 && !rt.army.wallBetween(c, -1, p, false) ||
-      a && Math.hypot(c.x - a.x, c.z - a.z) < 35 && !rt.army.wallBetween(c, -1, a, false);
+      a && Math.hypot(c.x - a.x, c.z - a.z) < 35 && !rt.army.wallBetween(c, -1, a, false) ||
+      rt.army.units.some(u => u.team === rt.player.u.team && passFighter(u) &&
+        Math.hypot(c.x - u.pos.x, c.z - u.pos.z) < 35 &&
+        !rt.army.wallBetween(c, -1, u.pos, false));
     if (!near) continue;
     b._roadEngaged = true;
     g.stay = false;

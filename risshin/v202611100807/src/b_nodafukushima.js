@@ -2553,6 +2553,10 @@ const nodafukushima = {
   bannerAllowed: (rt, text) => rt.over || !!rt.flags.ending || /討ち取|討死|崩れ|撤退|退き口を失|間に合わなかった/.test(text),
   // 11/4 jin（AR1・AW3・BA3）：史実の順（公記巻三）の一行を段ごとに固定する。「▼」「印」の字と、待つだけの言葉は使わない。
   missions: [...SUIRO.MISSIONS, ...NODA_STAGE_TEXT.slice(0, 4), TEPPO.MISSION, ...NODA_STAGE_TEXT.slice(4, 6), EGUCHI.MISSION],
+  // 陣の口が崩れた時は、目標の一覧と結果も実際の合流先にそろえる。
+  missionText(rt, k) {
+    return k === this.missions.length - 2 && rt.flags.retreatAlt ? '佐久間の列へ退き、合流せよ' : this.missions[k];
+  },
   // 11/4 jin（kaito 10/23・BH6）：▼の上に字を出さない。行き先は頭上の▼一つだけ。
   goalSignBare: true, goalSignNoLabel: true, goalSignOnly: true, meleeGuide: () => false,
   // 右上の一行の番号（15分の構成の段を挟んだ並び）。本の段は nodaBase
@@ -2576,7 +2580,7 @@ const nodafukushima = {
     if (SUIRO.stageOf(rt) != null || TEPPO.active(rt) || F.nodaEguchi) return this.missions[this.missionOf(rt)];
     // 退く先が替われば、任務と失敗の一行も合流先にそろえる。
     if (stage === 6 && !rt.tracker.main) return F.retreatAlt ? '佐久間の列へ合流できなかった' : '信長の本陣へ退き、守兵に合流できなかった';
-    if (stage === 5 && F.retreatAlt) return '佐久間の列へ退き、合流せよ';
+    if (stage === 5) return this.missionText(rt, this.missions.length - 2);
     return NODA_STAGE_TEXT[Math.min(5, stage)];
   },
   // 落城させない戦なので、砦の大将の印と、浅瀬で倒す相手を分ける。
