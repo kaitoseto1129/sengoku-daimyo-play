@@ -10,19 +10,27 @@ const ready = (u) => !!u && u.alive && u.hp > 0 && !u.dying && !u.downed && !u.g
 // 隊の敗走印だけで済みにしない。まだ射る兵がいれば、実際に討つか退かせる。
 const live = (g) => g && g.units.some(ready);
 
+export function prepare(rt, C) {
+  const v = rt.flags.m15;
+  if (v.yumiGs) return;
+  // 西の畦の射手も開戦時に置き、下知で射撃を始める。
+  const at = [{ x: -40, z: 2 }, { x: -50, z: -6 }];
+  v.yumiGs = at.map((q, i) => {
+    const g = C.enemyGroup(rt, { faction: 'saito', name: '斎藤の弓・鉄砲衆', fixed: true, anchor: q, facing: 0.5, fleeDir: { x: -0.4, z: -1 }, aggro: 4, speed: 2,
+      noRout: true, formation: 'line' }, i ? [{ type: 'gun', n: 4 }, { type: 'ashigaru', n: 2 }] : [{ type: 'samurai', n: 1 }, { type: 'bow', n: 5 }]);
+    g.fire = false; g.order = 'hold'; g.noAI = true;
+    return g;
+  });
+}
+
 export function tick(rt) {
   const F = rt.flags, v = F.m15, C = v.C;
   if (v.yumiDone || rt.over || F.ending) return;
   if (!v.yumiT) {
     if (F.stage !== 'hold' || rt.t - (F.holdStart ?? rt.t) < 30) return;
     v.yumiT = rt.t; v.ph = 'yumi';
-    const at = [{ x: -40, z: 2 }, { x: -50, z: -6 }];
-    v.yumiGs = at.map((q, i) => {
-      const g = C.enemyGroup(rt, { faction: 'saito', name: '斎藤の弓・鉄砲衆', fixed: true, anchor: q, facing: 0.5, fleeDir: { x: -0.4, z: -1 }, aggro: 4, speed: 2,
-        noRout: true, formation: 'line' }, i ? [{ type: 'gun', n: 4 }, { type: 'ashigaru', n: 2 }] : [{ type: 'samurai', n: 1 }, { type: 'bow', n: 5 }]);
-      g.fire = true; g.order = 'hold';
-      return g;
-    });
+    prepare(rt, C);
+    for (const g of v.yumiGs) { g.noAI = false; g.fire = true; g.order = 'hold'; }
     rt.marker('yumi', () => (v.yumiGs.find(live)?.center() || null), '左の畦の弓・鉄砲衆', { red: true });
     sfx('taiko', 0.7);
     rt.say('足軽', '左の畦に斎藤の弓と鉄砲が集まったぞ！　横から射すくめられる！', 3.4);

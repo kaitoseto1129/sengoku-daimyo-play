@@ -1398,8 +1398,16 @@ function bankTeppoPatrol(rt) {
   if (!g || F.step >= 2 && !F.adv || F.ending || F.advEnding || rt.t < (F.teppoPatrolAt || 0)) return;
   F.teppoPatrolAt = rt.t + 1;
   // 射撃禁止中に覚えている対岸の敵だけでは、見回りを止めない。
-  // 実際の射撃・装填と、射撃を許された相手への構えは妨げない。
-  if (g.units.some(u => bankFighterReady(u) && (u.atk || u.reload || g.fire && u.target?.alive))) return;
+  // 実際の射撃・装填と、射程内で戦える相手への構えは妨げない。
+  // 降伏して狙いから外れた者や射程外の敵を覚えているだけなら、見回りへ戻す。
+  if (g.units.some(u => {
+    if (!bankFighterReady(u)) return false;
+    if (u.atk || u.reload) return true;
+    const target = u.target;
+    return g.fire && target?.team !== u.team && bankFighterReady(target) &&
+      !target.noTarget && !target.civ && !target.downed &&
+      (target.pos.x - u.pos.x) ** 2 + (target.pos.z - u.pos.z) ** 2 <= u.range ** 2;
+  })) return;
   F.teppoPatrolSide = -(F.teppoPatrolSide || -1);
   g.anchor.x = 34 + F.teppoPatrolSide * 4;
   F.teppoPatrolAt = rt.t + 4;
