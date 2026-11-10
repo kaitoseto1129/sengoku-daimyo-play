@@ -3861,7 +3861,7 @@ const kanegasaki = {
     survival(rt, '金ヶ崎の殿を生き延びた');
     sfx('horagai', 0.8);
     // 11/10 kanegasaki_spec_1109：勝ちでなく「生きて帰れた」。結果は信長本隊の脱出と殿の生還の数
-    const hc = k15Hasami.headcount(rt);
+    const hc = k15Hasami.headcount(rt, KUTSUKI);
     rt.banner('退き口成る', rt.G.lord ? how : `信長本隊の脱出　成功・殿の組　${hc.n0}人のうち${hc.n1}人生還`);
     rt.say('木下藤吉郎', `${nm(rt)}、よう守った。手負いを支え、皆で帰るぞ`, 3);
     rt.player.u.invuln = true;

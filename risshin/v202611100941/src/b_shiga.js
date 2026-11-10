@@ -2318,12 +2318,12 @@ const shiga = {
     const previous = F.shigaEnemy;
     // 複数の印が同じ相手を使う。討死・潰走は待たずに拾い、見通しの検査だけ五分の一秒ごと。
     if (F.shigaEnemyPost === post && F.shigaEnemyStep === F.step && rt.t < F.shigaEnemyAt && (!previous ||
-        previous.alive && !previous.gone && !previous.dying && !previous.woundOut && !previous.rearWound &&
+        previous.alive && !previous.gone && !previous.dying && !previous.downed && !previous.woundOut && !previous.rearWound &&
         !previous.fleeing && !previous.noTarget && !previous.group?.routed &&
         (!post || post.test(previous.pos.x, previous.pos.z)))) return previous;
     let target = null, distance = 28 * 28;
     for (const u of rt.army.units) {
-      if (u.team === me.team || !u.alive || u.gone || u.dying || u.woundOut || u.rearWound || u.fleeing ||
+      if (u.team === me.team || !u.alive || u.gone || u.dying || u.downed || u.woundOut || u.rearWound || u.fleeing ||
           u.noTarget || u.invuln || u.isStruct || u.farSim || u.group?.routed || u.group?.civ ||
           F.step === 1 && u.group !== F.w1 && u.group !== F.w1b || Math.abs(u.pos.y - me.pos.y) > 3.5) continue;
       if (post && !post.test(u.pos.x, u.pos.z)) continue;

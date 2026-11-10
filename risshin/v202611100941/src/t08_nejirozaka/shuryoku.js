@@ -26,8 +26,11 @@ export function main(rt, H) {
     // ⑤ 土橋へ戻る：義珍の旗本の新手。藤堂・戸川が来て、最後に黒田・小早川が島津の横を突く
     hold({ at: { x: BREACH.x, z: BREACH.z - 4 }, dur: 110, limit: 150, r: 14, label: '土橋の塀', obj: STEP_TEXT[4],
       waves: [
+        // 到着してから初めて知らせず、三十秒前に使番が後詰の接近を伝える。
+        { t: 0, say: ['使番', '北の道に藤堂と宇喜多の旗！　高虎殿と戸川殿が砦へ向かっております！'], foes: () => [] },
         { t: 2, say: ['足軽', '島津の本手じゃ！　坂の下から新手が来る！'], foes: () => [{ name: '島津義珍の旗本', from: from(-6), list: [uS(4), uA(12)], noRout: 30 }] },
         { t: 30, foes: () => { H.todoArrive(rt); return [{ name: '島津の新手', from: from(20), off: { x: 10, z: 0 }, list: [uS(2), uA(10), uG(3)] }]; } },
+        { t: 40, say: ['物見', '東の尾根に藤巴と三つ巴！　黒田殿と小早川殿の後詰が近づいております！'], foes: () => [] },
         { t: 62, say: ['足軽', '西の塀にも島津が回った！'], foes: () => [{ name: '西から回った島津勢', from: { x: -78, z: -10 }, off: { x: -30, z: -10 }, list: [uS(2), uA(10)] }] },
         // 東の尾根から土橋の東脇へ歩いて着く時間を確保する。
         { t: 70, foes: () => { H.reliefArrive(rt); return []; } },

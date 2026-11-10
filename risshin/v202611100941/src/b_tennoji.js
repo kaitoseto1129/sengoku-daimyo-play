@@ -4019,7 +4019,8 @@ body:has(#hud.tennoji-tasks) #tc .tb[data-b=guard] .name {
             !(g.kidoRetreat && u.pos.z <= F.kz.z - 12) &&
             Math.hypot(u.pos.x - F.kz.x, u.pos.z - F.kz.z) < 18) threat++;
       }
-      for (const g of F.fighters) for (const u of g.units) {
+      // 必要人数と同じ追撃隊だけを数え、砦の守備隊で集合を満たさない。
+      for (const g of F.fighters) if (g === F.ake || F.relief.includes(g)) for (const u of g.units) {
         if (u.alive && !u.fleeing && !u.woundOut && Math.hypot(u.pos.x - F.kz.x, u.pos.z - F.kz.z) < 30) near++;
       }
       const d = Math.hypot(p.x - F.kz.x, p.z - F.kz.z);
