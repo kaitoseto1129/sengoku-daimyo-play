@@ -639,11 +639,12 @@ html:root body #hud#hud#hud.kashii-goals #h-prog#h-prog.goal-mode .pg-goals :is(
       if (c) {
         if (dist(c, P.pos) > 8) {
           // 遠くの敵への狙いを解き、走る主人公へ手勢も駆けて追い付く。
-          g.focus = null; g.order = 'move'; g.dest = { x: P.pos.x + 2, z: P.pos.z + 3 }; g.speed = 5;
+          g.focus = null; g.onArrive = null; g.keepMoveOrder = true;
+          g.order = 'move'; g.dest = { x: P.pos.x + 2, z: P.pos.z + 3 }; g.speed = 5;
         } else {
           // 追い付いた場所で戦う。出発点や途中の古い拠点へ戻らせない。
           g.anchor.x = P.pos.x + 2; g.anchor.z = P.pos.z + 3;
-          g.order = 'attack'; g.seekRange = 14;
+          g.keepMoveOrder = false; g.order = 'attack'; g.seekRange = 14;
         }
       }
     }
@@ -750,6 +751,20 @@ html:root body #hud#hud#hud.kashii-goals #h-prog#h-prog.goal-mode .pg-goals :is(
   botBrain(b, inp, { goTo, patientStrike, canStrike }) {
     const p = b.player, u = p.u, F = b.flags;
     if (F.holdPlayer || !F.step || F.ending) return;
+    // 味方が先に目標の隊を崩した時も、その場所へ出て槍を構える。
+    // 敵がいないと patientStrike を呼べず、参戦の判定を待ったまま止まっていた。
+    // 未到着・棒立ちの本人を済ませる条件は変えない。
+    const cleared = F.step === 1 ? F.hana1 && F.oka1 && !live(F.hana1) && !live(F.oka1)
+      : F.step === 3 ? F.hana && F.awa && !live(F.hana) && !live(F.awa)
+      : F.step === 4 ? F.oka && !live(F.oka) && !F.okaBack : false;
+    if (cleared) {
+      const t = F.step === 1 ? YASU : F.step === 3 ? VILLAGE : EAST;
+      if (p.lock) inp.e.add('KeyQ');
+      inp.guardHold = false;
+      goTo(p, inp, t.x, t.z, 2);
+      inp.leftPressed = dist(u.pos, t) < 6 && p.cd <= 0 && !p.pending && p.sta > p.maxSta * 0.35;
+      return;
+    }
     // 止めを主人公に任せる将も、手傷を負わせられる間は狙う。控えの淡輪は noTarget で外す。
     const ok = (o) => !o.fleeing && !o.noTarget && (!o.invuln || (F.step === 5 && o === F.hanaU)) && canStrike(p, o) && !o.rearWound && Math.abs(o.pos.y - u.pos.y) < 3;
     // ⑤：団右衛門が近ければ本人へ（侍衆が間にいればそちらから）
