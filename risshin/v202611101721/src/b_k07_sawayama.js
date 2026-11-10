@@ -747,7 +747,10 @@ html body #hud.enemy-action-guide:has(#h-prog[data-battle="k07_sawayama"]) #goal
         g.order = 'hold'; g.aggro = 3; g.seekRange = 3;
       }
       let n = 0;
-      for (const u of rt.army.units) if (u.alive && u.team === 0 && !u.isStruct && (u.pos.x - s.at[0]) ** 2 + (u.pos.z - s.at[1]) ** 2 < 100) n++;
+      const gateY = rt.world.heightAt(s.at[0], s.at[1]);
+      // 別の段の兵や、倒れた兵・退く兵は掛矢を打てない。門前で戦える寄せ手だけを数える。
+      for (const u of rt.army.units) if (u.alive && u.team === 0 && !u.isStruct && !u.fleeing && !u.downed && !u.dying && !u.woundOut && !u.gone &&
+        Math.abs(u.pos.y - gateY) < 3 && (u.pos.x - s.at[0]) ** 2 + (u.pos.z - s.at[1]) ** 2 < 100) n++;
       if (n >= 4) F.ramT[id] = (F.ramT[id] || 0) + dt;
       else F.ramT[id] = 0;   // 四人が門前を離れたら詰め直す。離れた前後の時間を足して破らない。
       if ((F.ramT[id] || 0) > 10 || rt.t - F.gateT0[id] > s.wait) {
