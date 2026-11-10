@@ -1383,6 +1383,8 @@ function nfBroken(rt, g) {
 }
 function nfRout(rt, g, dead) {
   for (const q of [g, g.cavalry, g.missiles]) {
+    // 寄せの到着処理を残すと、退き口で柵際へ戻ったり射撃を再開したりする。
+    q.onArrive = null; q.path = null; q.focus = null; q.fire = false; q.holdFire = true;
     q.noRout = false; q.morale = 0; q.routed = true; q.order = 'retreat'; q.dest = { x: 520, z: q.center().z }; q.fleeDir = { x: 1, z: 0 };
     for (const u of q.units) if (u.alive) {
       if (dead && u.type === 'busho' && !u.invuln) rt.army.kill(u, null);

@@ -57,6 +57,7 @@ export function tick(rt, dt, ctx) {
   if (left > Math.ceil(T.n0 * 0.3) && atGate < 40 && rt.t - T.at < 100) return true;
   T.done = true;
   const g = T.g;
+  g.onArrive = null; g.path = null; g.focus = null;
   g.noRout = false; g.morale = 0; g.routed = true; g.order = 'retreat'; g.dest = { x: 500, z: gz }; g.fleeDir = { x: 1, z: 0 };
   for (const u of g.units) if (u.alive) u.fleeing = true;
   rt.say('組頭', '先手が退いた！　だが後ろから真田の旗が来るぞ！', 3.4);

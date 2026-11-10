@@ -4,9 +4,9 @@
 //   惣門・山門に三十秒打撃が無ければ、既存の近い掛矢組を門前へ寄せ直す。実際の到着と打撃は本体の tickGateWorkers が扱う。
 // 兵は増やさない。字は台詞だけ。
 // ======================================================================
-// 討死の動作中は alive が残る。門を打てる兵だけを選び、倒れた打ち手は交代する。
+// 討死や戦場からの離脱後も alive が残る。門を打てる兵だけを選び、外れた打ち手は交代する。
 export function workerReady(u) {
-  return !!(u?.alive && u.hp > 0 && !u.dying && !u.fleeing && !u.woundOut &&
+  return !!(u?.alive && u.hp > 0 && !u.gone && !u.noTarget && !u.dying && !u.fleeing && !u.woundOut &&
     !u.rearWound && !u.downed && !u.keep && u.hand && u.wpn);
 }
 

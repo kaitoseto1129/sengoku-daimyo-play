@@ -116,7 +116,8 @@ const OWN = {
       { kind: 'stage', k: 3, text: '退く敵に続き、冠木門から御主殿へ攻め入る', noun: '冠木門', check: (r) => won(r) || dpi(r) >= X.sakamichi },
       { kind: 'stage', k: 4, text: '尾根の急な坂を、金子丸の下まで登る', noun: '尾根の坂', check: (r) => won(r) || dpi(r) >= X.kaneko, groups: cur(X.sakamichi) },
       { kind: 'stage', k: 5, text: '金子丸・高丸・小宮曲輪を落とす', check: (r) => won(r) || dpi(r) >= X.hon, count: () => null },
-      { ...bossGoal('中山勘解由'), k: 6, text: '本丸で中山勘解由を自分で討つ' },
+      // この戦は本人の止めが条件。共通の「他の者が討っても達成」を引き継がない。
+      { ...bossGoal('中山勘解由'), k: 6, text: '本丸で中山勘解由を自分で討つ', check: (r) => !!r._g5?.own.has('中山勘解由'), fail: (r) => !!r.over && !r._g5?.own.has('中山勘解由') },
       { kind: 'stage', k: 7, text: '本丸の奥で、最後まで残る城兵を討つ', noun: '本丸の奥', check: won, groups: cur(X.rakujo) },
     ];
   },

@@ -146,7 +146,8 @@ const k04_kuisegawa = {
     grass: 0xa49c66, grassTints: [0xffffff, 0xeadcb0, 0xc8c898], grassH: 1.1, grassLift: 0.2, grassShape: 'blade', tallGrass: 0.8,
     flagColors: [0xe6dfcc, 0x24211e, 0x5a4a36],
   },
-  sides: { a: { name: '東軍（中村・有馬）', mon: 'tokugawa' }, b: { name: '西軍（島・明石）', mon: 'ishida' } },
+  // 主人公の隊旗も中村の丸印。陣営の所属と家の旗を分け、葵を外様の隊へ戻さない。
+  sides: { a: { name: '東軍（中村・有馬）', mon: NAKA, faction: 'tokugawa' }, b: { name: '西軍（島・明石）', mon: 'ishida' } },
   // 両軍の残り（史実の数）：塊の名目から。まだ葦に伏せている西軍も数に入れる
   force(rt) {
     const F = rt.flags;

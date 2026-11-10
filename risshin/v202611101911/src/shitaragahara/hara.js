@@ -76,6 +76,7 @@ export function tick(rt, dt) {
   if (!end) return true;
   H.done = true;
   if (lord?.alive) { lord.invuln = false; rt.army.kill(lord, null); }
+  g.onArrive = null; g.path = null; g.focus = null;
   g.noRout = false; g.morale = 0; g.routed = true; g.order = 'retreat'; g.dest = { x: 500, z: gz }; g.fleeDir = { x: 1, z: 0 };
   for (const u of g.units) if (u.alive) u.fleeing = true;
   if (!lord?.shPlayerKill) rt.banner('原昌胤、討死', '柳田前へ寄せた原隊が退く');
