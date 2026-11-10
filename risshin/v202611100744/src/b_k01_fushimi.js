@@ -287,7 +287,7 @@ const k01_fushimi = {
     if (Math.hypot(p.x - at.x, p.z - at.z) < 12) return null;
     const T = rt.flags._gsT || (rt.flags._gsT = { x: 0, z: 0, label: '' });
     T.x = at.x; T.z = at.z;
-    T.label = (fighting || moving) ? (C.s.lbl || (m && typeof m.label === 'string' ? m.label : '') || '持ち場') : rest ? '次の持ち場' : typeof m.label === 'function' ? m.label() : m.label;
+    T.label = (fighting || moving) ? (C.s.lbl || (m && typeof m.label === 'string' ? m.label : '') || '持ち場') : rest ? rest.label : typeof m.label === 'function' ? m.label() : m.label;
     return T;
   },
   kumiLead: false,         // 組頭の印も出さない（AV15）
@@ -390,7 +390,7 @@ const k01_fushimi = {
     // ---- 包囲されていく（南→西→東と、遠くの旗が増える）
     rt.after(28, () => { rt.banner('七月十九日', '西の軍勢が伏見へ寄せる'); this.camps(rt, 1); });
     rt.after(31.5, () => { this.camps(rt, 2); rt.say('鳥居の侍', '……多いな。', 2.6); });
-    rt.after(35, () => { this.camps(rt, 3); rt.say('使番', '全周、敵勢！', 2.8); });
+    rt.after(35, () => { this.camps(rt, 2); rt.say('使番', '全周、敵勢！', 2.8); });
     rt.after(38, () => this.begin(rt));
   },
 
@@ -442,7 +442,7 @@ const k01_fushimi = {
         say: [['鳥居元忠', '二の丸へ！']],
         ambush: { d: 26, say: ['宇喜多の侍', '城兵が退くぞ！　付け入れ！'], foes: () => [keep('宇喜多勢の追い手', { x: 0, z: 58 }, 'ukita', [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 8 }, { type: 'gun', n: 2 }])] } }),
       // ④ 門を閉め、数秒の静けさ → 外から門を叩く音「また来る。」
-      DP.rest({ dur: 10, heal: 0.5, next: { x: -14, z: -7 },
+      DP.rest({ dur: 10, heal: 0.5, next: { x: -14, z: -7, label: '二の丸の西' },
         fn: (rt2) => {
           this.shut(rt2, 'ni_s'); this.delay(rt2, 10);
           for (const k of [4, 5.4, 6.8, 8.2]) rt2.after(k, () => sfx('knock', 0.8));
@@ -469,7 +469,7 @@ const k01_fushimi = {
         say: [['鳥居元忠', '本丸へ。門を閉めよ']],
         ambush: { d: 20, say: ['島津の侍', '残るは本丸ぞ！'], foes: () => [keep('二の丸を乗っ取った島津勢', { x: 0, z: -14 }, 'shimazu', [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 7 }])] } }),
       // ⑧ 本丸だけが残る。援軍は来ない。内藤の大旗が西の丸に倒れている
-      DP.rest({ dur: 14, heal: 0.6, next: { x: HON.x, z: HON.z - 1 },
+      DP.rest({ dur: 14, heal: 0.6, next: { x: HON.x, z: HON.z - 1, label: '本丸' },
         fn: (rt2) => {
           this.shut(rt2, 'hon_s'); this.burn(rt2); this.naitoFall(rt2);
           for (const nn of ['松平近正', '上林竹庵']) this.fall(rt2, nn);
@@ -699,7 +699,9 @@ const k01_fushimi = {
     if (i >= 9 && D.cur && F.toriiU) for (const g of D.cur.groups) if (!g._k01) { g._k01 = true; g.focus = F.toriiU; }
     // 守る段の刻を四十秒過ぎても、塀の外で詰まった寄せ手の残りが段を止めていた。残りは崩れて退く
     if (i >= 0 && D.cur && D.cur.s.kind === 'hold' && D.cur.k01Engaged && rt.t - D.cur.t0 > D.cur.s.max - 35 + 40) for (const g of D.cur.groups) if (g.count && !g.routed) { g.noRout = false; g.morale = 0; }
-    if (F.begun) this.camps(rt, 3);
+    // 石田の着陣は七月二十九日の知らせとそろえる。開戦直後に
+    // 全陣を出すと、二十二日の段から石田三成が城を囲んでしまう。
+    if (F.begun) this.camps(rt, i >= 3 ? 3 : i >= 1 ? 2 : 1);
     for (const g of [F.ukitaCamp, F.kobaCamp, F.shimaCamp, F.ishidaCamp, F.moriCamp, F.natsukaCamp]) if (g && g.count && g.order !== 'hold') { g.order = 'hold'; g.anchor = { ...g._home }; }
     const holding = i >= 0 && D.cur && D.cur.s.kind === 'hold';
     for (const g of [F.mine, ...(F.ieAway ? [] : [F.ie]), ...(F.sanGuard ? [] : [F.chika])]) if (g) g.stay = !!holding;
@@ -753,7 +755,7 @@ k01_fushimi.force = (rt) => {
 // 「敵の隊が崩れた」「味方の隊が崩れた」の札も出さない（八秒おきに出て、持ち場で果てる城方まで「崩れた」と出していた。森部の kaito 11/6 を全戦に）
 k01_fushimi.bannerAllowed = (rt, t) => !(((rt.flags.dp?.i ?? 0) >= 6 && /味方の兵が退き始めた/.test(t)) || /隊が崩れた/.test(t));
 // 本丸で城方が討ち減らされても「味方の旗へ寄れ」とは言わない（死守の城で退く先は無い）
-k01_fushimi.missionDangerSpeech = (rt) => ((rt.flags.dp?.i ?? 0) >= 6 ? '味方は討ち減らされた。ここが死に場所ぞ、元忠殿の旗の下で戦え' : '味方が討ち減らされておる。持ち場の旗の下へ寄れ');
+k01_fushimi.missionDangerSpeech = (rt) => ((rt.flags.dp?.i ?? 0) >= 11 ? '本丸の裏口へ。城を抜け、内府様へ届けよ' : (rt.flags.dp?.i ?? 0) >= 6 ? '味方は討ち減らされた。元忠殿の旗の下で戦え' : '味方が討ち減らされておる。持ち場の旗の下へ寄れ');
 k01_fushimi.sides = { a: { name: '徳川勢', mon: 'tokugawa' }, b: { name: '寄せ手', mon: 'ukita' } };
 k01_fushimi.date = (rt) => (rt.flags.burned ? '慶長五年（1600）八月一日　夕・本丸に火' : rt.flags.matsuBurned ? '慶長五年（1600）八月一日　昼・松の丸に火' : '慶長五年（1600）七月　初秋・昼');
 k01_fushimi.canSkip = (rt) => (rt.phase === 'brief' && rt.t > 3 ? '下知まで待つ' : '');

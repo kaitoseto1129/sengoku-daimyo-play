@@ -225,7 +225,7 @@ const OWN = {
   },
   // 山中城（11/3 p100_t09_yamanaka）：出丸→障子堀→馬出しの迎え撃ち→付け入り→本丸。人数を数えるのは出丸の一つだけ
   t09_yamanaka: () => [
-    { kind: 'stage', k: 0, text: '出丸の柵を破り、間宮康俊の手勢二百を討ち取る', noun: '間宮康俊の隊', check: (rt) => won(rt) || (rt.flags.step || 0) >= 2,
+    { kind: 'stage', k: 0, text: '出丸の柵を破り、間宮康俊を討って手勢二百の隊を崩す', noun: '間宮康俊の隊', check: (rt) => won(rt) || (rt.flags.step || 0) >= 2,
       // 本物の兵を二百体増やさず、出丸の手勢二百を代表する隊の損耗を示す。
       count: (rt) => KILLS.t09_yamanaka?.(rt) || null,
       groups: (rt) => (rt.flags.dai ? [rt.flags.dai] : []) },
