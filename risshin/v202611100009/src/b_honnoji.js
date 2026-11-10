@@ -2593,7 +2593,7 @@ const honnoji = {
       get noun() { return k === 3 && honnoLive?.phase === 'end1' ? '裏門' : noun0; },
       // ① は門を閉めてから（閉めずに奪われたのに ✓ を付けない。11/6 critic60）
       check: (q) => k === 4 ? honnoWon(q)
-        : honnoPast(q, after) && (k > 0 || !!q.flags.gMain) })),
+        : honnoPast(q, after) && (k > 0 || !!q.flags.gMain && (q.flags.gateHold || 0) >= 8) })),
   cameraVolumeView: true,
   sightBlocked(rt, a, p, ay, by, postMargin = 0) {
     const T = rt.flags.T, posts = T?.sightPosts;
@@ -4355,6 +4355,8 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
   gateDown(rt, burned = false) {
     const F = rt.flags;
     if (F.gDown) return;
+    // 門番の閉門だけで①を済ませず、本人が門の内で口を支えてから退く。
+    if ((F.gateHold || 0) < 8) return;
     F.gDown = true;
     const g = F.gMain;
     if (g && g.alive) { g.hp = 0; g.alive = false; rt.army.structFall(g); }
@@ -5306,7 +5308,9 @@ function honnoTick(def, rt, dt) {
     if ((F.gMain && Math.hypot(p.x - PT.gateIn.x, p.z - PT.gateIn.z) < 8) || F.gateOccupied >= 6 || t > 40) def.p3(rt);
   } else if (F.hp === 3) {
     const g = F.gMain;
-    if (Math.hypot(p.x - PT.gateIn.x, p.z - PT.gateIn.z) <= 7) F.gateHold = (F.gateHold || 0) + dt;
+    if (p.x < GATES.main.x && Math.hypot(p.x - PT.gateIn.x, p.z - PT.gateIn.z) <= 7 &&
+        Math.abs(p.y - rt.world.heightAt(PT.gateIn.x, PT.gateIn.z)) < 3 &&
+        !rt.army.wallBetween(p, -1, PT.gateIn)) F.gateHold = (F.gateHold || 0) + dt;
     // 波と波の間も、門前に十人ほどの敵がいる厚さを保つ（減れば門の外から次の寄せ手が詰める）
     if (t > 8 && (F.topScan = (F.topScan || 0) - dt) <= 0) {
       F.topScan = 1;
@@ -5318,7 +5322,8 @@ function honnoTick(def, rt, dt) {
       }
     }
 
-    rt.objProgress('main', F.patrolDistance > 10 ? '廊下の出口から回廊へ。道の印を追い、表門の内へ進め'
+    rt.objProgress('main', (F.gateHold || 0) < 8 ? '表門の内で、上様と共に門の口を支えよ'
+      : F.patrolDistance > 10 ? '廊下の出口から回廊へ。道の印を追い、表門の内へ進め'
       : g && g.alive ? (g.hp < g.maxHp * 0.3 ? '門がきしむ。上様の前で構え、退く下知を待て' : '門の内で構え、本堂へ退く下知を待て') : '門の口から離れ、味方の後ろで構えよ');
     if (t >= 38 && ((g && !g.alive) || t >= 50 && honPlayed(rt) || (!g && F.foes.some((q) => q.units.some((u) => u.alive && u.pos.x < GATES.main.x - 2 && Math.abs(u.pos.z - GATES.main.z) < 6))))) def.gateDown(rt);   // 一分で門は破られる（四〜七分に収める）
   } else if (F.hp === 4) {
