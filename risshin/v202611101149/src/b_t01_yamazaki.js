@@ -161,13 +161,17 @@ function yamGoalBoard(rt) {
   const style = document.createElement('style');
   style.textContent = YAM_BOARD_CSS;
   document.head.appendChild(style);
-  const progress = hud.progress;
+  const progress = hud.progress, goalsList = rt.def.goalsList;
   hud.progress = function (battle) {
     // 序（備中の本陣と大返し）の間は山崎の目標の並びと両軍の数を出さない（その幕の一行だけ）
     const pre = battle === rt && !rt.flags.stage;
     hud.root.classList.toggle('yam-goals', !pre);
     if (pre && this.prog) this.prog.classList.remove('goal-mode');
-    if (battle === rt) rt.def.goalsAllRows = !pre;
+    if (battle === rt) {
+      rt.def.goalsAllRows = !pre;
+      // 共通の戦の札は goalsAllRows が偽でも一覧を描く。序では一覧そのものを止める。
+      rt.def.goalsList = pre ? false : goalsList;
+    }
     const out = progress.call(this, battle);
     if (battle === rt && this.prog && !rt.over && !pre) {
       const def = rt.def, one = def.missionSingleLine;
@@ -180,6 +184,7 @@ function yamGoalBoard(rt) {
   const dispose = rt.dispose;
   rt.dispose = function () {
     hud.progress = progress;
+    rt.def.goalsList = goalsList;
     rt.def.goalsAllRows = true;
     if (hud.prog) hud.prog.classList.remove('goal-mode');
     hud.root.classList.remove('yam-goals'); style.remove();

@@ -3328,8 +3328,9 @@ function withstand(o) {
     // 味方が一人下っただけで殿を解かない。刻限を過ぎても、生きて坂に残る味方を先に通す。
     const covered = !o.cover || C.coverRemaining === 0;
     const waitingAllies = o.cover && C.coverRemaining > 0;
-    // 時が来れば物語は進む（三方ヶ原は押し潰される戦。守りが足りなければ✕のまま次へ）
-    if (o.cap && el >= o.cap) return true;
+    // 寄せ手が遠方に残っても、守りと味方の通過を果たした後は刻限で進める。
+    // 本人が不在のまま、または下る味方を残したまま時間だけで終えない。
+    if (o.cap && el >= o.cap && defended && covered) return true;
     return defended && covered && !waitingAllies && C.waves.length === 0 && (el >= o.dur || cleared || o.cover && C.inT >= 20 && el >= 26);
   };
   s.end = (rt, C, m) => {
