@@ -1,0 +1,65 @@
+// 戦ごとの兵力の表（kaito 10/30 夜中「各戦の兵力が本当にいると感じる軍勢の多さ」）。
+//   史料に出る両軍の数（概数・諸説の中ほど。遊びの補いで、厳密な復元ではない）から、遠くの軽い大軍の厚み（後詰めの層）を決める。
+//   使い道は見せ物だけ：world_army.js の後詰め（armyHost）の人数と奥行き。戦の兵力の数・本物の兵・置き換え・bot には入れない。
+//   各戦の b_*.js は何もしなくても、def.key（battleKey）からここの倍率が効く。新しい戦はこの表に一行足す。
+import { MEM_TIGHT } from './settings.js';
+
+// [味方の数, 敵の数]（その戦場に居た両軍。城の内外・後詰めを含む）
+export const ARMY_STRENGTH = {
+  inou: [700, 1700],              // 稲生は触らない（mini の作り直し）。倍率 1
+  okehazama: [2000, 25000],       // 始まりの札・兵力の棒・布陣の二千にそろえる
+  moribe: [1500, 6000],
+  sunomata: [3000, 6000],
+  inabayama: [20000, 5000],
+  mitsukuri: [50000, 3000],
+  okawachi: [70000, 8000],
+  kanegasaki: [30000, 20000],
+  anegawa: [28000, 13000],        // 11/6：画面の二万八千 対 一万三千（信長公記の浅井五千・朝倉八千）と揃える
+  nodafukushima: [40000, 13000],
+  shiga: [3000, 30000],           // 宇佐山の森可成は千ほどで浅井・朝倉三万に囲まれる
+  hieizan: [30000, 4000],
+  mikatagahara: [11000, 27000],
+  tonezaka: [30000, 20000],
+  odani: [30000, 5000],
+  nagashima: [70000, 30000],      // 11/5：織田は通説七〜八万（表示の七万と揃える）。一揆は中江・屋長島の男女二万と長島の退城の者（docs/battle_learn/nagashima.md）
+  shitaragahara: [38000, 15000],  // 長篠・設楽原。武田の騎馬が次々と寄せる
+  echizen: [30000, 20000],   // 11/4：織田は信長公記の『三万余』。一揆は数の記録が無く、討たれた・捕らわれた者は一万二千余（docs/battle_refs/echizen.md）
+  echizen_ikko: [30000, 10000],
+  iwamura: [30000, 3000],
+  tennoji: [3000, 15000],         // 天王寺砦は本願寺の一万五千に囲まれる（信長の後詰め三千）
+  saika: [100000, 10000],   // 11/4：織田は十万余と伝わる大軍（山手・浜手）。雑賀は二千以上〜一万と諸説（docs/battle_refs/saika.md）
+  tedorigawa: [30000, 25000],
+  shigisan: [40000, 8000],
+  kizugawa: [8000, 12000],
+  miki: [7500, 8000],
+  arioka: [25000, 5000],   // 11/6 信忠が九月に半ばを尼崎へ。十月の囲み二万五千・城兵五千前後（battle_learn/arioka.md）
+  iga: [30000, 10000],             // 11/4：丹羽・滝川が着いた後の比自山の織田三万余。伊賀は戦える者三千五百と逃げ込んだ者で約一万（docs/battle_learn/iga.md 二）
+  tottori: [20000, 4000],
+  takato: [50000, 3000],
+  tano: [5000, 500],
+  honnoji: [13000, 100],
+};
+
+const REF = 10000;   // この数（両軍の合計）で倍率 1。十倍で一番厚く
+// 記憶が足りず実機で落ちた戦（mini 10/30 朝：小谷・設楽原・大河内）は増やさない
+const KEEP = new Set(['inou', 'odani', 'shitaragahara', 'okawachi']);
+// 両軍の合計から後詰めの厚みの倍率（1〜1.8）。携帯（MEM_TIGHT）は増やさない（mini 10/30：記憶と fps を前より増やさない）
+export function armyScale(key) {
+  const s = ARMY_STRENGTH[key];
+  if (!s || KEEP.has(key) || MEM_TIGHT) return 1;
+  const total = s[0] + s[1];
+  const f = Math.max(1, Math.min(1.8, 1 + 0.8 * Math.log10(total / REF)));
+  return f;
+}
+if (typeof window !== 'undefined') window.__armyScale = armyScale;
+// 敵の後詰めを寄せて厚くする（10/30「敵の大軍が小さい・遠い」）。足す数はパソコン 1.5 倍、携帯（MEM_TIGHT）はその半分（1.25 倍）。
+//   設楽原・木津川口は mini が落ちを直している間は触らない（記憶の少ない小谷・大河内も同じ）
+const FOE_KEEP = new Set(['shitaragahara', 'kizugawa', 'odani', 'okawachi']);
+export const foeNearOn = (key) => !FOE_KEEP.has(key);
+export function foeHostScale(key) {
+  return FOE_KEEP.has(key) ? 1 : MEM_TIGHT ? 1.25 : 1.5;
+}
+// 敵の隊に後詰めを付ける人数の下限（携帯は前のまま 60 人から）
+export const foeHostMin = () => (MEM_TIGHT ? 60 : 24);
+// 一つの戦の敵の後詰めの人数の上限（近い視点では後詰めを作らないので、これがそのまま足す重さ）。携帯は半分
+export const foeHostBudget = (key) => (FOE_KEEP.has(key) ? 0 : MEM_TIGHT ? 700 : 1400);
