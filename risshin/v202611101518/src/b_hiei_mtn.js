@@ -20,7 +20,7 @@ import { lookParts } from './units.js';
 import { sakamogi, paintGeo, jinmaku, stoneStepGeo, solidCircle } from './props.js';
 import { flagTexture } from './textures.js';
 import { RANKS } from './state.js';
-import { sightPoint } from './battle_sight.js';
+import { sightPoint, sightScreenUnit } from './battle_sight.js';
 import { goalsTick } from './hud_goals.js';
 import { battleEvent, EVENT_FIRE_START } from './battle_events.js';
 import { runnerBlocked } from './denrei.js';
@@ -2587,9 +2587,9 @@ const hiei_mtn = {
   quietMiss: true,
   keepBattleSigns: true, // 行き先の案内中も、武将名・人数の棒・目標一覧と敵全員の赤い▼を残す。
   enemyTriangleSigns: true,
-  // 敵全員の印は共通処理だけで描く。非戦の者と戦列を離れた者には付けない。
+  // 堂や斜面の陰でカメラから体が隠れる敵は透視しない。主人公からの見通しだけでは印が堂の上に残る。
   enemySignVisible: (rt, u) => !rt.flags.ending && !u.civ && !u.downed && !u.rearWound
-    && !u.fleeing && !u.group?.routed,
+    && !u.fleeing && !u.group?.routed && sightScreenUnit(rt, u),
   nearbyAllySignLimit: 0,
   noDodgeCard: true,
   noCouriers: true,
