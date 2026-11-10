@@ -4460,7 +4460,7 @@ function okChaseTick(rt) {
 function okGateStones(rt, dt) {
   const F = rt.flags, u = rt.player.u, stone = F.gateStone;
   const attacking = F.step === 1 && F.assaultMoving || F.step === 2 || F.step === 2.5;
-  if (F.ending || rt.over || !attacking || !u?.alive) {
+  if (F.ending || rt.over || !u?.alive) {
     if (stone) stone.mesh.visible = false;
     return;
   }
@@ -4486,7 +4486,8 @@ function okGateStones(rt, dt) {
     }
     return;
   }
-  if (rt.t < (F.stoneAt || 0)) return;
+  // 退き太鼓で段が替わっても、既に飛ぶ石は着地まで残す。新たな投石だけを止める。
+  if (!attacking || rt.t < (F.stoneAt || 0)) return;
   F.stoneAt = rt.t + 1;
   // 傷を負っても守り手は狙い続ける。竹束の陰か、落下点からの移動で避ける。
   if (Math.hypot(u.pos.x - GATE.x, u.pos.z - GATE.z) > 35) return;

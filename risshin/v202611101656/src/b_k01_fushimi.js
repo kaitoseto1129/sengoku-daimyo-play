@@ -168,18 +168,19 @@ const PLAN = {
     { kind: 'karabori', pts: [[-22, -27], [-7, -27]], w: 5, deep: 2.6 }, { kind: 'karabori', pts: [[7, -27], [24, -27]], w: 5, deep: 2.6 },
   ],
   koguchi: [
+    // 櫓門は室内・通路と同じ形を保つ。固定の扉を含む別の門を重ねない。
     // 大手門：御香宮の表門（伝・伏見城の大手門）の薬医門の形
     { id: 'ote_s', name: '大手門', from: 'out', to: 'ote', kind: 'hira', at: [0, 84], rot: 0, w: 5, gate: 'yakui' },
     { id: 'ote_n', name: '大手の奥の木戸', from: 'ote', to: 'out', kind: 'hira', at: [0, 60], rot: 0, w: 5 },
-    { id: 'san_s', name: '三の丸の虎口', from: 'out', to: 'san', kind: 'hira', at: [0, 46], rot: 0, w: 5, gate: 'yagura' },
+    { id: 'san_s', name: '三の丸の虎口', from: 'out', to: 'san', kind: 'hira', at: [0, 46], rot: 0, w: 5, gate: 'yagura', noKit: true },
     { id: 'san_n', name: '三の丸の奥の口', from: 'san', to: 'out', kind: 'hira', at: [0, 20], rot: 0, w: 4.4 },
-    { id: 'ni_s', name: '二の丸の口', from: 'out', to: 'ni', kind: 'hira', at: [0, 4], rot: 0, w: 4.4, gate: 'yagura' },
+    { id: 'ni_s', name: '二の丸の口', from: 'out', to: 'ni', kind: 'hira', at: [0, 4], rot: 0, w: 4.4, gate: 'yagura', noKit: true },
     { id: 'ni_n', name: '二の丸の奥の口', from: 'ni', to: 'out', kind: 'hira', at: [0, -20], rot: 0, w: 4.4 },
     // 塀の隙間だけでは切岸が残る。東西からの寄せにも坂を通す。
     { id: 'ni_e', name: '二の丸の東の口', from: 'out', to: 'ni', kind: 'hira', at: [24, -12], rot: Math.PI / 2, w: 5 },
     { id: 'ni_w', name: '二の丸の西の口', from: 'out', to: 'ni', kind: 'hira', at: [-24, -12], rot: Math.PI / 2, w: 5 },
     { id: 'matsu_w', name: '松の丸の西の口', from: 'matsu', to: 'out', kind: 'hira', at: [26, -13], rot: Math.PI / 2, w: 5 },
-    { id: 'hon_s', name: '本丸の口', from: 'out', to: 'hon', kind: 'hira', at: [0, -34], rot: 0, w: 4.4, gate: 'yagura' },
+    { id: 'hon_s', name: '本丸の口', from: 'out', to: 'hon', kind: 'hira', at: [0, -34], rot: 0, w: 4.4, gate: 'yagura', noKit: true },
     // 隙間だけでは切岸が急なまま残る。門を建てず、崩れた石垣の
     // 通り道にも他の口と同じ坂を作って城外へつなぐ。
     { id: 'hon_n', name: '本丸の裏口', from: 'hon', to: 'out', kind: 'hira', at: [0, -62], rot: 0, w: 5 },
