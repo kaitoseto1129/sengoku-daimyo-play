@@ -549,6 +549,8 @@ const k07_sawayama = {
     F.udaT = rt.t + 0.5;
     // 宇多が討たれたら隊は主を失って崩れる（史実の決まり：組の頭が討たれた組は退く）。前は崩れない（noRout 400）ままで、討った後も八十秒斬り合いが続いた（11/6 流し）
     if (F.udaDead) { for (const g of D.cur.groups) if (g.count && !g._udaLost) { g._udaLost = true; g.noRout = false; g.morale = Math.min(g.morale ?? 50, 8); } }
+    // 一度入っても、曲輪を離れた間は南へ出た兵の整理や討死の保険を動かさない。
+    if (!D.cur.k07Inside) return;
     // 段の初めの十五秒は数えない：出た一コマで宇多が「南へ抜けた」と見なされて果て、④の斬り合いが無いまま段が済んだ（11/6 流しで再び出た）
     // 門の外で待った時間では討死させない。主人公が曲輪に入ってからの斬り合いを数える。
     const el = D.cur.k07FightTime || 0;
