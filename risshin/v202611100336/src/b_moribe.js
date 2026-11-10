@@ -2931,8 +2931,8 @@ const moribe = {
   hatamotoTarget(rt) {
     const F = rt.flags;
     if (F.stage !== 'press' || F.ownHatamoto || F.ending) return null;
-    const prev = F.signTarget;
-    if (prev?.type === 'samurai' && (prev.group === F.HM || prev.group === F.HN) && moribeRemainFoe(prev)) return prev;
+    const prev = F.hatamotoGuide;
+    if (prev?.type === 'samurai' && (F.HM?.units.includes(prev) || F.HN?.units.includes(prev)) && moribeRemainFoe(prev)) return prev;
     const p = rt.player.u.pos;
     let target = null, best = Infinity;
     for (let i = 0; i < 2; i++) {
@@ -2944,6 +2944,7 @@ const moribe = {
         if (d < best) { best = d; target = u; }
       }
     }
+    F.hatamotoGuide = target;
     return target;
   },
   // ピン・▼・名前は同じ本人へ。描画の間引きで相手を替えない。
@@ -2952,24 +2953,8 @@ const moribe = {
     if (F.stage !== 'press' || F.pursuit || F.ending) return null;
     // 目標④は旗本の侍。手柄を立てるまでは大将だけへ誘導しない。
     // 同じ侍を討つまで保ち、倒れたら残る旗本から近い一人を選ぶ。
-    if (!F.ownHatamoto) {
-      const previous = F.hatamotoGuide;
-      if (previous?.type === 'samurai' && moribeRemainFoe(previous) &&
-          (F.HM?.units.includes(previous) || F.HN?.units.includes(previous))) return previous;
-      const p = rt.player.u.pos;
-      let target = null, best = Infinity;
-      for (let i = 0; i < 2; i++) {
-        const g = i === 0 ? F.HM : F.HN;
-        if (!g) continue;
-        for (const u of g.units) {
-          if (u.type !== 'samurai' || !moribeRemainFoe(u)) continue;
-          const d = (u.pos.x - p.x) ** 2 + (u.pos.z - p.z) ** 2;
-          if (d < best) { best = d; target = u; }
-        }
-      }
-      F.hatamotoGuide = target;
-      if (target) return target;
-    }
+    const hatamoto = this.hatamotoTarget(rt);
+    if (hatamoto) return hatamoto;
     for (let i = 0; i < 2; i++) {
       const g = i === 0 ? F.HM : F.HN;
       if (!g) continue;
@@ -3046,8 +3031,8 @@ const moribe = {
     // 上陸後に川へ戻った時も、今いる岸に合わせて案内する。
     const beforeSignal = !rt.flags.signal;
     const atFord = beforeSignal && playerAtFord(rt.player.u.pos, rt.world);
-    const openingText = beforeSignal ? rt.flags.fordThreat ? '川岸で斎藤の敵を止める' :
-      atFord ? '向こう岸で仲間を待つ' : '楡俣川を渡る' : null;
+    const openingText = beforeSignal ? rt.flags.fordThreat ? '楡俣川の岸で斎藤の敵を止める' :
+      atFord ? '楡俣川の北岸の畦で仲間を待つ' : '楡俣川を渡る' : null;
     // 11/4 moribe（標準 三-1・三-3）：右上は番号つきの目標（goals5）の今の一行を戦の間ずっと出す。
     //   「▼の敵を倒せ」「耐えろ」「仲間を待て」のような場所の無い言い方はやめる（11/6 fix3：質の直しで消えたのを戻した）。
     const f = fiveGoals(rt);

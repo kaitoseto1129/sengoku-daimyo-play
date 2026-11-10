@@ -203,6 +203,8 @@ const k12_kashii = {
   noTaisho: true,
   noReserve: true,
   foeMarks: true,
+  // 控えの将も敵の所属は見せる。攻撃を受け付ける指定とは分ける。
+  foeMarkVisible: (rt, u) => u === rt.flags.hanaU || u === rt.flags.awaU,
   nameTagLimit: 7,        // 亀田・上田・知近・長晟・塙・淡輪・岡部の名を、近い二人だけの枠で消さない（九3・五2）
   waitForPortrait: true,  // 顔が撮れるまで影を出さず、撮れた顔を一度だけ表示する（五6）
   stageGoalsOnly: true,    // 目標は五つの段だけ（「敵を何人討つ」で埋めない。三1）
@@ -732,10 +734,11 @@ html:root body #hud#hud#hud.kashii-goals #h-prog#h-prog.goal-mode .pg-goals :is(
   },
 
   // bot：近い敵を突き、いなければ段の行き先へ
-  botBrain(b, inp, { goTo, patientStrike }) {
+  botBrain(b, inp, { goTo, patientStrike, canStrike }) {
     const p = b.player, u = p.u, F = b.flags;
     if (F.holdPlayer || !F.step || F.ending) return;
-    const ok = (o) => !o.fleeing && !o.invuln && !o.noTarget && !o.woundOut && !o.rearWound && Math.abs(o.pos.y - u.pos.y) < 3;
+    // 止めを主人公に任せる将も、手傷を負わせられる間は狙う。控えの淡輪は noTarget で外す。
+    const ok = (o) => !o.fleeing && !o.noTarget && (!o.invuln || (F.step === 5 && o === F.hanaU)) && canStrike(p, o) && !o.rearWound && Math.abs(o.pos.y - u.pos.y) < 3;
     // ⑤：団右衛門が近ければ本人へ（侍衆が間にいればそちらから）
     const H = F.step === 5 && F.hanaU?.alive && Math.hypot(F.hanaU.pos.x - u.pos.x, F.hanaU.pos.z - u.pos.z) < 14 ? F.hanaU : null;
     const e = F.step === 2 ? null : (b.army.nearestEnemy(u, H ? 3 : 9, ok) || H);

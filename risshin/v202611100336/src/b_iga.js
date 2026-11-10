@@ -1451,6 +1451,13 @@ function heightRaw(x, z) {
 const IGA_GOALS = ['麓の陣の口で、消火の組を守り、夜討ちの伊賀衆を防げ', '陣の口で、林から出る伊賀衆を防げ',
   '南の土橋へ登り、伊賀衆を止めよ', '麓の陣へ退き、夜討ちを防げ', '空の主郭から北の曲輪を調べよ'];
 const igaPlayed = (rt) => rt.stats.kills > 0 || rt.stats.dist >= 20;
+function igaRaidPostHeld(rt) {
+  const p = rt.player.u.pos;
+  // 歩いた記録だけで、陣を離れた本人の守備を済ませない。
+  // 後の夜討ちと同じく、陣口とその外縁六歩までを帰陣の範囲とする。
+  return igaPlayed(rt) && Math.hypot(p.x - CAMP.x, p.z - CAMP.z) <= 22 &&
+    Math.abs(p.y - rt.world.heightAt(CAMP.x, CAMP.z)) < 3;
+}
 const iga = {
   resumeSteps: [[1, 'raid'], [2, 'assault'], [3, 'withdraw']],   // 戦の途中の保存（battle_checkpoint.js）：段の始まりを、段の関数を順に流して作り直す
   // 登れる物見の張り出した床を、井桁から腕木と方杖で受ける推定復元。
@@ -2611,7 +2618,7 @@ const iga = {
         this.lose(rt, '陣を守る味方が崩れ、陣を退く'); return;
       }
       // 消火と陣の保持が役目。林や切岸に残る一人の全滅を求め、消火済みでも時間で負けにしない。
-      if (F.doused >= 3 && igaPlayed(rt) && (foes || w >= 45 && L.every((g) => g.igaSent))) {
+      if (F.doused >= 3 && igaRaidPostHeld(rt) && (foes || w >= 45 && L.every((g) => g.igaSent))) {
         if (!foes) rt.say('丹羽の組頭', '火は消え、陣は持ちこたえた。敵が退くぞ。追うな', 4);
         this.midA(rt); return;
       }

@@ -3294,7 +3294,8 @@ const tonezaka = {
     const p = rt.player.u.pos;
     // 11/6 fixc2220（九2・一3）：noAI の組は「攻めよ」の下知だけでは動かない。押し出す組は三秒ごとに主人公の居る所へ道を引き直し、着けば槍を合わせる。
     //   向かう先は主人公か、より近い戦える味方。六歩まで寄せ、槍が届く前に列を止めない。
-    for (const g of [F.r1, F.r1b, F.r2, F.r3, F.r2c, F.r3c, F.r4, F.townG, F.innerG]) {
+    // 街道の返し合わせも終点で止めず、近い追手へ押し出す。
+    for (const g of [F.r1, F.r1b, F.r2, F.r3, F.r2c, F.r3c, F.r4, F.roadG, F.townG, F.innerG]) {
       if (!g || !g._charge || !fighting(g) || rt.t < (g._chargeAt || 0)) continue;
       g._chargeAt = rt.t + 3; g.aggro = 20; g.seekRange = 40;
       const c = g.center(), groundY = rt.world.heightAt(c.x, c.z);
