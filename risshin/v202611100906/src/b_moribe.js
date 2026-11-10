@@ -2839,27 +2839,29 @@ function moribeTargetVisible(rt, enemy) {
 // 前に見える敵が無い時は、残り人数に数える隊の最寄りの一人（稲生の approachUnit と同じ考え）。
 //   向き・見通しで外さず、ピンが画面の端からその方向を示す。選び直しは四分の一秒に一度。
 const moribeRemainFoe = (u) => u?.alive && u.hp > 0 && !u.gone && !u.dying && !u.downed && !u.rearWound && !u.fleeing && !u.woundOut && !u.noTarget && !u.isStruct && !u.civ;
+const moribeGuideFoe = (F, u) => moribeRemainFoe(u) && (!F.pursuit || F.shingari?.includes(u.group));
 function moribeNearestFoe(rt) {
   const F = rt.flags, p = rt.player.u.pos;
-  if (rt.t < (F.remainAt || 0) && F.remainStage === F.stage && moribeRemainFoe(F.remainFoe)) return F.remainFoe;
+  if (rt.t < (F.remainAt || 0) && F.remainStage === F.stage && moribeGuideFoe(F, F.remainFoe)) return F.remainFoe;
   F.remainAt = rt.t + .25; F.remainStage = F.stage;
   let chosen = null, best = Infinity;
   const pick = (g) => {
-    if (!g || gone(g)) return;
+    if (!g || (!F.pursuit && gone(g))) return;
     for (const u of g.units) {
-      if (!moribeRemainFoe(u)) continue;
+      if (!moribeGuideFoe(F, u)) continue;
       const d = (u.pos.x - p.x) ** 2 + (u.pos.z - p.z) ** 2;
       if (d < best) { best = d; chosen = u; }
     }
   };
-  if (F.stage === 'contact' && !F.vBroken) pick(F.V);
+  if (F.pursuit) for (const g of F.shingari || []) pick(g);
+  else if (F.stage === 'contact' && !F.vBroken) pick(F.V);
   else for (const g of F.opposition || []) {
     if ((g === F.reserves?.[0] && !F.wave1) || (g === F.reserves?.[1] && !F.wave2) || (g.hatamoto && F.stage !== 'press')) continue;
     pick(g);
   }
   // 少しの前後では替えず、追う相手を保つ。
   const prev = F.remainFoe;
-  if (chosen && prev !== chosen && moribeRemainFoe(prev) && (F.stage !== 'contact' || F.vBroken || prev.group === F.V)) {
+  if (chosen && prev !== chosen && moribeGuideFoe(F, prev) && (F.stage !== 'contact' || F.vBroken || prev.group === F.V)) {
     const dp = (prev.pos.x - p.x) ** 2 + (prev.pos.z - p.z) ** 2;
     if (Math.sqrt(best) + 3 >= Math.sqrt(dp)) chosen = prev;
   }
@@ -2981,6 +2983,8 @@ const moribe = {
     // 討ち取りの段では、離れた一般兵へ印を乗り換えない。
     const hatamoto = this.hatamotoTarget(rt);
     if (hatamoto) { F.signTarget = hatamoto; return hatamoto; }
+    // 追い討ちの目標は殿。近い別働隊や、直前まで追っていた敵へ印を戻さない。
+    if (F.pursuit) { F.signTarget = moribeNearestFoe(rt); return F.signTarget; }
     if (F.stage === 'press' && !F.pursuit) {
       const u = this.commanderTarget(rt);
       if (u) { F.signTarget = u; return u; }

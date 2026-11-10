@@ -9,7 +9,7 @@ import { enemyGroup } from '../bhelp.js';
 import { sfx } from '../audio.js';
 
 // 本筋の残兵判定とそろえ、倒れた者・後送された者・敗走した組を追わせない。
-const ready = (u) => u.alive && !u.gone && !u.fleeing && !u.woundOut && !u.rearWound && !u.downed && !u.group?.routed;
+const ready = (u) => u.alive && !u.gone && !u.dying && !u.fleeing && !u.woundOut && !u.rearWound && !u.downed && !u.group?.routed;
 
 const LOOK = { x: -4, z: -18 };   // 物見の場（川べりの竹束の脇）
 

@@ -530,9 +530,10 @@ export function jkTick(rt, root, dt) {
   // 戦の進行の札
   let goal = null;
   if (progOn) {
-    // 11/9 kaito：右上のミッションは同時に三つまで。今の段を含む三つ（直前の済み・今・次）だけを見せる
+    // 通常は今の段を含む三つ。河田など、並びを残す戦は定義の表示件数に従う。
     const allRows = stg.rows, nowI = Math.max(0, allRows.findIndex((r) => r.state === 'now'));
-    const from = Math.max(0, Math.min(nowI - 1, allRows.length - 3)), shownRows = allRows.slice(from, from + 3);
+    const visibleRows = Math.max(1, Math.min(5, Math.floor(def.goalsVisibleRows || 3)));
+    const from = Math.max(0, Math.min(nowI - 1, allRows.length - visibleRows)), shownRows = allRows.slice(from, from + visibleRows);
     put(s, 'rows', shownRows.map((r) => r.state + r.text).join('|'), () => {
       s.list.innerHTML = shownRows.map((r) => `<li class="${r.state}" aria-label="${r.state === 'done' ? '済み：' : 'まだ：'}${r.text}"><i>${goalIcon(r.state)}</i><span>${r.text}</span></li>`).join('');
     });

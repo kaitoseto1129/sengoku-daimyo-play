@@ -36,6 +36,7 @@ import { timeslipField } from './timeslip_field.js';
 import { revealName } from './battle_intel.js';
 import { addTaba, patchGunCover, tickTabas } from './taketaba.js';
 import { makeRockTraps } from './siege_rocks.js';
+import { sectionTaken } from './siege_path.js';
 
 const HAS_DEM = false;
 let dem = null;
@@ -272,7 +273,7 @@ const k07_sawayama = {
   fearKind: { kind: '山城の死守', note: '狭い尾根で上から撃たれる', w: { losses: 1.4, flank: 1.2 }, line: '上から矢が来るぞ！' },
   noFrontFill: true,       // 見せかけの軍勢（奥の軽い乱戦・自動の大軍）を重ねない（AA・AF・AP9・AQ6）。見える兵は全部本物
   noDistantBattle: true,
-  cutFloor: 0.5,
+  playerTaken: 0.5,   // 一太刀の最低被害にも半減を通す。入口で半減すると共通の六割の床で上書きされる。
   meleeGrace: { rate: 1, burst: 1, interval: 3 },   // 刃を受けた後の3秒は次の刃を通さない（bot が続けての太刀で倒れて負けた）
   noWake: true,
   // 11/8 critic60：台詞の字が一つも出ず、長谷川の寝返りも天守の炎上も分からなかった（声だけの戦の決まりを外す）
@@ -352,7 +353,6 @@ html body #hud.enemy-action-guide:has(#h-prog[data-battle="k07_sawayama"]) #goal
       document.head.appendChild(st);
     }
     timeslipField(rt);   // 身の回りの踏み荒らした地面・倒れた槍と旗・季節の草（def.timeslip）
-    { const P = rt.player, td = P.takeDamage, k = rt.def.cutFloor; P.takeDamage = function (a, s) { const m = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow'; return td.call(this, s && !s.isStruct && !m ? a * k : a, s); }; }   // 体力を引く前に刃の一太刀を def.cutFloor 倍に（共通の一太刀五割・六割は変えず、この戦だけ）
     const W = rt.world, F = rt.flags;
     F.ek = 0; F.ak = 0; F.ending = false; F.begun = false;
     const castle0 = rt.scene.children.length;
@@ -458,10 +458,15 @@ html body #hud.enemy-action-guide:has(#h-prog[data-battle="k07_sawayama"]) #goal
         // 伏兵は北の口へ向かう道の脇（南の屋敷の間で出すと、追う主人公のカメラが屋敷の屋根の中に入った）
         ambush: { d: 30, say: ['小早川の侍', '侍屋敷の陰に伏兵じゃ！'], foes: () => [keep('侍屋敷の伏兵', { x: 96, z: -21 }, [{ type: 'ashigaru', n: 7 }, { type: 'samurai', n: 1 }])] } }),
       // ② 三の丸
-      // 正澄は三の丸を落とされると本丸へ退き、十八日に父と天守で果てた（『卜斎記』）。三の丸では討たれず（invuln）、隊が崩れると本丸へ退く（sumiOut）
+      // 正澄は三の丸の奥で指揮し、隊が崩れると本丸へ退く。史実の退却まで無敵の将を斬り合いの相手にしない。
       DP.fight({ at: SAN, title: '三の丸', sub: '北の尾根の先に石田正澄', obj: '三の丸から石田正澄の隊を追い落とせ', max: 180, noRefill: true,   // 長谷川の手引きで三の丸は一夜で落ちた。新手を足すと、崩れた兵が塀の内に溜まって百を超え、次の段で主人公を囲んだ
         say: [['長谷川守知', '三の丸の勝手は知っておる。我らが先に立つ'], ['石田正澄', '長谷川め、裏切ったか。石田木工頭正澄これにあり。一歩も通すな！']],
-        foes: () => [keep('三の丸の守り', SAN, [{ type: 'busho', n: 1, o: { name: '石田正澄', hat: 'kabuto_m', horse: true, invuln: true } }, { type: 'samurai', n: 6 }, { type: 'ashigaru', n: 9 }, { type: 'gun', n: 4 }], { morale: 98 })],
+        foes: (rt2) => {
+          const g = enemyGroup(rt2, { fixed: true, noGuard: true, noRetinue: true, faction: 'ishida', name: '石田正澄の指揮所', anchor: { x: -8, z: -100 }, facing: Math.PI / 2, order: 'hold', aggro: 0, seekRange: 1, noRout: true },
+            dress([{ type: 'busho', n: 1, o: { name: '石田正澄', hat: 'kabuto_m', horse: true, invuln: true } }], ISHIDA));
+          for (const u of g.units) u.noTarget = true;
+          return [keep('三の丸の守り', SAN, [{ type: 'samurai', n: 6 }, { type: 'ashigaru', n: 9 }, { type: 'gun', n: 4 }], { morale: 98 })];
+        },
         later: [{ t: 35, say: ['石田正澄', '石田の鉄砲衆、曲輪の内から撃ちかけよ！'], foes: () => [keep('三の丸の石田鉄砲衆', { x: SAN.x - 6, z: SAN.z - 8 }, [{ type: 'gun', n: 5 }, { type: 'bow', n: 3 }, { type: 'samurai', n: 1 }])] }],
         onEnd: (rt2) => this.sumiOut(rt2),
         reward: '三の丸を落とした' }),
@@ -516,7 +521,16 @@ html body #hud.enemy-action-guide:has(#h-prog[data-battle="k07_sawayama"]) #goal
           // 曲輪を離れて待つ時間は、宇多との斬り合いに含めない。
           C.k07FightTime = (C.k07FightTime || 0) + dt;
         }
-        const cleared = tick(rt2, C, m, ctx, el, dt);
+        let cleared = tick(rt2, C, m, ctx, el, dt);
+        // 曲輪の中央へ攻め入り七割五分を崩せば残兵は退く。塀の裏の数人を全滅まで追わせない。
+        // 宇多本人の討ち取りと、本丸への田中勢の乱入は従来どおり必要。
+        if (!cleared && inside && !C.later.length && (yardId !== 'ni1' || rt2.flags.udaDead)) {
+          if (!C.k07SectionTaken && rt2.t >= (C.k07SectionAt || 0)) {
+            C.k07SectionAt = rt2.t + 0.5;
+            C.k07SectionTaken = sectionTaken(rt2, C.groups, { flag: C.at, few: 0 });
+          }
+          cleared = !!C.k07SectionTaken;
+        }
         C.k07Cleared = !!cleared;
         // 一度入って外へ戻った時も、曲輪へ入り直すまでは達成しない。
         // 乱入を告げた後の正継・朝成・東雲斎の言葉を終えてから落城へ進む。
@@ -815,12 +829,13 @@ html body #hud.enemy-action-guide:has(#h-prog[data-battle="k07_sawayama"]) #goal
     this.udaTick(rt);
     // 本丸の旗本は本丸の天守の前の広場を守り、本丸の門の外（二の丸）へ打って出ない。前は 'attack' で四十歩下の二の丸まで出て、
     //   主人公が本丸に一度も入らないまま⑤が済んだ（11/6 描いて遊んだ二回とも）
+    //   二の丸の下・上の守りも、開門後は段の内に留める。三の丸の出口へ突進して門前の寄せ手を囲まない。
     //   宇多の隊も同じく、二の丸の門が破れた後は二の丸の上の段に留まる（本丸の西の口から本丸の内へ下がり、④が二百秒を超えた・11/6 流し）
-    const holdAt = D && D.on && D.cur?.groups ? (D.i === 8 ? HON_YARD : D.i === 6 && F.gateOpen.ni1_n && rt.t - (D.cur.t0 ?? rt.t) > 33 ? NI1 : null) : null;
+    const holdAt = D && D.on && D.cur?.groups ? (D.i === 8 ? HON_YARD : D.i === 5 && F.gateOpen.ni3_n ? NI3 : D.i === 6 && F.gateOpen.ni1_n ? NI1 : null) : null;
     // 共通の段の誘導が遠ざかった隊を攻めへ戻しても、守備の命令を保つ。
     if (holdAt) for (const g of D.cur.groups) if (g.count && !g._udaLost) {
       if (!g._k07Hold) { g._k07Hold = true; g.anchor = { x: holdAt.x, z: holdAt.z }; }
-      g.order = 'hold'; g.anchor.x = holdAt.x; g.anchor.z = holdAt.z; g.aggro = 9; g.seekRange = 9;
+      g.order = 'hold'; g.anchor.x = holdAt.x; g.anchor.z = holdAt.z; g.aggro = D.i === 5 ? 5 : 9; g.seekRange = g.aggro;
     }
     // 櫓門の上の射手（中の窓の場所が無く、屋根の瓦の上に立っていた）は置かない。横矢は左右の隅櫓の窓から（十一の2・十一の3）
     if (!F.gatePerchOff && rt.perch?.started) {

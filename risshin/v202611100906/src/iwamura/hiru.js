@@ -18,13 +18,14 @@ const near = (p, q, r) => Math.hypot(p.x - q.x, p.z - q.z) < r;
 
 export function active(rt) { const H = rt.flags.iwHiru; return !!H && !H.night; }   // 日が暮れて夜の段へ渡すまで
 export function stage(rt) { const H = rt.flags.iwHiru; return !H || H.s < 2 ? 0 : 1; }
-export function label(rt) { const H = rt.flags.iwHiru; return !H ? '' : ['本陣へ', '物見の台へ', '麓の小荷駄へ', '', '柵の口へ'][H.s] ?? '柵の口へ'; }
+export function label(rt) { const H = rt.flags.iwHiru; return !H ? '' : ['本陣へ', '物見の台へ', '麓の小荷駄へ', '麓の小荷駄へ', '柵の口へ'][H.s] ?? '柵の口へ'; }
 export function pin(rt) {
   const H = rt.flags.iwHiru;
-  if (!H || H.done || H.s === 3) return null;
+  if (!H) return null;
   if (H.s === 0) return HONJIN;
   if (H.s === 1) return LOOK;
-  const goal = H.s === 2 ? KOMODA : MOUTH;
+  // 出撃の知らせを待つ間と日暮れの間も、麓・柵の口の印を保つ。
+  const goal = H.s === 2 || H.s === 3 ? KOMODA : MOUTH;
   // 麓を直に指すと切岸を横切る。昼も追撃と同じ九十九折りを往復する。
   if ((H.s === 2 || H.s === 4) && !near(rt.player.u.pos, goal, 5)) {
     H.ctx.guideRoad(H.s === 2 ? H.down : H.up, rt.player.u.pos, H.guide);
@@ -123,7 +124,7 @@ function sally(rt, H, n) {
   return g;
 }
 // 深手で離脱した者は戦力に残さない。一時的に転んだ者は起きるので数える。
-const fighting = (u) => u.alive && !u.fleeing && !u.woundOut;
+const fighting = (u) => u.alive && !u.fleeing && !u.woundOut && !u.rearWound;
 const standing = (g) => g.units.filter(fighting).length;
 // 昼の敗走も、登って来た九十九折りを城へ戻る。直進では切岸に詰まる。
 // 各兵が今いる道の区間から先へ進め、麓や通過済みの折れへ飛ばさない。
@@ -236,7 +237,7 @@ export function tick(rt, hidden = []) {
     rt.after(16, () => {
       if (F.ending || H.done) return;
       try { sfx('toki', 0.8); } catch (e) { /* なし */ }
-      rt.say(w === 2 ? '物見' : '大島杢之助', w === 2 ? '二の手が坂を下りて来ます。鉄砲も混じっております' : '岩村の意地を見せよ！　柵の口を破れ！', 3.2);
+      rt.say(w === 2 ? '物見' : '大島杢之助', w === 2 ? '二の手が坂を登って来ます。鉄砲も混じっております' : '岩村の意地を見せよ！　柵の口を破れ！', 3.2);
       H.g = sally(rt, H, w); H.n = H.g.units.length; H.wave = w; H.wt = rt.t;
     });
     return;

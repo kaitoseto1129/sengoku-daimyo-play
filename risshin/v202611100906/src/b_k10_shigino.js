@@ -515,13 +515,19 @@ html:root body #hud#hud#hud.shigino-goals.shigino-combat #goal-sign .gs-tag > sp
     try { return rt.army.fireGun(u, target); }
     finally { rt.flags.commandedShot = false; }
   },
+  // 退き口へ着いた時、以前の行軍の到着処理で持ち場へ戻さない。
+  retreat(g, to) {
+    g.onArrive = null; g.focus = null; g.path = null;
+    g.keepMoveOrder = false; g.marching = false;
+    g.order = 'retreat'; g.dest = to; g.aggro = 0; g.noRout = false;
+  },
   // 手本：battle_refs/k09_imafuku.md の大阪市・今福の戦い。北岸の佐竹を南岸から救う。
   riverAid(rt) {
     const F = rt.flags;
     F.riverAid = true; F.riverShots = 0; F.riverSecured = false;
     // 手勢も本人と南岸へ移る。堤へ戻す補正が残ると、泥田で往復して救援に付いて来られない。
     F.mine.riverAid = true;
-    for (const g of F.foes) if (live(g)) { g.order = 'retreat'; g.dest = EXIT_W; g.noRout = false; }
+    for (const g of F.foes) if (live(g)) this.retreat(g, EXIT_W);
     // 個々の逃走は隊の dest を使わない。北へ逃げ続けて救援完了を妨げないよう、北岸を西へ退く道を渡す。
     F.riverFoe = enemyGroup(rt, { faction: 'toyotomi', name: '今福の寄せ手', fixed: true, anchor: { x: 48, z: -100 }, width: 10, facing: Math.PI / 2, order: 'hold', noRout: true, fire: true,
       fleeDir: { x: -1, z: 0 }, fleePath: [[-236, -100]] }, toyD([uA(8), uG(4)]));
@@ -566,7 +572,7 @@ html:root body #hud#hud#hud.shigino-goals.shigino-combat #goal-sign .gs-tag > sp
       sfx('playerGun', 1);
       // 三度の実射の後、寄せ手が崩れて佐竹が押し返す。
       if (F.riverShots === 3) {
-        F.riverFoe.noRout = false; F.riverFoe.order = 'retreat'; F.riverFoe.dest = { x: -236, z: -100 };
+        this.retreat(F.riverFoe, { x: -236, z: -100 });
         for (const u of F.riverFoe.units) if (u.alive) u.fleeing = true;
         F.satake.order = 'attack'; F.satake.anchor = { x: 48, z: -100 }; F.satake.seekRange = 60; F.satake.fire = true;
         rt.say('佐竹の使番', '川越しの鉄砲が効いた！　佐竹の先手が押し返したぞ', 4);
@@ -587,7 +593,7 @@ html:root body #hud#hud#hud.shigino-goals.shigino-combat #goal-sign .gs-tag > sp
     rt.objDone('s5');
     rt.tracker.main = true;
     rt.player.u.invuln = true;
-    for (const g of F.foes) if (live(g)) { g.order = 'retreat'; g.dest = { x: EXIT_W.x, z: g.riverAid ? -100 : EXIT_W.z }; g.speed = 4.2; g.aggro = 0; g.noRout = false; }
+    for (const g of F.foes) if (live(g)) { this.retreat(g, { x: EXIT_W.x, z: g.riverAid ? -100 : EXIT_W.z }); g.speed = 4.2; }
     sfx('horagai', 0.8);
     rt.award((t) => { t.main = true; t.special = { label: '鴫野の堤を守り抜き、豊臣勢を城へ退けた', pts: 20 }; }, '鴫野の堤を守り抜いた');
     rt.banner('鴫野、上杉の勝ち', '大野治長の隊は城へ退いた');
@@ -692,7 +698,7 @@ html:root body #hud#hud#hud.shigino-goals.shigino-combat #goal-sign .gs-tag > sp
       const repelled = F.shot >= 2 || !live(F.wata) && !live(F.kimu);
       // 「二の柵の跡まで押し返す」は、本人もその場へ押し出してから果たす。
       if (k >= Math.round(F.w4N * 0.6) && repelled && F.playerFight4 && dist(P.pos, HOLD) < 22) {
-        for (const g of [F.wata, F.kimu]) if (live(g)) { g.order = 'retreat'; g.dest = { x: -150, z: 0 }; g.speed = 4; g.aggro = 0; }
+        for (const g of [F.wata, F.kimu]) if (live(g)) { this.retreat(g, { x: -150, z: 0 }); g.speed = 4; }
         rt.say('渡辺糺', '上杉の鉄砲、侮れぬ……一度引け！', 2.8);
         rt.after(3, () => this.toStep(rt, 5));
         F.back4 = true;
@@ -704,7 +710,7 @@ html:root body #hud#hud#hud.shigino-goals.shigino-combat #goal-sign .gs-tag > sp
       // 戦える寄せ手が北岸を実際に退くまで救援を終えない。
       // 手傷で動けない兵まで退き口への到着を求めると、一人残るだけで救援が終わらない。
       const riverClear = F.riverAid && !F.riverFoe.units.some((u) =>
-        u.alive && !u.gone && !u.woundOut && !u.rearWound && !u.dying &&
+        u.alive && !u.gone && !u.woundOut && !u.rearWound && !u.evacuatedWound && !u.dying &&
         (!u.fleeing || u.pos.x > RIVER.x - 40));
       if (riverClear && (F.riverShots >= 1 || F.riverSecured) && rt.t >= 240) this.win(rt);
     }

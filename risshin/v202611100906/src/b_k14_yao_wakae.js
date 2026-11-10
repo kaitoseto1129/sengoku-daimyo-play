@@ -383,8 +383,7 @@ const k14_yao_wakae = {
     rt.army.play('toki', { x: YAO_FRONT.x + 20, z: YAO_FRONT.z }, 1.4);
     // 八尾の出来事（二正面を同時に）：長宗我部の伏兵が立つ → 藤堂高刑・桑名吉成が次々に討たれる
     rt.after(14, () => this.yaoAmbush(rt));
-    rt.after(50, () => this.fall(rt, F.takanoriG, '藤堂高刑', '八尾で藤堂高刑様、お討死！'));
-    rt.after(110, () => this.fall(rt, F.kuwanaG, '桑名吉成', '桑名吉成様もお討死！　藤堂勢、崩れかかっております'));
+    // 討死は update で主人公が八尾へ着いてから起こす。時刻だけで遠方の声にしない。
   },
 
   // 段を進める（済んだ目標に印・新しい目標を足す）
@@ -421,7 +420,9 @@ const k14_yao_wakae = {
       rt.say('井伊直孝', '両翼が崩れた。堤の木村の本隊へかかれ！', 2.8);
       rt.after(3, () => rt.say('木村重成', '長門守重成これにあり。両将軍の首を取らずに、どこへ退けようか！', 3));
       storyGuard(F.kimuraU, dist(rt.player.u.pos, F.kimuraU.pos) > 25);
-      F.kimuraU.maxHp = F.kimuraU.hp = 110;
+      // すでに受けた傷を段の切替で回復させない。
+      F.kimuraU.maxHp = Math.min(F.kimuraU.maxHp, 110);
+      F.kimuraU.hp = Math.min(F.kimuraU.hp, F.kimuraU.maxHp);
       // 木村の本隊は若江の堤の上で迎え撃つ（野の中へ出て行かない。十1「堤に立つ」）
       F.kimuraG.order = 'hold'; F.kimuraG.seekRange = 6; F.kimuraG.aggro = 4;
       // 庵原の隊が一度押し返され、直孝が本陣から重ねて下知する（史実では二度目の押し。直孝は本陣の旗本に囲まれたまま。一2）
@@ -555,7 +556,18 @@ const k14_yao_wakae = {
     const pin = this.missionPin(rt);
     if (dist(P.pos, STEP_AT[F.step]) < 34 || (pin && dist(P.pos, pin) < pin.r)) F.stepNear = true;
     const left = STEP_T[F.step] - (rt.t - F.stepT);
-    if (F.step >= 2 && !F.kawate && (rt.t - F.stepT > 40 || F.step >= 3)) {
+    if (F.step === 1 && dist(P.pos, YAO_FRONT) < 60) {
+      if (!F.takanoriFell && rt.t - F.t0 >= 50) {
+        F.takanoriFell = true;
+        F.takanoriFellAt = rt.t;
+        this.fall(rt, F.takanoriG, '藤堂高刑', '八尾で藤堂高刑様、お討死！');
+      }
+      if (!F.kuwanaFell && rt.t - F.t0 >= 110 && rt.t - F.takanoriFellAt >= 3.6) {
+        F.kuwanaFell = true;
+        this.fall(rt, F.kuwanaG, '桑名吉成', '桑名吉成様もお討死！　藤堂勢、崩れかかっております');
+      }
+    }
+    if (F.step >= 2 && !F.kawate && dist(P.pos, F.sakiG.center()) < 55 && (rt.t - F.stepT > 40 || F.step >= 3)) {
       // 井伊の先手の川手良列が深入りして討たれる（史実）。堤の鉄砲に撃たれ、右の先鋒の庵原朝昌が代わる
       F.kawate = true;
       const u = F.sakiG.units.find((q) => q.name === '川手良列' && q.alive);
