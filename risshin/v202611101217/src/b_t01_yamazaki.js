@@ -538,14 +538,8 @@ const t01_yamazaki = {
       }
       rt.after(3, () => rt.say('堀秀政', '右も左も押しておる。中を割れ！', 3));
       F.tsudaN = allN(F.tsuda); F.tsudaBroken = false;
-      // 左（天王山）：秀長の旗が山を下りて進む
-      rt.after(46, () => {
-        report(rt, '左手、秀長様の旗が天王山を下り、松田勢を押しまする！');
-        try { F.yfar?.tenno?.push('A', 0.7); F.yfar?.tenno?.rout?.('B', { minFight: 4, hideAfter: 40 }); } catch (e) { /* 遠景 */ }
-        if (live(F.matsuda)) { F.matsuda.routed = true; F.matsuda.order = 'flee'; }
-        for (const f of F.tennoFlags || []) { f.position.z -= 30; f.position.x += 12; f.position.y = rt.world.heightAt(f.position.x, f.position.z); }
-        dropFlags(rt, F.akFlagsL, 2.5);
-      });
+      // 天王山側も、健在な松田勢を刻限だけで敗走させない。損耗と旗の動きは更新でそろえる。
+      F.matsudaBroken = false;
     } else if (n === 6) {
       rt.award((t) => t.side.push('川の北で阿閉貞征の隊を押し破った'), '川の北で阿閉貞征の隊を押し破った');
       report(rt, '明智勢、崩れます！');
@@ -680,6 +674,16 @@ const t01_yamazaki = {
       if (F.fieldAt === 3 && aliveN(F.saiGs) <= F.saiN * 0.25 && rt.t - F.st0 > 95) this.stage(rt, 4);
     } else if (F.stage === 4) Counter.tick(rt, dt, this.ctx(rt));
     else if (F.stage === 5) {
+      // 左（天王山）：実際に松田勢を押し返してから、秀長の前進と明智の旗倒れを知らせる。
+      if (!F.matsudaBroken && F.matsuda && rt.t - F.st0 > 46 &&
+          (F.matsuda.routed || aliveN(F.matsuda) <= allN(F.matsuda) * 0.3)) {
+        F.matsudaBroken = true;
+        report(rt, '左手、秀長様の旗が天王山を下り、松田勢を押しまする！');
+        try { F.yfar?.tenno?.push('A', 0.7); F.yfar?.tenno?.rout?.('B', { minFight: 4, hideAfter: 40 }); } catch (e) { /* 遠景 */ }
+        if (live(F.matsuda)) { F.matsuda.routed = true; F.matsuda.order = 'flee'; }
+        for (const f of F.tennoFlags || []) { f.position.z -= 30; f.position.x += 12; f.position.y = rt.world.heightAt(f.position.x, f.position.z); }
+        dropFlags(rt, F.akFlagsL, 2.5);
+      }
       // 池田勢が浅瀬へ向かうだけで津田勢を破った事にしない。実際の損耗を待って旗と知らせをそろえる。
       if (!F.tsudaBroken && F.tsudaN > 0 && aliveN(F.tsuda) <= F.tsudaN * 0.3) {
         F.tsudaBroken = true;
