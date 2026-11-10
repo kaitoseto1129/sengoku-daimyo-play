@@ -15,7 +15,11 @@ export function start(rt, ctx) {
   rt.objDone('main');
   rt.obj('main', '城へ逃げる別所勢を見送れ', 'main');
   rt.objProgress('main', '');
-  for (const g of rt.army.groups) if (g.team === 1 && !g.routed && g.count) { g.noRout = false; g.morale = 0; g.retreatOnly = true; }
+  // 大村・平田へ出撃した手だけを帰す。城内の長治の本陣と荷駄の担ぎ手は持ち場を保つ。
+  for (const g of rt.army.groups) if (g.team === 1 && !g.routed && g.count &&
+      (F.foes?.includes(g) || F.mkSally?.waves?.includes(g))) {
+    g.noRout = false; g.morale = 0; g.retreatOnly = true;
+  }
   rt.player.u.invuln = true;   // 締めの間の流れ弾で結果を変えない
   sfx('horagai', 0.7);
   rt.say('羽柴秀吉', '追うな！　逃げる者は城へ帰せ。城の米を一粒でも多く食わせるのじゃ', 4.5);

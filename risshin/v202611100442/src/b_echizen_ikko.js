@@ -301,7 +301,11 @@ function templeRainTorches(world) {
   for (const fire of world.fires) {
     if (!fire.torch) continue;
     fire.templeDrySize ??= fire.size;
-    fire.size = fire.templeDrySize * (1 - wet * .75);
+    fire.templeDryLight ??= fire.lightStrength ?? 6;
+    const strength = 1 - wet * .75;
+    fire.size = fire.templeDrySize * strength;
+    // 共通の更新は炎の大きさから灯りを求めない。雨で小さくなった火の照りも弱める。
+    fire.lightStrength = fire.templeDryLight * strength * strength;
   }
 }
 // この寺だけの石段。踏面と暗い蹴上げを分け、斜面の下まで石を埋めて隙間を塞ぐ。

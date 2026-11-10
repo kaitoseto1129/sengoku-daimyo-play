@@ -1218,21 +1218,24 @@ function akechi(rt, name, path, list, o = {}) {
   const role = o.role || (at.x < TERA.x0 ? 'west' : at.z < TERA.z0 ? 'north' : at.z > TERA.z1 ? 'south' : 'east');
   // 囲みの寄せ手（o.far）は、その方角の塀の外の備えから人数を引く（寺の奥からは百歩より遠い）
   const R = o.far || 100;
+  // 外の備えの端が戦場をはみ出しても、実兵は移動できる範囲から選ぶ。
+  const lim = rt.world.def.moveLim || 176;
+  const outside = (x, z) => !inTera(x, z) && Math.abs(x) <= lim - 2 && Math.abs(z) <= lim - 2;
   let host = (F.aHost || []).find((h) => h.honnoRole === role && h.left(at.x, at.z, R) >= n)
     || (role === 'east' ? (F.aHost || []).find((h) => h.honnoRole === 'reserve' && h.left(at.x, at.z, R) >= n) : null);
-  let pts = host ? host.take(at.x, at.z, n, R, null, (x, z) => !inTera(x, z)) : [];
+  let pts = host ? host.take(at.x, at.z, n, R, null, outside) : [];
   // 囲みの寄せ手は、その方角が尽きれば、ほかの方角の備えから回す（塀の内に掛かる兵は数えない）
   // 口の備えが尽きた時は、ほかの備えの近い者から回す（寄せ手が来ないまま段を過ごさない）
   if (!pts.length) for (const h of F.aHost || []) {
     if (h === host) continue;
-    pts = h.take(at.x, at.z, n, o.far ? R : 1e9, null, (x, z) => !inTera(x, z));
+    pts = h.take(at.x, at.z, n, o.far ? R : 1e9, null, outside);
     if (pts.length) { host = h; break; }
   }
   // 表庭の乱戦の組（o.fill）は、一つの備えで足りない分を、ほかの備えから足して人数をそろえる
   //   （10/30 測り：表門の先手の備えから4人しか引けず、表庭へ押し込む組が12人中4人・斬り合いの組は0人だった）
   if (o.fill && pts.length < n) for (const h of F.aHost || []) {
     if (h === host || pts.length >= n) continue;
-    pts = pts.concat(h.take(at.x, at.z, n - pts.length, 1e9, null, (x, z) => !inTera(x, z)));
+    pts = pts.concat(h.take(at.x, at.z, n - pts.length, 1e9, null, outside));
   }
   if (!pts.length) return null;
   // 寄せ手は具足と桔梗の指物。侍の兜と肩の具足を残し、小袖の供と形でも見分ける。
@@ -4743,6 +4746,9 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
     if (F.nNorth && !gone(F.nNorth)) { F.nNorth.anchor = { x: KYO_ST + 5, z: KYO_TSUJI[0] }; F.nNorth.order = 'hold'; }
     rt.marker('north', centerOf(F.north), '北の口の明智勢', { red: true, h: 2.3, group: F.north });
     F.tada.order = 'hold'; F.tada.aggro = 4;
+    // 最後の出撃の帰路・到着処理を残すと、最期の下知の後も門外へ動く。
+    F.tada.path = null; F.tada.pathIdx = 0; F.tada.dest = null; F.tada.onArrive = null;
+    for (const u of F.tada.units) { u.moveTo = null; u.target = null; }
     // 京の町は明智の兵でびっしり。辻ごとの人だかりと斬り合いは軽い作り（実兵にしない）。実兵は辻の見張りと追手だけ
     const host = (x, z, w, d, count, facing, seed) => W.addDistantArmy({ x, z, w, d, count, facing, team: 1, mon: 'akechi', flag: 'akechi', kind: 'mixed', seed, host: false });
     const clash = (x, z, facing, seed) => {
@@ -4956,7 +4962,18 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
         // 七人以上残っても後続を止め切らず、空いた人数だけ四人以上の小隊で送る。
         // 各波の残りを覚え、五波・計五十人と同時十六人の上限を保つ。
         const count = Math.min(F.nWaveLeft || 10, 16 - pressing, 240 - live);
-        const pts = F.nHost.take(26, -54, count, 80);
+        // 前の波が道に残る時は足元へ重ねず、空いた場所の人数だけ送り出す。
+        // 囲みの人数を引く前に場所を確保し、空き待ちで兵を失わない。
+        const used = rt.army.units.filter((u) => u.alive && !u.isStruct).map((u) => u.pos);
+        const spots = [];
+        for (let i = 0; i < count; i++) {
+          const at = { x: 30 - Math.floor(i / 2) * 1.4, z: NIJO_GATE.z + (i % 2 ? .7 : -.7) };
+          const spot = enteredSpot(rt, at, used);
+          if (!spot) break;
+          spots.push(spot); used.push(spot);
+        }
+        if (!spots.length) break;
+        const pts = F.nHost.take(26, -54, spots.length, 80);
         if (!pts.length) break;
         live += pts.length; pressing += pts.length;
         F.nWaveLeft = (F.nWaveLeft || 10) - pts.length;
@@ -4964,7 +4981,7 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
         const g = enemyGroup(rt, { fixed: true, noGuard: true, faction: 'akechi', name: '御所へ寄せる明智勢', anchor: { x: 26, z: -54 }, facing: Math.PI / 2, formation: 'column', colW: 2, spacing: 1.4, width: 4, order: 'path', aggro: 9 }, dress([uS(Math.min(2, pts.length)), uA(Math.max(0, pts.length - 2))], AKECHI));
         // 控えの大軍は隣家の屋根と重なる。実兵は屋敷の南の道へ整列してから門へ寄せる。
         for (let i = 0; i < g.units.length; i++) {
-          const u = g.units[i], x = 30 - Math.floor(i / 2) * 1.4, z = NIJO_GATE.z + (i % 2 ? .7 : -.7);
+          const u = g.units[i], { x, z } = spots[i];
           u.pos.set(x, rt.world.heightAt(x, z), z);
         }
         g.path = [[NIJO_GATE.x - 3, NIJO_GATE.z], [NIJO_GATE.x + 4, NIJO_GATE.z]]; g.pathIdx = 0;

@@ -589,7 +589,12 @@ const k05_ueda = {
       const oc = live(F.oi) && F.oi.center();
       // 追手が町屋の道で詰まって岸へ来ない時（11/9 見回り 徳川D：本人が岸で八百秒待った）は、七十秒で岸の本人へ向かわせる
       if (F.oi) F.oiT ??= rt.t;
-      if (oc && !F.oiHot && rt.t - F.oiT > 70 && dist(P.pos, FORD_W) < 30) { F.oi.onArrive = null; F.oi.order = 'attack'; F.oi.seekRange = 120; F.oi.aggro = 30; F.oi.anchor = { ...FORD_W }; }
+      if (oc && !F.oiHot && rt.t - F.oiT > 70 && dist(P.pos, FORD_W) < 30) {
+        // 広い索敵で攻め直すと、道中の味方へ引かれて岸まで来ない。岸へ届くまでは移動を優先する。
+        F.oi.onArrive = null;
+        F.oi.order = 'move'; F.oi.dest = { x: FORD_W.x - 4, z: FORD_W.z };
+        F.oi.seekRange = 0; F.oi.aggro = 0;
+      }
       // 時間だけで接敵済みにしない。先頭が岸の本人へ届いた時も、隊の中心を待たず交戦に移る。
       const reached = F.oi?.units.some((u) => u.alive && !u.gone && !u.fleeing && dist(u.pos, FORD_W) < 30 && dist(u.pos, P.pos) < 16);
       if (oc && !F.oiHot && (dist(oc, FORD_W) < 16 || reached)) { F.oiHot = true; F.oiHotT = rt.t; F.oi.onArrive = null; F.oi.aggro = 16; F.oi.seekRange = 40; F.oi.order = 'attack'; F.oi.anchor = { ...FORD_W }; }

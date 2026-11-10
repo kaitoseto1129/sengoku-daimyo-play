@@ -3514,9 +3514,9 @@ function installInabaPresentation(rt) {
   // 待ち列へ入れる時だけでなく、表示直前と表示中にも同じ判定を使う。
   hud.taskRepeats = function (who, text) {
     if ((F.step > 0 || F.joinedKino) && /藤吉郎の旗で話を聞こう|まず、わしの旗へ集まれ|わしの旗へ来い。町へ出る前/.test(text)) return true;
-    if (F.step >= 2 && /印の家|火の印の家|家に火を放つ|火付けの足軽を守れ|火付けじゃ|家の脇の敵|火は付いた。印の守兵|わしの旗で新手を迎えよ/.test(text)) return true;
+    if (F.step >= 2 && /印の家|井口の町の家|家に火を放つ|火付けの足軽を守れ|火付けじゃ|家の脇の敵|火は付いた。印の守兵|わしの旗で新手を迎えよ/.test(text)) return true;
     // 火付け中に予約した残り軒数も、三軒焼いた後には読ませない。
-    if (F.step === 1 && F.lit >= NEED && /次は印の家|あと(?:一|\d+)軒じゃ|印の家で|火の印の家へ|家に火を放つ/.test(text)) return true;
+    if (F.step === 1 && F.lit >= NEED && /次は印の家|あと(?:一|\d+)軒じゃ|印の家で|井口の町の家へ|家に火を放つ/.test(text)) return true;
     // 信長の護衛も、火付けが済んだら残る守兵への案内に切り替える。
     if (F.step === 1 && F.lit >= NEED && /火付けの足軽を守れ/.test(text)) return true;
     // 新手が着いた後に、待ち列の古い集合命令へ戻さない。
@@ -4353,7 +4353,7 @@ const inabayama = {
     const F = rt.flags;
     if (F.retreatMarked) return '退き口の印へ';
     if (F.step === 1 && F.townSoundWait) return '町の出口の印へ';
-    if (F.step === 1 && F.lit < NEED) return rt.G.lord ? '家の敵を倒せ' : '火の印の家へ';
+    if (F.step === 1 && F.lit < NEED) return rt.G.lord ? '家の敵を倒せ' : '井口の町の家へ';
     if (F.step === 1 && F.lit >= NEED) return F.townTarget && !gone(F.townTarget) ? '印の守兵へ' : '味方の旗へ';
     if (F.step === 2) return F.regroup ? '味方の旗へ' : F.holdArrived ? inabaSallyWait(rt) || '鹿垣の中の敵を倒せ' : '鹿垣の旗へ';
     if (inabaWoodGateWait(rt)) return '木戸前で仲間と並ぼう';
@@ -4427,8 +4427,7 @@ const inabayama = {
   // 段全体の説明ではなく、今の下知と同じ人・門・曲がり角を指す。
   goalTargetOverride(rt) { return this.missionPin(rt); },
   goalSignAction(rt, text) {
-    return this.taskText(rt, text).replace(/木戸/g, '門').replace(/藤吉郎/g, '味方')
-      .replace(/印の守兵を仲間と追い払おう|近い敵を仲間と追い払おう|鹿垣の中の敵を倒せ/g, '敵を倒せ');
+    return this.taskText(rt, text);
   },
   keepTaskLabel: true,
   // 藤吉郎（28,104）と金華山の間を向いて立つ。両方が最初の画面に入る（10/28）。
@@ -4480,7 +4479,7 @@ const inabayama = {
     if ((F.step === 1 && F.lit < NEED && !rt.G.lord) || (F.step === 4 && F.sig)) {
       const fire = it && (F.step === 1 ? /^h[0-9]+$/.test(it.id) : it.id === 'sig');
       return fire ? `「${it.label}」を${it.hold ? '長押し' : '押そう'}`
-        : F.step === 1 ? '火の印の家へ'
+        : F.step === 1 ? '井口の町の家へ'
         : inabaSignalDetour(rt) ? '建物の外の道を回って、小屋の印へ' : '火の印の小屋へ';
     }
     // 集合・新手待ち・交戦の下知を、畳んだ任務でも区別する。
@@ -4512,7 +4511,7 @@ const inabayama = {
         }
       }
       return distance < 1 ? '道の印の先へ一歩進もう'
-        : distance > 8 && !q.lastCorner ? '道の印へすすもう'
+        : distance > 8 && !q.lastCorner ? '道の印へ進もう'
         : `印の${q.lastCorner ? '木戸前' : '曲がり角'}へ（あと${steps}歩ほど）`;
     }
     if (F.step === 3) return '仲間と 木戸の敵を退けよう';
@@ -5239,7 +5238,7 @@ const inabayama = {
         [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 10 }, { type: 'bow', n: 3 }]);
     F.townGuards = [F.town, F.town2, ...F.houseGuards];
     // 11/1 夕（稲葉山72：乱戦が薄い）：持ち場の前二十〜三十歩は軽い兵が隠れる間合いで、本物の兵はまばらだった。
-    //   火の印の家（44,78）の右手の通り（画面の真ん中から右）に、織田の手と町の番が槍を交えて押し合う群れを二つ置く。
+    //   井口の町の家（44,78）の右手の通り（画面の真ん中から右）に、織田の手と町の番が槍を交えて押し合う群れを二つ置く。
     //   前線は画面の奥行きに沿わせ、両軍を横顔で見せる。崩れず・持ち場を離れず・傷は浅い。家への道と戸口は空ける。
     //   夜の暗転で片付ける。奥の軽い乱戦を一つ減らして重さを釣り合わせる。
     F.townPairs = [];
@@ -5546,7 +5545,7 @@ const inabayama = {
     rt.banner('井口の町を焼け', '城下を焼いて、城を裸にする');
     // 信長で遊ぶ時：火付けは足軽の役目。当主は町の番の兵を払わせ、焼き働きを見届ける
     rt.obj('main', rt.G.lord ? `足軽の火付けを守れ。町の番の兵を払え（${NEED}軒）` : `井口の町の家${NEED}軒に火を放て`, 'main', true);
-    rt.say(officer(rt), rt.G.lord ? '町の兵を払え。火付けの足軽を守れ' : '火の印の家へ走れ。軒に火を掛けよ', 4);
+    rt.say(officer(rt), rt.G.lord ? '町の兵を払え。火付けの足軽を守れ' : '井口の町の家へ走れ。軒に火を掛けよ', 4);
     if (!rt.G.lord) rt.after(9, () => { if (!rt.over && !F.ending && F.step === 1) rt.say('足軽', '町の者に刃を向けるな', 3); });   // 焼く迷い（A054）
     // 家の印は今向かう一軒だけ（焼けたら次を示す。update の markHouses）
     if (rt.G.lord) { for (const h of F.houses) if (h.mine) this.sendTorch(rt, h); }
@@ -5557,7 +5556,7 @@ const inabayama = {
       }, { r: HOUSE_FIRE_R + .01, prio: 10 });
     }
     this.markHouses(rt);
-    if (!rt.G.lord) rt.objProgress('main', `家 0／${NEED}・火の印の家へ`);
+    if (!rt.G.lord) rt.objProgress('main', `家 0／${NEED}・井口の町の家へ`);
     // 味方の三組は駆けて町へ入り、着いたらそのまま近い番の兵へ掛かる（開戦の乱戦。10/30）
     const go = (g, x, z) => { g.order = 'move'; g.dest = { x, z }; g.speed = 3.4; g.onArrive = (gg) => { gg.order = 'attack'; gg.seekRange = 24; gg.anchor = { x, z }; gg.aggro = 12; }; };
     // 藤吉郎の旗は町の後ろ。先手と控えの間を退き道にする。
@@ -5764,8 +5763,8 @@ const inabayama = {
       F.clearT = rt.t;
     } else {
       this.markHouses(rt);
-      rt.objProgress('main', rt.G.lord ? `家 ${F.lit}／${NEED}・火付けの足軽を守れ` : `家 ${F.lit}／${NEED}・残りの火の印の家へ`);
-      if (own && !rt.G.lord) rt.say('足軽', F.lit === 1 ? '火が付いた。次は印の家じゃ' : 'あと一軒じゃ。ほかの家はわしらが焼く', 3);
+      rt.objProgress('main', rt.G.lord ? `家 ${F.lit}／${NEED}・火付けの足軽を守れ` : `家 ${F.lit}／${NEED}・残りの井口の町の家へ`);
+      if (own && !rt.G.lord) rt.say('足軽', F.lit === 1 ? '火が付いた。次は井口の町の家じゃ' : 'あと一軒じゃ。ほかの家はわしらが焼く', 3);
     }
   },
 
@@ -6829,7 +6828,7 @@ const inabayama = {
         this.nextObj(rt, F.carry ? '竹束を据え、井口の町の家に火を掛けよ'
           : `井口の町の家${NEED}軒に火を放て`);
         rt.objProgress('main', F.carry ? `家 ${F.lit}／${NEED}・竹束を置き、手を空けよ`
-          : `家 ${F.lit}／${NEED}・火の印の家へ`);
+          : `家 ${F.lit}／${NEED}・井口の町の家へ`);
       }
       if (F.lit < NEED && rt.G.lord && rt.t >= (F.torchGuideAt || 0)) {
         F.torchGuideAt = rt.t + 1;
@@ -6841,7 +6840,7 @@ const inabayama = {
         F.burnCall = true;
         rt.say(officer(rt), rt.G.lord ? '火付けの足軽を守れ。家の脇の敵を払うのじゃ'
           : F.carry ? '竹束を据え、井口の町の家に火を掛けよ'
-          : '火の印の家へ走れ。軒に火を掛けよ', 4);
+          : '井口の町の家へ走れ。軒に火を掛けよ', 4);
       }
     }
     if (F.step === 2) {
