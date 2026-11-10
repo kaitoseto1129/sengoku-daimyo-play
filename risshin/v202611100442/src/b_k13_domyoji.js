@@ -258,7 +258,12 @@ function matabeiShot(rt) {
     if (!shooter) { rt.after(1, () => matabeiShot(rt)); return; }
     rt.army.play('volley', shooter.pos, 1.4);
     if (v && v.alive) { v.hp = 1; v.stagger = 1.2; }
-    rt.after(1.2, () => { if (!F.ending && !rt.over) matabeiDown(rt, true); });
+    rt.after(1.2, () => {
+      if (F.matabei || F.ending || rt.over) return;
+      // 撃った後でも、本人が頂を離れた時や射手を失った時は見えない討死を進めない。
+      if (!ready()) { rt.after(1, () => matabeiShot(rt)); return; }
+      matabeiDown(rt, true);
+    });
   });
 }
 
