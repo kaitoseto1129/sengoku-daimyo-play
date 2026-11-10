@@ -78,7 +78,7 @@ const from = (x) => ({ x, z: 78 });
 
 function steps(rt) {
   const F = rt.flags;
-  const H = { move, hold: defendHold, rest, uS, uA, uG, from, POST, BREACH, STEP_TEXT, todoArrive, reliefArrive, retreatAll };
+  const H = { move: (o) => withoutZone(move(o)), hold: defendHold, rest, uS, uA, uG, from, POST, BREACH, STEP_TEXT, todoArrive, reliefArrive, retreatAll };
   return [
     // 0〜3. 夕暮れの砦を見て回る：右の堀 → 受け持ちの土橋の塀（t08_nejirozaka/jinchi.js）
     ...jinchi.tour(rt, H),
@@ -130,8 +130,18 @@ function withdrawWave(C) {
   }
 }
 
+function withoutZone(s) {
+  const start = s.start;
+  s.start = (rt, ...args) => {
+    start(rt, ...args);
+    // 画面の案内を消す指定だけでは、持ち場の地面の輪は残る。行き先の▼一つに揃える。
+    rt.unzone('dp');
+  };
+  return s;
+}
+
 function defendHold(o) {
-  const s = hold(o), tick = s.tick, end = s.end, dur = o.dur || 90;
+  const s = withoutZone(hold(o)), tick = s.tick, end = s.end, dur = o.dur || 90;
   s.limit = Infinity;
   s.idleAdvance = false;
   s.noHardCap = true;   // 共通の打ち切りでも、持ち場を離れたまま守備を済ませない。

@@ -201,6 +201,31 @@ const TAKATO_DEFEND = sonaePlan('曲輪ごとの守り', 1, { x: -56, z: 0 }, Ma
   ['reserveDef', '二の丸の控え', '名は伝わらない', 180, -4.25, 12, Math.PI / 2, 'takeda', 'takeda'],
 ]);
 for (const p of [TAKATO_ATTACK, TAKATO_DEFEND]) for (const s of p.sonae) s.bind = (rt) => rt.flags[s.id];
+// 団忠正の本物の隊は flags.dan2（寄せ道の奥の第二陣）。
+TAKATO_ATTACK.sonae.find((s) => s.id === 'dan').bind = (rt) => rt.flags.dan2;
+
+// 11/10 布陣図（docs/fujin/takato.md）：大手の後ろの四将（河尻・団・毛利・小笠原）の厚みを、千人に一本の幟と
+//   毛利・小笠原の陣幕で見せる（軽い大軍は霧の手前で描かれず、近づくと消える備えは置かない＝kaito AV4）。
+//   幟は備えの後ろ（東）に横一列。大手道（z が ±6 の内）には立てない。
+function takatoOteJin(rt) {
+  for (const s of TAKATO_ATTACK.sonae) {
+    if (!['reserve', 'dan', 'mori', 'ogasawara'].includes(s.id)) continue;
+    const x0 = TAKATO_ATTACK.honjin.x, z0 = TAKATO_ATTACK.honjin.z;
+    const sn = Math.sin(TAKATO_ATTACK.facing), cs = Math.cos(TAKATO_ATTACK.facing);
+    const x = x0 + s.at.right * cs + s.at.front * sn, z = z0 - s.at.right * sn + s.at.front * cs;
+    const n = Math.round(s.soldiers / 1000);
+    const half = (n - 1) / 2 * 3.2, side = z < 0 ? -1 : 1;
+    const zc = Math.abs(z) - half < 7 ? side * (7 + half) : z;   // 列の端が大手道に掛かる時は道の外へずらす
+    const onWay = (px, pz) => distToPolyline(px, pz, ROAD_OTE) < 12 || TAKATO_PLAN.paths.some((p) => distToPolyline(px, pz, p.pts) < 5) || PEOPLE_PATHS.some((pts) => distToPolyline(px, pz, pts) < 4);
+    for (let i = 0; i < n; i++) {
+      const px = x + 9 + (i % 2) * 1.2;
+      let pz = zc + (i - (n - 1) / 2) * 3.2;
+      for (let k = 0; k < 12 && onWay(px, pz); k++) pz += side * 2;
+      if (!onWay(px, pz)) rt.scene.add(nobori(rt.world, px, pz, 'oda', 4.6));
+    }
+    if ((s.id === 'mori' || s.id === 'ogasawara') && !onWay(x + 16, z)) rt.scene.add(jinmaku(rt.world, x + 16, z, 8, 10, 4, { mon: 'oda' }));
+  }
+}
 
 const ODA = { armor: 0x2a2622, flag: 'oda' };
 const TAKEDA = { armor: 0x3a2622, flag: 'takeda' };
@@ -1287,6 +1312,7 @@ const takato_siege = {
     if (C.seat?.building) takatoEarthWalls(C.seat.building, F.earthMat);
     takatoLife(rt);
     takatoSiegeStores(rt);
+    takatoOteJin(rt);
     takatoSpring(rt);
     takatoGround(rt);
     F.coldBreath = takatoBreath(rt);

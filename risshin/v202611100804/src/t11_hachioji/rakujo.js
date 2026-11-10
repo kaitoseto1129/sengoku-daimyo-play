@@ -36,7 +36,9 @@ export function step(H) {
       // 本人が離れた所にいるまま落城の余韻と勝利へ進めない。
       const P = rt.player.u.pos;
       if (Math.hypot(P.x - H.LAST.x, P.z - H.LAST.z) < 10) C.entered = true;
-      if (C.quiet == null && C.entered && live(C.last) <= 1) {
+      // 奥まで攻めて守兵の大半を崩した後は、柵際に残った二人を延々と追わせない。
+      const left = live(C.last);
+      if (C.quiet == null && C.entered && (left <= 1 || (el >= 150 && left <= C.last.units.length * 0.3))) {
         C.quiet = el;
         retreat(C.last);
         // 城方は崩れ、戦の音が止む（残りの城兵の組も崩す）

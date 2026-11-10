@@ -307,7 +307,7 @@ OWN.nodafukushima = (rt0) => {
   const nouns = ['葦の水路', '三好の鉄砲', '前田利家', '西の井楼', '福島砦の塀の内', '浅瀬の岸', '竹束の列', '春日井堤', '信長の本陣', '江口の渡し'];
   const at = (rt) => rt.def.missionOf?.(rt) ?? 0;
   // 梯子や三発の射撃は本人の操作を待つ。四百秒で未達の目標を失敗扱いにしない。
-  return list.map((text, k) => ({ kind: 'stage', k, text, noun: nouns[k] || '', check: k === list.length - 1 ? won : (rt) => won(rt) || at(rt) > k, sec: 1e6 }));
+  return list.map((text, k) => ({ kind: 'stage', k, text, textOf: (rt) => rt.def.missionText?.(rt, k) || text, noun: nouns[k] || '', check: k === list.length - 1 ? won : (rt) => won(rt) || at(rt) > k, sec: 1e6 }));
 };
 
 function build(rt) {

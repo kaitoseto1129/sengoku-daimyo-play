@@ -2852,6 +2852,7 @@ const kizugawa = {
   hideMissionDots: true,
   noFlankCry: true,   // 11/6 fixc0823：陸の「横槍じゃ！」を船の上で叫ばせない
   enemyTriangleSigns: true,
+  keepBattleSigns: true,   // 行き先の案内中も、乗り口と舟の敵の赤い▼を消さない。
   // 11/4 jin（kaito BH6・AV15）：行き先は頭上の金の▼一つだけ。▼の上に字を添えず、旗・輪のピンを重ねない。
   goalSignOnly: true, goalSignNoLabel: true,
   goalSignTriangle: true, // 行き先は画面の内外とも下向きの▼。共通の矢印へ戻さない。

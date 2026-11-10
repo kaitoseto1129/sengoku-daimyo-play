@@ -720,9 +720,15 @@ export const t05_ichinomiya = {
     for (const g of rt.army.groups) if (g.team === 1 && g.count) withdraw(g);
     // 塀に隠れない曲輪の内側で使者を迎え、台詞と帰城の動きを見せてから締める。
     const pp = rt.player.u.pos;
-    // 奥へ踏み込んだ時も背後へ出さず、主人公の向いている先で迎える。
+    // まず主人公の向いている先で迎える。
     const yaw = rt.player.yaw || 0;
     const meet = { x: Math.max(-26, Math.min(-6, pp.x + Math.sin(yaw) * 6)), z: Math.max(94, Math.min(103, pp.z + Math.cos(yaw) * 6)) };
+    // 塀際で外を向くと、範囲内へ戻した座標が本人と重なって使者が見えなくなる。
+    // その時だけ曲輪の広い側へ離し、操作して姿と名前を確かめられる間合いを残す。
+    if (Math.hypot(meet.x - pp.x, meet.z - pp.z) < 4) {
+      meet.x = pp.x < -16 ? -8 : -24;
+      meet.z = 98;
+    }
     const envoy = allyGroup(rt, { name: '開城の使者', anchor: meet, facing: Math.atan2(pp.x - meet.x, pp.z - meet.z), width: 2, fixed: true, noAI: true, peaceful: true, keepMoveOrder: true, order: 'hold', noRout: true, aggro: 0, seekRange: 0, fullStrength: true },
       [{ type: 'busho', n: 1, o: { ...CHOSO, name: '谷忠澄', invuln: true } }, { type: 'samurai', n: 2, o: { ...CHOSO, keep: true } }]);
     // 共通の勝鬨で開城の会話を上書きせず、十二秒間は主人公を動かせる。
