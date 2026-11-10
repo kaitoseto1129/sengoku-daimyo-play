@@ -537,6 +537,8 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
       F.allies.forEach((ga, i) => this.march(rt, ga, [MOUTH, FRONT, INSIDE, INNER, { x: ninomaru.NINO.x - 4 - i * 6, z: ninomaru.NINO.z + 6 + i * 6 }], 14));
       ninomaru.start(rt, K);   // 二の丸の曲輪の乱戦と火（t07_ganjaku/ninomaru.js）
     } else if (s === 5) {
+      // 本丸からの再開でも、作り直した二の丸の残兵に撤退の下知を戻す。
+      ninomaru.retreat(rt);
       rt.award((t) => t.side.push('二の丸の曲輪を討ち払った'), '二の丸の曲輪を討ち払った');
       rt.obj('s5', TEXT[4], 'main');
       rt.marker('t07', HON, '本丸', { h: 3 });

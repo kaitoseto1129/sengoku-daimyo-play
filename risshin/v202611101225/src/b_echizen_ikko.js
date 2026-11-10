@@ -3561,7 +3561,7 @@ const echizen_ikko = {
       const spots = [];
       for (const z of [-192, -180, -158, -144, -130, -118]) for (const side of [-1, 1]) spots.push([side * 3.3 + (z > -130 ? -1.6 : z > -165 ? -1 : 0), z, 0]);
       templeToro(rt, spots);
-      for (const x of [-4.6, 4.6]) { rt.scene.add(kagaribi(W, x, -175)); W.addFire(x, -175, { torch: true, h: 1.35 }); }
+      for (const x of [-4.6, 4.6]) { rt.scene.add(kagaribi(W, x, -175)); W.addFire(x, -175, { torch: true, nightOnly: true, h: 1.35 }); }
       // 登り口の左の杉の下に首塚。持ち場から25秒の登りで、石段の左の視野に入る（10/30）。
       templeKubizuka(rt, 5.9, -157.6, 2.85);
       templeForestFloor(rt, 2, -156, 11);
@@ -3584,10 +3584,11 @@ const echizen_ikko = {
     // 建物ごとの延焼：僧坊・奥の坊を燃える的にし、外堂の倉→本堂→僧坊→奥の院と火が寺院群へ広がる道を作る（siege_fire.js の燃え移り）
     // 夜の灯明：本堂の前に灯り（灯りが夜の目印）
     for (const [dx, dz] of [[-6, 4], [6, 4]]) templeLantern(rt, hondoC.x + dx, hondoC.z + dz);
+    // 屋外の火は強い雨の昼に焚かず、夜討ちで灯す。
     // 門の篝火（寺の見張りが焚く。夜の山で門の場所が遠くから分かり、門の前が照らされる）
     // 講堂の西壁から離し、戸口へ回る兵と肩越しの視点を火床へ重ねない。
     for (const [x, z] of [[GATE_SOMON.x - 4.5, GATE_SOMON.z - 4], [GATE_SOMON.x + 4.5, GATE_SOMON.z - 4], [GATE_SANMON.x - 4.5, GATE_SANMON.z - 4], [GATE_SANMON.x + 4.5, GATE_SANMON.z - 4], [gezanC.x + 5, gezanC.z - 11], [hondoC.x + 3, hondoC.z - 5], [okuC.x - 4, okuC.z - 4], [okuC.x + 4, okuC.z + 8]]) {
-      rt.scene.add(kagaribi(W, x, z)); W.addFire(x, z, { torch: true, h: 1.35 });
+      rt.scene.add(kagaribi(W, x, z)); W.addFire(x, z, { torch: true, nightOnly: true, h: 1.35 });
     }
     // 麓から見上げた山腹の火（惣門の篝火・参道の石灯籠）。夜の霞に消されず、点々と登る灯で寺の在りかを示す（10/28）。
     // 霞を受けない小さな光の粒だけ。近づけば本物の火に任せて消す。
@@ -3688,19 +3689,19 @@ const echizen_ikko = {
       F.ikkoGateCrowd.noRout = true;   // 11/8 critic60：①の惣門で戦にならず崩れていた。門前の群れは門を背に退かない
       for (const b of F.watchPosts) if (b.real) b.real.dmgMult = .5;
       // 惣門前の一揆勢の両脇に篝火の台を二つ（麓の側から火が当たり、顔・笠・槍が浮かぶ）
-      for (const dx of [-5.5, 5.5]) { const x = GATE_SOMON.x + dx, z = GATE_SOMON.z - 33; rt.scene.add(kagaribi(W, x, z)); W.addFire(x, z, { torch: true, h: 1.35 }); }
+      for (const dx of [-5.5, 5.5]) { const x = GATE_SOMON.x + dx, z = GATE_SOMON.z - 33; rt.scene.add(kagaribi(W, x, z)); W.addFire(x, z, { torch: true, nightOnly: true, h: 1.35 }); }
       // 惣門前の一揆勢が掲げる松明（竹の柄の先に火。柄の形と材質は一つを使い回す）。数と並びは推定。
       {
         const poleGeo = new THREE.CylinderGeometry(.025, .035, 2.1, 5), poleMat = new THREE.MeshStandardMaterial({ color: 0x3a2c1e, roughness: .9 });
         for (const [dx, dz] of [[-6, -1.8], [-3.2, -2.4], [-.6, -1.6], [2.4, -2.3], [5.2, -1.7], [-4.4, 1], [3.6, 1.2]]) {
           const x = GATE_SOMON.x + dx, z = GATE_SOMON.z - 30 + dz, y = W.heightAt(x, z);
           const pole = new THREE.Mesh(poleGeo, poleMat); pole.position.set(x, y + 1.05, z); pole.rotation.z = dx * .02; rt.scene.add(pole);
-          W.addFire(x, z, { torch: true, h: 2.1, size: .45 });
+          W.addFire(x, z, { torch: true, nightOnly: true, h: 2.1, size: .45 });
         }
       }
       for (const b of F.watchPosts) {
         rt.scene.add(kagaribi(W, b.pos.x + 4, b.pos.z));
-        W.addFire(b.pos.x + 4, b.pos.z, { torch: true, h: 1.35 });
+        W.addFire(b.pos.x + 4, b.pos.z, { torch: true, nightOnly: true, h: 1.35 });
       }
       // 外堂の守りは境内で迎える。共通の自動出撃で閉じた惣門へ下り、一点に詰まらせない。
       F.ikkoGezanSpear = mkB(rt, { name: '外堂の守り（薙刀）', stay: true, team: 1, faction: 'ikko', kind: 'ashigaru', nominal: 46, armor: IKKO.armor, flag: IKKO.flag, at: { x: gezanC.x, z: gezanC.z - 6 }, facing: Math.PI });

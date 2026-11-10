@@ -4730,13 +4730,15 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
     for (const u of F.roof.units) u.pos.y = ry;
     F.roof.fire = false; rt.after(30, () => { if (!F.ending && !rt.over && F.step === 4) { F.roof.fire = true; rt.bark('西隣の近衛屋敷の屋根から鉄砲じゃ！　門の脇の塀へ寄れ', true); } });
     rt.marker('ng', { x: NIJO_GATE.x + 3, z: NIJO_GATE.z }, '二条御所の西の門', { h: 2.5 });
-    F.nHold = 0; F.nEngaged = false; rt.zone('ng', NIJO_GATE.x, NIJO_GATE.z, 18);
-    // 11/9 kaito 仕様：はじめは押し返す→外にさらに明智勢→信忠が大将として下知する（「東を捨てろ！」→使番が走る）。
+    F.nHold = 0; F.nEngaged = false; F.nRepelled = false; rt.zone('ng', NIJO_GATE.x, NIJO_GATE.z, 18);
+    // 押し返した知らせは、門で迎えた寄せ手が実際に途切れた時だけ出す。
+    // 東門の突破はまだ作られていないので、時刻だけで突破したと知らせない。
     const nSay = (sec, who, text, d = 3) => rt.after(sec, () => { if (F.step === 4 && !F.ending && !rt.over) honnoSay(rt, who, text, d); });
-    nSay(17, '斎藤利治', '押し返したぞ！　門の口は持つ！', 3);
-    nSay(24, '使番', '東の築地の外にも桔梗の旗！　北にも寄せて来る！', 3.2);
-    nSay(29, '織田信忠', '東を捨てろ！　門を閉じよ！　ここで止める！', 3.2);
-    nSay(42, '使番', '東の門が破られた！　庭へ入られた！', 3);
+    rt.after(24, () => {
+      if (F.step === 4 && !F.ending && !rt.over && !gone(F.nNorth))
+        honnoSay(rt, '使番', '北の口にも明智勢！　桔梗の旗が見える！', 3.2);
+    });
+    nSay(29, '織田信忠', '西の門を固めよ！　ここで止める！', 3.2);
     F.nWaves = [4, 13, 22, 31, 40]; // 四〜七分に収める（兵の数は同じ五波・五十人。間を詰める）
     // 信忠の三度の出撃。門番は持ち場を守り、信忠と既存の馬廻だけが門外へ出て戻る。
     // 新しい兵は足さず、通れる西の門を往復する。退く段に入った後は動かさない。
@@ -4995,6 +4997,11 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
       if (atPost && friend >= 2) {
         if (enemyAtPost) F.nEngaged = true;
         if (F.nEngaged) F.nHold += dt;
+        if (F.nEngaged && !enemyAtPost && !F.nRepelled) {
+          F.nRepelled = true;
+          const speaker = F.tada.units.some((u) => u.alive && u.name === '斎藤利治') ? '斎藤利治' : '御所の侍';
+          honnoSay(rt, speaker, '押し返したぞ！　門の口は持つ！', 3);
+        }
       }
       // 守備の途中にも、そばの味方が傷を縛る。敵の届く間は巻けず、二度まで。
       // 半秒に一度だけ調べ、布が無い時も一枚ずつ分ける。
