@@ -3493,7 +3493,10 @@ const tonezaka = {
     }
     else if (F.step === 5) {
       const cleared = !fighting(F.townG), atTown = near(p, TOWN, 14);
-      const supported = F.townFriends.some((g) => toneSupported(rt, p, g));
+      // 同行できる兵が尽きた時は、来ない味方を永久に待たせない。
+      // 城下の敵を退けたうえで持ち場へ着く条件は、下の段送りで保つ。
+      const supported = F.townFriends.some((g) => toneSupported(rt, p, g)) ||
+        cleared && !F.townFriends.some(fighting);
       // 列の端の一歩で合流札を出し直さない。敵が目前なら猶予を切る。
       if (supported) F.townSupportUntil = rt.t + 3;
       const joined = supported || F.townFriends.some(fighting) && rt.t < (F.townSupportUntil || 0) &&
@@ -3581,7 +3584,7 @@ const tonezaka = {
         : waiting ? waitTask
         : guardRear ? '近くの敵へ構え、勝家の手と追い払え'
         : cleared && closeRear ? '近くの敵を見て、勝家の手と城下へ'
-        : cleared ? atTown ? F.townJoined ? '勝家の兵が揃うた。勝家の手と奥へ進め' : F.townAlly ? '勝家の兵のそばへ寄れ' : '城下の道で勝家の手を待て' : '敵は退いた。城下の道へ進め'
+        : cleared ? atTown ? F.townJoined ? '城下の道を押さえた。奥の道へ進め' : F.townAlly ? '勝家の兵のそばへ寄れ' : '城下の道で勝家の手を待て' : '敵は退いた。城下の道へ進め'
         : F.guideBend ? '道の曲がりへ。勝家の手に続け'
         : F.guideVisible ? '勝家の手に続き、城下の道から敵を追い払え' : '城下の道へ進み、勝家の手に続け';
       if (F.guideTask !== task) { F.guideTask = task; rt.obj('main', TONE_LINE[F.step], 'main', true); }

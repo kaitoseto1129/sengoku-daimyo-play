@@ -36,7 +36,7 @@ import { withGuard } from './toyo_bot.js';
 import * as sanroku from './t11_hachioji/sanroku.js';     // 始め：霧の谷を大手の木戸へ（伏兵・搦手の鬨・別の戦場の知らせ）
 import * as sakamichi from './t11_hachioji/sakamichi.js'; // 御主殿の裏から尾根の急な坂を金子丸の下へ
 import * as rakujo from './t11_hachioji/rakujo.js';       // 終幕：本丸の最後の城兵・落城の重い余韻
-import { retreat } from './t11_hachioji/retreat.js';
+import { retreat, live } from './t11_hachioji/retreat.js';
 
 const HAS_DEM = false;   // asset_dem_hachioji.js は素材の枝で入れる（本体では置かない）
 let dem = null;
@@ -393,15 +393,15 @@ function kuruwaFight(o) {
     if (k && p.x >= k.poly[0][0] && p.x <= k.poly[1][0] && p.z >= k.poly[0][1] && p.z <= k.poly[2][1]) C.entered = true;
     const done = tick(rt, C, m, ctx, el);
     bind(C);
-    if (!C.entered) return false;
+    // 守兵が崩れると共通の行き先は組の中心へ戻る。柵外へはぐれた兵や
+    // 重傷者の位置で待たず、まず目標の曲輪へ入れるようにする。
+    if (!C.entered) { C.goal = C.at; return false; }
     if (done) return true;
     // 通しで残兵の組を追い続けて止まった。新手を含む守備の八割を崩せば制圧し、
     // 長引いても六割を崩して本人が曲輪にいる時は残兵を退かせる。待つだけでは済ませない。
     if (C.later?.length) return false;
     let left = 0;
-    for (const g of C.groups) if (!g.routed) for (const u of g.units) {
-      if (u.alive && !u.gone && !u.dying && !u.fleeing && !u.evacuatedWound) left++;
-    }
+    for (const g of C.groups) left += live(g);
     const total = C.nTot || C.n0 || 0;
     const inside = k && p.x >= k.poly[0][0] && p.x <= k.poly[1][0] && p.z >= k.poly[0][1] && p.z <= k.poly[2][1];
     return total > 0 && (left <= total * 0.2 || (inside && el >= s.max && left <= total * 0.4));
@@ -417,8 +417,6 @@ const SALLY_PATH = [[LANDING.x, LANDING.z], [BRIDGE_N.x, BRIDGE_N.z], [BRIDGE_S.
 const BACK_PATH = [[BRIDGE_N.x, BRIDGE_N.z], [LANDING.x, LANDING.z], [KOGUCHI.x + 2, KOGUCHI.z + 0.5], [GOSHU.x + 8, GOSHU.z]];
 const TSUKE_R = 7, TSUKE_SEC = 35;
 function sallyStep() {
-  // 敗走した組と、倒れる途中・重傷で離脱した兵は残兵に数えない。
-  const live = (g) => (g && !g.routed ? g.units.filter((u) => u.alive && !u.gone && !u.dying && !u.fleeing && !u.evacuatedWound).length : 0);
   return {
     kind: 'fight', max: 240,
     start(rt, C, m, ctx) {
@@ -454,7 +452,10 @@ function sallyStep() {
       // ① 迎え撃つ：半ばを討てば石段を退く
       if (!F.sallyBack) {
         rt.objProgress('dp', `敵 ${live(g)}人`);
-        if (C.bridgeEntered && live(g) <= F.sallyN * 0.5) {
+        // 橋で四分迎え撃ち、四分の一以上を崩した時も城兵に退く下知。
+        // 石段で動けなくなった残兵を待ち続けず、付け入りの攻防へ移る。
+        const held = Math.hypot(p.x - BRIDGE_S.x, p.z - BRIDGE_S.z) < 14 || entered;
+        if (C.bridgeEntered && (live(g) <= F.sallyN * 0.5 || (held && el >= 240 && live(g) <= F.sallyN * 0.75))) {
           F.sallyBack = true; C.backT = el;
           C.goal = { x: KOGUCHI.x + 1, z: KOGUCHI.z + 0.4 };   // 行き先は冠木門（遊び手の印と同じ所）
           g.order = 'path'; g.path = BACK_PATH; g.pathIdx = 0; g.speed = 3.2; g.aggro = 0; g.noRout = true; g.focus = null;
@@ -493,7 +494,8 @@ function sallyStep() {
       // 門を固められた時：冠木門の守りを討てば虎口を抜ける（虎口の鉄砲は上の段にいて、門の内からしか届かない。抜ければ崩れる）
       const rest = live(F.gateG);
       rt.objProgress('dp', `冠木門の敵 ${rest}人`);
-      return entered && (rest <= 2 || (el - C.backT >= 180 && rest <= F.gateG.units.length * 0.3));
+      return entered && (rest <= 2 || (el - C.backT >= 180 && rest <= F.gateG.units.length * 0.3) ||
+        (el - C.backT >= 240 && rest <= F.gateG.units.length * 0.5));
     },
     end(rt, C) {
       for (const q of C.groups) retreat(q);
