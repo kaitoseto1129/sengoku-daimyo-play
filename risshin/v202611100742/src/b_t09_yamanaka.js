@@ -319,7 +319,7 @@ const t09_yamanaka = {
 
   setup(rt) {
     const W = rt.world, F = rt.flags;
-    F.step = 0; F.ek = 0; F.ak = 0;
+    F.step = 0; F.ek = 0; F.ak = 0; F.daiEk = 0;
     const D = KURUWA.dai, HN = KURUWA.hon, NS = KURUWA.nishi;
     // ---- 岱崎出丸の柵（南と東へ向く。柵の内から間宮の鉄砲が撃つ。煙と弾は下の城攻めの部品が出す） ----
     F.daiWall = wallLine(rt, [[D.x - 16, D.z + 14], [D.x + 4, D.z + 18], [D.x + 18, D.z + 6], [D.x + 18, D.z - 10]], { team: 1, hp: 300, name: '出丸の柵', segLen: 8 });
@@ -821,7 +821,10 @@ const t09_yamanaka = {
 
   onKill(rt, v) {
     const F = rt.flags;
-    if (v.team === 1) F.ek = (F.ek || 0) + 1; else F.ak = (F.ak || 0) + 1;
+    if (v.team === 1) {
+      F.ek = (F.ek || 0) + 1;
+      if (F.dai?.units.includes(v)) F.daiEk = (F.daiEk || 0) + 1;
+    } else F.ak = (F.ak || 0) + 1;
   },
   onRout(rt, g) {
     if (g.team !== 1 || g.routSaid) return;   // 同じ隊の退きは一度だけ言う
@@ -833,7 +836,10 @@ const t09_yamanaka = {
 // 両軍の総勢（豊臣秀次の寄せ手およそ七万、山中城の北条勢およそ四千。数には諸説ある）
 t09_yamanaka.force = (rt) => {
   const F = rt.flags;
-  return { a: Math.round(70000 - (F.ak || 0) * 40), a0: 70000, b: Math.max(0, 4000 - (F.ek || 0) * 25), b0: 4000 };
+  // 出丸の手勢は任務と同じ二百人換算。全員を一律二十五人で減らすと、
+  // 出丸を抜いただけで千人以上を失った人数になってしまう。
+  const losses = daiLoss(rt) + Math.max(0, (F.ek || 0) - (F.daiEk || 0)) * 25;
+  return { a: Math.max(0, Math.round(70000 - (F.ak || 0) * 40)), a0: 70000, b: Math.max(0, 4000 - losses), b0: 4000 };
 };
 t09_yamanaka.sides = { a: { name: '豊臣軍（豊臣秀次）', mon: 'toyotomi' }, b: { name: '北条軍（松田康長）', mon: 'hojo' } };
 t09_yamanaka.date = () => '天正十八年三月二十九日　春・朝';
@@ -952,12 +958,16 @@ t09_yamanaka.botBrain = (b, inp, { goTo, patientStrike }) => {
 // bot は打ち込みを見て構えてから、この戦の頭へ（toyo_bot.js）
 // 倒す数（kaito 11/2 O）：右上の任務の一行に「（倒した数／倒す数）」。段が進む判定と同じ数え方（stages.js）
 const cnt = (u) => u.alive && !u.dying && !u.evacuatedWound;   // 敗走しただけの兵は討ち取りに含めない。
+const daiLoss = (rt) => {
+  const units = rt.flags.dai?.units, n = units?.length || 0;
+  if (!n) return 0;
+  const down = n - units.reduce((sum, u) => sum + (cnt(u) ? 1 : 0), 0);
+  return Math.min(200, Math.floor(down * 200 / n));
+};
 KILLS.t09_yamanaka = (rt) => {
   const F = rt.flags;
   if (F.ending || F.step !== 1) return null;
-  const units = F.dai?.units || [], n = units.length;
-  const down = n - units.reduce((sum, u) => sum + (cnt(u) ? 1 : 0), 0);
-  return n ? [Math.min(200, Math.floor(down * 200 / n)), 200] : [0, 200];
+  return [daiLoss(rt), 200];
 };
 withGuard(t09_yamanaka);
 

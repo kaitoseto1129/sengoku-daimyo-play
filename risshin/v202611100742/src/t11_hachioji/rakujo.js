@@ -8,6 +8,7 @@
 // ======================================================================
 import { enemyGroup, nm } from '../bhelp.js';
 import { sfx } from '../audio.js';
+import { retreat } from './retreat.js';
 
 export function step(H) {
   // 敗走した組と、倒れる途中・重傷で離脱した兵は残兵に数えない。
@@ -37,9 +38,9 @@ export function step(H) {
       if (Math.hypot(P.x - H.LAST.x, P.z - H.LAST.z) < 10) C.entered = true;
       if (C.quiet == null && C.entered && live(C.last) <= 1) {
         C.quiet = el;
-        C.last.noRout = false; C.last.morale = 0;
+        retreat(C.last);
         // 城方は崩れ、戦の音が止む（残りの城兵の組も崩す）
-        for (const g of rt.army.groups || []) if (g.team === 1 && g !== rt.flags.yokochi && g.count) { g.noRout = false; g.morale = 0; }
+        for (const g of rt.army.groups || []) if (g.team === 1 && g !== rt.flags.yokochi && g.count) retreat(g);
         sfx('horagai', 0.6);
       }
       if (C.quiet == null) { rt.objProgress('dp', ''); return false; }

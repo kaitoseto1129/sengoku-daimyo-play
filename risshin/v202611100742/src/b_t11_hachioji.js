@@ -36,6 +36,7 @@ import { withGuard } from './toyo_bot.js';
 import * as sanroku from './t11_hachioji/sanroku.js';     // 始め：霧の谷を大手の木戸へ（伏兵・搦手の鬨・別の戦場の知らせ）
 import * as sakamichi from './t11_hachioji/sakamichi.js'; // 御主殿の裏から尾根の急な坂を金子丸の下へ
 import * as rakujo from './t11_hachioji/rakujo.js';       // 終幕：本丸の最後の城兵・落城の重い余韻
+import { retreat } from './t11_hachioji/retreat.js';
 
 const HAS_DEM = false;   // asset_dem_hachioji.js は素材の枝で入れる（本体では置かない）
 let dem = null;
@@ -339,7 +340,7 @@ const keep = (name, at, list, o = {}) => ({ name, from: { x: at.x + (o.dx || 0),
 
 // 初手と後から来る新手の両方に持ち場を渡す。打って出る組・退く組は別の段のまま。
 function kuruwaFight(o) {
-  const s = DP.fight(o), start = s.start, tick = s.tick;
+  const s = DP.fight(o), start = s.start, tick = s.tick, end = s.end;
   const k = PLAN.kuruwa.find((q) => q.name === o.title);
   const bind = (C) => {
     for (const g of C.groups) if (!g.t11Kuruwa) {
@@ -347,6 +348,10 @@ function kuruwaFight(o) {
     }
   };
   s.start = (rt, C, m, ctx) => { start(rt, C, m, ctx); bind(C); };
+  s.end = (rt, C, m, ctx) => {
+    end(rt, C, m, ctx);
+    for (const g of C.groups) retreat(g);
+  };
   s.tick = (rt, C, m, ctx, el) => {
     // 味方だけが守りを崩しても、離れた本人の目標まで済ませない。
     // 曲輪へ入った事を残し、最後の敵を追って外へ出た時は引き返させない。
@@ -435,7 +440,7 @@ function sallyStep() {
           rt.banner('付け入り', '門を閉める間を与えず、御主殿へなだれ込む');
           sfx('horagai', 0.8);
           rt.award((t) => t.side.push('退く敵に続き、冠木門へ付け入った'), '冠木門へ付け入った');
-          for (const q of [g, F.sallyGun]) if (q) { q.noRout = false; q.morale = Math.min(q.morale, 10); }
+          for (const q of [g, F.sallyGun]) retreat(q);
           return true;
         }
         if (el - C.backT > TSUKE_SEC) {
@@ -454,7 +459,7 @@ function sallyStep() {
       return rest <= 2 && entered;
     },
     end(rt, C) {
-      for (const q of C.groups) if (q) { q.noRout = false; q.morale = Math.min(q.morale, 10); }
+      for (const q of C.groups) retreat(q);
       rt.unmark('dp');
       rt.objDone('dp');
       rt.flags.sallyDone = true;
@@ -683,7 +688,7 @@ const t11_hachioji = {
         reward: '金子丸を落とした',
         onEnd: (rt2) => {
           const g = rt2.flags.slopeBow;
-          if (g) { g.noRout = false; g.morale = 0; g.order = 'hold'; g.path = null; g.onArrive = null; }
+          retreat(g);
         } }),
       kuruwaFight({ at: TAKA, title: '高丸', sub: '尾根の曲輪', obj: '尾根の柵門を抜け、高丸の北条勢を討て', max: 60, noRefill: true,
         foes: () => [keep('高丸の守り', TAKA, [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 9 }, { type: 'gun', n: 5 }, { type: 'bow', n: 3 }])],
