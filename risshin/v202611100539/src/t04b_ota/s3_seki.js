@@ -37,7 +37,7 @@ export default {
     if (F.opened && F.weirLift < 2.4) { F.weirLift = Math.min(2.4, F.weirLift + dt * 0.8); F.weir.position.y = W.heightAt(P.weir.x, P.weir.z) + 1 + F.weirLift; }
     return !!F.opened && t - F.opened > 130 && F.boats.length >= 2 && (F.boats.every((g) => broken(g, 0.35)) || t - F.opened > 170);
   },
-  leave(rt, F) { for (const g of F.boats) { g.noRout = false; g.morale = 0; move(g, { x: 0, z: -10 }); } },
+  leave(rt, F) { for (const g of F.boats) { g.noRout = false; g.morale = 0; move(g, { x: 0, z: -10 }); g.order = 'retreat'; } },
   foes: (rt) => rt.flags.boats,
   max: 260,
 };

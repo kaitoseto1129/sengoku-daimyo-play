@@ -93,7 +93,8 @@ export function tick(rt, dt) {
       M.dateH?.moveTo(HONDA.x + 60, HONDA.z - 30, 50);
       M.sana?.moveTo(-164, 44, 40); M.mori?.moveTo(-170, 0, 40);
       const C = allyGroup(rt, { faction: 'tokugawa', name: '伊達の騎馬鉄砲', fixed: true, anchor: { x: HONDA.x + 40, z: HONDA.z - 30 }, facing: WEST, width: 6, aggro: 14, order: 'attack', seekRange: 60, speed: 6, noRout: true, dmgMult: 0.8 },
-        [{ type: 'cavalry', n: n(5, 6), o: { flag: 'date', armor: 0x24221f } }]);
+        // 通常の騎馬兵は槍を持つ。射撃の処理と弾数を持つ鉄砲兵を騎乗させる。
+        [{ type: 'gun', n: n(5, 6), o: { horse: true, flag: 'date', armor: 0x24221f } }]);
       C.anchor = { x: HONDA.x + 6, z: HONDA.z - 10 };
       rt.after(3, () => rt.say('伊達の侍', '騎馬鉄砲、駆けよ！　馬上から放て！', 2.6));
       // 神保相茂の手（水野勢に付いて誉田へ。史実では伊達の鉄砲に巻き込まれて討たれた）

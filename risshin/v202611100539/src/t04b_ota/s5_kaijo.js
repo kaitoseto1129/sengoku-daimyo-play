@@ -28,15 +28,15 @@ export default {
     rt.after(45, () => {
       F.envoy = troops(rt, false, '開城の使者', { x: 0, z: -28 }, [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 2 }], SAIKA, { aggro: 0, seek: 0 });
       for (const u of F.envoy.units) { u.noTarget = true; u.invuln = true; }
-      move(F.envoy, { x: 0, z: -52 }); F.envoyT = rt.t;
+      move(F.envoy, { x: 0, z: -52 }); F.envoy.marching = true; F.envoyT = rt.t;
       rt.say('使番', '門が開きます！　開城の使者にございます', 3.5);
     });
   },
   tick(rt, dt, t) {
     const F = rt.flags;
     if (F.white) F.white.rotation.y = Math.sin(rt.t * 1.7) * 0.25;
-    return !!F.envoy && (F.envoy.units.some((u) => u.pos.z < -44) || rt.t - F.envoyT > 40) && (near(rt, P.bridge, 14) || t > 110);
+    return !!F.envoy && (F.envoy.units.some((u) => u.pos.z < -44) || rt.t - F.envoyT > 40) && near(rt, P.bridge, 14);
   },
   foes: () => [],
-  max: 200,
+  max: Infinity,
 };

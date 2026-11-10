@@ -6933,9 +6933,10 @@ const inabayama = {
       const late2 = rt.t - F.stepT > 240;
       if (late2 && !F.ote2.sent && !F.ote2Q) { F.ote2Q = true; this.ote2(rt); }
       // 長引いた時も、城兵が目前へ来る前や本人が倒れている間は、時計だけで退かせない。
-      if (late2 && F.oteContactT != null && rt.player.u.alive && !rt.retryOpen && rt.t >= (F.late2RoutAt || 0)) { F.late2RoutAt = rt.t + 4; for (const q of qs) if (!gone(q)) { q.noRout = false; q.morale = 0; } }
+      if (late2 && F.oteContactT != null && rt.t - F.oteContactT > 22 && rt.player.u.alive && !rt.retryOpen && rt.t >= (F.late2RoutAt || 0)) { F.late2RoutAt = rt.t + 4; for (const q of qs) if (!gone(q)) { q.noRout = false; q.morale = 0; } }
       // 11/9 二巡（織田E）：気が零になっても坂の上で崩れず残り、②が九分続いた（流し）。四十秒たっても残れば、山へ逃げ上らせる
-      if (late2 && F.oteContactT != null && rt.t - F.stepT > 280) for (const q of qs) if (!gone(q)) {
+      // 遅れて城兵が着いた場合も、接敵から四十秒は迎え撃つ。段の時計だけで着いた瞬間に退かせない。
+      if (late2 && F.oteContactT != null && rt.t - F.oteContactT > 40 && rt.t - F.stepT > 280) for (const q of qs) if (!gone(q)) {
         inabaRetreat(q);
       }
       const nearHold = late2 && F.oteContactT != null && F.holdPoint
@@ -7093,6 +7094,9 @@ const inabayama = {
         || F.kinoU.alive && nearClimbSpot(rt, F.kinoU.pos, 4, 12))) this.guardFight(rt);
       // 木戸の守りと三十秒斬り合えば、裏を取られた守りは本丸へ退く（切岸の上に残る数人を探し続けさせない）
       if (F.guardOn && !gone(F.kguard) && rt.t - F.guardT > 30 && !F.kguardBroke) { F.kguardBroke = true; F.kguard.noRout = false; F.kguard.morale = 0; }
+      // 士気を下げても切岸に残る守兵は、斬り合い開始から四十五秒で実際に退かせる。
+      // 大手と同じ救済を搦手にも通す。本人の木戸到達は下の条件で別に確かめる。
+      if (F.guardOn && !gone(F.kguard) && rt.t - F.guardT > 45) inabaRetreat(F.kguard);
       if (F.guardOn && gone(F.kguard)) {
         // 先に守りが崩れても、藤吉郎の縦列は最後の曲がり角を通す。
         if (inabaAtWoodGate(rt) && rt.player.u.alive && !rt.retryOpen && (F.kino.order !== 'path' || Math.hypot(kc.x + 30, kc.z + 118) < 10 || rt.t - F.guardT > 20)) this.signal(rt);

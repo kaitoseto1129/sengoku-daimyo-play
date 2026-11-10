@@ -78,7 +78,7 @@ const from = (x) => ({ x, z: 78 });
 
 function steps(rt) {
   const F = rt.flags;
-  const H = { move, hold: defendHold, rest, uS, uA, uG, from, POST, BREACH, STEP_TEXT, todoArrive, reliefArrive };
+  const H = { move, hold: defendHold, rest, uS, uA, uG, from, POST, BREACH, STEP_TEXT, todoArrive, reliefArrive, retreatAll };
   return [
     // 0〜3. 夕暮れの砦を見て回る：右の堀 → 受け持ちの土橋の塀（t08_nejirozaka/jinchi.js）
     ...jinchi.tour(rt, H),
@@ -267,7 +267,7 @@ function torchField(rt) {
     update(dt) {
       t += dt; acc += dt;
       // 夜明けは寄せ道を逆にたどって坂下へ退く。消すだけでは退却の知らせと食い違う。
-      if (rt.flags.dawn) retreat += dt * 4;
+      if (rt.flags.retreating) retreat += dt * 4;
       else marchT += dt;
       smoke.visible = pts.visible; smokeMat.opacity = T.k * 0.5;
       if (acc < 0.08 || !pts.visible) return;
@@ -333,16 +333,30 @@ function reliefArrive(rt) {
   // 黒田は藤巴、小早川隆景は左三つ巴（違い鎌は後の秀秋の物で、この年には使わない）
   F.relief = allyGroup(rt, { name: '黒田官兵衛の手', anchor: { x: 96, z: 30 }, facing: -Math.PI / 2, width: 8, aggro: 14, order: 'hold', seekRange: 18, noPursue: true, historicalOrders: true, noRout: true, dmgMult: 0.8 },
     dress([{ type: 'busho', n: 1, o: { name: '黒田官兵衛', invuln: true, horse: true, hat: 'kabuto_m' } }, uS(3), uA(5), uG(2)], KURODA));
-  // 土橋前の坂へ斜めに下ろさず、東の尾根から横を突いて止まる。
-  F.relief.anchor = { x: 80, z: 30 };
+  // 東の尾根から土橋前の東脇へ進み、寄せ手を射程に収める。坂下へ追わない。
+  F.relief.anchor = { x: 16, z: 14 };
   F.koba = allyGroup(rt, { name: '小早川隆景の手', anchor: { x: 100, z: 42 }, facing: -Math.PI / 2, width: 8, aggro: 14, order: 'hold', seekRange: 18, noPursue: true, historicalOrders: true, noRout: true, dmgMult: 0.8 },
     dress([{ type: 'busho', n: 1, o: { name: '小早川隆景', invuln: true, horse: true, hat: 'kabuto_w' } }, uS(3), uA(5), uG(1)], KOBA));
-  F.koba.anchor = { x: 84, z: 42 };
+  F.koba.anchor = { x: 20, z: 24 };
   KIT.backOf(rt, F.relief, { flag: 'kuroda', armor: KURODA.armor, kind: 'mixed', w: 16, depth: 8, count: 120, seed: 1588 });
   rt.say('黒田官兵衛', '島津の横を突く。宮部殿の砦は、もう落ちぬ', 4);
   rt.after(4.5, () => rt.say('小早川隆景', '小早川の者ども、尾根を下って島津の横腹へ！', 3.5));
   sfx('horagai', 0.7);
 }
+// 退却の知らせと同時に実際の隊と松明を坂下へ戻し、味方の追撃を止める。
+function retreatAll(rt) {
+  rt.flags.retreating = true;
+  for (const g of rt.army.groups) {
+    if (g.team === 0) { g.order = 'hold'; g.noPursue = true; g.historicalOrders = true; g.aggro = 0; g.seekRange = 0; }
+    else {
+      // 坂の下の大将も床几を離れて退く。着座したまま滑って逃げない。
+      for (const u of g.units) if (u.alive) u._crouch = false;
+      g.noAI = false; g.order = 'retreat'; g.historicalOrders = true; g.noPursue = true;
+      g.anchor = { x: g.anchor.x, z: 240 }; g.aggro = 0; g.seekRange = 0;
+    }
+  }
+}
+
 const t08_nejirozaka = {
   lethal: true,   // 命懸けの戦場（lethal.js。先取り 11/9 豊臣B）
   foeHit: 1.0,
@@ -511,15 +525,7 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
     rt.world.setTime('morning');
     if (rt.world.fade) rt.world.fade.dur = 12;
     // 締めが済むまで勝ちを確定しない。確定後は台詞と戦の更新が止まる。
-    for (const g of rt.army.groups) {
-      if (g.team === 0) { g.order = 'hold'; g.noPursue = true; g.historicalOrders = true; g.aggro = 0; g.seekRange = 0; }
-      else {
-        // 坂の下の大将も床几を離れて退く。着座したまま滑って逃げない。
-        for (const u of g.units) if (u.alive) u._crouch = false;
-        g.noAI = false; g.order = 'retreat'; g.historicalOrders = true; g.noPursue = true;
-        g.anchor = { x: g.anchor.x, z: 240 }; g.aggro = 0; g.seekRange = 0;
-      }
-    }
+    retreatAll(rt);
     sfx('horagai', 0.8);
     // 夜明け。島津は都於郡・佐土原へ退き、秀長の陣は尾藤知宣の言で追わなかった（義久が降るのは五月で、この朝の話ではない）
     rt.say('藤堂高虎', 'よう持ったな。島津の勢いも、これまでよ', 4);
