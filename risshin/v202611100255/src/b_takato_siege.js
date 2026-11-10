@@ -134,8 +134,9 @@ function sallyContactTick(rt, dt) {
     if (!sallyFoe(F, u)) continue;
     if (!siegeFighter(u) || u.noTarget || Math.abs(u.pos.y - p.pos.y) >= 2 ||
         Math.hypot(u.pos.x - p.pos.x, u.pos.z - p.pos.z) >= 3.5) continue;
-    const receiving = u.atk?.target === p || u.swing?.target === p && !u.swing.done;
-    const attacking = p.atk?.target === u || p.swing?.target === u && !p.swing.done;
+    // 弓・鉄砲の構え時間を、城兵と刃を交えた時間へ足さない。
+    const receiving = u.atk?.target === p && !u.atk.ranged && !u.atk.bow || u.swing?.target === p && !u.swing.done;
+    const attacking = p.atk?.target === u && !p.atk.ranged && !p.atk.bow || p.swing?.target === u && !p.swing.done;
     if ((receiving || attacking) && !rt.army.wallBetween(p.pos, -1, u.pos)) {
       F.sallyContact = (F.sallyContact || 0) + dt;
       return;

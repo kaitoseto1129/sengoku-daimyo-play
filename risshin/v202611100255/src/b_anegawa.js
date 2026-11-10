@@ -2587,7 +2587,8 @@ function aneNearestFoe(rt) {
   const k = F.aneStage || 0;
   // 任務や追撃へ切り替わった時は、前の相手を半秒の控えや近さの判定で持ち越さない。
   const sameTask = F.aneFoeStage === k && F.aneFoeStep === F.step;
-  if (sameTask && rt.t < (F.aneFoeAt || 0) && (F.aneFoe === null || aneFoe(F.aneFoe))) return F.aneFoe;
+  if (sameTask && rt.t < (F.aneFoeAt || 0) && (F.aneFoe === null || aneFoe(F.aneFoe) &&
+      (k !== 4 || aneStageFoe(rt, k, F.aneFoe)))) return F.aneFoe;
   F.aneFoeStage = k; F.aneFoeStep = F.step;
   F.aneFoeAt = rt.t + .5;
   const me = rt.player.u.pos, post = anePost(rt), pursuit = F.step === 2;
@@ -2596,6 +2597,8 @@ function aneNearestFoe(rt) {
   let best = null, bd = Infinity, hqBest = null, hqD = Infinity;
   for (const u of rt.army.units) {
     if (!aneFoe(u)) continue;
+    // 北岸の殿への案内で、南岸の残兵へ引き返させない。
+    if (k === 4 && !aneStageFoe(rt, k, u)) continue;
     if (own) {
       if (!aneStageFoe(rt, k, u) || u.pos.z < aneNorthBank(u.pos.x)) continue;
       const d = Math.hypot(u.pos.x - me.x, u.pos.z - me.z);
@@ -2616,6 +2619,7 @@ function aneNearestFoe(rt) {
   if (hqBest) { best = hqBest; bd = hqD; }
   const prev = F.aneFoe;
   if (sameTask && best && prev && best !== prev && aneFoe(prev) &&
+      (k !== 4 || aneStageFoe(rt, k, prev)) &&
       (!own || aneStageFoe(rt, k, prev) && prev.pos.z >= aneNorthBank(prev.pos.x) &&
         (Math.hypot(prev.pos.x - me.x, prev.pos.z - me.z) <= 45 ||
          Math.hypot(prev.pos.x - post.x, prev.pos.z - post.z) <= 45 ||
@@ -2660,7 +2664,8 @@ function aneStageFoe(rt, k, u) {
   const thin = (q) => gone(q) || !q.count || q.count <= 3;
   if (k === 1) return g === F.iso || g === F.second || thin(F.iso) && thin(F.second) && F.waves.includes(g);
   if (k === 2) return F.waves.includes(g) || g === F.counterChase || g === F.rear || Math.hypot(p.x - HQ.x, p.z - HQ.z) < 75;   // 11/6 fixc0834：本陣の前へ抜けた浅井の群れも
-  if (k === 4) return g === F.rear || g === F.counterChase || p.z < aneNorthBank(p.x) || gone(F.rear);
+  // ⑤は北岸での斬り合い。殿や残兵の所属だけで南岸の攻撃まで数えない。
+  if (k === 4) return p.z < aneNorthBank(p.x);
   return false;
 }
 function aneStageHit(rt, u) {
