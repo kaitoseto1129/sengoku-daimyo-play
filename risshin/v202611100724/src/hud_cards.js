@@ -207,7 +207,7 @@ export class HudCards {
   enemyTriangleSigns(rt) {
     const me = rt.player.u;
     // 敵の▼は field_signs.js の一つの形に任せる（頭上に固定。字の▼を毎コマ見え隠れさせない。kaito 10/23）。
-    const on = !pinGuideOn(rt) && rt.def.enemyTriangleSigns && me.alive && !rt.over && !rt.choice &&
+    const on = (!pinGuideOn(rt) || rt.def.keepBattleSigns) && rt.def.enemyTriangleSigns && me.alive && !rt.over && !rt.choice &&
       !this.introWaiting && !rt.player.camShot && !this.bigmap && !this.root.classList.contains('photo');
     if (!this.enemyTriangles) {
       if (!on) return;

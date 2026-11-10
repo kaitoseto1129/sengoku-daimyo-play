@@ -149,6 +149,7 @@ const k14_yao_wakae = {
   noLeaderFollow: true,      // 行き先の印は段ごとの一つだけ
   stageGoalsOnly: true,      // 目標の札は五つの段だけ（段が五つあるので、埋めの「敵を八人討つ」で一段目が札から落ちていた。n6 X6）
   goalsAllRows: true,        // 五つを開戦前から並べ、果たした目標にも印を残す
+  keepBattleSigns: true,    // 行き先を案内している間も、将の名前と目標一覧を残す。
   goalVisibleRows: 4,        // 現在の四段を最初から全部並べる（共通の札の既定は一行）
   goalRowsAhead: true,
   goalSignOnly: true,       // 共通の目標推測より、この戦が選んだ横の備・伏せ槍・木村への案内を優先する。

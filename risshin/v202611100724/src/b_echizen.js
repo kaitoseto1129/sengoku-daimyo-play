@@ -2847,8 +2847,14 @@ function echizenAdvanceTick(rt) {
     // 峠道の点に着いたら次の点へ（印を尾根の斜面へ向けない）
     const w = F.echWay?.[F.echWayI];
     if (w && F.echWayI < F.echWay.length - 1 && Math.hypot(u.pos.x - w.x, u.pos.z - w.z) < 12) F.echExitAt = F.echWay[++F.echWayI];
-    // 本人が殿の前へ着いたら（味方の先手が先に着いても）、殿が槍を向ける
+    // 本人と味方の追手が、殿の前へ着いたかを調べる。
     const near = (q, r) => Math.hypot(q.x - TAIL_AT.x, q.z - TAIL_AT.z) < r;
+    // 味方の追手にも応戦する。本人の到着と下知の達成は別に判定する。
+    const tail = F.echTail;
+    if (tail?.count && !tail.routed && tail.order === 'hold' &&
+        (near(u.pos, 28) || rt.army.units.some(q => q.team === u.team && passFighter(q) && near(q.pos, 28)))) {
+      tail.seekRange = 40; tail.aggro = 40; tail.stay = false; tail.order = 'attack';
+    }
     if (near(u.pos, 28) && !inKannon(u.pos)) {
       F.echGateReached = true;
       rt.objDone('fuchu');

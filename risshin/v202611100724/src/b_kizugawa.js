@@ -4863,7 +4863,7 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
           deckGuardTask(nearbyThreat) : rt.t < c.cd ? '玉込め中。西の船べりを見張れ' :
           deckRouteDistance(u, c.post) > 2.6 ? cannonApproachTask(rt, c) : !b ? '西の大筒へ。敵船を待て' :
           Math.hypot(b.x - c.x, b.z - c.z) > 55 ? '西の大筒へ。船が近寄るのを待て' : !cannonFacing(b, c) ?
-            '西の大筒へ。船の横腹を待て' : F.step === 4 ? '西の大筒で大船の横腹を撃て' : '西の大筒で迫る敵船を撃て';
+            '西の大筒へ。船の横腹を待て' : F.step === 4 ? '西の大筒で大船の横腹を撃て' : F.step === 6 ? '西の大筒で、大坂へ抜ける兵糧船を止めよ' : '西の大筒で迫る敵船を撃て';
         // 大筒へ寄る札と撃つ札は、持ち場の縁で二三秒ごとに入れ替わった（11/9 見回り act）。急ぎでない入れ替えは四秒保つ。
         const calm = !closeThreat && !F.kukiDanger && !guarding && !(rt.t < c.cd);
         const walk = /大筒へ進め|^屋形の/;
@@ -5025,7 +5025,10 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
       if (elapsed >= 130 && rt.t >= 600 && (F.pk || 0) >= 1) { this.decisive(rt); return; }   // 15分の段：大将船は九分半ごろ（有名な場面を七〜十三分に）。乗り口で戦い続けた者を負けにせず、決め手の段へ（bot 10/26）
     }
     if (F.step === 4) {
-      if (!F.bigSunk && elapsed >= 60 && (F.pf4 || F.pk)) { this.breakFlagship(rt, false); return; }   // 当てられなくても味方の大船が崩す（負けにしない）
+      // 援護も射界・玉込め・着弾を通す。時間だけで射程外の大将船を壊さない。
+      if (!F.bigSunk && elapsed >= 60 && (F.pf4 || F.pk)) {
+        for (let i = 0; i < F.guns.length; i++) if (cannonReady(rt, F.guns[i])) { this.fire(rt, i, false); break; }
+      }
       // 命中後の崩れを見せたら退きへ進む。砲撃が早く決まっても待たせない。
       if (F.bigSunk && rt.t - F.flagshipHitAt >= 8) { this.retreat(rt); return; }
     }

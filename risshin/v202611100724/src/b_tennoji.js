@@ -4479,7 +4479,9 @@ tennoji.botBrain = (b, inp, { goTo, patientStrike }) => {
   // 先着した味方が殿を払った時も、口で構えて押さえる。馬上では構えられないので先に降りる。
   if (F.step === 4 && F.kidoCut && !F.kidoHelp && F.kz &&
       Math.hypot(u.pos.x - F.kz.x, u.pos.z - F.kz.z) < 8 &&
-      !b.army.nearestEnemy(u, 10, (o) => o.alive && !o.fleeing && !o.woundOut && !o.noTarget)) {
+      !b.army.nearestEnemy(u, 10, (o) => o.alive && !o.fleeing && !o.woundOut && !o.noTarget &&
+        // 勝利の残敵判定と同じ境界。退去済みの殿が柵際に残っても、口で構えられる。
+        !(F.kidoG.includes(o.group) && o.group.kidoRetreat && o.pos.z <= F.kz.z - 12))) {
     inp.guardHold = false; inp.leftPressed = false; inp.chargeHold = false;
     if (p.mounted) {
       if (!(p.mountT > 0)) inp.e.add('KeyR');

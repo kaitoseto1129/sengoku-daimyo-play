@@ -1950,6 +1950,15 @@ function cleanTemple(rt) {
     add(alongX ? ax : az); add(alongX ? bx : bz);
     for (const [mid, width] of doors) { add(mid - width / 2); add(mid + width / 2); }
   }
+  // 本堂の独立柱と来迎柱は壁の一覧にない。通行用の円だけでは、
+  // 柱の脇へ寄った視点を戻せず、守備中に柱が画面を覆っていた。
+  // honno_tera.js の調度で描く六本を、見通しと視点にも登録する。
+  const hondo = T.halls.find((hall) => hall.H.id === 'hondo');
+  if (hondo) for (const [x, z, radius, height] of [
+    [-58, 42.4, .173, 2.8], [-58, 49.6, .173, 2.8],
+    [-52, 42.4, .173, 2.8], [-52, 49.6, .173, 2.8],
+    [-61.6, 43.2, .153, 3.18], [-61.6, 48.8, .153, 3.18],
+  ]) T.sightPosts.push({ rec: hondo.rec, x, z, radius, cameraRadius: radius + .4, height });
   // 寺の高い床・登り道だけを無効にする。低い戸口や廊下、寺外の屋根の射座は残す。
   const W = rt.world;
   // 門から本堂、中庭から御殿へ通った跡。既存の地面の絵へ刻み、面を重ねない。
