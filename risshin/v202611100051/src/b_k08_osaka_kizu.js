@@ -93,6 +93,18 @@ function goNorthTo(b, inp, goTo, target, radius) {
     goTo(p, inp, NGATE.x, Math.abs(pos.x - NGATE.x) > 2.5 ? approach : through, 2);
     return;
   }
+  // 東西の塀の外へ押し出された時も、③で開いた切れ目を通る。
+  // 北門と同じ側にいるだけでは、北寄りの塀を斜めに横切れない。
+  if (b.flags.step >= 3 && b.army.wallBetween(pos, -1, target)) {
+    for (const side of [-1, 1]) {
+      const outside = side * pos.x > WALL_X;
+      if (outside === (side * target.x > WALL_X)) continue;
+      const approach = side * (WALL_X + (outside ? 4 : -4));
+      const through = side * (WALL_X + (outside ? -4 : 4));
+      goTo(p, inp, Math.abs(pos.z + 30) > 2.5 ? approach : through, -30, 2);
+      return;
+    }
+  }
   goTo(p, inp, target.x, target.z, radius);
 }
 const northLeft = (F) => {
@@ -705,8 +717,7 @@ k08_osaka_kizu.botBrain = (b, inp, { goTo, patientStrike }) => {
   if (F.botRest && F.step >= 3 && F.step <= 4) {
     const rest = F.botRestAt || (F.botRestAt = { x: 0, z: 0 });
     rest.x = gc.x; rest.z = gc.z + 8;
-    if (F.step === 4) goNorthTo(b, inp, goTo, rest, 2);
-    else goTo(p, inp, rest.x, rest.z, 2);
+    goNorthTo(b, inp, goTo, rest, 2);
     return;
   }
   //   ②は通り道の真ん中に立つと門の内の鉄砲に撃ち抜かれた（同じ通しで 111 秒に討たれた）。通り道を抜けたら西の竹束の真後ろに隠れる
@@ -740,7 +751,7 @@ k08_osaka_kizu.botBrain = (b, inp, { goTo, patientStrike }) => {
     inp.leftPressed = Math.random() < 0.6;
     return;
   }
-  if (F.step === 3) { at(fightingTarget(F.s3, u.pos)?.pos || INSIDE, 2.2); return; }
+  if (F.step === 3) { goNorthTo(b, inp, goTo, fightingTarget(F.s3, u.pos)?.pos || INSIDE, 2.2); return; }
   if (F.step === 4) {
     const target = northTarget(F, u.pos)?.pos || NGATE;
     // 加勢を迎えて門の外へ出た後も、内の守兵へは開いた北門を通って戻る。
@@ -750,7 +761,7 @@ k08_osaka_kizu.botBrain = (b, inp, { goTo, patientStrike }) => {
   // ⑤は砦の真ん中の道を北へ（櫓の角へ真っすぐ向かって詰まらない）
   const f = F.flagAt || NGATE;
   // 加勢を追って北門の外に残った場合も、塀を横切らず開いた門から幟へ戻る。
-  if (u.pos.z < WALL_N) { goNorthTo(b, inp, goTo, f, 2); return; }
+  if (u.pos.z < WALL_N || Math.abs(u.pos.x) > WALL_X) { goNorthTo(b, inp, goTo, f, 2); return; }
   if (Math.abs(u.pos.x - f.x) > 5 && u.pos.z > f.z + 8) { at({ x: f.x, z: u.pos.z - 4 }, 2); return; }
   at(f, 2);
 };

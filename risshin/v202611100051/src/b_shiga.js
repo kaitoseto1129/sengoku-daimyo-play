@@ -3933,15 +3933,14 @@ const shiga = {
       if (F.w1 && F.w1.count < 5 && !gone(F.w1)) F.w1.morale = Math.min(F.w1.morale, 20);
       if (F.w1b && F.w1b.count < 5 && !gone(F.w1b)) F.w1b.morale = Math.min(F.w1b.morale, 20);
       // 先手が列へ届く前に三日後へ飛ばさない。接触後も受け合う間を残す。
-      // 寄せが詰まった場合は九十五秒で次へ進め、戦の終わりを待ち続けない。
+      // 時間切れだけでは押し返したことにしない。先手の敗走か、町口での接触を待つ。
       // 10/30：本人が森隊の槍の列へ入るか先手を討った上で、町口（四十歩内）にいる時だけ次へ。立っているだけでは進まず、放っておけば負け
       const dPost = Math.hypot(p.x - TOWN_POST.x, p.z - TOWN_POST.z);
       if (dPost < 6) F.s1Line = true;
       const own = (F.s1Own > 0 || F.s1Line) && dPost < 40;
       if (!own && rt.t - F.stepT > 150) { this.lose(rt, '森隊の槍の列へ入らず、町口を守れなかった', true); return; }
       if (own && rt.t - F.stepT >= 60 && ((F.w1b && gone(F.w1) && gone(F.w1b)) ||
-          rt.t - F.stepT > 55 && F.townContactT != null && rt.t - F.townContactT >= 12 ||
-          rt.t - F.stepT > 95)) this.midA(rt);
+          F.townContactT != null && rt.t - F.townContactT >= 12)) this.midA(rt);
     }
     if (F.step === 1.5) {
       const atTown = Math.hypot(p.x - TOWN_POST.x, p.z - TOWN_POST.z) < 40;
