@@ -873,6 +873,8 @@ const t02_shizugatake = {
   pushSaku(rt) {
     const F = rt.flags;
     this.enter(rt, 3.5);
+    // 遠景の取り合いにも奪還を伝え、佐久間の兵だけが砦へ攻め続けないようにする。
+    F.sfar?.oiwa?.rout?.('B', { from: 0, hideAfter: 30 });
     // 奪還を認めたら残る守備兵も北へ退く。旗だけ替えて砦内の斬り合いを残さない。
     for (const g of [F.wA, F.wB, F.wC, F.gar]) if (live(g)) {
       g.order = 'retreat'; g.focus = null; g.onArrive = null; g.path = null;
@@ -932,6 +934,8 @@ const t02_shizugatake = {
     if (F.phase >= 4) return;
     if (!F.maedaGo) this.withdrawMaeda(rt); // 続きから再開する時も、前田隊を茂山へ戻さない。
     this.enter(rt, 4);
+    // 行市山から下った遠景の列も、本隊と同じ下知で崩れる。
+    F.sakuCol?.rout?.({ hideAfter: 30 });
     rt.award((t) => { t.special = { label: '大岩山の北で佐久間の備を押し返した', pts: 15 }; }, '佐久間の備を押し返した');
     for (const g of [F.saku, F.mori]) if (live(g)) { g.order = 'retreat'; g.focus = null; g.onArrive = null; g.path = null; g.dest = { x: 20, z: -300 }; g.speed = g === F.mori ? 4 : 2.8; g.kind4 = 'flee'; for (const u of g.units) u.noTarget = true; }
     F.kmG = enemyGroup(rt, { ...SHIBATA, name: '柴田勝家の先手', anchor: { ...SHIBA_FRONT }, facing: 0.1, fleeDir: { x: 0, z: -1 }, width: 6, morale: 92, dmgMult: 0.42, noRout: true, noAI: true, formation: 'line', order: 'hold', aggro: 12, seekRange: 16 },
