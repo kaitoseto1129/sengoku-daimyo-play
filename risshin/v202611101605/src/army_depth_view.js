@@ -38,7 +38,7 @@ export function depthSetup(rt, plan) {
   if (plan.byMen) {
     let tot = 0;
     for (const D of [V.A, V.B]) if (D) for (const s of D.sonae) if (s.o.show !== false && (!s.o.bind || tailOn(V, s))) tot += Math.max(0, s.men) * (s.o.bind ? TAIL_SHARE : 1);
-    V.menK = tot > 0 ? Math.min(1 / 40, BUDGET * 0.92 / tot) : 0;
+    V.menK = tot > 0 ? Math.min(1 / 25, BUDGET * 0.92 / tot) : 0;   // 上限 二十五人に一人（11/10 クラウド厚み係：四十人に一人では予算の三割しか使わない戦が多かった）
   }
   try {
     for (const D of [V.A, V.B]) if (D) buildSide(rt, V, D);

@@ -9,7 +9,7 @@
 // 主人公は前田利常の先手（山崎長徳の組）。史実どおり攻めは失敗する。勝ち方＝味方を退かせ、生きて退き口まで戻る（殿）。
 // 段：①篠山を取る ②挑発に乗り丸の柵へ ③堀の前で一斉射撃に耐え、柵を破る（井伊・松平の殺到）④真田の打って出を受け、退き口へ
 // 負け方：討たれる。刻限は段ごと（全体の刻限は無い。AP8）。見せかけの軍勢は出さない（AA・AF・AQ6）：出る兵は全部本物。
-// 総大将の家康は住吉の陣で戦場にいない（下知は使番）。信繁は丸の中の本陣。打って出るのは大助と伊木遠雄（docs/battle_refs/k11_sanadamaru.md）。
+// 総大将の家康は茶臼山の陣で戦場にいない（下知は使番）。信繁は丸の中の本陣。打って出るのは大助と伊木遠雄（docs/battle_refs/k11_sanadamaru.md）。
 // 向き：北が -z（大坂城）。寄せ手は南（+z）から北へ。真田丸は円の中心 C の南へ開いた弧。
 // 地形：国土地理院の標高（dem_sanadamaru.js・tools/dem.mjs の sanadamaru）。ゲームの 1 が実の 4m。丸の周りは平らに均す。
 // ======================================================================
@@ -309,6 +309,7 @@ const k11_sanadamaru = {
   stageGoalsOnly: true,        // 右上の目標は四つの段だけ（「敵を八人討つ」で埋めない。三1）
   goalsAllRows: true,          // 九1・十1：五つの場所と行いを最初から並べ、済んだ物に印を付ける。
   goalsVisibleRows: 5,
+  enemyTriangleSigns: true, keepBattleSigns: true, // 見える敵全員に共通の赤い▼。行き先のピンと併せて表示する。
   nearbyAllySignLimit: 0,      // 味方の頭上に白い丸を出さない（意味の分からない印。五2）
   noFlankCry: true,            // 撃ち崩された寄せ手に、共通の側面攻撃の声を重ねない。
   // 見出しの札は終わりと討ち取りだけ（「敵の隊が崩れた」や段の見出しは案内の字。kaito 五1）。流れは台詞と動きで分かる
@@ -451,7 +452,7 @@ const k11_sanadamaru = {
     }
     KIT.farVillage(rt, 130, 170, { rot: Math.PI, n: 6, fields: 8, seed: 52 });
 
-    // 見せかけの軍勢（軽い作り）は置かない（AA・AF・AQ6）。家康は住吉の陣にいて、この戦場にはいない（AR3・AT3）。
+    // 見せかけの軍勢（軽い作り）は置かない（AA・AF・AQ6）。家康は茶臼山の陣にいて、この戦場にはいない（AR3・AT3）。
     // 真田丸の中：信繁の本陣と旗本（侍）。塀の内に構え、外へは出ない（総大将は討てる所に出さない）
     F.nobu = enemyGroup(rt, { faction: 'toyotomi', name: '真田信繁の旗本', anchor: { x: 0, z: -54 }, facing: 0, width: 8, aggro: 0, noRout: true },
       dress([{ type: 'busho', n: 1, o: { name: '真田信繁', hat: 'kabuto_sanada', haori: 0x7a1a12 } }, uS(6), uG(2)], SANADA));
@@ -834,7 +835,7 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
     rt.say('前田の使番', '殿より！　丸へは寄せるな、仕寄りへ戻れとの仰せ！', 3.4);
     rt.after(4.5, () => { if (F.step === 2) rt.say('山崎長徳', 'ここまで笑われて戻れるか！　正面から真田丸へ寄せよ！', 3.6); });
     rt.after(9, () => { if (F.step === 2) rt.say('足軽', '小さな出丸じゃ。これなら一気に落とせる！', 3); });
-    rt.after(24, () => { if (F.step === 2) rt.say('使番', '前田勢、真田丸へ寄せたり！　住吉の大御所様の陣へ注進！', 3.4); });
+    rt.after(24, () => { if (F.step === 2) rt.say('使番', '前田勢、真田丸へ寄せたり！　茶臼山の大御所様の陣へ注進！', 3.4); });
     // 退きの下知までの損害：一斉射の後、味方が十二人倒れるか、撃たれて五十秒
     const hurt = () => F.fireOn && ((F.ak || 0) - (F.ak0 || 0) >= 14 || rt.t - F.fireT > 70);
     this.steps(rt, [
@@ -937,7 +938,7 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
     rt.after(2.8, () => rt.say('山崎長徳', '待て！　下知はまだじゃ！　……ええい、後の手が勝手に出おった！', 3.6));
     rt.after(16, () => { if (F.step === 4) rt.say('足軽', '前が詰まってる！　下がれない！', 3); });
     rt.after(30, () => { if (F.step === 4) this.showNobu(rt); });
-    rt.after(48, () => { if (F.step === 4) rt.say('使番', '住吉の本陣へ注進！　前田勢の手負い・討死、数知れず！', 3.4); });
+    rt.after(48, () => { if (F.step === 4) rt.say('使番', '茶臼山の本陣へ注進！　前田勢の手負い・討死、数知れず！', 3.4); });
     this.steps(rt, [
       this.tidy({ obj: STAGES.k11_sanadamaru[3][0], label: '詰まった味方', max: 200 }),
       DP.rest({ dur: 10, heal: 0.9, say: [['山崎長徳', 'これが最後じゃ。鉄砲で援け、槍と柵を破る組と予備を、皆で同時に入れる'], ['使番', '西の井伊・越前勢も、寄せる構えにござる！']], fn: (rt2) => rt2.marker('dp', polar(0, FENCE_R + 10), '真田丸の柵', { h: 3 }) }),
@@ -947,9 +948,10 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
   // 前線を整理する段：詰まった組の所へ行けば、その組は左右へ分かれて退き、道が空く。三組を整理すれば済む
   tidy(o) {
     return { kind: 'tidy', max: o.max, limit: Infinity,
-      start(rt, C) { C.n = 0; rt.obj('dp', o.obj, 'main'); C.at = C.goal = polar(0, FENCE_R + 8); rt.marker('dp', C.at, o.label, { h: 3 }); },
+      start(rt, C) { C.n = 0; rt.obj('dp', o.obj, 'main'); C.at = C.goal = C.front = polar(0, FENCE_R + 8); rt.marker('dp', C.at, o.label, { h: 3 }); },
       tick(rt, C, m, ctx, el) {
-        const F = rt.flags, p = rt.player.u.pos;
+        const F = rt.flags, player = rt.player.u, p = player.pos;
+        if (!player.alive) return false;
         const left = F.jam.filter((g) => !gone(g) && !g.tidied);
         let near = null, nd = Infinity;
         // まず柵前の組を整理する。長く着けない組も、その場まで迎えに行って退かせる（到着待ちで止めない）。
@@ -962,6 +964,14 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
             withdraw(near, { x: sd * 34, z: RETREAT.z - 10 });
             rt.say(nm(rt), ['道を空けよ！　手負いを後ろへ！', '左右へ分かれよ！　柵際は鉄砲で援けよ！', '下がれ、下がって組を立て直せ！'][(C.n - 1) % 3], 2.8);
           }
+        }
+        // 全滅・敗走で整理する組が消えても、陣で待つだけでは前線整理を果たさない。
+        // 生存者がいなければ柵前へ確かめに行く。特定の組の生存は条件にしない。
+        if (!left.length && !C.n) {
+          C.at = C.goal = C.front;
+          rt.marker('dp', C.at, o.label, { h: 3 });
+          rt.objProgress('dp', '真田丸の柵前で退路を確かめよ');
+          return el > 70 && Math.hypot(p.x - C.at.x, p.z - C.at.z) < 7;
         }
         rt.objProgress('dp', `整理した組 ${C.n}/${F.jam.length}`);
         return el > 70 && left.every((g) => g.tidied);

@@ -2748,11 +2748,12 @@ const arioka = {
         // 四方とも壁や段差なら印を残し、本人が通りへ戻るまで迎えた事にしない。
         if ((b.flags._ev_kanbe?.t || 0) > 75 && (Math.hypot(u.pos.x - p.x, u.pos.z - p.z) >= 3.5
           || Math.abs(u.pos.y - p.y) > 3 || b.army.wallBetween(u.pos, -1, p))) {
-          for (const a of [0, Math.PI / 2, -Math.PI / 2, Math.PI]) {
+          // 視点のある背後へは置かず、正面か左右で迎える。空きが無ければ通りへ戻るのを待つ。
+          for (const a of [0, Math.PI / 2, -Math.PI / 2]) {
             const h = (b.player.yaw || 0) + a;
             const places = [0, 1.2].map((side) => {
-              const q = { x: u.pos.x - Math.sin(h) * 2.6 + Math.cos(h) * side,
-                z: u.pos.z - Math.cos(h) * 2.6 - Math.sin(h) * side };
+              const q = { x: u.pos.x + Math.sin(h) * 2.6 + Math.cos(h) * side,
+                z: u.pos.z + Math.cos(h) * 2.6 - Math.sin(h) * side };
               q.y = b.world.heightAt(q.x, q.z);
               return q;
             });
