@@ -244,6 +244,9 @@ const k06_sekigahara = {
   hideArmyPeek: true,
   missionSingleLine: true,
   battleDialogue: true,   // 抜け駆けの咎め・寝返り・退き口の知らせを、音を消していても読める
+  // 自害は台本の使番が知らせる。倒す処理から共通の「討ち取ったり」を重ねない。
+  // 生前の吉継の名と、ほかの将の討取りはそのまま出す。
+  hideNameTag: (u, rt) => !!rt?.flags.otaniDown && u === rt.flags.otaniU && !u.alive,
   foeMarks: true,
   foeMarkRange: 30,
   missionPinCaption: '',

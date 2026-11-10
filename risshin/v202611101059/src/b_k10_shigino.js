@@ -646,9 +646,13 @@ html:root body #hud#hud#hud.shigino-goals.shigino-combat #goal-sign .gs-tag > sp
     }
     if ((F.scanT = (F.scanT || 0) - dt) > 0) return;
     F.scanT = 0.25;
-    // 味方が先に討ち尽くした時は、本人が持ち場へ来て攻めの操作で確保を確認する。
-    // 立って待つだけでは参戦に数えず、全滅後も進行不能にしない。
-    const cleared = F.step === 1 ? !live(F.g1) && !live(F.g2) : F.step === 4 ? !live(F.wata) && !live(F.kimu) : F.step === 5 && !F.riverAid && !live(F.take);
+    // 味方が先に必要な六割を退けた時は、本人が持ち場へ来て攻めの操作で確保を確認する。
+    // 討死しない敵将や残兵の全滅を待つと、戦果が足りても参戦を確認できず止まる。
+    // 立って待つだけでは進めず、各段の達成判定と同じ戦果を使う。
+    const cleared = F.step === 1
+      ? [F.g1, F.g2].every((g, i) => F.w1N[i] - aliveN(g) >= Math.round(F.w1N[i] * 0.6))
+      : F.step === 4 ? F.w4N - sumN(F.wata, F.kimu) >= Math.round(F.w4N * 0.6)
+      : F.step === 5 && !F.riverAid && F.w5N - aliveN(F.take) >= Math.round(F.w5N * 0.6);
     if (cleared && (P.swing || P.atk || rt.army.time - (P.gunShotAt ?? -100) < 1)) {
       const pin = this.missionPin(rt);
       if (pin && dist(P.pos, pin) < 22) F['playerFight' + F.step] = true;
