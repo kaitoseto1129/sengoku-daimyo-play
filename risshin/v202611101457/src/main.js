@@ -2222,6 +2222,8 @@ const game = {
       // 見渡しは今は停止中。出陣後へ映画の引き・見せ場を残さず、本人の視点で支度する。
       b.player.introT = 0; b.player.camShot = null; b.player.cine = null; b.player.shotZoom = 0;
       b.player.updateCamera(1, camera);
+      // 組み立てで作った見えない兵の形の配列を、人・顔・絵の支度より先に手放す（支度中の山。11/10 iPhone・iPad の落ち）
+      { const tD = performance.now(); LT.hiddenShapes = b.army.dropHiddenShapes?.() || 0; LT.hiddenShapesMs = Math.round(performance.now() - tD); }
       // 戦が始まってすぐ近くに来るはずの人を、幕の内で先に本物の人へ（humans.js の updateHumans を少し進める）。
       // ここをしないと、開戦直後に次々と人の形が変わるたびシェーダーを初めて作ることになり、一コマが0.5秒も固まって
       // 「重くてスロー・画面が黒くチカチカ」に見えていた（dynRes が跳ねてキャンバスの大きさが上下する。kaito 10/1）

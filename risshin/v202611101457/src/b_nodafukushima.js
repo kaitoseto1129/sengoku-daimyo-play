@@ -1184,6 +1184,8 @@ function floodRise(rt) {
     const compile = mat.onBeforeCompile, programKey = mat.customProgramCacheKey();
     mat.customProgramCacheKey = () => `${programKey}|noda-flood-bank`;
     mat.transparent = true;
+    // 薄い水際で奥行きだけを塞ぎ、後から描く葦や水面を角形に欠かせない。
+    mat.depthWrite = false;
     mat.onBeforeCompile = function (shader, renderer) {
       compile.call(this, shader, renderer);
       shader.vertexShader = 'attribute float floodGround; varying float vFloodGround;\n' + shader.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vFloodGround = floodGround;');
