@@ -2156,9 +2156,10 @@ const okawachi = {
     });
     rt.say(okSpeaker(rt), '長い法螺二声は集まれじゃ。南の鹿垣の旗で番の組と槍を揃え、兵糧を断て', okSignalListen(rt));
     // 集合の二声と復唱の間は、別の台詞で下知を消さない。
-    // 巻二は近松豊前・神戸伯耆を九月八日の夜の討死とする。翌朝の柵の組に生きて並べない。
+    // 巻二は四人を九月八日の夜の討死とする。退場では初期人数まで減り、討死の記録と倒れる姿が残らない。
+    // 通常の討死処理を通し、既に討たれた者や退場した者には重ねない。
     for (const u of [...(F.niwa?.units || []), ...(F.ikeda?.units || [])])
-      if (['近松豊前', '神戸伯耆', '朝日孫八郎', '波多野弥三'].includes(u.name) && u.alive && !u.gone) rt.army.despawn(u);
+      if (['近松豊前', '神戸伯耆', '朝日孫八郎', '波多野弥三'].includes(u.name) && u.alive && !u.gone) rt.army.kill(u, null);
     rt.after(ASSEMBLY_LISTEN + F.signalDelay, () => {
       if (F.ending || rt.over || F.step !== 4 || F.signalCue !== cue) return;
       rt.say('組頭', '近松豊前殿も、昨夜の坂から戻らなんだ……。囲みはまだ続くで、気を抜くな', 4);
