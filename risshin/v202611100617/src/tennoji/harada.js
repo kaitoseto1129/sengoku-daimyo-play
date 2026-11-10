@@ -42,6 +42,20 @@ export function install(rt, ctx) {
   const st = {
     update(dt) {
       if (rt.over || F.ending) return;
+      // 救援の物語は進めるが、門内で待っただけの本人に救出の手柄を付けない。
+      // 半秒より短い応戦も拾い、柵越しや戦えない相手への構えは数えない。
+      const me = rt.player.u;
+      if (!F.haradaDone && !F.haradaHelp && me.alive && !me.dying && !me.fleeing && !me.woundOut &&
+          (me.atk || me.swing || me.guard)) {
+        for (const enemy of P.units) {
+          if (!enemy.alive || enemy.dying || enemy.fleeing || enemy.woundOut ||
+              Math.hypot(enemy.pos.x - me.pos.x, enemy.pos.z - me.pos.z) > 7 ||
+              Math.abs((enemy.pos.y || 0) - (me.pos.y || 0)) > 3 ||
+              rt.army.wallBetween?.(me.pos, -1, enemy.pos, false)) continue;
+          F.haradaHelp = true;
+          break;
+        }
+      }
       if ((tick -= dt) > 0) return;
       tick = 0.5;
       if (F.haradaDone) { if (!shut) st.shut(); return; }
@@ -65,7 +79,8 @@ export function install(rt, ctx) {
       F.haradaDone = true;
       rt.unmark('harada'); rt.unmark('haradaChase');
       if (inside > 0) {
-        rt.award((t) => t.side.push('木津から逃げた原田勢を砦へ収めた'), '原田勢を砦へ収めた');
+        if (F.haradaHelp)
+          rt.award((t) => t.side.push('木津から逃げた原田勢を砦へ収めた'), '原田勢を砦へ収めた');
         rt.say('原田の侍', 'かたじけない……。殿（原田様）が楼の岸の鉄砲で深手じゃ。手当てを！', 4);
       }
       // 入った者は門の内の守りに加わる（籠城の段の味方の厚み）

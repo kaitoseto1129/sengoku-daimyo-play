@@ -688,7 +688,8 @@ const t04_negoro = {
     F.horiG = allyGroup(rt, { ...H, name: '堀秀政の手', anchor: P(-14, -140), facing: ROT, width: 8, aggro: 9, noRout: true, dmgMult: 0.85 },
       dress([{ type: 'busho', n: 1, o: { name: '堀秀政', horse: true, hat: 'kabuto_m' } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 8 }, { type: 'gun', n: 3 }], HORI));
     F.horiU = F.horiG.units.find((u) => u.name === '堀秀政') || F.horiG.units[0];
-    if (F.horiU) { F.horiU.maxHp *= 3; F.horiU.hp = F.horiU.maxHp; }
+    // 同じ更新中の集中射撃でも、次の段の判定を待たず深手で退けるようにする。
+    if (F.horiU) { F.horiU.invuln = true; F.horiU.maxHp *= 3; F.horiU.hp = F.horiU.maxHp; }
     F.sengokuG = allyGroup(rt, { ...H, name: '仙石秀久の手', anchor: P(30, -138), facing: ROT, width: 8, aggro: 9, noRout: true, dmgMult: 0.85 },
       dress([{ type: 'busho', n: 1, o: { name: '仙石秀久', invuln: true, horse: true, hat: 'kabuto_m' } }, { type: 'ashigaru', n: 6 }, { type: 'gun', n: 2 }], HASHIBA));
     const n = RANKS[rt.G.rank].squad;
@@ -889,7 +890,7 @@ const t04_negoro = {
             dress([{ type: 'samurai', n: 1 }, { type: 'gun', n: 6, o: { sohei: 1, armor: 0x2a2622, lace: 0xcfc7b4, cloth: 0xd8d2c2, hat: 'hachimaki', flag: null } }], NEGORO)));
         }
         // 堀が深手を負えば、旗本が抱えて退く（討たれはしない。目標は鉄砲衆を討つ事なので、退いても失敗にはしない。十一1）
-        if (h && !F.horiHurt && h.hp < h.maxHp * 0.3) {
+        if (h && !F.horiHurt && (h.woundOut || h.hp < h.maxHp * 0.3)) {
           F.horiHurt = true; h.invuln = true;
           F.horiG.order = 'move'; F.horiG.anchor = P(-14, -140);
           F.horiG.stay = true; F.horiG.seekRange = 0; F.horiG.focus = null;

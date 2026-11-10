@@ -452,7 +452,6 @@ const inou_spec = {
     // 刃が届く直前まで同じ本人へ導く。遠くでピンだけ消さない。
     const r = holding ? 10 : 3, P = rt.player.u.pos;
     const d2 = (u.pos.x - P.x) ** 2 + (u.pos.z - P.z) ** 2;
-    if (holding && d2 <= r * r) { F.farPin = null; return null; }
     if (d2 > INOU_FAR * INOU_FAR) {
       const far = F.farPinObj || (F.farPinObj = { x: 0, z: 0, r: 0, label: '' });
       far.x = u.pos.x; far.z = u.pos.z; far.r = INOU_FAR - 2;
@@ -467,7 +466,8 @@ const inou_spec = {
     const pin = F.beginnerPin || (F.beginnerPin = { x: 0, z: 0, r: 0 });
     pin.x = u.pos.x; pin.z = u.pos.z; pin.r = r;
     pin.label = holding ? '信長の馬前' : F.stage === 0 ? '於多井川の岸' : F.stage === 2 ? '稲生村の田' : '名塚への田の道';
-    pin.unit = holding ? null : u; pin.enemy = !holding; pin.flagDestination = holding;
+    // 馬前に着いても守備は続く。信長本人を追い、印を途切れさせない。
+    pin.unit = u; pin.enemy = !holding; pin.flagDestination = holding;
     F.beginnerPinTarget = pin;
     return pin;
   },

@@ -50,6 +50,14 @@ export function start(rt, ctx) {
     rt.say('足軽', '西の野田砦から槍が出たぞ！　鉄砲衆の横を突く気じゃ！', 3.2);
     rt.after(3.4, () => live() && rt.say('前田利家', '鉄砲衆の前に出よ！　込め替えの間を守れ！', 3.2));
   }
+  function withdraw() {
+    const g = S.g;
+    if (!g || g.routed) return;
+    // 攻めの到着処理を残すと、退く途中で再び竹束へ掛かってしまう。
+    g.onArrive = null; g.focus = null;
+    g.dest = { x: POST.x - 34, z: POST.z - 12 };
+    g.noRout = false; g.morale = 0; g.order = 'retreat';
+  }
   S.tick = (dt) => {
     if (!live() || !rt.player.u.alive) return;
     const p = rt.player.u.pos;
@@ -68,7 +76,7 @@ export function start(rt, ctx) {
       if (S.joined && (left <= 3 || S.g.routed)) {
         S.k = 2; S.okT = rt.t;
         rt.unmark('nodaTabaFoe');
-        if (!S.g.routed) { S.g.noRout = false; S.g.morale = 0; S.g.order = 'retreat'; }
+        withdraw();
         rt.award((t) => t.side.push('竹束の鉄砲衆を野田砦の槍から守った'), '鉄砲衆を守った', POST);
         rt.say('雑賀の鉄砲衆', '助かった！　これで心置きなく撃てる！', 3);
       }
@@ -78,7 +86,7 @@ export function start(rt, ctx) {
     if (S.k === 1 && S.g && S.joined && S.contestedAt != null && rt.t - S.contestedAt > 120) {
       S.k = 2; S.okT = rt.t;
       rt.unmark('nodaTabaFoe');
-      if (!S.g.routed) { S.g.noRout = false; S.g.morale = 0; S.g.order = 'retreat'; }
+      withdraw();
       rt.say('雑賀の鉄砲衆', '撃ちすくめた！　野田砦の槍が退くぞ！', 3);
     }
     if (S.k === 2 && rt.t - S.okT > 14 && rt.t - S.t0 > MIN_T) finish();
@@ -87,7 +95,7 @@ export function start(rt, ctx) {
     if (S.done) return;
     S.done = true;
     rt.unmark('nodaTaba'); rt.unmark('nodaTabaFoe');
-    if (S.g && !S.g.routed) { S.g.noRout = false; S.g.morale = 0; S.g.order = 'retreat'; }
+    withdraw();
     if (!F.ending && !rt.over) rt.say('前田利家', '日が暮れる。撃ち方やめ、堤へ戻って列を整えよ', 3.4);
     ctx.done();
   }
