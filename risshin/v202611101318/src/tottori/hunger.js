@@ -277,7 +277,7 @@ function start(rt, K, done) {
         };
       };
       rt.marker('k15foe', centerOf(g), '米を求める城兵', { red: true, group: g });
-      rt.obj('main', '兵糧を守れ', 'main', true);
+      rt.obj('main', '柵の口の兵糧を守れ', 'main', true);
       // 行き先は兵糧の俵（追って山へ登らせない。bot もここへ戻る）
       F.k15at = { id: 'hg-store', at: () => S, r: 8, t0: rt.t, fight: true };
       rt.marker('k15', () => S, '兵糧の俵', { h: 3, guideAlways: true });
@@ -328,15 +328,20 @@ function start(rt, K, done) {
       placePlayer(rt, G.x + 4, FZ + 12, Math.PI);
     }, '明け方', '城の坂を、白い布を掲げた使者が下りて来る');
     const man = evPerson(rt, 1, '吉川の使者', { x: G.x, z: FZ - 18 }, 0, { calm: true });
+    const meeting = { x: G.x, z: FZ + 2 };
+    // 本人だけ先に着いても、遠い使者の書状や返答を受け取ったことにしない。
+    const envoyNear = (at, radius) => man.units.some((u) => u.alive && !u.gone && !u.dying &&
+      !u.downed && !u.woundOut && !u.rearWound && u.hp > 0 &&
+      Math.hypot(u.pos.x - at.x, u.pos.z - at.z) <= radius);
     whiteCloth(man.units[0]);
     man.order = 'path'; man.path = [[G.x, FZ - 4]]; man.pathIdx = 0; man.noAI = false;
     rt.after(2, () => { if (!stop()) rt.say('組頭', '槍を下ろせ。白い布じゃ。誰も手を出すな', 4); }, true);
-    k15Go(rt, 'hg-envoy', { x: G.x, z: FZ + 2 }, 7, '柵の口で、城の使者を迎えよ', '柵の口', () => {
+    k15Go(rt, 'hg-envoy', meeting, 7, '柵の口で、城の使者を迎えよ', '柵の口', () => {
       k15Scenes(rt, [
         [1, () => rt.say('吉川の使者', '吉川式部少輔より、羽柴筑前守様へ。書状にござる', 4.5)],
         [4.5, () => rt.say('組頭', '本陣へお通しする。わしらが供をせよ', 4)],
       ], talks, stop);
-    }, { limit: 50 });
+    }, { limit: 50, canArrive: () => envoyNear(meeting, 10) });
     // 本陣の口で官兵衛が迎える。経家は、自分の命と引き換えに城の者を助けよと譲らない（『石見吉川家文書』の筋）
     function talks() {
       if (stop()) return;
@@ -351,7 +356,7 @@ function start(rt, K, done) {
           [5, () => { rt.banner('経家の申し入れ', '自分の命と引き換えに、城の者を助けよと'); rt.say('黒田官兵衛', '……義士じゃな。殿にそう申し上げる', 4); }],
           [4.5, () => { rt.award((t) => t.side.push('城の使者を本陣へ通した'), '城の使者を本陣へ通した'); evRemove(rt, man); evRemove(rt, kan); }],
         ], done, stop);
-      }, { limit: 40 });
+      }, { limit: 40, canArrive: () => envoyNear(camp, 6) });
     }
   }
 }

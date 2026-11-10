@@ -2776,6 +2776,8 @@ html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.iwamura-army #army
           if (F.ending || rt.over || gone(S)) return;
           for (const u of S.units) u.noTarget = false;
           F.footSallyOut = rt.t;
+          // 城兵も折れた道の上へ後列を置き、各兵が角をたどる。縦隊の指定だけでは切岸を直進する。
+          S.roadColumn = true; S.followColumnRoad = true; S.colW = 2;
           S.fixed = false; S.order = 'path'; S.path = F.footSallyPath; S.pathIdx = 1; S.speed = 3.4; S.march = true; S.formation = 'column'; S.fire = false; S.guardOn = false; S.noRout = true;   // 駆け下る間は撃ち止め、列を切らさない。麓で十八秒は踏みとどまる
           S.onArrive = (q) => { q.order = 'attack'; q.march = false; q.formation = 'loose'; q.aggro = 10; q.seekRange = 18; q.focus = rt.player.u; q.fire = true; };
           signal('kakari', rt.distTo(S.anchor), 0.7);

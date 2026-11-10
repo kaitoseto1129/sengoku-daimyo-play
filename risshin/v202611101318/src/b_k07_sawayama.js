@@ -675,7 +675,7 @@ html body #hud.enemy-action-guide:has(#h-prog[data-battle="k07_sawayama"]) #goal
     F.hasegawa.anchor = { x: 76, z: -52 };
   },
 
-  // 味方の手は自分と同じ速さで次の持ち場へ（九の4・一の5）。持ち場まで遠く、近くに敵がいない間は隊のまま駆け足で進み、着くか敵に当たれば攻めに戻る
+  // 味方の手は虎口を通って次の持ち場へ。壁越し・段違いの敵では行軍を止めない。
   hurry(rt) {
     const F = rt.flags, C = F.dp && F.dp.on && F.dp.cur;
     if (!C || !C.at || C.s.kind === 'rest' || (F.hurryT || 0) > rt.t) return;
@@ -683,11 +683,29 @@ html body #hud.enemy-action-guide:has(#h-prog[data-battle="k07_sawayama"]) #goal
     for (const g of [F.mine, F.saki, F.hasegawa]) {
       if (!g || !g.count || g.routed) continue;
       const c = g.center(), d = Math.hypot(c.x - C.at.x, c.z - C.at.z);
-      const foe = rt.army.units.some((o) => o.alive && o.team === 1 && !o.fleeing && !o.noTarget && !o.perch && (o.pos.x - c.x) ** 2 + (o.pos.z - c.z) ** 2 < 400);
-      if (!g._k07Go && d > 28 && !foe) { g._k07Go = { x: C.at.x, z: C.at.z }; g._k07Sp = g.speed; g.speed = Math.max(g.speed || 0, 4.4); g.order = 'move'; g.anchor = { x: c.x, z: c.z }; g.dest = { x: c.x, z: c.z }; }
-      if (g._k07Go && (d < 14 || foe || Math.hypot(g._k07Go.x - C.at.x, g._k07Go.z - C.at.z) > 1)) { g._k07Go = null; g.speed = g._k07Sp; g.order = C.s.kind === 'move' ? 'hold' : 'attack'; g.seekRange = 45; g.anchor = { x: C.at.x, z: C.at.z }; }
-      // 隊の要は尾根の道の曲がり角を一つずつ（まっすぐ斜面を突っ切ると、曲輪の土塁の下に詰まった）
-      else if (g._k07Go) wayNext(g.anchor, C.at, g.dest);
+      const from = g._k07Probe || (g._k07Probe = { x: 0, y: 0, z: 0 });
+      from.x = c.x; from.z = c.z; from.y = rt.world.heightAt(c.x, c.z);
+      const to = g._k07Target || (g._k07Target = { x: 0, y: 0, z: 0 });
+      to.x = C.at.x; to.z = C.at.z; to.y = rt.world.heightAt(to.x, to.z);
+      const arrived = d < 8 && Math.abs(from.y - to.y) < 3 && !rt.army.wallBetween(from, g.team, to, false);
+      const foe = rt.army.units.some((o) => o.alive && o.team === 1 && !o.isStruct && !o.fleeing && !o.noTarget && !o.invuln && !o.perch &&
+        (o.pos.x - c.x) ** 2 + (o.pos.z - c.z) ** 2 < 36 && Math.abs(o.pos.y - from.y) < 3 && !rt.army.wallBetween(from, g.team, o.pos, false));
+      if (g._k07Go && g._k07Go !== C.at) { g._k07Go = null; g.speed = g._k07Sp; }
+      if (!arrived && !foe) {
+        if (!g._k07Go) {
+          g._k07Go = C.at; g._k07Sp = g.speed;
+          g.anchor = { x: c.x, z: c.z }; g.dest = { x: c.x, z: c.z };
+        }
+        g.speed = Math.max(g._k07Sp || 0, 4.4); g.order = 'move';
+        // 要だけ先へ走らせず、実際の兵が曲がり角へ届いてから次へ送る。
+        if (Math.hypot(g.anchor.x - c.x, g.anchor.z - c.z) > 6) { g.anchor.x = c.x; g.anchor.z = c.z; }
+        wayNext(g.anchor, C.at, g.dest);
+      } else if (g._k07Go) {
+        g._k07Go = null; g.speed = g._k07Sp;
+        g.order = C.s.kind === 'move' ? 'hold' : 'attack'; g.seekRange = 12;
+        // 接敵で止まる時は今の場所から戦う。曲輪の中心へ要を飛ばさない。
+        g.anchor.x = c.x; g.anchor.z = c.z;
+      }
     }
   },
 
