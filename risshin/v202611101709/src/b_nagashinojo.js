@@ -1421,6 +1421,15 @@ export const nagashinojo = {
     if (F.w1.every(gone)) { rt.unmark('w1a'); rt.unmark('w1b'); }
     else { if (gone(F.w1[0])) rt.unmark('w1a'); if (gone(F.w1[1])) rt.unmark('w1b'); }
     const fireOver = F.fire === 'done' || F.fire === 'fail';
+    // 11/10 クラウド長篠城：寄せ手が塀の外に残ると、一の寄せが千秒終わらなかった（act・侍の出陣）。
+    //   火の段が済んで寄せが百六十秒を過ぎたら、残りの寄せ手は引き鉦で坂の下へ退く（城攻めは一日で落ちず、寄せては引いた）。
+    if (fireOver && rt.pt > 150 && !F.w1Back && !F.w1.every(gone)) {
+      F.w1Back = true;
+      // 頭（侍）が生きている組は士気だけでは崩れない（army_groups）。引く下知として崩れに替える。
+      for (const g of F.w1) if (!gone(g)) { g.noRout = false; g.morale = 0; g.routed = true; g.order = 'flee'; g.fleeDir = { x: 0, z: -1 }; g.fleeSet = true; }
+      sfx('kane', 0.8);
+      rt.say('足軽', '寄せ手が引いていくぞ！', 2.5);
+    }
     if (F.w1.every(gone) && fireOver && !F.w1Done) {
       F.w1Done = true;
       rt.setPhase('lull');

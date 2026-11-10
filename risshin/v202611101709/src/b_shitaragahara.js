@@ -1816,6 +1816,7 @@ const shitaragahara = {
   noGoalCount: true, // 11/6 fix61（五3）：目標の相手（馬場隊・真田隊）を指す画面の端の赤い矢印（goal_count.js）も出さない
   actionGuideTarget: () => null, // 11/4 jin：追い討ちで殿の兵の上に「ここを攻める」の札を出さない（敵は頭上の赤い▼、行き先は金の▼一つ）
   goalSignOnly: true, // 持ち場の旗・輪・枠のピンも重ねず、頭上の金の▼だけ（場所は missionPin が決め、goals5 の goalTarget が同じ所を指す）
+  noGroundGuide: true, // 四方の通し確認で残った足元の楕円を消し、行き先は頭上の▼に揃える。
   noDodgeCard: true,
   noPlayerFoot: true,
   quietMiss: true,
