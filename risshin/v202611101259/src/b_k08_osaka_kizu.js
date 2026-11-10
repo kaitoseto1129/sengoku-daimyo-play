@@ -98,8 +98,16 @@ function holdInside(g, x, z) {
   }
   const c = g.center();
   hold(g, x, z);
+  // 北の塀の外へ押し出された隊は、横塀の切れ目から戻る。
+  // 東西の座標だけで内側とみなすと、北門の脇の板塀に直進して止まる。
+  const side = Math.sign(c.x) || 1;
+  if (c.z < WALL_N) {
+    g.anchor.x = c.x; g.anchor.z = c.z;
+    g.order = 'path'; g.path = [[side * (WALL_X + 12), Math.min(c.z, WALL_N - 8)], [side * (WALL_X + 12), -30], [side * 12, -30], [x, z]]; g.pathIdx = 0;
+    g.onArrive = (q) => { q.order = 'hold'; };
+    return;
+  }
   if (Math.abs(c.x) <= WALL_X) return;
-  const side = Math.sign(c.x);
   const entryZ = c.z > GATE.z ? GATE.z + 18 : -30;
   g.anchor.x = c.x; g.anchor.z = c.z;
   g.order = 'path'; g.path = [[side * (WALL_X + 12), entryZ], [side * 12, entryZ], [x, z]]; g.pathIdx = 0;

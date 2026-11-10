@@ -429,28 +429,32 @@ function capturePortrait(s, rt) {
   for (const o of offs) o.visible = false;
   const vp = R.getViewport(s.faceVp), sc = R.getScissor(s.faceSc), scOn = R.getScissorTest();
   const side = Math.ceil(FACE / (R.getPixelRatio() || 1)) + 1;
+  // 空の濃淡を本人の体と誤認しないよう、顔だけを判別用の単色背景に撮る。
+  const background = rt.scene.background, clearAlpha = R.getClearAlpha();
+  if (!s.faceClearColor) s.faceClearColor = new THREE.Color();
+  R.getClearColor(s.faceClearColor);
   try {
+    rt.scene.background = null; R.setClearColor(0xff00ff, 1);
     R.setViewport(0, 0, side, side); R.setScissor(0, 0, side, side); R.setScissorTest(true);
     R.clear(); R.render(rt.scene, cam);
     gl.readPixels(0, 0, FACE, FACE, gl.RGBA, gl.UNSIGNED_BYTE, s.facePx);
   } catch (e) { return false; }
-  finally { R.setViewport(vp); R.setScissor(sc); R.setScissorTest(scOn); for (const c of marked) c.layers.disable(PORTRAIT_LAYER); for (const o of offs) o.visible = true; }
+  finally { rt.scene.background = background; R.setClearColor(s.faceClearColor, clearAlpha); R.setViewport(vp); R.setScissor(sc); R.setScissorTest(scOn); for (const c of marked) c.layers.disable(PORTRAIT_LAYER); for (const o of offs) o.visible = true; }
   const src = s.facePx, dst = s.faceImg.data;
   let sum = 0;
   for (let y = 0; y < FACE; y++) {
     const a = (FACE - 1 - y) * FACE * 4, b = y * FACE * 4;
     for (let i = 0; i < FACE * 4; i += 4) {
       // 画面と同じ仕上げ（色の整え・sRGB）を通った絵なので、そのまま写す
-      dst[b + i] = src[a + i]; dst[b + i + 1] = src[a + i + 1]; dst[b + i + 2] = src[a + i + 2]; dst[b + i + 3] = 255;
+      dst[b + i] = src[a + i]; dst[b + i + 1] = src[a + i + 1]; dst[b + i + 2] = src[a + i + 2]; dst[b + i + 3] = src[a + i] > 245 && src[a + i + 1] < 10 && src[a + i + 2] > 245 ? 0 : 255;
       sum += src[a + i + 1];
     }
   }
   if (sum < FACE * FACE * 4) return false;   // 真っ暗（まだ描けていない）
   // 本人の人の形がまだ出来ていないと、空の色だけの灰の四角が写り、四十秒そのままだった（金ヶ崎・越前一向一揆）。
-  //   隅の色（空）と違う画素が一割に満たなければ、撮れていないとして二秒後に撮り直す
+  //   空は単色にして除き、実際に描かれた本人の画素だけを数える
   let body = 0;
-  const c0 = src[0], c1 = src[1], c2 = src[2];
-  for (let i = 0; i < src.length; i += 16) if (Math.abs(src[i] - c0) + Math.abs(src[i + 1] - c1) + Math.abs(src[i + 2] - c2) > 24) body++;
+  for (let i = 0; i < src.length; i += 16) if (!(src[i] > 245 && src[i + 1] < 10 && src[i + 2] > 245)) body++;
   // 11/8 critic60（姉川 36・田野 29・小田原 17）：白地に面頬だけ・黒い影の侍が撮れて、そのまま残った。体の写る画素が三割に満たなければ撮り直す
   if (body < src.length / 54) return false;
   // 夜の山の寺（大滝寺）は顔が黒い四角になった：暗い絵は平均が70ほどになるまで明るくする（三倍まで）
@@ -488,7 +492,7 @@ export function jkTick(rt, root, dt) {
   if (s.rt !== rt) {
     s.rt = rt; s.cache = {}; s.bg = null; s.mapT = 0; s.faceAt = 0.3; s.faceOk = false; s.target = null; s.targetAt = 0; s.stageKey = ''; s.foesAt = 0; s.foes = null;
     // 左下の顔は変えない（五6・11/6 共通の係）：一度撮れた顔を身分ごとに覚え、次の戦は始めからその顔を出す（黒い影から替わらない）
-    s.faceKey = 'jkFace2:' + (rt.G?.lord ? 'lord' : rt.G?.rank ?? '');
+    s.faceKey = 'jkFace3:' + (rt.G?.lord ? 'lord' : rt.G?.rank ?? '');
     let kept = null;
     try { kept = localStorage.getItem(s.faceKey); } catch (e) { kept = null; }
     drawFaceFallback(s);
