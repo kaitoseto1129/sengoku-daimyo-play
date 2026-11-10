@@ -350,6 +350,15 @@ function kido(W, x, z, rot = 0) {
   const m = new THREE.MeshStandardMaterial({ color: 0x4a3a28, roughness: 0.9 });
   for (const sx of [-1, 1]) { const p = new THREE.Mesh(new THREE.BoxGeometry(0.18, 2.2, 0.18), m); p.position.set(sx * 1.1, 1.1, 0); g.add(p); }
   const top = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.18, 0.18), m); top.position.y = 2.15; g.add(top);
+  // 町の木戸を柱だけの枠にしない。通りの口を空け、開いた板戸と両脇の板塀を残す。
+  const board = new THREE.MeshStandardMaterial({ color: 0x66513b, roughness: 0.95 });
+  const leafGeo = new THREE.BoxGeometry(0.07, 1.9, 1.02);
+  const fenceGeo = new THREE.BoxGeometry(2, 1.8, 0.08);
+  for (const sx of [-1, 1]) {
+    const leaf = new THREE.Mesh(leafGeo, board); leaf.position.set(sx * 1.05, 0.95, 0.5); g.add(leaf);
+    const fence = new THREE.Mesh(fenceGeo, board); fence.position.set(sx * 2.18, 0.9, 0); g.add(fence);
+  }
+  const roof = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.09, 0.8), board); roof.position.y = 2.3; g.add(roof);
   g.position.set(x, y, z); g.rotation.y = rot; g.traverse((o) => { o.castShadow = true; });
   return g;
 }
@@ -4044,7 +4053,7 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
     NIJO.back = 'n';
     // 二条御所の塀も材質ごとの BatchedMesh にまとめ、描く回数を減らす
     const wallBatch = makeKitBatch();
-    F.nwall = compound(rt, NIJO, 'w', 7, wallBatch);
+    F.nwall = compound(rt, NIJO, 'w', 7.4, wallBatch);
     finalizeKitBatch(rt, wallBatch);
     rt.scene.add(templeGateWood(rt, kabukimon(W, NIJO_GATE.x, NIJO_GATE.z, 7.4, Math.PI / 2)));
     // 二条御所は戦国期の御殿。後の二条城の天守・石垣は置かない。広間と奥の間は推定。
@@ -5536,7 +5545,7 @@ Object.assign(honnoji, {
     F.gE = smallGate(rt, GATES.main, 1500);
     F.gN = smallGate(rt, GATES.side, 900);
     const wallBatch = makeKitBatch();
-    compound(rt, NIJO, 'w', 7, wallBatch); finalizeKitBatch(rt, wallBatch);
+    compound(rt, NIJO, 'w', 7.4, wallBatch); finalizeKitBatch(rt, wallBatch);
     rt.scene.add(templeGateWood(rt, kabukimon(W, NIJO_GATE.x, NIJO_GATE.z, 7.4, Math.PI / 2)));
     // 二条御所は戦国期の御殿。後の二条城の天守・石垣は置かない。広間と奥の間は推定。
     F.nijoRoom = buildRoom(rt, NIJO.x + 2, NIJO.z - 2, { w: 16, d: 11, kind: 'goten', profile: 'honnoji_nijo', rot: -Math.PI / 2, night: true });
