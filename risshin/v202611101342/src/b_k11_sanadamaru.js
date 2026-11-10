@@ -1108,12 +1108,16 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
     rt.after(2.4, () => {
       if (F.ending) return;
       // 二の構え：空堀の上の段で伏せていた鉄砲衆（外からは見えなかった。「まだこんなにいたのか」）
-      const n = Math.max(6, Math.min(16, LIVE_MAX - liveN(rt) - 2));
-      const q = polar(0, STEP1.r0 + 1.2);
-      const g = enemyGroup(rt, { faction: 'toyotomi', name: '二の構えの鉄砲衆', anchor: q, fixed: true, facing: 0, width: 14, spacing: 1.2, aggro: 0, noRout: true }, dress([uS(1), uG(n - 1)], SANADA));
-      g.fire = true; g.dmgMult = 0.4;
-      for (const u of g.units) if (u.type === 'gun') u.dmg *= 0.4;
-      F.inner = g; F.fireGroups.push(g);
+      const n = Math.max(0, Math.min(16, LIVE_MAX - liveN(rt)));
+      // 空きが一人なら鉄砲を一人。空きが無くても塀の鉄砲で斉射し、打って出まで進める。
+      if (n) {
+        const q = polar(0, STEP1.r0 + 1.2);
+        const list = n > 1 ? [uS(1), uG(n - 1)] : [uG(1)];
+        const g = enemyGroup(rt, { faction: 'toyotomi', name: '二の構えの鉄砲衆', anchor: q, fixed: true, facing: 0, width: 14, spacing: 1.2, aggro: 0, noRout: true }, dress(list, SANADA));
+        g.fire = true; g.dmgMult = 0.4;
+        for (const u of g.units) if (u.type === 'gun') u.dmg *= 0.4;
+        F.inner = g; F.fireGroups.push(g);
+      }
       rt.say('塀の上の声', '二の構え、立て！　放てっ！', 2.4);
       this.volley(rt, true);
       F.volT = rt.t + 6;

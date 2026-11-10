@@ -2663,19 +2663,30 @@ function okHideSpeech(rt) {
 }
 
 // 材質はこの戦の中だけで複製して使い回す。他の戦の旗や木戸へ色を残さない。
-function okReflectFlags(rt, units) {
+// 開戦時の旗と、後から近景へ加わる兵の旗に同じ紋の濃淡を保つ。
+function okFlagMaterial(rt, base) {
   const cache = rt.flags.flagReflectionMats ||= new Map();
+  if (!base?.emissive) return base;
+  if (!cache.has(base)) {
+    const m = base.clone();
+    if (camNearMaterials.has(base)) camNearMaterials.add(m);
+    m.onBeforeCompile = base.onBeforeCompile; m.customProgramCacheKey = base.customProgramCacheKey;
+    m.emissive.setHex(0x000000); m.emissiveIntensity = 0; m.emissiveMap = base.map;
+    const compile = m.onBeforeCompile, key = m.customProgramCacheKey;
+    m.onBeforeCompile = function(sh, renderer) {
+      compile.call(this, sh, renderer);
+      sh.fragmentShader = sh.fragmentShader.replace('#include <color_fragment>',
+        '#include <color_fragment>\n diffuseColor.rgb = pow(max(diffuseColor.rgb, vec3(0.0)), vec3(1.25));');
+    };
+    m.customProgramCacheKey = () => key.call(m) + '_ok紋';
+    cache.set(base, m); cache.set(m, m);
+  }
+  return cache.get(base);
+}
+
+function okReflectFlags(rt, units) {
   const flag = (mesh) => {
-    const base = mesh?.material;
-    if (!base?.emissive) return;
-    if (!cache.has(base)) {
-      const m = base.clone();
-      if (camNearMaterials.has(base)) camNearMaterials.add(m);
-      m.onBeforeCompile = base.onBeforeCompile; m.customProgramCacheKey = base.customProgramCacheKey;
-      m.emissive.setHex(0x000000); m.emissiveIntensity = 0; m.emissiveMap = base.map;
-      cache.set(base, m); cache.set(m, m);
-    }
-    mesh.material = cache.get(base);
+    if (mesh) mesh.material = okFlagMaterial(rt, mesh.material);
   };
   for (const u of units) {
     flag(u.flag); flag(u.standardFlag);
@@ -2685,7 +2696,7 @@ function okReflectFlags(rt, units) {
 }
 
 function okReflect(rt) {
-  const flagMats = new Map(), gateMats = new Map(), styledFlags = new Set();
+  const gateMats = new Map();
   const reflected = (base, cache, color, intensity) => {
     if (!base?.emissive) return base;
     if (!cache.has(base)) {
@@ -2700,19 +2711,7 @@ function okReflect(rt) {
   // 雨夜でも旗だけを青白く発光させない。紋と地の濃淡は空と篝火の光で読む。
   const flag = (mesh) => {
     if (!mesh) return;
-    const material = reflected(mesh.material, flagMats, 0x000000, 0);
-    if (material !== mesh.material && !styledFlags.has(material)) {
-      styledFlags.add(material);
-      const compile = material.onBeforeCompile, key = material.customProgramCacheKey;
-      // 白地の幟でも、縮んだ紋の灰色を白へ溶かさない。布の形と共有する絵は保つ。
-      material.onBeforeCompile = function(sh, renderer) {
-        compile.call(this, sh, renderer);
-        sh.fragmentShader = sh.fragmentShader.replace('#include <color_fragment>',
-          '#include <color_fragment>\n diffuseColor.rgb = pow(max(diffuseColor.rgb, vec3(0.0)), vec3(1.25));');
-      };
-      material.customProgramCacheKey = () => key.call(material) + '_ok紋';
-    }
-    mesh.material = material;
+    mesh.material = okFlagMaterial(rt, mesh.material);
   };
   rt.scene.traverse((obj) => { if (obj.userData.flag?.isMesh) flag(obj.userData.flag); });
   okReflectFlags(rt, rt.army.units);

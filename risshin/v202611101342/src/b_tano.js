@@ -1114,10 +1114,27 @@ const tano = {
   bannerAllowed: (rt, text) => rt.over || !!rt.flags.ending || /討ち取|討死|勝|崩れ/.test(text),
   // 11/4 jin（AW3・AR1）：目標は段ごとに一文で固定（史実の順：谷道→四郎作→鳥居畑の柵→屋敷の奥）。途中で言い方を替えない。
   missions: ['田野へ続く谷道で滝川の先手に合流せよ', '四郎作の下手で武田の侍を退けよ', '四郎作の崖道で小宮山友晴の衆を破れ', '鳥居畑の柵の口へ攻め込め', '田野の平屋敷で土屋昌恒の衆を退けよ'],
-  goals5: () => tano.missions.map((text, k) => ({
-    kind: 'stage', k, text,
-    check: (rt) => k === 4 ? !!rt.flags.principalsDead : (rt.flags.dp?.i ?? -1) > k,
-  })),
+  goals5: () => tano.missions.map((text, k) => {
+    const progress = [0, 0];
+    return {
+      kind: 'stage', k, text,
+      // 文と組の名の推測では下手の十四人と柵の十人を拾えない。
+      // 実際の守兵を数え、まだ出ていない屋敷の控えは達成数にしない。
+      count: (rt) => {
+        if (!k || (rt.flags.dp?.i ?? -1) < k) return null;
+        let total = 0, left = 0;
+        for (let i = k === 1 ? 0 : k; i <= k; i++) {
+          const g = rt.flags.defenders?.[i];
+          if (!g) continue;
+          total += g.units.length;
+          if (!g.routed) for (const u of g.units) if (tanoFighter(u)) left++;
+        }
+        progress[0] = total - left; progress[1] = total;
+        return total ? progress : null;
+      },
+      check: (rt) => k === 4 ? !!rt.flags.principalsDead : (rt.flags.dp?.i ?? -1) > k,
+    };
+  }),
   // 将一人の討ち取りでは衆の撃退にならない。屋敷の任務は三人の最期まで待つ。
   namedKillCompletesObjectives: false,
   // 勝頼父子は平屋敷の奥。柵の口を破って屋敷へ入るまでは、手前の兵の頭の上に名札を出さない（critic60 田野 12）
