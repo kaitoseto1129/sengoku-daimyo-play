@@ -2720,13 +2720,15 @@ function stoneTick(rt, dt) {
       s.landed = true;
       rt.army.play('knock', { x: s.bx, z: s.bz }, .9);
       rt.army.forNear(s.bx, s.bz, 1, (u) => {
-        if (!u.alive || u.team !== 0 || u.invuln || u.isStruct) return;
+        // 尾根と谷道が上下に重なる所で、別の足場の兵を巻き込まない。
+        if (!u.alive || u.team !== 0 || u.invuln || u.isStruct || Math.abs(u.pos.y - s.by) > 1.8) return;
         // 弾と同じく、落ちる側へ向けた竹束と、そのすぐ後ろを守る。
         const len = Math.hypot(u.pos.x - s.ax, u.pos.z - s.az) || 1;
         const dx = (u.pos.x - s.ax) / len, dz = (u.pos.z - s.az) / len;
         let shield = false;
         rt.army.forNear(u.pos.x, u.pos.z, 3.6, (q) => {
-          if (shield || !q.alive || q.team !== u.team || !q.tatake || q.fleeing) return;
+          if (shield || !q.alive || q.team !== u.team || !q.tatake || q.fleeing || q.gone || q.woundOut ||
+            Math.abs(q.pos.y - u.pos.y) > 1.8) return;
           // 竹束を投石元へ向けた者だけが、自分と後ろの兵を守る。
           if (-(Math.sin(q.heading) * dx + Math.cos(q.heading) * dz) <= .5) return;
           const along = (q.pos.x - s.ax) * dx + (q.pos.z - s.az) * dz;

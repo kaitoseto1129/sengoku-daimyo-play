@@ -34,6 +34,7 @@ import { withGuard } from './toyo_bot.js';
 import { KILLS, broke } from './stages.js';
 import { KIT } from './b_nagashinojo.js';
 import { addSite } from './map_sites.js';
+import { sightScreenUnit } from './battle_sight.js';
 // 15分の構成（kaito 11/8 夜・docs/toyo15_plan_1108.md の 13）で足した段。中身は t10_oshi/ に一段一ファイル
 import * as chikara from './t10_oshi/chikara.js';   // 始め：力攻めで城の外の柵へ寄せ、押し返されて丸墓山へ退く
 import * as kobuneSt from './t10_oshi/kobune.js';   // 水が満ち、城の小舟が堤の岸へ寄せる
@@ -519,6 +520,8 @@ const t10_oshi = {
   // 11/8 critic60（五2・N・AS）：途中で出たり消えたりする小さな地図は出さない。城代の長親の名札は門の前から見せない
   noMiniMap: true, hideNameTag: (u) => u?.name === '成田長親',
   keepBattleSigns: true,   // 行き先を案内する間も、敵全員の赤い▼・両軍の人数・武将名を残す。
+  // 堤の陰の胴や、塀の内の兵を頭上の▼だけで透視しない（全戦の通し確認・11/10）。
+  enemySignVisible: (rt, u) => sightScreenUnit(rt, u),
   nearAllyFadeRadius: 3,   // 11/8 critic60 九7：堤を走る時、カメラの前の味方の黒い背中が自分を塞いだ。視線の上の味方を広めに透かす
   goalSignDistanceAlways: true,   // 堰や門前へ近づいても、場所の名から距離を消さない。
   noLeaderFollow: true, nameRange: 30, goalSignOnly: true,   // 本丸の城代（成田長親）の名と命の棒を門の前から見せない（kaito AS：総大将は討てる所に見せない）
