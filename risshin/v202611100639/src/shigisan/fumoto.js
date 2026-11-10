@@ -46,7 +46,7 @@ export function install(rt, ctx) {
   const finish = () => {
     gather = rt.t;
     rt.unmark('fumotoS');
-    rt.say('信忠の使番', '中将様（信忠）の御下知！　夜攻めにかかれ。諸口から一度に登れ！', 4);
+    rt.say('信忠の使番', '城介様（信忠）の御下知！　夜攻めにかかれ。諸口から一度に登れ！', 4);
     rt.obj('main', '筒井の先手の旗へ寄り、登る合図を待て', 'main');
     rt.objProgress('main', '');
     if (F.tsuU) rt.marker('fumotoT', () => F.tsuU.pos, '筒井の先手の旗', { h: 3, guideAlways: true, guidePriority: 400 });

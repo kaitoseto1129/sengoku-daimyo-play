@@ -2407,14 +2407,16 @@ const echizen_ikko = {
     const zone = F.SZ?.byId[F.mode === 'defend' ? 'hondo' : TEMPLE_HALL_IDS[F.step - 1]];
     const gate = F.step === 1 ? F.gateSomon : F.step === 2 ? F.gateSanmon : null;
     if (F.mode === 'attack' && F.step === 4) return null;
-    if (F.mode === 'attack' && zone && !gate?.struct.alive && !zone.test(p.x, p.z)) return null;
+    // 最後の斬り込みは境内の外の森からも来る。勝つ条件に残る敵を、境内の四角だけで案内から除かない。
+    const hunt = F.mode === 'attack' && F.step === 3 && zone?.owner === ZONE_STATE.FRIEND ? F.ikAmbush?.g : null;
+    if (F.mode === 'attack' && zone && !gate?.struct.alive && !zone.test(p.x, p.z) && !hunt) return null;
     let best = null, distance = Infinity;
     for (const u of rt.army.units) {
       if (u.team === rt.player.u.team || !siegeFighter(u) || u.hp <= 0 || u.dying || u.rearWound) continue;
       if (F.mode === 'defend' ? !zone?.test(u.pos.x, u.pos.z)
         : gate?.struct.alive ? !templeGateRoadFoe(F, u)
           : F.step === 5 ? Math.hypot(u.pos.x - OKUYAMA.x, u.pos.z - OKUYAMA.z) >= 18
-            : !zone?.test(u.pos.x, u.pos.z)) continue;
+            : !zone?.test(u.pos.x, u.pos.z) && !hunt?.units.includes(u)) continue;
       const d = Math.hypot(u.pos.x - p.x, u.pos.z - p.z);
       if (gate?.struct.alive && d > 12) continue;
       if (d < distance) { distance = d; best = u; }
@@ -4285,6 +4287,8 @@ const echizen_ikko = {
       const p = rt.player.u.pos;
       const zone = F.SZ.byId[TEMPLE_HALL_IDS[F.step - 1]];
       const gate = F.step === 1 ? F.gateSomon : F.step === 2 ? F.gateSanmon : null;
+      // 別手が先に本堂を取った時も、一秒ごとの点検より先に奥の院へ進んで夜明けを飛ばさない。
+      if (F.step === 2 && !gate.struct.alive) echizenIkkoMorning(rt);
       if (F.step === 4 ? Math.hypot(p.x - OKUYAMA.x, p.z - OKUYAMA.z) < 14
         : !gate?.struct.alive && zone.owner === ZONE_STATE.FRIEND && zone.test(p.x, p.z) && !this.missionSignTarget(rt)) {
         this.nextAttack(rt, F.step + 1);

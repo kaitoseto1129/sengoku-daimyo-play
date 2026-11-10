@@ -289,9 +289,9 @@ const t07_ganjaku = {
     //   今の段の守りだけが打って出て、奥は持ち場で構えて待つ。段が長引けば使番が知らせる（11章）
     // 退く先と行軍は go・ninomaru が指示する。共通の at を重ねると、四割未満の残兵の退く下知が hold に戻される。
     F.stages = siegeStages(rt, [
-      { groups: F.slope, done: () => F.stage >= 2, report: '坂の木戸、まだ抜けませぬ！', reportAfter: 70 },
+      { groups: F.slope, done: () => F.stage >= 2, report: '二の丸の門前へ、まだ登り切れませぬ！', reportAfter: 70 },
       { groups: [F.sally], done: () => F.stage >= 3 },
-      { groups: [F.gateGuard, F.yagura], done: () => F.stage >= 4, report: '門、まだ破れず！　矢倉から射られております！', reportAfter: 60 },
+      { groups: [F.gateGuard, F.yagura], done: () => F.stage >= 4, report: '二の丸の門の内へ、まだ進み切れませぬ！', reportAfter: 60 },
       { groups: [F.nino], done: () => F.stage >= 5 },
       { groups: [F.hon, F.kara], done: () => false },
     ], { runner: '使番' });
@@ -521,7 +521,7 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
         const dx = HON.x - c.x, dz = HON.z - c.z, dl = Math.hypot(dx, dz) || 1;
         q.fire = false; q.noRout = false; q.order = 'retreat'; q.fleeSet = true; q.fleeDir = { x: dx / dl, z: dz / dl }; q.morale = 0;
       }
-      rt.say('蒲生郷成', '引くぞ！　門が閉まる前に、追って城内へ紛れ込め！', 3.2);
+      rt.say('蒲生郷成', '敵が引くぞ！　門が閉まる前に、追って城内へ紛れ込め！', 3.2);
     } else if (s === 4) {
       rt.award((t) => t.side.push(F.tsukeiri ? '退く敵に付け入って門を抜けた' : '二の丸の門を抜けた'), F.tsukeiri ? '退く敵に付け入って門を抜けた' : '二の丸の門を抜けた');
       this.breach(rt); F.walks = [];

@@ -78,16 +78,17 @@ function fightingTarget(groups, p, north) {
 }
 // 味方の隊は持ち場（anchor）を移すだけ。兵は走って付いてくる（名のある武将の隊は order の move で動かない）
 const hold = (g, x, z) => { if (!g || g.routed) return; g.anchor.x = x; g.anchor.z = z; g.order = 'hold'; g.dest = null; g.path = null; g.focus = null; };
-// 東岸の浅野勢は、残る東南の塀へ直進せず、開いた南面か東の切れ目から入る。
+// 浅野勢と池田勢は、残る横塀へ直進せず、開いた南面か東西の切れ目から入る。
 // ④へ進んだ時も、まだ外にいる組の経路を消さない。
 function holdInside(g, x, z) {
   if (!g || g.routed) return;
   const c = g.center();
   hold(g, x, z);
-  if (c.x <= WALL_X) return;
+  if (Math.abs(c.x) <= WALL_X) return;
+  const side = Math.sign(c.x);
   const entryZ = c.z > GATE.z ? GATE.z + 18 : -30;
   g.anchor.x = c.x; g.anchor.z = c.z;
-  g.order = 'path'; g.path = [[WALL_X + 12, entryZ], [12, entryZ], [x, z]]; g.pathIdx = 0;
+  g.order = 'path'; g.path = [[side * (WALL_X + 12), entryZ], [side * 12, entryZ], [x, z]]; g.pathIdx = 0;
   g.onArrive = (q) => { q.order = 'hold'; };
 }
 const gauss = (x, z, cx, cz, s) => Math.exp(-((x - cx) ** 2 + (z - cz) ** 2) / s);
@@ -531,7 +532,7 @@ const k08_osaka_kizu = {
       F.east.order = 'path'; F.east.path = [[44, -72], [20, -72]]; F.east.pathIdx = 0;
       F.east.aggro = 4; F.east.onArrive = (g) => { g.order = 'hold'; g.aggro = 18; };
     }
-    hold(F.ikeda, INSIDE.x - 12, INSIDE.z - 2); F.ikeda.aggro = 20;
+    holdInside(F.ikeda, INSIDE.x - 12, INSIDE.z - 2); F.ikeda.aggro = 20;
     F.garrison.noAI = false;
     for (const g of [F.wallG, F.garrison]) { g.order = 'attack'; g.aggro = 16; }
     // 門の内の弓鉄砲は持ち場から動かずに一斉に射つ（雨のように）。夜明け前でも門の内は篝火の明かりで当たる
@@ -566,7 +567,7 @@ const k08_osaka_kizu = {
     hold(F.saki, NGATE.x + 3, NGATE.z + 10); F.saki.aggro = 24;
     for (const g of F.allies) g.dmgMult = 0.3;   // 退き口を守る全延の組は死に物狂い（④が一息で済まない。11/6 描いた通しで 0.45 では三十七秒で済み、戦が三分で終わった）
     holdInside(F.asano, NGATE.x + 12, NGATE.z + 10); F.asano.aggro = 22;
-    hold(F.ikeda, NGATE.x - 10, NGATE.z + 10); F.ikeda.aggro = 22;
+    holdInside(F.ikeda, NGATE.x - 10, NGATE.z + 10); F.ikeda.aggro = 22;
     rt.marker('k08', () => northTarget(F, rt.player.u.pos)?.pos || NGATE, '明石全延の組', { red: true, group: F.zen });
     rt.say('明石全延', '北の口を固めよ！　退き口を守れ', 3.2);
     // 午前三時に出て、砦の内を払う頃に夜が白む（十一月十九日は今の十二月。明け六つ）。勝つ時は朝の光
