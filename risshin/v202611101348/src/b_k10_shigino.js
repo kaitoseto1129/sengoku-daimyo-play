@@ -29,6 +29,7 @@ import { sfx } from './audio.js';
 import { timeslipField } from './timeslip_field.js';
 import { revealName } from './battle_intel.js';
 import { goalsTick } from './hud_goals.js';
+import { sightScreenUnit } from './battle_sight.js';
 
 const ID = 'k10_shigino';
 TEGARA_ON.add(ID);
@@ -78,11 +79,11 @@ const OYAMATO = [[-300, -78], [-150, -86], [0, -80], [150, -90], [300, -82]];   
 const HIRANO = [[-300, 74], [-150, 82], [0, 78], [150, 88], [300, 80]];                  // 南の平野川
 // 右上の一行（途中で言い替えない。場所と行いだけ・kaito 三1・十1）。「。」で切られないよう一文に
 const STEP_TEXT = ['',
-  '須田長義と堤を進み、一の柵・二の柵の鉄砲衆を討て',
-  '三の柵の井楼の下で、鉄砲を指図する井上頼次を討て',
-  '追う大軍に背を見せず堤を東へ退き、水原親憲の鉄砲の後ろに付け',
-  '安田能元と槍を揃え、渡辺糺・木村宗明の隊を二の柵の跡まで押し返せ',
-  '二の柵の跡で竹田永翁の隊を討ち、大和川南岸の水原親憲と川越しに撃って今福の佐竹勢を救え'];
+  '須田長義と堤の一の柵・二の柵の鉄砲衆を討て',
+  '三の柵の井楼の下で井上頼次を討て',
+  '堤を東へ退き、水原親憲の鉄砲の後ろに付け',
+  '安田能元と渡辺糺・木村宗明の隊を二の柵の跡まで押し返せ',
+  '二の柵の跡で竹田永翁の隊を討ち、大和川南岸の水原親憲と川越しに撃ち今福の佐竹勢を救え'];
 
 const sm = (t) => { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); };
 function height(x, z) {
@@ -173,6 +174,8 @@ const k10_shigino = {
   noTaishoRaid: true,
   foeMarks: true,
   enemyTriangleSigns: true, // 見えている敵全員に共通の赤い▼を付ける。
+  // 柵・堤の陰の敵へ印だけを透かさない。本人の位置でなくカメラから体の見通しを確かめる。
+  enemySignVisible: (rt, u) => sightScreenUnit(rt, u),
   keepBattleSigns: true,    // 行き先の印が出ても、武将名と敵印を隠さない。
   playerAtkMax: 3,
   playerTaken: 0.45,
@@ -238,9 +241,12 @@ html:root body #hud#hud#hud.shigino-goals #h-prog#h-prog.goal-mode > .pg-goals {
 html:root body #hud#hud#hud.shigino-goals #h-prog#h-prog.goal-mode {
  display:block !important;
  left:auto !important; right:calc(12px + env(safe-area-inset-right, 0px)) !important; transform:none !important;
- width:auto !important; min-width:0 !important; max-width:min(390px, 44vw) !important; box-sizing:border-box;
+ width:min(340px, 32vw) !important; min-width:0 !important; max-width:calc(100vw - 24px) !important; box-sizing:border-box;
  padding:8px 12px 9px 10px !important; background:rgba(14,12,10,.7) !important; border:none !important; border-radius:6px !important; }
 html:root body #hud#hud#hud.shigino-goals #h-prog#h-prog.goal-mode .pg-goals li { white-space:normal !important; align-items:flex-start; color:#e6dfd2 !important; }
+html:root body #hud#hud#hud.shigino-goals #h-prog#h-prog.goal-mode .pg-goals li,
+html:root body #hud#hud#hud.shigino-goals #h-prog#h-prog.goal-mode .pg-goals li.now { font-size:max(15px, calc(15px * var(--text-scale, 1))) !important; line-height:1.3; gap:6px; margin:0; padding:0; }
+html:root body #hud#hud#hud.shigino-goals #h-prog#h-prog.goal-mode .pg-goals ul { gap:3px; }
 html:root body #hud#hud#hud.shigino-goals #h-prog#h-prog.goal-mode .pg-goals li i { margin-top:3px; }
 html:root body #hud#hud#hud.shigino-goals #h-prog#h-prog.goal-mode .pg-goals li span { color:inherit !important; background:none !important; }
 html:root body #hud#hud#hud.shigino-goals #h-prog#h-prog.goal-mode .pg-goals li.now { color:#fff !important; }

@@ -996,9 +996,10 @@ const iwamura = {
     let pos;
     if (IW_HIRU.active(rt)) {
       pos = IW_HIRU.pin(rt) || p;
-    } else if (IW_KAIJO.active(rt)) {
+    } else if (F.iwKaijo) {
       pos = IW_KAIJO.pin(rt) || p;
-      q.unit = IW_KAIJO.envoy(rt); q.r = q.hide = 3;
+      const e = IW_KAIJO.envoy(rt);
+      q.unit = pos === e?.pos ? e : null; q.route = !q.unit; q.r = q.hide = q.route ? 1 : 3;
     } else if (this.missionOf(rt) === 2 && F.fireMarkers) {
       // 任務札・台詞・行き先のピンで、同じ篝火を示す。
       const i = F.firePost;

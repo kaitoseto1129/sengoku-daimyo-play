@@ -154,7 +154,8 @@ function checkedStep(step) {
       rt.unzone('dp'); // 持ち場は頭上の▼で示し、共通の守備範囲の輪を地面に残さない。
     };
   }
-  const tick = step.tick, holdTime = step.kind === 'hold' ? (step.max - 35) * 0.45 : 0;
+  const tick = step.tick, maxFight = step.max, holdDuration = step.kind === 'hold' ? step.max - 35 : 0;
+  const holdTime = holdDuration * 0.45;
   step.max = Infinity;
   step.tick = (rt, C, m, ctx, el, dt) => {
     const p = rt.player.u.pos;
@@ -181,10 +182,21 @@ function checkedStep(step) {
           !u.gone && !u.rearWound && !u.downed && !u.noTarget &&
           Math.hypot(u.pos.x - C.at.x, u.pos.z - C.at.z) < 32) friends++;
       }
+      // 生存していても列が遠いままなら、八秒ごとに持ち場へ寄せ直す。
+      if (near && friends < 3 && rt.t >= (C.rallyAt || 0)) {
+        C.rallyAt = rt.t + 8;
+        const rally = available >= 3 ? line : ctx.friends?.(rt) || [];
+        for (const g of rally) {
+          if (!g || g.routed || g.order === 'retreat' || g.order === 'flee' ||
+              (g === rt.flags.katakura && rt.t < (rt.flags.pushedUntil || 0))) continue;
+          g.calm = false; g.order = 'hold'; g.focus = null;
+          g.anchor = { x: C.at.x + 6, z: C.at.z }; g.seekRange = 24;
+        }
+      }
       if (!near || friends < 3) return false;
       C.holdElapsed = (C.holdElapsed || 0) + dt;
     }
-    const done = tick(rt, C, m, ctx, holdTime ? C.holdElapsed : el, dt);
+    let done = tick(rt, C, m, ctx, holdTime ? C.holdElapsed : el, dt);
     // 共通の激突は残り三人で敗走を許すが、兼相が逃げると討死待ちの段が終わらない。
     // 討つべき将が生きている組は、最後の一人まで持ち場で戦う。
     for (const g of C.groups) if (g.units.some((u) => u.alive &&
@@ -202,6 +214,27 @@ function checkedStep(step) {
         u.alive && !u.fleeing && !u.woundOut && !u.gone && !u.downed && !u.noTarget &&
         !u.rearWound && Math.hypot(u.pos.x - C.at.x, u.pos.z - C.at.z) < 60));
       if (C.metAttack) C.lineTime = (C.lineTime || 0) + dt;
+    }
+    // 列で実際に寄せを受け、全ての波を守り切ったら残兵は大坂へ退く。
+    // 不死の将や岩陰の一人を全滅するまで追わせない。
+    if (holdTime && C.metAttack && !C.waves.length && C.holdElapsed >= holdDuration &&
+        (C.lineTime || 0) >= holdTime) {
+      for (const g of C.groups) if (!g.routed && g.count) {
+        g.noRout = false; g.calm = false; g.focus = null; g.onArrive = null;
+        g.order = 'retreat'; g.dest = { x: -240, z: 40 }; g.aggro = 0;
+      }
+      done = true;
+    }
+    // 斜面・頂・道明寺でも、主力が崩れた後の残兵だけで無期限に止めない。
+    // 又兵衛・兼相の討死と、本人の現地への到着は引き続き必要。
+    if (!holdTime && el >= maxFight && !C.later.length && near) {
+      let remaining = 0;
+      for (const g of C.groups) {
+        if (g.routed || g.order === 'retreat' || g.order === 'flee') continue;
+        for (const u of g.units) if (u.alive && !u.fleeing && !u.woundOut &&
+          !u.gone && !u.downed && !u.noTarget && !u.rearWound) remaining++;
+      }
+      if (remaining <= Math.max(2, (C.nTot || 0) * 0.2)) done = true;
     }
     if (!done || !near || (holdTime && (C.lineTime || 0) < holdTime)) return false;
     // 残り二人や敗走でも共通の段は済むが、又兵衛と兼相は討死まで待つ。
@@ -247,18 +280,31 @@ function matabeiShot(rt) {
   const F = rt.flags;
   if (F.matabei || F.ending || rt.over) return;
   const v = rt.army.units.find((u) => u.alive && u.name === '後藤又兵衛');
-  const k = F.katakura && F.katakura.units.find((u) => u.alive && u.name === '片倉重綱');
   const p = rt.player.u.pos;
-  // 近くにいるだけでなく、丘や塀に遮られず又兵衛を撃てる鉄砲兵を選ぶ。
-  const gunner = () => F.katakura?.units.find((u) => u.alive && u.weapon === 'gun' &&
-    !u.gone && !u.woundOut && !u.downed && !u.noTarget && !u.fleeing && !u.rearWound &&
-    Math.hypot(u.pos.x - v.pos.x, u.pos.z - v.pos.z) <= 60 &&
-    rt.army.coverBetween(u.pos, v.pos, u.team) > 0 && !rt.army.shotBlocked(u, v.pos));
-  const ready = () => v?.alive && k?.alive && !F.katakura.routed &&
-    F.katakura.order !== 'retreat' && F.katakura.order !== 'flee' && !k.gone && !k.woundOut && !k.downed &&
-    !k.noTarget && !k.fleeing && !k.rearWound && rt.player.u.alive &&
-    Math.hypot(p.x - TOP.x, p.z - TOP.z) < 32 &&
-    Math.hypot(p.x - v.pos.x, p.z - v.pos.z) <= 50 && gunner();
+  const active = (u) => u.alive && !u.gone && !u.woundOut && !u.downed &&
+    !u.noTarget && !u.fleeing && !u.rearWound;
+  // 片倉本人の負傷や一組の鉄砲切れで止めず、伊達の生きた鉄砲兵が引き継ぐ。
+  const groups = [F.katakura, F.date].filter((g) => g && !g.routed &&
+    g.order !== 'retreat' && g.order !== 'flee');
+  const ready = () => {
+    if (!v?.alive || !rt.player.u.alive || Math.hypot(p.x - TOP.x, p.z - TOP.z) >= 32 ||
+        Math.hypot(p.x - v.pos.x, p.z - v.pos.z) > 50) return null;
+    for (const g of groups) {
+      if (g.routed || g.order === 'retreat' || g.order === 'flee') continue;
+      for (const u of g.units) if (active(u) && u.weapon === 'gun' &&
+          Math.hypot(u.pos.x - v.pos.x, u.pos.z - v.pos.z) <= 60 &&
+          rt.army.coverBetween(u.pos, v.pos, u.team) > 0 && !rt.army.shotBlocked(u, v.pos)) return u;
+    }
+    return null;
+  };
+  // 丘に射線を遮られた列を頂へ進める。姿を移さず、自分の足で登らせる。
+  if (v?.alive && rt.t >= (F.shotRallyAt || 0)) {
+    F.shotRallyAt = rt.t + 8;
+    groups.forEach((g, i) => {
+      g.calm = false; g.order = 'attack'; g.focus = null; g.seekRange = 28;
+      g.anchor = { x: TOP.x + 12, z: TOP.z + (i ? 10 : -10) };
+    });
+  }
   // 時刻だけで見えない所の最期を済ませない。本人が頂へ寄り、片倉の隊が届くまで待つ。
   if (!ready()) {
     rt.after(1, () => matabeiShot(rt));
@@ -274,8 +320,7 @@ function matabeiShot(rt) {
     if (v && v.alive) { v.hp = 1; v.stagger = 1.2; }
     rt.after(1.2, () => {
       if (F.matabei || F.ending || rt.over) return;
-      // 撃った後でも、本人が頂を離れた時や射手を失った時は見えない討死を進めない。
-      if (!ready()) { rt.after(1, () => matabeiShot(rt)); return; }
+      // 射撃が成立した後は、射手の負傷や本人の一歩で着弾を取り消さない。
       matabeiDown(rt, true);
     });
   });
@@ -635,7 +680,7 @@ const k13_domyoji = {
       return;
     }
     if (!sanada._dmAmbush) {
-      sanada._dmAmbush = true;
+      sanada._dmAmbush = true; sanada._dmAmbushAt = rt.t;
       sanada.ambush = true; sanada.order = 'hold'; sanada.seekRange = 0;
       const c = sanada.center(); sanada.anchor = { x: c.x, z: c.z };
       for (const u of sanada.units) if (active(u) && !u.mounted) {
@@ -646,7 +691,16 @@ const k13_domyoji = {
     const gunner = sanada.units.find((u) => active(u) && u.weapon === 'gun' &&
       g.units.some((v) => active(v) && Math.hypot(u.pos.x - v.pos.x, u.pos.z - v.pos.z) <= 42 &&
         rt.army.coverBetween(u.pos, v.pos, u.team) > 0 && !rt.army.shotBlocked(u, v.pos)));
-    if (!gunner) { rt.after(1, () => this.datePushed(rt, sanada)); return; }
+    if (!gunner) {
+      // 堀や丘で射線が通らない時は、伏せたまま待ち続けず槍と共に寄せる。
+      if (rt.t - sanada._dmAmbushAt >= 20) {
+        sanada.ambush = false; sanada.order = 'attack'; sanada.seekRange = 55;
+        sanada.anchor = { x: HONDA.x, z: HONDA.z };
+        for (const u of sanada.units) u._crouch = false;
+        return;
+      }
+      rt.after(1, () => this.datePushed(rt, sanada)); return;
+    }
     sanada.ambush = false; sanada.order = 'attack'; sanada.seekRange = 55;
     sanada.anchor = { x: HONDA.x, z: HONDA.z };
     for (const u of sanada.units) u._crouch = false;

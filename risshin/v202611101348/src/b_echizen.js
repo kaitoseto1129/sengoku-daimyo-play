@@ -1640,9 +1640,10 @@ echizen.setup = function (rt) {
   rt.obj = function (id, text, ...args) {
     if (id === 'main' && text === '本道を登れ。観音丸の木戸を破り、味方と中の敵を討て')
       text = '進み太鼓と法螺貝。竹束と木戸へ進み、味方と中の敵を討て';
-    if (id === 'main' && (text === '木戸が開いた。味方と入り、観音丸の守りを崩せ' ||
-        text === '木戸を通れ。味方と木戸内の守りを崩せ'))
+    if (id === 'main' && text === '木戸が開いた。味方と入り、観音丸の守りを崩せ')
       text = '観音丸の郭へ入り、味方と守兵を討て';
+    if (id === 'main' && text === '木戸を通れ。味方と木戸内の守りを崩せ')
+      text = '木ノ芽峠城の木戸内へ入り、味方と守兵を討て';
     // 11/5 fix61（kaito 三1）：任務の字に「崩す」を使わない。場所と行いで言う
     if (typeof text === 'string') text = text.replace(/崩せ/g, '討て').replace(/崩す/g, '討つ').replace(/門の外の守りの小勢/g, '木戸前に打って出た一揆勢');
     return objective.call(this, id, text, ...args);
