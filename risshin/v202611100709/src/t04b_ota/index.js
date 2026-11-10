@@ -25,6 +25,7 @@ const def = {
   spawn: { x: P.spawn.x, z: P.spawn.z, heading: 0.3 },
   noWake: true, noTaishoRaid: true, noDespair: true, noFrontFill: true,
   keepMix: true, noCavalryMix: true, stageGoalsOnly: true, nearbyAllySignLimit: 0, playerTaken: 0.6,
+  missionSingleLine: true, hideGuideSteps: true, noDodgeCard: true, noSiegeCards: true,
   depth, lethal: true,   // 囲みの備（depth.js）と命懸けの戦場（lethal.js）
   meleeGrace: { rate: 1, burst: 1, interval: 3 }, flagEra: { toyotomi: 'kiri53' },
   meleeGuide: () => false, guardGuideAllowed: () => false, castleFall: false,
@@ -44,6 +45,15 @@ const def = {
   setup(rt) {
     const F = rt.flags;
     F.ek = 0; F.ak = 0;
+    // 任務は右上の一行で読む。中央の同じ文が命の棒を覆わず、行き先の印も消さない。
+    if (!document.getElementById('ota-notices-style')) {
+      const style = document.createElement('style');
+      style.id = 'ota-notices-style';
+      style.textContent = `
+html:root body #hud:has(#h-prog[data-battle="t04b_ota"]) #center-call .cc.blue { display:none !important; }
+html:root body #hud:has(#h-prog[data-battle="t04b_ota"]):not(:has(#center-call .cc:not(.blue))) #goal-sign .gs-tag { opacity:1 !important; }`;
+      document.head.appendChild(style);
+    }
     build(rt);
     rt.setPhase('fight');
     K.start(rt);

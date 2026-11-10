@@ -58,7 +58,9 @@ const MATSUKI = { x: -25, z: -105 };      // 小宮曲輪
 const HON = { x: -81, z: -136 };          // 本丸（深沢山の頂）
 const KARAMETE = { x: -70, z: -60 };      // 搦手から上杉勢が出てくる所
 // 搦手の間道：北の水の手から尾根の北の脇を登り、小宮曲輪の裏（北西）へ出る。大手の道（ROUTE）とは交わらない
-const KARAMETE_PATH = [[-70, -60], [-66, -78], [-56, -96], [-46, -112], [-44, -110]];
+const KARAMETE_PATH = [[-70, -60], [-66, -78], [-56, -96], [-46, -112], [-38, -110], [-31, -108]];
+// 柵の外から曲輪の中央を直接狙うと開口を外れる。搦手の隊も小宮曲輪の西口を出て、本丸の口から入る。
+const KARAMETE_HON_PATH = [[-38, -110], [-44, -116], [-50, -128], [-60, -130], [-66, -134], [-76, -140]];
 // 横地監物は西の脱出口から詰城へ落ちる。柵の開口と退く道の始点をそろえる。
 const YOKOCHI_PATH = [[-96, -144], [-100, -148], [-114, -156], [-124, -166], [-128, -182]];
 
@@ -798,8 +800,8 @@ const t11_hachioji = {
       if (to) [F.saki, F.mine, F.ni].forEach((g, k) => marchTo(rt, g, to, k));
       if (to && F.naga?.count) { routeAt(to.x, to.z, RG); const b = ROUTE[Math.max(0, Math.floor(RG.s) - 1)]; marchTo(rt, F.naga, { x: b[0], z: b[1] }, 0); F.naga.onArrive = (q) => { q.order = 'hold'; q.path = null; q.formation = 'yari'; q.anchor = { x: b[0], z: b[1] }; }; }
       // 本丸の段：搦手の上杉勢・真田の手も、小宮曲輪から本丸へ攻め上る
-      //   搦手の勢は大手の道を通らず、小宮曲輪の北から本丸の北の切岸を登る
-      if (D.i >= IX.hon) [F.uesugi, F.sanada].forEach((g, k) => { if (g && g.count) { g.order = 'path'; g.path = [[-50, -128 - k * 4], [HON.x + 2 - k * 5, HON.z - 6]]; g.pathIdx = 0; g.formation = 'column'; g.onArrive = (q) => { q.order = 'attack'; q.formation = 'yari'; q.seekRange = 30; }; } });
+      //   搦手の勢は専用の道から進み、柵を横切らず既存の口を通る
+      if (D.i === IX.hon) [F.uesugi, F.sanada].forEach((g) => { if (g && g.count) { g.order = 'path'; g.path = KARAMETE_HON_PATH; g.pathIdx = 0; g.formation = 'column'; g.colW = 2; g.onArrive = (q) => { q.order = 'attack'; q.formation = 'yari'; q.seekRange = 30; }; } });
     }
     if (F.rocks) F.rocks.tick(dt);
     // 城攻めの矢玉（登る間ずっと何も降って来なかった。11/8 critic60）：曲輪の弓は五〜八秒ごとに、寄せ手の固まり（本人の周り）へ射上げる。

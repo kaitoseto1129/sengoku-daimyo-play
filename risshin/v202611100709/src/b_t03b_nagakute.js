@@ -135,6 +135,8 @@ const t03b_nagakute = {
   hideGuideSteps: true,
   hideMissionDots: true,
   enemyTriangleSigns: true,
+  // 討てない本陣の兵にも敵の所属印を付ける。前へ出さず、攻撃の対象にも戻さない。
+  foeMarkVisible: (rt, u) => !!u.group?.honjin,
   goalSignNoLabel: true,   // ▼の上に「印へ進め」などの字を出さない（三の1・五の1）
   singleDestinationArrow: true,
   noCouriers: true,
