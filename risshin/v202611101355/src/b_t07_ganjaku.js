@@ -181,6 +181,10 @@ const t07_ganjaku = {
   checkpointStep: (rt) => rt.flags.stage || 0,
   resumeSteps: [1, 2, 3, 4, 5].map((s) => [s, function (rt) { this.go(rt, s); }]),
   resumeAt(rt, s) {
+    const F = rt.flags;
+    // 保存の印は隊を作り直した後に戻る。済んだ木戸の撤退と熊井の出撃も戻す。
+    if (s === 1 && F.kidoFell) this.retreatKido(rt);
+    if (s === 5 && F.lastStand) F.hon.aggro = 40;
     // 夕暮れの印だけ戻して朝の空を残さない。
     if (rt.flags.dusk) { rt.world.dayClock = null; rt.world.setTime('dusk'); }
     return s === 1 ? SPAWN : s === 2 || s === 3 ? rt.flags.meet : s === 4 ? INSIDE : ninomaru.NINO;
@@ -664,6 +668,13 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
   },
   gateStruct(rt) { return rt.siegeKit?.kits?.[0]?.gate?.struct || null; },
 
+  retreatKido(rt) {
+    for (const q of rt.flags.slope) if (!q.routed) {
+      const c = this.centerOf(q) || KIDO, dx = INNER.x - c.x, dz = INNER.z - c.z, dl = Math.hypot(dx, dz) || 1;
+      q.fire = false; q.noRout = false; q.order = 'retreat'; q.fleeSet = true; q.fleeDir = { x: dx / dl, z: dz / dl }; q.morale = 0;
+    }
+  },
+
   update(rt, dt) {
     const F = rt.flags;
     // 再開で段が戻った時も、坂・迎撃・門の前に筋書き外の乱戦兵を足さない。
@@ -711,7 +722,7 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
       const advanced = F.allies.some((g) => { const c = this.centerOf(g); return c && this.along(c.x, c.z) > kk + 22; });
       if (!F.kidoFell && (this.along(p.x, p.z) > kk + 14 || advanced)) {
         F.kidoFell = true;
-        for (const q of F.slope) if (!q.routed) { const c = this.centerOf(q) || KIDO, dx = INNER.x - c.x, dz = INNER.z - c.z, dl = Math.hypot(dx, dz) || 1; q.fire = false; q.noRout = false; q.order = 'retreat'; q.fleeSet = true; q.fleeDir = { x: dx / dl, z: dz / dl }; q.morale = 0; }
+        this.retreatKido(rt);
       }
       // 自分が遅れても、先手が門の前まで登り詰めれば城方は門を開いて打って出る（物語は進む。kaito 二5）
       // 15分の構成：坂は六十秒は登る（早く門の前に着いても、木戸を抜いた味方が上がるまで芥田は打って出ない）
