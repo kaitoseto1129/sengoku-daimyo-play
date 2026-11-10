@@ -508,6 +508,7 @@ export const ArmyRanged = {
   // 硝煙：筒先から前へどっと吹き出し、すぐ勢いを失って、風に流されながら大きく広がって薄れる（数挺撃てばしばらく視界が曇る）
   smoke(x, y, z, fx = 0, fz = 0, amt = 1) {
     this.prepareSmokeTexture();
+    const scale = Math.max(0.25, Math.min(1, this.world?.def.gunSmokeScale ?? 1));
     // 10/28 飛躍（煙と埃）：鉄砲の白煙を戻す。粒は一つの束で、上限を半分ほどに
     // 硝煙の色は少し灰に寄せる（白く光りすぎないように）
     const tint = this.world && this.world.timeKey === 'dusk' ? 0xc4b4a2 : this.world && this.world.timeKey === 'storm' ? 0x90948f : 0xf4f2ee;   // 11/5 写真の白煙は日なたで真っ白（絵の陰の明るさで下側は灰になる）   // 10/29 kaito：撃った所に白煙が見えるよう、白く（灰のままでは霞の空に溶けて見えない）
@@ -554,6 +555,8 @@ export const ArmyRanged = {
       // 11/8 critic60 山中 42・信貴山 27：濃い白の丸い塊（綿の玉）に見えた。初めを薄く、広がりを大きくして薄い幕へ
       o.s0 = 0.3 * amt; o.s1 = amt < 0.5 ? 0.9 : (6.4 + Math.random() * 2) * (vol ? 1.45 : 1) * big;
       if (SET.reduceMotion) { sp.scale.setScalar(o.s0 + o.s1 * 0.65); sp.material.opacity = 0.5; }
+      o.life *= scale; o.s0 *= scale; o.s1 *= scale;
+      sp.scale.setScalar(sp.s * scale); sp.material.opacity *= scale;
       o.scale0 = o.scale1 = sp.s; o.alpha0 = o.alpha1 = sp.material.opacity;
       o.turn0 = o.turn1 = sp.material.rotation;
       this.smokes.push(o);
@@ -608,6 +611,7 @@ export const ArmyRanged = {
   },
 
   stepSmoke(dt) {
+    const scale = Math.max(0.25, Math.min(1, this.world?.def.gunSmokeScale ?? 1));
     // 風：煙は野の風（旗・草と同じ向き）で流れる。突風の時は速く、凪では隊の前に溜まる
     const ws = 0.9 * Math.max(0.3, Math.min(1.8, WIND_STATE.gust ?? 1));
     const wx = WIND_STATE.dirX * ws, wz = WIND_STATE.dirZ * ws;
@@ -633,7 +637,7 @@ export const ArmyRanged = {
       let nearK = 1;
       if (cm) { const ddx = s.x - cm.position.x, ddy = s.y - cm.position.y, ddz = s.z - cm.position.z; nearK = Math.max(0, Math.min(1, (Math.sqrt(ddx * ddx + ddy * ddy + ddz * ddz) - 3.5) / 8)); }
       // 10/29 kaito（鉄砲の煙を入れる）：撃った直後は濃い白煙、流れながら長くかけて薄れる（はじめの三割はあまり薄れない）
-      s.alpha1 = 0.62 * nearK * (SET.reduceMotion ? 1 : Math.min(1, s.t * 10)) * (k < 0.3 ? 1 - k * 0.5 : 0.85 * Math.pow((1 - k) / 0.7, 1.4));
+      s.alpha1 = 0.62 * scale * nearK * (SET.reduceMotion ? 1 : Math.min(1, s.t * 10)) * (k < 0.3 ? 1 - k * 0.5 : 0.85 * Math.pow((1 - k) / 0.7, 1.4));
     }
     if (this.smokeBatch && !this.smokeBatch.list.length) this.smokeBatch.mesh.visible = false;
   },

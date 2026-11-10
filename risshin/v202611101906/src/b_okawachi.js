@@ -3108,7 +3108,8 @@ function okSlopeDetail(W) {
   const leaves = shrubGeo.attributes.position;
   for (let i = 0; i < leaves.count; i++) {
     const x = leaves.getX(i), y = leaves.getY(i), z = leaves.getZ(i);
-    const r = 1 + .12 * Math.sin(x * 11 + z * 7) * Math.cos(y * 9);
+    // 少ない頂点で細かく波打たせると、葉の房でなく尖った塊になる。房全体の緩い凹凸にする。
+    const r = 1 + .12 * Math.sin(x * 3.3 + z * 2.1) * Math.cos(y * 2.7);
     leaves.setXYZ(i, x * r, y * r, z * r);
   }
   // 重なった頂点にも同じ向きの法線を与え、房を三角の板の集まりに見せない。
@@ -4535,7 +4536,10 @@ function okChaseWave(rt) {
   const p = rt.player.u.pos;
   for (const g of F.chasers) if (!sortieBroken(g) && !g._okReturning) {
     const c = g.center();
-    if (Math.hypot(c.x - p.x, c.z - p.z) <= (F.step === 3 ? 40 : 28)) active++;
+    // 九十九折りの別の段に残る組を、本人の近くの追っ手として数えない。
+    // 接敵の見回りと同じ高さの範囲に揃え、上の道の二組だけで補充が止まるのを防ぐ。
+    if (Math.hypot(c.x - p.x, c.z - p.z) <= (F.step === 3 ? 40 : 28) &&
+        Math.abs(rt.world.heightAt(c.x, c.z) - p.y) <= 3) active++;
   }
   if (active >= 2) return;
   let room = 235;

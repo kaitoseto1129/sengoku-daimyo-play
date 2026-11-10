@@ -3348,6 +3348,8 @@ const kizugawa = {
   world: {
     // 狭い甲板では、長く残る硝煙の幕が乗り口と沖の船を隠さない大きさにする。
     gunHazeScale: 0.3,
+    // 名残だけでなく発砲直後の煙も、海風で小さく薄く散る（全戦の四方確認）。
+    gunSmokeScale: 0.45,
     playerAtkMax: 2,   // 11/1：本人へ同時に打ち込むのは二人まで（共通の既定は四人・player_pressure.js）
     // 兵を作る側もこの印を見る。戦の表側の印だけでは武将の馬が残る。
     noHorse: true,
