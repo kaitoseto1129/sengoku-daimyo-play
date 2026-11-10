@@ -1792,7 +1792,8 @@ function retreatFieldTick(rt) {
   // 生き残った追手を元の備へ戻さず、道の折れ点を通って追わせる。
   for (const g of rt.army.groups) {
     // 後方の総大将と、南端で守備に戻した組へ追撃を出し直さない。
-    if (g.team !== 1 || g.routed || !g.count || g.kgChasing || g.edgeHeld || g === F.yoshikage || g === F.nagamasa) continue;
+    // 退き太鼓で止まっている間は追撃命令で上書きしない。解除時に攻撃範囲を戻してから追う。
+    if (g.team !== 1 || g.routed || !g.count || g.kgChasing || g.kgPause || g.edgeHeld || g === F.yoshikage || g === F.nagamasa) continue;
     g.kgChasing = true;
     const c = g.center(); g.path = [];
     for (const q of RETREAT_ROAD) if (q[1] > c.z && q[1] < KUTSUKI.z) g.path.push(q);
@@ -1822,7 +1823,7 @@ function survival(rt, label) {
 function kgPausePursuit(rt, old) {
   const F = rt.flags;
   for (const g of rt.army.groups) {
-    if (g.team !== 1 || !g.count || g.kgPause || g.order === 'flee') continue;
+    if (g.team !== 1 || !g.count || g.kgPause || g.edgeHeld || g.order === 'flee') continue;
     const c = g.center();
     if (Math.hypot(c.x - old.x, c.z - old.z) > 70 && !F.tono.some((t) => t.count && Math.hypot(t.center().x - c.x, t.center().z - c.z) < 35)) continue;
     g.kgPause = { order: g.order, aggro: g.aggro, seekRange: g.seekRange };

@@ -719,7 +719,9 @@ const k03_gifu = {
       : F.step === 2 ? P.pos.x >= -142 && Math.abs(P.pos.z) < 12
       : F.step === 3 ? P.pos.x >= -100 && P.pos.z > -12 && P.pos.z < 6
       : F.step === 4 ? P.pos.x >= -70 && P.pos.z > -10 && P.pos.z < 8
-      : P.pos.x >= -26 && Math.abs(P.pos.z) < 7;
+      // 上台所の奥の口（幅5m）を抜け、門へ続く通路に立つ。
+      // 出口脇や南北の石垣の外は、門に近くても降伏を始めない。
+      : P.pos.x >= -24 && Math.abs(P.pos.z) < 2.5;
     const atGate = gateApproach && dist(P.pos, STEP_AT[F.step]) < (F.step === 5 ? (left <= -90 ? 30 : 14) : left <= -90 ? 40 : 24);   // 11/9 見回り 徳川D：④で敵を追って二の丸の櫓門より三十歩奥（上台所の側）へ出たまま十七分止まった
     const cleared = atGate && (gone >= Math.round(F.stepN * (1 - KEEP)) || left <= -90);
     // 突破済みなら追加の攻撃命令を出さない。降伏二秒前の「押し包め」が秀信の声に重なるのを防ぐ。
