@@ -8,7 +8,7 @@ export function at(F, HOTOKE) { return { x: HOTOKE.x - 8, z: HOTOKE.z + 12 }; }
 
 // 深手で終戦した後や、退却へ移った後に救援の声を出さない。
 function laterSay(rt, delay, who, line, sec) {
-  rt.after(delay, () => { if (!rt.flags.ending && rt.flags.stage === 5.5) rt.say(who, line, sec); });
+  rt.after(delay, () => { if (!rt.flags.ending && !rt.over && rt.player?.u?.alive !== false && rt.flags.stage === 5.5) rt.say(who, line, sec); });
 }
 
 export function start(rt, K) {

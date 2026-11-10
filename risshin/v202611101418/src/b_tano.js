@@ -1246,9 +1246,9 @@ const tano = {
     const C = rt.flags.dp?.cur;
     if (rt.def.missionOf(rt) === 2)
       return tanoWaitText(rt);
-    if (C?.routeTurn) return C.houseTurn ? '屋敷の脇の印へ進め' : C.yardTurn ? '柵の口の印へ進め' : '谷道の印へ進め';
-    const place = rt.phase === 'narrow' ? '崖道' : rt.phase === 'fence' ? '柵の口'
-      : rt.phase === 'tano' ? '田野の平屋敷' : '谷道';
+    if (C?.routeTurn) return C.houseTurn ? '田野の平屋敷の脇の印へ進め' : C.yardTurn ? '鳥居畑の柵の口の印へ進め' : '田野へ続く谷道の印へ進め';
+    const place = rt.phase === 'narrow' ? '四郎作の崖道' : rt.phase === 'fence' ? '鳥居畑の柵の口'
+      : rt.phase === 'tano' ? '田野の平屋敷' : rt.phase === 'valley' ? '四郎作の下手' : '田野へ続く谷道';
     return `${place}の敵へ味方と進め`;
   },
   // 浅い傷は部位だけを示す。歩みへの影響と退却の下知を混ぜない。
@@ -1392,8 +1392,8 @@ const tano = {
       return tanoWaitText(rt);
     // 傷の手当て・集合・通り口は、交戦の短い言葉に置き換えない。
     if (/傷|手当て|下が|戻|そろえ|通り口|印まで|印へ進み|ここで鉄砲/.test(text)) return text;
-    const place = rt.phase === 'narrow' ? '崖道' : rt.phase === 'fence' ? '柵の口'
-      : rt.phase === 'tano' ? '田野の平屋敷' : '谷道';
+    const place = rt.phase === 'narrow' ? '四郎作の崖道' : rt.phase === 'fence' ? '鳥居畑の柵の口'
+      : rt.phase === 'tano' ? '田野の平屋敷' : rt.phase === 'valley' ? '四郎作の下手' : '田野へ続く谷道';
     // 歩いて体の向きが変わるたびに別の下知へ切り替えない。
     // 横向きの携帯でも折り返しにくい長さにし、持ち場と行動を伝える。射撃待ちは保つ。
     if (/敵へ体を向けよ/.test(text)) return `${place}の敵へ向き直れ`;
@@ -1401,22 +1401,22 @@ const tano = {
     if (/鉄砲の合図を待て/.test(text)) return '射手の後ろで待て';
     if (/射手の後ろ/.test(text)) return /印/.test(text) ? text
       : /待て/.test(text) ? '射手の後ろで待て' : '射手の後ろを守れ';
-    if (/鉄砲を待たず/.test(text)) return '崖道で槍の組と押せ';
+    if (/鉄砲を待たず/.test(text)) return '四郎作の崖道で槍の組と押せ';
     if (/鉄砲が鳴った|敵へ構え、味方と押せ|先手と谷道の敵を退けよ/.test(text)) return `${place}で味方と押せ`;
-    if (/出てくる敵を退け/.test(text)) return '柵の口で味方と押せ';
+    if (/出てくる敵を退け/.test(text)) return '鳥居畑の柵の口で味方と押せ';
     if (/柵の口から入り、奥の敵/.test(text)) return '田野の平屋敷で味方と押せ';
-    if (/進み太鼓と法螺/.test(text)) return '谷道の先手へ続け';
+    if (/進み太鼓と法螺/.test(text)) return '田野へ続く谷道の先手へ続け';
     return text;
   },
   namedGuideMarkers: true,
   travelGuideLabel(rt) {
     const C = rt.flags.dp?.cur;
-    if (C?.clearSaid) return C.routeTurn ? C.houseTurn ? '屋敷の脇から集合の印へ'
-      : C.yardTurn ? '柵の口から集合の印へ' : '組をそろえる印へ' : '組をそろえる印へ';
-    if (C?.routeTurn) return C.houseTurn ? '屋敷の脇へ' : C.yardTurn ? '柵の口へ' : '谷道へ';
+    if (C?.clearSaid) return C.routeTurn ? C.houseTurn ? '田野の平屋敷の脇から集合の印へ'
+      : C.yardTurn ? '鳥居畑の柵の口から集合の印へ' : '組をそろえる印へ' : '組をそろえる印へ';
+    if (C?.routeTurn) return C.houseTurn ? '田野の平屋敷の脇へ' : C.yardTurn ? '鳥居畑の柵の口へ' : '田野へ続く谷道へ';
     if (C?.waiting) return rt.flags.tgun?.order !== 'hold' ? '鉄砲を待つ印へ' : '射手の後ろの印へ';
-    return rt.phase === 'fence' ? '柵の口へ' : rt.phase === 'tano' ? '田野の平屋敷へ'
-      : rt.phase === 'narrow' ? '崖道の先手へ' : '谷道の先手へ';
+    return rt.phase === 'fence' ? '鳥居畑の柵の口へ' : rt.phase === 'tano' ? '田野の平屋敷へ'
+      : rt.phase === 'narrow' ? '四郎作の崖道の先手へ' : rt.phase === 'valley' ? '四郎作の下手の先手へ' : '田野へ続く谷道の先手へ';
   },
   armySignals: false, // 下知は田野の段取りで鳴らす。敵を退ける任務に退き太鼓を鳴らさない。
   distanceUnit: 'metres',

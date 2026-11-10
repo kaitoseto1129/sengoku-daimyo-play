@@ -47,9 +47,19 @@ export function start(rt, ctx, done) {
     }
     if (s.kind === 'move' || s.kind === 'fight') {
       const tick = s.tick;
-      // 共通の移動は到着二十五秒で待ち伏せを退かせる。この物見は迎撃も本人の仕事。
+      // 到着直後の待ち伏せは迎撃する。ただし、残兵探しで物見の段を終わらなくしない。
       s.tick = (rt2, C, m, context, el, dt) => {
         const finished = tick(rt2, C, m, context, el, dt);
+        // 移動は実際の到着から七十秒、後詰との戦いは百秒で寄せを打ち切る。
+        // 未到着のまま次へ飛ばさず、残兵を実際に退かせてから合流する。
+        const retreat = s.kind === 'move' ? C.arr && el - C.arrT >= 70 : el >= 100;
+        if (retreat) for (const g of C.groups) {
+          if (g.routed || g.count <= 2) continue;
+          g.noRout = false;
+          g.morale = 0;
+          g.routed = true;
+          g.order = 'flee';
+        }
         // 物見の行き先を敵の平均位置へ替えない。柵や石段の向こうの
         // 平均点を追うと、物見へ着かないまま坂の下で止まってしまう。
         if (s.kind === 'move') C.goal = SPOT;
