@@ -1557,7 +1557,8 @@ const SUN_UP = new THREE.Vector3(0, 1, 0), SUN_TURN = -75 * Math.PI / 180;
 const ASAKURA = { armor: 0x33291f, lace: 0x7a5a2a, flag: 'asakura' };
 const INABA = { flag: 'inaba', armor: 0x33302a, lace: 0x5a4a2a };   // 稲葉一鉄ら西美濃の衆は、もと斎藤の家臣
 const dress = (list, lk) => list.map((s) => ({ ...s, o: { ...lk, ...(s.o || {}) } }));
-const gone = (g) => !g || (!g.anePending && g.count === 0) || g.routed;
+// 退く下知から敗走の反映までの間も、交戦を終えた隊として扱う。
+const gone = (g) => !g || (!g.anePending && g.count === 0) || g.routed || g.order === 'retreat' || g.order === 'flee';
 // 本陣の危険は部隊の平均位置ではなく、そこまで来た戦える兵から読む。
 function anegawaHqPressure(rt, dt) {
   const F = rt.flags, team = rt.player.u.team;

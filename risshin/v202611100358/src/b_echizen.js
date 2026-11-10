@@ -1311,6 +1311,9 @@ echizen.setup = function (rt) {
   rt.army.damage = function (target, amount, source, options) {
     const hp = target?.hp;
     const result = damage.call(this, target, amount, source, options);
+    const elite = rt.flags.echElite;
+    if (elite && !elite.done && source === rt.player.u && target?.group === elite.g && target.hp < hp)
+      elite.foughtAt ??= rt.t;
     if (!rt.flags.step && source === rt.player.u && target?.team === 1 && target.hp < hp &&
         (target === rt.flags.gateKannon?.struct || target.group === rt.flags.gateSally?.real ||
          target.group === rt.flags.roadGuards?.[0]?.real)) rt.flags.echOpeningHit = true;

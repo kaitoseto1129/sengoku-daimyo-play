@@ -756,6 +756,7 @@ function installNodaNotices(rt) {
   // 操作キーの英字を添えず、携帯でも押せる「開ける／閉める」だけにする。
   style.textContent += `
 html body #hud.nodafukushima.field-clean #prompt:not([hidden]):has(>button[data-entry="naka_to"]) { display:block!important; }
+html body #hud.nodafukushima.field-clean #prompt.ladder-work:not([hidden]) { display:block!important; }
 html body #hud.nodafukushima #prompt>button[data-entry="naka_to"] { min-width:88px;min-height:44px;font-size:max(16px,calc(16px * var(--text-scale,1))); }
 html body #hud.nodafukushima #prompt>button[data-entry="naka_to"] kbd { display:none!important; }
 `;
@@ -2502,6 +2503,7 @@ const nodafukushima = {
   hideMissionDots: true,
   hideGuideSteps: true,
   enemyTriangleSigns: true,
+  ladderWorkVisible: true, // 井楼の登降は必須操作。携帯の長押し釦を隠さない。
   // 11/7：前田利家・佐々成政・岩成友通の名が、十八m の内へ寄らないと出ず、遊んだ間に一度も見えなかった（critic60・九3・五2）。
   nameRange: 60,
   hideNameTag: (u) => nodaCardOpen() || /侍大将|組頭|使番|物頭|の侍$/.test(u?.name || ''),   // 始まりの札の上に名札を重ねない（五4）

@@ -1,7 +1,7 @@
 // ======================================================================
 // 越前一向一揆・木ノ芽峠　主防御線（9〜12分）「一揆の精鋭の逆襲」（docs/oda15_plan_1108.md 18）
 //   木ノ芽峠城の副郭を押さえた直後、主郭から一揆の精鋭（長刀の坊官と侍・鉄砲衆・槍）が念仏を唱えて打って出る。
-//   副郭で押し返すまで主郭へは入れない（主郭の押さえを待たせる）。将を討つか、隊が三分の一まで減るか、百二十秒で崩れ、残りは味方の鉄砲に倒れる。
+//   副郭で押し返すまで主郭へは入れない（主郭の押さえを待たせる）。本人も戦い、将を討つか、隊が三分の一まで減るか、初撃から百二十秒で崩れる。
 // 兵は十三人。字は台詞と任務の一行だけ。
 // ======================================================================
 import { enemyGroup } from '../bhelp.js';
@@ -35,10 +35,14 @@ export function start(rt, ctx) {
 
 export function tick(rt) {
   const F = rt.flags, E = F.echElite;
-  if (!E || E.done) return;
+  if (!E || E.done || rt.over || F.ending || !rt.player.u.alive) return;
+  const p = rt.player.u.pos;
+  // 郭の外で待つだけでは、精鋭を討った事にも命の回復にもならない。
+  if (!['kinome_fuku', 'kinome_hon'].some(id => F.SZ.byId[id]?.test(p.x, p.z))) return;
   const g = E.g, lord = g.units.find((u) => u.type === 'busho');
   const left = g.units.filter((u) => u.alive && !u.fleeing).length;
-  if (lord?.alive && left > Math.ceil(E.n0 / 3) && rt.t - E.at < 120) return;
+  if (left && E.foughtAt == null) return;
+  if (lord?.alive && left > Math.ceil(E.n0 / 3) && rt.t - E.foughtAt < 120) return;
   E.done = true;
   // 崩れた精鋭を主郭へ逃がすと、逃げる兵が主郭の口をふさいで本人が入れなかった（11/9 の流し）。
   //   残りは横から寄せた味方の鉄砲衆の一斉射に倒れる

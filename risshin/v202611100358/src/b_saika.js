@@ -3482,6 +3482,7 @@ const saika = {
       // 以前の集合・使番・狙いを残すと、整列直後に追従や古い下知へ戻ってしまう。
       g.pending = null; g._gather = false; g.focus = null; g.onArrive = null;
       g.order = 'hold'; g.anchor = { x: COVER.x + 4 + squadRow++ * 5, z: COVER.z };
+      g.holdAgainstHelp = true;   // 本人が打たれても救援の追撃で竹束の備えを崩さない。
       g.facing = WEST; g.formation = 'yari'; g.width = Math.max(g.width || 0, 10); g.seekRange = 8;
     }
     rt.say('堀秀政', '鉦が二つ、止まれの合図じゃ。竹束の陰で列を整え、鉄砲衆を守れ', 5);

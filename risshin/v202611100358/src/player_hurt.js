@@ -94,6 +94,7 @@ export class PlayerHurt {
     let came = false, tooFar = false;
     for (const g of this.rt.squadGroups) {
       if (!g.count || g.order === 'retreat' || g.pending || (g.focus && g.focus.alive)) continue;
+      if (g.order === 'hold' && g.holdAgainstHelp) continue;   // 持ち場を守る下知は自動の救援で上書きしない。
       const c = g.center(); if (Math.hypot(c.x - u.pos.x, c.z - u.pos.z) > 35) continue;
       const ds = Math.hypot(src.pos.x - c.x, src.pos.z - c.z);
       if (ranged && ds > 60) { tooFar = true; continue; }
