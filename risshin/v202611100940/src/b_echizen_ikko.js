@@ -1697,8 +1697,8 @@ function closeTempleGap(rt) {
   const F = rt.flags, P = rt.player.u.pos;
   if (F.step < 1 || F.step >= 5) return;
   for (const u of rt.army.units) {
-    if (u.team !== rt.player.u.team && u.alive && !u.fleeing && !u.woundOut &&
-        !u.isStruct && !u.civ && !u.noTarget && u.type !== 'dummy' &&
+    if (u.team !== rt.player.u.team && siegeFighter(u) && u.hp > 0 && !u.dying && !u.rearWound &&
+        !u.civ && u.type !== 'dummy' &&
         Math.hypot(u.pos.x - P.x, u.pos.z - P.z) <= 25) { F.emptyRoadT = null; return; }
   }
   if (F.emptyRoadT == null) F.emptyRoadT = rt.t;
@@ -1725,7 +1725,7 @@ function closeTempleGap(rt) {
     if (b.kind !== 'ashigaru' || b._route || b._templeIntercept || b._templeRetired || b._templeBroken ||
         !b.real || b.real.stay || b.real.routed || b.real.order !== 'hold' || b.real._pinH ||
         b.pos.z < P.z || b === F.ikkoAmbush || F.roadWaves?.includes(b) && !b._nightReleased ||
-        !b.real.units.some((u) => u.alive && !u.fleeing && !u.woundOut)) continue;
+        !b.real.units.some((u) => siegeFighter(u) && u.hp > 0 && !u.dying && !u.rearWound)) continue;
     const d = Math.hypot(b.pos.x - P.x, b.pos.z - P.z);
     if (d >= distance || rt.army.wallBetween(b.pos, -1, goal)) continue;
     guard = b; distance = d;

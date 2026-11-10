@@ -4656,7 +4656,7 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
       F.nTransition = true; rt.scene.visible = false;
       // 11/6 critic60：一瞬で二条へ飛んだように見えた。寺から二条は十町（約一キロ）・一刻ほど後の事なので、暗い間を三秒取り、時が過ぎた事を見せる
       rt.banner('裏通りを抜け、二条御所へ', '十町ほど北東の二条御所へ走った。一刻ほどの後、信忠の手は御所に籠った');
-      rt.after(2.5, () => this.toNijo(rt)); return;
+      rt.after(3, () => this.toNijo(rt)); return;
     }
     F.step = 3; F.stepT = rt.t; F.pkNijo = F.pk || 0;
     for (const g of rt.squadGroups) g.hideFlags = false;

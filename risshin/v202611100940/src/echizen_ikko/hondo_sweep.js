@@ -12,9 +12,11 @@ export function fighting(rt, u) {
 
 // 時間だけで敵を消さない。既存の戸口・石段の案内を使い、近い寄せ手へ歩かせる。
 export function resume(rt, u) {
+  // 倒れた者や後送中の者を、詰まった守兵として歩かせない。
+  if (!siegeFighter(u) || u.hp <= 0 || u.dying || u.rearWound) return;
   let way = null, nearest = Infinity;
   for (const v of rt.army.units) {
-    if (v.team === u.team || !siegeFighter(v)) continue;
+    if (v.team === u.team || !siegeFighter(v) || v.hp <= 0 || v.dying || v.rearWound) continue;
     const d = Math.hypot(v.pos.x - u.pos.x, v.pos.z - u.pos.z);
     if (d >= nearest) continue;
     // 最寄りの兵への道が塞がっていても、ほかの寄せ手へ出られる道を探す。
@@ -36,8 +38,8 @@ export function tick(rt, dt, zone, near) {
   if (F.ending || !zone || (F.ikHondoSweepT = (F.ikHondoSweepT || 0) - dt) > 0) return;
   F.ikHondoSweepT = 5;
   for (const u of rt.army.units) {
-    if (u.team !== 1 || !u.alive || u.fleeing || u.isStruct) continue;
-    if (!near || u.woundOut || u.noTarget || !zone.test(u.pos.x, u.pos.z) || fighting(rt, u)) {
+    if (u.team !== 1) continue;
+    if (!near || !siegeFighter(u) || u.hp <= 0 || u.dying || u.rearWound || !zone.test(u.pos.x, u.pos.z) || fighting(rt, u)) {
       u._ikHondoStill = null; continue;
     }
     const s = u._ikHondoStill;
