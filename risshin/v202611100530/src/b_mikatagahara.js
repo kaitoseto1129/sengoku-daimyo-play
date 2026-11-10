@@ -1983,18 +1983,7 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
     rt.say = function (speaker, text, dur) { const t2 = mikataOrderText(this, speaker, text); return t2 === '' && text ? false : say.call(this, livingVoice(this, speaker), t2, dur); };
     const hudSay = rt.hud.say;
     rt.hud.say = function (speaker, text, ...args) { return hudSay.call(this, livingVoice(rt, speaker), mikataOrderText(rt, speaker, text), ...args); };
-    // 結果へ移るまで城門の前で帰着を見せる。視点の設定や動きを減らす設定でも静止画で見せる。
-    const cameraTick = rt.player.updateCamera, playerTick = rt.player.update;
-    rt.player.update = function (dt, input) {
-      if (F.returnedT !== undefined) return;
-      return playerTick.call(this, dt, input);
-    };
-    rt.player.updateCamera = function (dt, camera) {
-      cameraTick.call(this, dt, camera);
-      if (F.returnedT === undefined) return;
-      camera.position.set(-12, W.heightAt(-12, HAMA.z - 23) + 3.2, HAMA.z - 23);
-      camera.lookAt(HAMA.x, W.heightAt(HAMA.x, HAMA.z - 12) + 2.1, HAMA.z - 8);
-    };
+    // 帰着の余韻も本人の視点と操作を保つ。城門の固定視点へ切り替えない。
     rt.army.mikataFront = []; rt.army.mikataCap = 4;
     rt._rfN = 3; // 敗走中に共通の救済援兵を湧かせない
     // ---- 織田の援軍：平手汎秀の手（自分の持ち場）、佐久間信盛の手 ----

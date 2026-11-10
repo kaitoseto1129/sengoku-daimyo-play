@@ -4026,7 +4026,7 @@ const sunomata = {
   compactIntro: true,
   introTaskFirst: true,
   // 11/4 jin（BE）：札は二三行の状況だけ。断りの字は書かない。
-  introText: '永禄九年九月、藤吉郎は長良川の西の洲に柵の砦を急ぎ組んだ。斎藤勢が北と西の陸、そして川の舟から寄せて来る。柵の内で槍を揃えて受け、外の伏兵と挟んで退けよ。',
+  introText: '藤吉郎は長良川の洲に柵の砦を急ぎ組んだ。斎藤勢が陸と舟から寄せて来る。柵の内で受けて退けよ。',
   setup(rt) {
     { const P = rt.player, td = P.takeDamage, k = rt.def.cutFloor; P.takeDamage = function (a, s) { const m = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow'; const d = td.call(this, a, s); return s && !s.isStruct && !m && d > 0 ? d * k : d; }; }   // 11/1：刃の一太刀を def.cutFloor 倍に（共通の一太刀五割・六割は変えず、この戦だけ）
     const W = rt.world;

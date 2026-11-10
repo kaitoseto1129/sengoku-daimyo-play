@@ -278,6 +278,9 @@ const k02_kawada = {
   },
   spawn: { x: START.x + 2, z: START.z, heading: Math.PI },
   noWake: true,
+  // 段の時間送りを外しても、共通の十八分打ち切りは別に動く。
+  // 未達の目標がある間は本人の到着と戦闘を待ち、放置で負けにしない。
+  pacingWait: (rt) => !rt.flags.ending,
   minutes: 25,
   depth: kawadaDepth,   // 陣立て（army_depth.js）：河田の本物の隊の後ろと翼に、福島・黒田・細川・秀信の備（k02_kawada/tosen.js）
   lethal: { max: 2, firstAt: 200, gap: 120 },   // 命懸けの戦場（docs/lethal_howto.md）。11/9 二巡（徳川D）：既定では北の筋で bot が十七分止まった。弱める
@@ -424,8 +427,9 @@ const k02_kawada = {
         say: [['木造長政', '渡らせるな。浅瀬に入った所を撃て！'], ['大塚権太夫', '一柳監物が家来、大塚権太夫。一番に上がるぞ！']],
         // 始めから北岸に構えていた組をそのまま段の敵にする（目の前に湧かせない）
         foes: (rt2) => { const C = rt2.flags.dp.cur; for (const g of [F.northGun, F.northGuard]) if (g && g.count) { if (g === F.northGun) g.order = 'hold'; g.dmgMult = g._k02fire ? 0.7 : 0.3; C.groups.push(g); C.nTot = (C.nTot || 0) + g.count; } return []; },
-        later: [{ t: 22, say: ['大塚権太夫', '武市善兵衛・忠左衛門の兄弟、大塚権太夫が討ち取った！'], foes: () => [] },
-          { t: 40, say: ['木造長政','柵の内の者、出て槍を合わせよ！'], foes: () => [keep('柵の内の槍組', { x: -74, z: NORTH.z - 14 }, [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 9 }])] }],
+        // 時刻だけで名のある敵の討ち取りを告げず、既にいる旗本と戦う。
+        // 柵の前へ新しい槍組を突然出さない。
+        later: [{ t: 22, say: ['大塚権太夫', '柵の口へ続け！　旗本を押し返すぞ！'], foes: () => [] }],
         reward: '河田の渡しを渡った' }), 45, insideNorthGuard),
       DP.rest({ dur: 5, heal: 0.9, fn: (rt2) => rt2.world.setTime('day') }),
       // ③ 北岸を下流の米野村へ。昼、百々綱家の隊と組み合う。飯沼長資が大塚権太夫を討って出て、ここで討ち死にする（討ったのは池田長吉とも）

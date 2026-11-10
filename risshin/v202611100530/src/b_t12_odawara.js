@@ -523,6 +523,32 @@ function clearFoes(rt) {
   const keep = new Set(rt.flags.hojo ? rt.flags.hojo.units : []);
   for (const u of rt.army.units.slice()) if (u.team === 1 && !u.gone && !keep.has(u)) rt.army.despawn(u);
 }
+
+// 開城の使いが通る間は、敵味方とも相手を狙わない。途中で増えた出迎えにも掛ける。
+function envoyPeace(rt) {
+  for (const u of rt.army.units) if (u.alive) {
+    u.noTarget = true; u.target = null; u.atk = null; u.swing = null; u.bind = null;
+    if (u.group) { u.group.peaceful = true; u.group.fire = false; }
+  }
+}
+
+// 川を渡る足の水しぶき。共通の粒の固定枠を使い、兵ごとの歩幅だけを覚える。
+function riverFeet(rt) {
+  const F = rt.flags, W = rt.world;
+  if (rt.t < (F.riverFootAt || 0)) return;
+  F.riverFootAt = rt.t + 0.12;
+  let emitted = 0;
+  for (const u of rt.army.units) {
+    if (!u.alive || u.mounted || distToPolyline(u.pos.x, u.pos.z, SANNOGAWA) > 5) { u.odawaraFootX = undefined; continue; }
+    const moved = u.odawaraFootX === undefined ? 0 : Math.hypot(u.pos.x - u.odawaraFootX, u.pos.z - u.odawaraFootZ);
+    u.odawaraFootX = u.pos.x; u.odawaraFootZ = u.pos.z;
+    if (moved > 2 || W.waterFootDepthAt(u.pos.x, u.pos.z, u.pos.y) < 0.05) { u.odawaraStride = 0; continue; }
+    u.odawaraStride = (u.odawaraStride || 0) + moved;
+    if (u.odawaraStride < 0.6 || emitted >= 2) continue;
+    u.odawaraStride %= 0.6;
+    W.spray(u.pos.x, u.pos.z, 3); emitted++;
+  }
+}
 const t12_odawara = {
   lethal: true,   // 命懸けの戦場（lethal.js。先取り 11/9 豊臣B）
   victoryTitle: '小田原城、開城',
@@ -579,6 +605,7 @@ const t12_odawara = {
     unitNightScale: 0.8,   // 雨の夜も赤備えと北条の黒の色を残す（11/8 critic60 小田原 5：0.4 では兵が色の無い黒い影のマネキンに見えた。兵の補光を倍に）
     nightLight: { cover: 0.95, cloud: 0, top: 0x0e1218, sky: 0x1c232c, fog: 0x262d36 },   // 雲に覆われ、月も星も見えない
     wetStart: 0.7,
+    noGroundArrows: true,   // 水中の川床へ矢を立てない。人や塀に刺さった矢は残す
     paths: [[[II_JIN.x + 20, II_JIN.z], [II_JIN.x, II_JIN.z + 2], [KIDO_F.x + 4, KIDO_F.z], [KIDO.x, KIDO.z], [SHINO_C.x, SHINO_C.z], [SANNO.x, SANNO.z], [SANNO_IN.x, SANNO_IN.z], [74, -80], [60, -98], [KGATE.x, KGATE.z]],
       [[II_JIN.x, II_JIN.z], [IE_JIN.x, IE_JIN.z]]],
     height,

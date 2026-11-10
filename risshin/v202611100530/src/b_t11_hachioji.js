@@ -349,7 +349,18 @@ function kuruwaFight(o) {
     if (k && p.x >= k.poly[0][0] && p.x <= k.poly[1][0] && p.z >= k.poly[0][1] && p.z <= k.poly[2][1]) C.entered = true;
     const done = tick(rt, C, m, ctx, el);
     bind(C);
-    return done && !!C.entered;
+    if (!C.entered) return false;
+    if (done) return true;
+    // 通しで残兵の組を追い続けて止まった。新手を含む守備の八割を崩せば制圧し、
+    // 長引いても六割を崩して本人が曲輪にいる時は残兵を退かせる。待つだけでは済ませない。
+    if (C.later?.length) return false;
+    let left = 0;
+    for (const g of C.groups) if (!g.routed) for (const u of g.units) {
+      if (u.alive && !u.gone && !u.dying && !u.fleeing && !u.evacuatedWound) left++;
+    }
+    const total = C.nTot || C.n0 || 0;
+    const inside = k && p.x >= k.poly[0][0] && p.x <= k.poly[1][0] && p.z >= k.poly[0][1] && p.z <= k.poly[2][1];
+    return total > 0 && (left <= total * 0.2 || (inside && el >= s.max && left <= total * 0.4));
   };
   return s;
 }
@@ -854,6 +865,8 @@ t11_hachioji.goalSignAction = (rt) => {
 const GOAL_T = { x: 0, z: 0, label: '' };
 t11_hachioji.goalSignTarget = (rt) => {
   const D = rt.flags.dp, C = D?.on && D.cur;
+  // 下知の間も、最初の目標の印を切らさない。終戦後は印を残さない。
+  if (!rt.flags.begun) { GOAL_T.x = 150; GOAL_T.z = 52; GOAL_T.label = '大手の木戸'; return GOAL_T; }
   // 曲輪の名を付けた印は曲輪に固定する。敵の組の中心は斬り合いで動くため使わない。
   // 付け入り・坂の途中の行き先と、中山本人を追う段だけは段が更新する場所を使う。
   const moving = D && (D.i === IX.sally || D.i === IX.sakamichi || D.i === IX.naka);

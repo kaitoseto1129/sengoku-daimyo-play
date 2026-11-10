@@ -3059,7 +3059,9 @@ const tonezaka = {
     rt.unmark('pass'); rt.unmark('nobu');
     // 11/6 fixc2220（一6・二2）：坂の殿・人夫・義景の供は一乗谷へ来ない（河合・山崎・龍興は坂で討死、詫美は疋壇城から逃れ、義景は大野へ）。
     //   略図の後の城下に、峠で退いた将の名札と逃げる列を残さない。
-    F.journeyRetired = [...F.rears, F.r2c, F.r3c, F.roadG, F.hurtG, ...(F.porters || []), F.yoshikage];
+    // 追加の追撃で出た後備え・旗本・荷駄の兵も坂に残す。固定の組名だけでは漏れる。
+    // 城下と奥の道の兵は、略図の後に初めて作るので、この退場には含まれない。
+    F.journeyRetired = rt.army.groups.filter((g) => g.team === 1);
     toneJourneyRetire(rt, F.journeyRetired);
     for (let i = 0; i < F.rears.length; i++) rt.unmark('rear' + i);
     rt.world.setRainTarget(0);

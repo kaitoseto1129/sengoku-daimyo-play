@@ -33,11 +33,13 @@ export function senHeight(x, z) {
 export function route(u, want) {
   const p = u.pos, q = u._kishuWay || (u._kishuWay = { x: 0, z: 0, botRadius: 2 });
   // 虎口（北の門）：塀を抜けず、門の口（x が ±2.5 の内）を通る。内の食い違いの塀（x −7〜−1）は右から回る
-  if (want.z > -30 && p.z < -31) { if (Math.abs(p.x) > 2.5) { q.x = 1.5; q.z = -37; } else { q.x = 2.5; q.z = -27; } return q; }
-  if (want.z < -33 && p.z > -31 && p.z < -4) { if (p.z > -28.5 || Math.abs(p.x) > 2.5) { q.x = 2.5; q.z = -28.5; } else { q.x = 0; q.z = -38; } return q; }
+  if (want.z > -30 && p.z < -31) { if (Math.abs(p.x) > 2.5) { q.x = 0; q.z = -41; } else { q.x = 2.5; q.z = -27; } return q; }
+  if (want.z < -33 && p.z > -31 && p.z < -4) { if (p.z > -28.5) { q.x = 2; q.z = -30.5; } else if (Math.abs(p.x) > 2.5) { q.x = 0; q.z = -29; } else { q.x = 0; q.z = -38; } return q; }
+  // 二の丸の南口から堀へ。左右の小屋や塀へ直進せず、開いた中央を通す。
+  if (want.z > -3 && p.z < -3 && p.z > -31) { q.x = 0; q.z = Math.abs(p.x) > 2.5 ? -7 : 0; return q; }
+  if (want.z < -5 && p.z > -5 && p.z < 7) { q.x = 0; q.z = Math.abs(p.x) > 2.5 ? 0 : -8; return q; }
   // 本丸の門（焼け落ちた後）：塀を抜けず、門の口を通る
   if (want.z > 9 && p.z < 7 && p.z > -4) { if (Math.abs(p.x) > 2.5) { q.x = 0; q.z = 3; } else { q.x = 0; q.z = 11; } return q; }
-  if (want.z > 9 && p.z <= -4 && p.z > -31 && Math.abs(p.x) > 3) { q.x = 0; q.z = -6; return q; }
   if (want.x > 40 && p.x < 42) { q.x = p.z > -39 ? 0 : 47; q.z = -44; return q; }
   if (want.x < 10 && p.x > 28) { q.x = p.z > -39 ? 47 : 0; q.z = -44; return q; }
   return want;
@@ -80,7 +82,7 @@ export function build(rt) {
   camp.stay = true; camp.aggro = 0; camp.seekRange = 0;
   for (const u of camp.units) if (u.name === '羽柴秀吉') { u.invuln = true; u.noTarget = true; u.jinchu = { standing: false, t: 0, soldiers: [] }; }
   // 二の丸の囲み（北に虎口）。外の木柵（土橋の左右）と木戸
-  for (const seg of [[-23, -32, -4, -32], [4, -32, 23, -32], [-23, -32, -23, -4], [23, -32, 23, -4], [-23, -4, 23, -4]]) fence(rt, seg);
+  for (const seg of [[-23, -32, -4, -32], [4, -32, 23, -32], [-23, -32, -23, -4], [23, -32, 23, -4], [-23, -4, -4, -4], [4, -4, 23, -4]]) fence(rt, seg);
   rt.scene.add(kabukimon(W, 0, -32, 8));
   fence(rt, [-7, -26, -1, -26]);   // 虎口の内の食い違い
   F.outer = [fence(rt, [-26, -37, -4, -37], 1.8), fence(rt, [4, -37, 26, -37], 1.8)];

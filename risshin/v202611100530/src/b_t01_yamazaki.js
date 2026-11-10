@@ -242,10 +242,11 @@ const t01_yamazaki = {
   },
   missionPin(rt) {
     const F = rt.flags;
-    if (!F.stage || F.ending) return null;
+    if (F.ending) return null;
     // 行き先は段ごとに一つで動かさない（AW3・BK4）。浅瀬は渡った北の岸に一つ
     if (F.stage >= DONE) return null;
-    const p = [null, March.JOIN, HOLD, F.forded ? TSUDA : FORD_N, Counter.STAND, SAITO, GOBO_PIN, Pursuit.GATE][F.stage];
+    // 開戦直後の下知待ちにも先陣の場所を示す（通し確認：始まりに行き先が無い）。
+    const p = [March.JOIN, March.JOIN, HOLD, F.forded ? TSUDA : FORD_N, Counter.STAND, SAITO, GOBO_PIN, Pursuit.GATE][F.stage || 0];
     PIN.x = p.x; PIN.z = p.z; PIN.r = F.stage === 3 && !F.forded ? 10 : 8;
     return PIN;
   },
