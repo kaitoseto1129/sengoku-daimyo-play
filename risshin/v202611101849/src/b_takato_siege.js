@@ -1974,15 +1974,21 @@ const takato_siege = {
     if (F.step >= 1) { tickRoutes(F.movers); if (F.refresh) this.checkAttrition(rt); }
     tkStuck(rt, this.guideMarker?.(rt));   // 段差や堀へ落ちて抜けられない時（takato/stuck.js）
     // 11/10 クラウドの正式の流し：二の丸を取った後、本丸門をだれも打たず（寄せ手は土橋の手前・本人は搦手の側）四百秒止まった。
-    //   二の丸が落ちて百五十秒たち、本丸の二つの門が九十秒だれにも打たれなければ、味方の掛矢で破れる（使番の声だけ）
+    //   百五十秒後も門を九十秒打てていなければ、残る隊へ道順と門攻めを下知し直す。
+    //   待つだけで門を消したり、まだ起きていない突破を知らせたりしない。
     if (F.niFell && !F.honFell && !F.ending && rt.t - (F.niT ?? rt.t) > 150) {
       const gs = [F.gates.honOuter, F.gates.honInner].filter((g) => g && !g.opened);
       const hp = gs.reduce((n, g) => n + (g.struct?.hp || 0), 0);
       if (F.tkHonHp !== hp) { F.tkHonHp = hp; F.tkHonHpT = rt.t; }
       if (gs.length && rt.t - F.tkHonHpT > 90) {
-        for (const g of gs) if (g.struct) g.struct.hp = 0;
+        let ordered = false;
+        for (const b of [F.oteSpear, F.reserve, F.dan2, F.karameteSpear]) {
+          if (!b || deadB(b)) continue;
+          toHonmaru(rt, b);
+          ordered = true;
+        }
         F.tkHonHpT = rt.t;
-        rt.say('使番', '本丸の門、味方の掛矢で打ち破ったり！　本丸へ懸かれ！', 3.4);
+        if (ordered) rt.say('使番', '残る備えも本丸の門へ！　土橋から続け！', 3.4);
       }
     }
 

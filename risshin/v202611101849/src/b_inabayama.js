@@ -2260,8 +2260,16 @@ function inabaRootFooting(W, x, z, rx, rz) {
 }
 // 通し確認の宙へ垂れる幹を防ぐ。根元の周囲も描く地面に支えられた株だけ残す。
 function inabaTreeFooting(W, x, z) {
-  return inabaTreeDensity(x, z) > 0 && inabaRockFooting(W, x, z)
-    && Math.abs(W.heightAt(x, z) - drawGroundAt(W, x, z)) < 0.4;
+  if (!(inabaTreeDensity(x, z) > 0) || !inabaRockFooting(W, x, z)) return false;
+  const y = drawGroundAt(W, x, z);
+  if (!(Math.abs(W.heightAt(x, z) - y) < 0.4)) return false;
+  // 前後左右が岩棚でも、斜めの根元だけが切岸へ出る株を残さない。
+  // 設営時だけ八方向を調べ、毎コマの処理は増やさない。
+  for (let i = 0; i < 4; i++) {
+    const near = drawGroundAt(W, x + (i & 1 ? 0.6 : -0.6), z + (i & 2 ? 0.6 : -0.6));
+    if (!Number.isFinite(near) || Math.abs(near - y) > 1) return false;
+  }
+  return true;
 }
 function buildKaraRoadWorks(rt) {
   const W = rt.world;

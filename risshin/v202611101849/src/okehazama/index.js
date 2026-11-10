@@ -96,7 +96,10 @@ export function tick(rt, dt) {
 export function bot(b, inp, { goTo, patientStrike }) {
   const v = S(b), u = b.player.u;
   if (!['zenei', 'nida', 'ii', 'saka'].includes(v.ph)) return false;
-  const e = b.army.nearestEnemy(u, 5, (o) => !o.fleeing && !o.invuln && !o.noTarget);
+  // 幕越しや坂の上下の敵を斬り続けず、通れる道から間合いへ寄る。
+  const e = b.army.nearestEnemy(u, 5, (o) => readyTarget(o) &&
+    Math.abs(o.pos.y - u.pos.y) < 3 && !b.army.wallBetween(u.pos, -1, o.pos) &&
+    !b.army.terrainBlocks(u.pos, o.pos));
   if (e) {
     const d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
     b.player.yaw = Math.atan2(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
@@ -107,6 +110,13 @@ export function bot(b, inp, { goTo, patientStrike }) {
   const t = sign(b);
   const T = t?.pos || pin(b);
   if (!T) return false;
-  goTo(b.player, inp, T.x, T.z, 2);
+  const q = v.C.honjinWay(b.army, u, T);
+  const out = u._okeStageWay || (u._okeStageWay = { x: 0, y: 0, z: 0 });
+  const way = v.C.localPoint(b.army, u, out, q.x, q.z);
+  // 迂回の一歩は二歩手前で止めない。元の目的地に着いた時だけ間合いを取る。
+  const direct = way.x === T.x && way.z === T.z;
+  goTo(b.player, inp, way.x, way.z, direct ? 2 : 0.1);
   return true;
 }
+
+function readyTarget(u) { return u.alive && !u.gone && !u.fleeing && !u.woundOut && !u.invuln && !u.noTarget; }
