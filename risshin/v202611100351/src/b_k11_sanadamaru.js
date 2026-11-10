@@ -691,9 +691,11 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
       // 共通の三十歩の余裕では、柵の前に残ったままでも殿を果たせてしまう。
       // 八歩の余裕でも柵の前まで届くので、指定した持ち場の内だけを数える（柵の段にも同じ判定）。
       const p = rt.player.u.pos;
-      if (rt.player.u.alive && Math.hypot(p.x - C.at.x, p.z - C.at.z) < C.botRadius) C.sanadaHoldT = (C.sanadaHoldT || 0) + dt;
+      const present = rt.player.u.alive && Math.hypot(p.x - C.at.x, p.z - C.at.z) < C.botRadius;
+      if (present) C.sanadaHoldT = (C.sanadaHoldT || 0) + dt;
       const done = tick(rt, C, m, ctx, el, dt);
-      return done && (C.sanadaHoldT || 0) >= dur * 0.45;
+      // 先に滞在時間を満たしていても、持ち場を捨てた先で敵が退いただけでは済ませない。
+      return done && present && (C.sanadaHoldT || 0) >= dur * 0.45;
     };
     return h;
   },

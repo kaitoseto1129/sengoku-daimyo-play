@@ -1588,7 +1588,9 @@ function nfTick(rt, dt) {
     let fighting = false;
     for (const u of R.units) {
       const target = u.atk?.target || u.swing?.target || u.target;
-      if (u.alive && target?.alive && target.team !== u.team &&
+      if (u.alive && !u.fleeing && !u.gone && !u.woundOut && !u.rearWound && !u.noTarget &&
+          target?.alive && !target.fleeing && !target.gone && !target.woundOut && !target.rearWound && !target.noTarget &&
+          target.team !== u.team &&
           Math.hypot(u.pos.x - target.pos.x, u.pos.z - target.pos.z) < 8 &&
           !rt.army.wallBetween(u.pos, -1, target.pos)) { fighting = true; break; }
     }

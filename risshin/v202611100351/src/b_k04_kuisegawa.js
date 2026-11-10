@@ -493,6 +493,9 @@ const k04_kuisegawa = {
         else { g.order = g.team ? 'hold' : 'attack'; g.anchor = to; g.seekRange = g.team ? 10 : 14; }
       }
     }
+    // 防戦の長さは実際の経過秒で数える。間引いた判定の回数で数えると、
+    // 携帯でコマが遅れた時だけ百三十秒の防戦が長引いてしまう。
+    if (F.step === 3 && F.defended && F.noiU?.alive && dist(F.noiU.pos, P.pos) < 12) F.nearT = (F.nearT || 0) + dt;
     if ((F.scanT = (F.scanT || 0) - dt) > 0) return;
     F.scanT = 0.25;
     const menRemain = F.mine.units.some(canReturn) || (rt.squad || []).some(canReturn);
@@ -509,7 +512,6 @@ const k04_kuisegawa = {
     } else if (F.step === 3) {
       for (const g of rt.army.groups) if (g.team === 1 && g.count && g.order === 'hold' && g.kind !== 'main' && g !== F.guns && !g.interiorHold && !g.units.every((u) => u.type === 'gun')) { g.order = 'attack'; g.seekRange = 30; g.aggro = 14; g.noRout = true; }
       // 防戦を始める前の待機時間を、後の一撃で達成扱いにしない。
-      if (F.defended && F.noiU?.alive && dist(F.noiU.pos, P.pos) < 12) F.nearT = (F.nearT || 0) + 0.25;
       // 待つだけでは防戦を果たさない。頼母の横で敵を打つか、打撃を受け止める。
       if (F.noiU?.alive && dist(F.noiU.pos, P.pos) < 12 && rt.player.lastHit?.blocked && rt.player.lastHit.t >= F.stepT && rt.t - rt.player.lastHit.t <= 0.5) F.defended = true;
       if (F.defended && F.nearT > 130 && el > 130) this.closeRing(rt);   // 渡河・防戦・退却を合わせ四分以上遊ぶ
