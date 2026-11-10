@@ -56,6 +56,7 @@ function cross(rt, K) {
     sfx('taiko', 0.9);
     K.go(B.sen, { x: 32, z: -36 }, 3.4);
     S.crossLeg = 1;
+    S.legT = rt.t;
     for (const g of [F.nobu, F.sen, F.sogo, F.tsune, F.mine]) if (live(g)) g.speed = 4.6;
     for (const g of F.allyBands || []) if (live(g)) g.speed = 4.4;
     // 川の中ほどで対岸の鉄砲が鳴る（渡る所を撃たれる）
@@ -70,15 +71,25 @@ export function pin(rt) {
 }
 export function crossing(rt) { return (rt.flags.s1?.st || 0) >= 2; }
 
+// 本人の渡河は必須。後続一組の足止めだけでは北岸で待ち続けさせない。
+export function ready(rt, K) {
+  const F = rt.flags, S = F.s1, P = rt.player.u.pos;
+  if (!crossing(rt) || P.z >= -14) return false;
+  const arrived = K.lightPos(F.blk.nobu).z < -20 && (!live(F.nobu) || F.nobu.center().z < -16);
+  return arrived || (S.crossLeg === 3 && rt.t - S.legT > 90 && Math.hypot(P.x - 20, P.z + 22) < 26);
+}
+
 export function update(rt, K) {
   const F = rt.flags, S = F.s1, B = F.blk;
   // 仙石→十河→長宗我部の順で渡る。三備を同時に動かすと、岸に近い信親が十河を追い越していた。
   if (S?.st === 2) {
-    if (S.crossLeg === 1 && K.lightPos(B.sen).z < -14) {
+    if (S.crossLeg === 1 && (K.lightPos(B.sen).z < -14 || rt.t - S.legT > 60)) {
       S.crossLeg = 2;
+      S.legT = rt.t;
       K.go(B.sogo, { x: 28, z: -28 }, 3.2);
-    } else if (S.crossLeg === 2 && K.lightPos(B.sogo).z < -14) {
+    } else if (S.crossLeg === 2 && (K.lightPos(B.sogo).z < -14 || rt.t - S.legT > 60)) {
       S.crossLeg = 3;
+      S.legT = rt.t;
       K.go(B.nobu, { x: 16, z: -34 }, 3.6);
     }
     return;

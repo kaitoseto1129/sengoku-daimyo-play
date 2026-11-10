@@ -751,7 +751,7 @@ const t06_hetsugi = {
     // 四国の衆が北の岸へ上がってから当たる（自分だけ先に着いても、皆が渡るのを待つ）
     //   信親の旗本（本物）が北の岸に上がりきるまで、伊集院の先手は構えて待つ（自分一人が先に着いて囲まれない）
     if (F.step === 1) shinkou.update(rt, K);
-    if (F.step === 1 && shinkou.crossing(rt) && P.pos.z < -14 && lightPos(B.nobu).z < -20 && (!live(F.nobu) || F.nobu.center().z < -16)) this.toStep(rt, 2);
+    if (F.step === 1 && shinkou.ready(rt, K)) this.toStep(rt, 2);
     else if (F.step === 2) {
       // 先手は当たって少し討たれると退く（退くふり）。退いた先まで追うと包みが閉じる
       // 囮の先手は本気で戦わない（史実：当たってすぐ退いた）。替わった本物の兵の手は軽く
