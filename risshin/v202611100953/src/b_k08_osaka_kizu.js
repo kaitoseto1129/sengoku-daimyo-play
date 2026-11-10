@@ -787,7 +787,7 @@ k08_osaka_kizu.botBrain = (b, inp, { goTo, patientStrike }) => {
   }
   if (u.hp < u.maxHp * 0.35 && Math.hypot(u.pos.x - gc.x, u.pos.z - gc.z) > 4) { goTo(p, inp, gc.x, gc.z, 3); return; }
   // 櫓の床の上の撃ち手は地上から突けない。届かない相手の下で足を止めない。
-  const e = b.army.nearestEnemy(u, 12, (o) => !o.noTarget && !o.isStruct && !o.fleeing && !o.dying && !o.woundOut && !o.evacuatedWound && !o.invuln && o.type !== 'dummy' && Math.abs(o.pos.y - u.pos.y) < 3 && !b.army.wallBetween(u.pos, -1, o.pos));
+  const e = b.army.nearestEnemy(u, 12, (o) => fightable(o) && !o.group?.routed && !o.isStruct && o.type !== 'dummy' && Math.abs(o.pos.y - u.pos.y) < 3 && !b.army.wallBetween(u.pos, -1, o.pos));
   if (e && F.step >= 1 && F.step < 5) {
     const d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
     p.yaw = Math.atan2(e.pos.x - u.pos.x, e.pos.z - u.pos.z);

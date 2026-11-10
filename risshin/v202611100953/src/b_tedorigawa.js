@@ -1862,7 +1862,7 @@ const tedorigawa = {
   },
   missionPin(rt) {
     const F = rt.flags, C = F.dp?.cur;
-    if (rt.over || F.ending || !rt.player.u.alive) return null;
+    if (rt.over || F.ending || F.furikiruDone || !rt.player.u.alive) return null;
     const marker = tedoPaceMarker(rt);
     if (marker) {
       const at = marker.pos(), q = F.tedoPacePin || (F.tedoPacePin = {});
@@ -3173,15 +3173,15 @@ const tedorigawa = {
     // 戦功と織田軍の勝敗を分ける。史実の札は台詞と時間をずらす。
     // 決着の後は戦の時計が止まるので、謙信の声はすぐに出す（上杉が戦場を制す）。
     rt.say('上杉謙信', '存外に手弱き織田よ。手取川は上杉が制したぞ', 4);
-    rt.after(4, () => { if (rt.player.u.alive && !rt.result?.down) rt.banner('上杉が手取川を制した', '謙信の書状写は、夜の追撃と増水を伝える'); });
+    rt.after(4, () => { if (!rt.over && rt.player.u.alive && rt.player.u.hp > 0 && !rt.result?.down) rt.banner('上杉が手取川を制した', '謙信の書状写は、夜の追撃と増水を伝える'); });
     // 11/6 critic60：負け戦の締め。勝家が南岸に兵を残して退く（十月三日、御幸塚・大聖寺に守りを置いて帰陣）。
-    rt.after(8, () => { if (rt.player.u.alive && !rt.result?.down) rt.say('柴田勝家', '手取川は取られた。御幸塚に兵を残し、退くぞ', 4); });
+    rt.after(8, () => { if (!rt.over && rt.player.u.alive && rt.player.u.hp > 0 && !rt.result?.down) rt.say('柴田勝家', '手取川は取られた。御幸塚に兵を残し、退くぞ', 4); });
     // 殿の成功で上杉軍を敗走させず、南岸へ退いた結末を保つ。
     installYoin(rt, { FORD });   // 約30秒の余韻（tedorigawa/yoin.js）
     // finish は直ちに over を立て、勝家の下知と余韻の声を止めてしまう。
     // 退く場面の間は操作と音声を保ち、最後の声が終わってから結果へ進む。
     rt.after(Math.max(YOIN_SEC, endSignalWait + 8), () => {
-      if (rt.over || !rt.player.u.alive || rt.result?.down) return;
+      if (rt.over || !rt.player.u.alive || rt.player.u.hp <= 0 || rt.result?.down) return;
       // 共通の目標完了処理にも、余韻の途中で勝ちを締めさせない。
       rt.award((t) => { t.main = true; t.special = { label: '手取川の殿を務め、生きて渡った', pts: 20 }; }, '殿の働き・手取川を渡った');
       rt.finish({ scriptedEnd: true }, 0.1);
@@ -3193,6 +3193,25 @@ const tedorigawa = {
     huntPlayer(rt, dt);
     pressPlayer(rt, dt);
     pressStep(rt, dt);
+    const F = rt.flags;
+    // 重傷の決着とやり直しは共通の処理へ渡す。倒れた本人へ次の下知を出さない。
+    if (!rt.player.u.alive || rt.player.u.hp <= 0) {
+      if (!F.downOrdersCleared) {
+        F.downOrdersCleared = true; F.ending = true;
+        if (F.dp) F.dp.on = false;
+        rt.tracker.main = false;
+        for (const id of ['main', 'dp', 'konzatsu', 'konzatsu2', 'konzatsu3']) rt.objRemove(id);
+        // 物見・救援・最後の退却で追加した印も、倒れた後の下知として残さない。
+        for (const id of ['shiba', 'ford', 'dp', 'south', 'shallow', 'crossing',
+          'nanaoLook', 'nanaoCargo', 'konzatsuW', 'konzatsuR', 'konzatsuC', 'furikiru', 'furikiruC']) { rt.unmark(id); rt.unzone(id); }
+        for (let i = 0; i < RETREAT_LINES.length; i++) rt.unmark('line' + i);
+        F.postFlag.visible = false;
+        // 倒れた処理は一度だけ。共通側が先に知らせた重傷を呼び直さない。
+        // 再試行の札が閉じた後も、決着までの時計を進める。
+        if (!rt.over && !rt.retryOpen) rt.playerDown();
+      }
+      return;
+    }
     // 余韻では退いた殿を南岸の持ち場へ戻さず、川と退く列を残す。
     if (rt.flags.ending) { this.flood(rt, dt); return; }
     // 11/6 BT：謙信と馬廻は水際の浅瀬まで。斬り合いに釣られて濁流を南岸まで越えない（越えた者は北の水際へ戻す）。
@@ -3215,27 +3234,8 @@ const tedorigawa = {
         Math.hypot(rt.player.u.pos.x - rt.flags.shibaU.pos.x, rt.player.u.pos.z - rt.flags.shibaU.pos.z) < 8) tedorigawa.retreat(rt);
     // 11/6 kaito 十二2：本人の見る先の前へ敵味方の組を寄せる作り（frontRig）はやめる。
     //   敵は北、味方は南の渡り口の側に分かれたまま、戦の形（退く・追う）どおりに動かす。
-    const F = rt.flags;
     // 川沿いの上杉勢は開戦四十秒まで崩れない（10/30 測り：弓組に削られ二十秒で崩れて逃げ、25秒の画面から消えた）。その後は普通に崩れる。
     if (F.fordFoe && F.fordFoe.noRout && rt.t > 40) F.fordFoe.noRout = false;
-    // 重傷の決着とやり直しは共通の処理へ渡す。倒れた本人へ次の下知を出さない。
-    if (!rt.player.u.alive || rt.player.u.hp <= 0) {
-      if (!F.downOrdersCleared) {
-        F.downOrdersCleared = true; F.ending = true;
-        if (F.dp) F.dp.on = false;
-        rt.tracker.main = false;
-        for (const id of ['main', 'dp', 'konzatsu', 'konzatsu2', 'konzatsu3']) rt.objRemove(id);
-        // 物見・救援・最後の退却で追加した印も、倒れた後の下知として残さない。
-        for (const id of ['shiba', 'ford', 'dp', 'south', 'shallow', 'crossing',
-          'nanaoLook', 'nanaoCargo', 'konzatsuW', 'konzatsuR', 'konzatsuC', 'furikiru', 'furikiruC']) { rt.unmark(id); rt.unzone(id); }
-        for (let i = 0; i < RETREAT_LINES.length; i++) rt.unmark('line' + i);
-        F.postFlag.visible = false;
-        // 倒れた処理は一度だけ。共通側が先に知らせた重傷を呼び直さない。
-        // 再試行の札が閉じた後も、決着までの時計を進める。
-        if (!rt.over && !rt.retryOpen) rt.playerDown();
-      }
-      return;
-    }
     if (rt.t >= (F.threatScanAt || 0)) {
       F.threatScanAt = rt.t + 0.5; F.nearThreat = false;
       const next = F.tedoQueuedSignal;

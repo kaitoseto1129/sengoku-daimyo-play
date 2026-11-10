@@ -928,8 +928,8 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
         const F = rt.flags, p = rt.player.u.pos;
         const left = F.jam.filter((g) => !gone(g) && !g.tidied);
         let near = null, nd = Infinity;
-        // 詰まるのは柵の前に着いてから（駆けて来る途中の組は整理しない）
-        for (const g of left) { const c = g.center(), d = Math.hypot(c.x - p.x, c.z - p.z); if (rOf(c.x, c.z) < FENCE_R + 16 && d < nd) { nd = d; near = g; } }
+        // まず柵前の組を整理する。長く着けない組も、その場まで迎えに行って退かせる（到着待ちで止めない）。
+        for (const g of left) { const c = g.center(), d = Math.hypot(c.x - p.x, c.z - p.z); if ((rOf(c.x, c.z) < FENCE_R + 16 || el > o.max) && d < nd) { nd = d; near = g; } }
         if (near) {
           const c = near.center(); C.at = C.goal = c; rt.marker('dp', c, o.label, { h: 3 });
           if (nd < 7) {
@@ -940,7 +940,7 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
           }
         }
         rt.objProgress('dp', `整理した組 ${C.n}/${F.jam.length}`);
-        return el > 70 && (!left.length || (left.length === 1 && C.n >= 2 && el > 110));
+        return el > 70 && left.every((g) => g.tidied);
       },
       end(rt) { rt.unmark('dp'); rt.objDone('dp'); },
     };

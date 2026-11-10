@@ -1311,14 +1311,19 @@ function nodaOpenSeirou(rt, x, z, name) {
 }
 // 梯子を登り切って床に立った時だけ。登降中は床の高さを通っても到着にしない。
 function onTower(u, t) { return !u.climb && Math.abs(u.pos.x - t.x) < 1.5 && Math.abs(u.pos.z - t.z) < 1.5 && u.pos.y > t.topY - .7; }
-// 照準の仮の的は七十m先。砦を越えた的でも、砦の内へ向けて放った一発は数える。
+// 仮の的への平面の線ではなく、実際に放った弾の向きと高さで調べる。
+// 砦の上空へ外した弾や、手前の地面へ落ちる弾を三度の撃ち込みに数えない。
 function seirouShotIntoFort(rt, shot) {
-  const at = shot?.t?.pos, from = rt.player.u.pos, fort = rt.flags.noda.kuruwa.kishi;
-  if (!at) return false;
-  const dx = at.x - from.x, dz = at.z - from.z;
-  const steps = Math.ceil(Math.hypot(dx, dz));
-  if (!steps || steps > 100) return false;
-  for (let i = 1; i <= steps; i++) if (fort.test(from.x + dx * i / steps, from.z + dz * i / steps)) return true;
+  const ball = rt.army.bullets.find(b => b.live && b.u === shot.u && b.t === shot.t && b.distance === 0);
+  if (!ball) return false;
+  const fort = rt.flags.noda.kuruwa.kishi, speed = Math.hypot(ball.vx, ball.vz);
+  if (speed < 1) return false;
+  for (let d = 1; d <= 100; d++) {
+    const t = d / speed, x = ball.x + ball.vx * t, z = ball.z + ball.vz * t;
+    const y = ball.y + ball.vy * t - 4.9 * t * t, ground = rt.world.heightAt(x, z);
+    if (y <= ground) return false;
+    if (fort.test(x, z) && y <= ground + 6) return true;
+  }
   return false;
 }
 // 梯子を下りる（共通の梯子は登るだけなので、この戦の井楼だけ。上の端から足もとまで二・五秒で下りる）

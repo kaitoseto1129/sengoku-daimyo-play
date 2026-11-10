@@ -564,7 +564,8 @@ const k16_secret = {
   //   「天下静謐」→ 主人公の名 → 「天下人」。大きな字はすぐ出さない
   win(rt) {
     const F = rt.flags;
-    if (F.ending) return;
+    // 古い討死通知から、未達の段や最後の返事を飛ばして勝ちにしない。
+    if (F.ending || F.step !== 5 || F.talk == null || rt.t - F.talk < 10.4 || !F.ieyasu?.alive) return;
     F.ending = true; F.endPhase = 'quiet'; F.winT = rt.t;
     rt.setPhase('end');
     rt.player.u.invuln = true;
