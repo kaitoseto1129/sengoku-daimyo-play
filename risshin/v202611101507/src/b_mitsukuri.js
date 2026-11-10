@@ -2649,6 +2649,7 @@ const MITSUKURI_JIN = [
 const mitsukuri = {
   resumeSteps: [[2, 'climb'], [2.5, 'dusk'], [2.8, 'night'], [3, 'gateFight'], [4, 'inside']],   // 戦の途中の保存（battle_checkpoint.js）：段の始まりを、段の関数を順に流して作り直す
   compactIntro: true,
+  introStartText: '戦いを始める', // 始まりの札は、この戦で確かめた釦の言葉を保つ。
   nameRange: 55,        // 11/8 critic60：木下・丹羽・浅井・佐久間の名を、組が見える所から出す（既定の近い所だけでは戦の間ずっと見えない）
   noLeaderFollow: true, // 11/3 AL：行き先はいつも郭・木戸の金の印一つ。ついていく相手の青い印を重ねない。
   // 柵と物見を画面中央の長方形で抜かない。近すぎる面だけ距離で避ける。

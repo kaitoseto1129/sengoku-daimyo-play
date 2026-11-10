@@ -24,11 +24,16 @@ export function start(rt, K) {
   laterSay(rt, 40, '使番', '家康の本隊は追わず、小幡城へ引く様子にござる', 3.2);
 }
 // 退き切ったか（主人公が細ヶ根に着き、落ち武者も着くか散るか、時が経った）
+function chasing(g) {
+  return g && !g.routed && g.order !== 'retreat' && g.order !== 'flee' &&
+    g.units.some((u) => u.alive && !u.gone && !u.fleeing && !u.woundOut && !u.rearWound && !u.downed && !u.noTarget);
+}
 export function done(rt, K, atGoal, el) {
   const F = rt.flags;
   // 追手が迫った後は百五十秒で追撃を終える。まだ遠方の追手だけなら接近を待つ。
   // 時間だけで達成にせず、追手が実際に退く下知と、主人公の到着をそろえる。
-  const pursuitEnded = F.pursuit?.length && !F.pursuit.some((g) => K.live(g));
+  // 倒れたまま生きている追手や退いた組は、もう追えない。生存だけで接近を待つと退路で刻限まで止まる。
+  const pursuitEnded = F.pursuit?.length && !F.pursuit.some(chasing);
   if (el >= 150 && (F.pursuitMet || pursuitEnded) && !F.pursuitClosed) {
     F.pursuitClosed = true;
     for (const g of F.waves) if (K.live(g)) {
@@ -51,7 +56,7 @@ export function done(rt, K, atGoal, el) {
   if (F.pursuitClosed) return true;
   if (!F.pursuit?.length) return false;
   // 堀の殿などが追手を全て討ち取った場合も退き切れる。
-  if (!F.pursuitMet && F.pursuit.some((g) => K.live(g))) return false;
+  if (!F.pursuitMet && !pursuitEnded) return false;
   const c = K.live(F.ochi) ? F.ochi.center() : null;
   return !c || Math.hypot(c.x - K.EXIT.x, c.z - K.EXIT.z) < 24 || el > 150;
 }
