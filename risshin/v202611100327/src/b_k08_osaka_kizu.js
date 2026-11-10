@@ -130,6 +130,12 @@ const flee = (g, shore = false) => {
     const c = g.center();
     g.fleePath = shore ? [[44, Math.max(4, c.z)], [132, 4]] : c.z < WALL_N - 4
       ? [[0, -164]] : [[NGATE.x, WALL_N + 4], [NGATE.x, WALL_N - 8], [0, -164]];
+    // 横の塀の外へ押し出された組も、③で開いた切れ目から北門へ退く。
+    // 北門へ直進すると、北寄りの壊れていない塀に突き当たる。
+    if (!shore && Math.abs(c.x) > WALL_X && c.z >= WALL_N - 4) {
+      const side = Math.sign(c.x);
+      g.fleePath.unshift([side * (WALL_X + 4), -30], [side * (WALL_X - 4), -30]);
+    }
     for (const u of g.units) { u.perch = null; u.fleePathIdx = 0; }
   }
   g.noRout = false; g.noAI = false; g.routed = true; g.order = 'flee';
