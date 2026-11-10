@@ -432,9 +432,13 @@ const t03_komaki = {
     const el = rt.t - F.st0, K = this.ctx(rt);
     if (F.stage === 1) Camp.tickCamp(rt, K);
     else if (F.stage === 2) {
-      // 木戸を破られる：徳川の兵が砦の中（木戸より北）に六人
+      // 抵抗を続ける敵八人が砦の中（木戸より北）に居座れば木戸を破られる。
+      // 押し返して退く兵や、戦を離れた負傷兵では敗北にしない。
       let inside = 0;
-      for (const g of F.gateWaves) for (const u of g.units) if (u.alive && !u.gone && u.pos.z < GATE.z - 3 && Math.abs(u.pos.x - GATE.x) < 34) inside++;
+      for (const g of F.gateWaves) {
+        if (!resistingN(g)) continue;
+        for (const u of g.units) if (u.alive && !u.gone && !u.fleeing && !u.woundOut && u.pos.z < GATE.z - 3 && Math.abs(u.pos.x - GATE.x) < 34) inside++;
+      }
       F.inT = inside >= 8 ? (F.inT || 0) + dt : 0;   // 八人が十秒、砦の中に居座れば破られた（主人公を追って一瞬入るだけでは負けにしない）
       if (F.inT > 10) return this.lose(rt, '木戸を破られた');
       if (!F.inabaSaid) for (const g of F.gateWaves) for (const u of g.units) if (!F.inabaSaid && u.alive && dist(u.pos, GATE) < 12) {

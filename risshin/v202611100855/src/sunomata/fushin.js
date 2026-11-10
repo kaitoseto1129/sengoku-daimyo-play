@@ -54,6 +54,9 @@ function siteHeld(rt, FORT) {
 // 寄せて来た組ごとに、最初の人数と寄せた時刻を覚え、二割以下か最大の時間で退かせる。
 function waveRule(rt, FORT) {
   const F = rt.flags;
+  // 本人が戦う前に全ての寄せ手を退かせると、戦果を付ける相手が尽きる。
+  // 停滞の救済と同じく、各寄せで槍を合わせてから時間上限を使う。
+  if (F.wave >= 1 && F.wave <= 3 && F.foughtWave !== F.wave) return;
   const maxT = WAVE_MAX[F.wave || 0] ?? 120;
   for (const g of rt.army.groups) {
     if (g.team !== 1 || g.routed || g.noAI || !g.units?.length) continue;

@@ -5311,7 +5311,7 @@ const sunomata = {
       if (F.W2 && !gone(F.W2) && F.w2Go != null && rt.t - F.w2Go > 70 && F.W2.count <= 4) { F.W2.noRout = false; F.W2.morale = 0; }
       if (gone(F.W2) && F.w2ClearT == null) F.w2ClearT = rt.t;
       const nidaSettled = F.nidaDone && !F.portersUnsafe && (gone(F.KE) || (F.KEwithdraw && Math.hypot(F.KE.center().x, F.KE.center().z) > FORT + 12)) && !F.KEwait;
-      if (fortSafe(rt) && gone(F.W2) && (nidaSettled || rt.t - F.w2ClearT > 6) && !F.next3 && (F.foughtWave === 2 || rt.t - F.w2ClearT > 20) && suonoMore(rt, 2, [F.W2])) {
+      if (fortSafe(rt) && gone(F.W2) && (nidaSettled || rt.t - F.w2ClearT > 6) && !F.next3 && F.foughtWave === 2 && suonoMore(rt, 2, [F.W2])) {
         F.next3 = true;
         rt.unmark('w');
         rt.say('木下藤吉郎', '日が傾いてきた。次が正念場じゃ', 3.5);

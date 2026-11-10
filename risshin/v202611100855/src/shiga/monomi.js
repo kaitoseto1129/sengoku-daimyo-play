@@ -9,6 +9,7 @@ import { revealName } from '../battle_intel.js';
 
 export const MISSIONS = ['北の湖の道の辻へ出て、下って来る浅井・朝倉の旗を見よ', '辻へ寄せる朝倉の物見を、森隊と追い払え'];
 const MIN_T = 135, MAX_T = 195, SCOUT_WAIT = 55;
+const scoutActive = (u) => u.alive && !u.gone && !u.fleeing && !u.downed && !u.woundOut && !u.rearWound;
 
 // ctx：{ at（物見の辻）, home（町口）, enemyGroup, dress, look（朝倉の具足）, ready() }
 export function install(rt, ctx) {
@@ -51,7 +52,7 @@ export function install(rt, ctx) {
     const p = rt.player.u.pos;
     if (S.k === 0 && Math.hypot(p.x - MI.x, p.z - MI.z) < 8) seen(true);
     if (S.k === 2) {
-      const left = S.g.units.filter((u) => u.alive).length;
+      const left = S.g.units.filter(scoutActive).length;
       if (rt.t - S.gT > 10 && (left <= 2 || S.g.routed)) {
         S.k = 3; S.backT = rt.t;
         rt.unmark('shigaScout');
@@ -82,13 +83,18 @@ export function bot(b, goTo, p, inp, strike, home) {
   if (S.k <= 1) { goTo(p, inp, S.at.x, S.at.z, 3); return true; }
   const u = p.u;
   if (S.k === 2 && S.g) {
+    // 物見を追って北の本隊へ入り込まず、辻で寄せ手を受ける。
+    if (Math.hypot(u.pos.x - S.at.x, u.pos.z - S.at.z) > 40) {
+      goTo(p, inp, S.at.x, S.at.z, 3); return true;
+    }
     let e = null, best = Infinity;
-    for (const v of S.g.units) if (v.alive) { const d = Math.hypot(v.pos.x - u.pos.x, v.pos.z - u.pos.z); if (d < best) { best = d; e = v; } }
+    for (const v of S.g.units) if (scoutActive(v) && Math.hypot(v.pos.x - S.at.x, v.pos.z - S.at.z) <= 40) { const d = Math.hypot(v.pos.x - u.pos.x, v.pos.z - u.pos.z); if (d < best) { best = d; e = v; } }
     if (e) {
       p.yaw = Math.atan2(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
       if (best > 2.2) goTo(p, inp, e.pos.x, e.pos.z, 2); else strike(p, inp, e, best);
       return true;
     }
+    goTo(p, inp, S.at.x, S.at.z, 3); return true;
   }
   goTo(p, inp, home.x, home.z, 3);
   return true;

@@ -549,13 +549,21 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
     if (!g || g.routed) return;
     g.order = 'path'; g.path = w.route.slice(w.i).map((q) => [q.x, q.z]); g.pathIdx = 0; g.dest = null; g.focus = null;
     g.formation = 'column'; w.t0 = t; g.aggro = Math.min(g.aggro ?? 5, 5);   // 道筋の間は脇の櫓の上の射手に構わず進む
+    const c = this.centerOf(g) || g.anchor;
+    w.lastX = c.x; w.lastZ = c.z; w.lastPathIdx = 0;
     g.onArrive = () => { w.done = true; this.to(g, g.anchor); g.formation = 'yari'; g.aggro = w.aggro; };   // 行軍を終え、出た先では斬りかかる
   },
   stepWalk(g, w, t) {
     if (!w || w.done || t - w.t0 < 45) return;
     // 寄せ手も打って出る手も、道を進み切るまで行軍を続ける。時間だけで坂の途中に止めない。
     // 道筋の配列は終点に着いても残る。通過済みなら、後列の到着待ちだけで戦いを止め続けない。
-    if (g && !g.routed && g.order === 'path' && g.path && (g.pathIdx || 0) < g.path.length) { w.t0 = t; return; }
+    if (g && !g.routed && g.order === 'path' && g.path && (g.pathIdx || 0) < g.path.length) {
+      const c = this.centerOf(g) || g.anchor, i = g.pathIdx || 0;
+      // 道筋が残っているだけでは延長しない。岩や門に詰まった隊も四十五秒で行軍を解く。
+      if (i !== w.lastPathIdx || Math.hypot(c.x - w.lastX, c.z - w.lastZ) > 1) {
+        w.lastX = c.x; w.lastZ = c.z; w.lastPathIdx = i; w.t0 = t; return;
+      }
+    }
     // 四十五秒で着かなければ、そこで構える（道筋に詰まって止まり続けない）
     w.done = true;
     if (!g || g.routed) return;
