@@ -659,7 +659,11 @@ const k04_kuisegawa = {
   },
 
   onKill(rt, v) {
-    if (v && !v.isStruct) { if (v.team === 0) rt.flags.deadA = (rt.flags.deadA || 0) + 1; else if (v.team === 1) rt.flags.deadB = (rt.flags.deadB || 0) + 1; }
+    // 六千対千三百は中村・有馬と島・明石の兵数。数に含めない岡山の旗本や民の死を引かない。
+    if (v && !v.isStruct && !v.civ && !rt.flags.ieyasu?.units.includes(v)) {
+      if (v.team === 0) rt.flags.deadA = (rt.flags.deadA || 0) + 1;
+      else if (v.team === 1) rt.flags.deadB = (rt.flags.deadB || 0) + 1;
+    }
     KIT.carrion?.(rt, v);
   },
 
