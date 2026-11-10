@@ -1021,6 +1021,8 @@ const okehazama = {
   },
   missionSignTarget(rt) {
     const F = rt.flags, p = rt.player;
+    // 討取り後は帰還先の旗を追う。雨待ちで覚えた物見や追加段の敵を残さない。
+    if (F.victory || F.ending) return null;
     { const t = O15.sign(rt); if (t !== undefined) return t; }
     // 入口へ移る間は、近くの別の敵で集合先のピンを消さない。
     if (rt.phase === 'assault' && !F.victory &&

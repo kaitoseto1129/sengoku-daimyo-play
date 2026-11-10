@@ -281,6 +281,8 @@ function passNearestFoe(rt) {
   const F = rt.flags, me = rt.player.u, zone = passZone(rt);
   const opening = !F.step;
   if (!opening && (!zone?.test(me.pos.x, me.pos.z) || passGate(rt)?.struct.alive)) return null;
+  // 郭内の印も、本人が追える高さと迂回路で選んだ守兵へそろえる。
+  if (!opening && F.echizenCourtTarget) return F.echizenCourtTarget();
   // 四分の一秒ごとに探索し、討った瞬間は間引きを待たず選び直す。
   const previous = F.passFoe;
   const openingGroup = F.roadGuards?.[0]?.real, sallyGroup = F.gateSally?.real;
@@ -1743,9 +1745,15 @@ echizen.setup = function (rt) {
   const courtEnemy = o => {
     const u = rt.player.u, zone = passZone(rt);
     return passFighter(o) && Math.abs(o.pos.y - u.pos.y) < 3 &&
-      zone.test(o.pos.x, o.pos.z) && !rt.army.wallBetween(u.pos, -1, o.pos, false);
+      zone.test(o.pos.x, o.pos.z);
   };
   rt.flags.echizenCourtEnemy = courtEnemy;
+  // 塀の向こうの守兵を除外し切ると、残敵がいるのにその場で待ち続ける。
+  // 見通せる相手を先にし、残りは既存の口を通る道で追う。
+  const visibleCourtEnemy = o => courtEnemy(o) &&
+    !rt.army.wallBetween(rt.player.u.pos, -1, o.pos, false);
+  rt.flags.echizenCourtTarget = () => rt.army.nearestEnemy(rt.player.u, 180, visibleCourtEnemy) ||
+    rt.army.nearestEnemy(rt.player.u, 180, courtEnemy);
   rt.flags.echizenCourtPoint = () => {
     // 制圧済みの観音丸へ残敵が戻った時も、札と同じ郭の口へ案内する。
     const pending = passZone(rt);
@@ -1754,7 +1762,12 @@ echizen.setup = function (rt) {
     if (zone.test(u.pos.x, u.pos.z)) {
       // 中に入った後も「口へ」の札で遠い中心を指さない。
       // 見通せる守兵へ向き、守兵がいなければ中で味方を待つ。
-      const enemy = courtTarget = rt.army.nearestEnemy(u, 180, courtEnemy);
+      const enemy = courtTarget = rt.flags.echizenCourtTarget();
+      if (enemy && rt.army.wallBetween(u.pos, -1, enemy.pos, false)) {
+        const next = rt.world.def.runnerWay(rt.army, u, enemy.pos);
+        courtPoint.x = next.x; courtPoint.z = next.z;
+        return courtPoint;
+      }
       // 柵際で止まると、組の兵が郭外に残り続ける。守兵がいなければ中へ寄る。
       const center = zone.pos;
       // 守る人数がそろったら本人の場所で待つ。郭の中心まで走らせると
@@ -2698,7 +2711,7 @@ echizen.botBrain = function (rt, inp, helpers) {
   if (rt.squad.length && !(rt.botCmdT > rt.t) && rt.squadGroups.some(group => group.order !== 'follow')) {
     inp.quickCmd = 'follow'; rt.botCmdT = rt.t + 2;
   }
-  const enemy = rt.army.nearestEnemy(u, 180, F.echizenCourtEnemy);
+  const enemy = F.echizenCourtTarget();
   if (p.lock && p.lock !== enemy) inp.e.add('KeyQ');
   if (enemy) {
     if (passBotEnemyRoute(rt, inp, helpers, enemy)) return;

@@ -17,6 +17,8 @@ export function install(rt, ctx) {
   const F = rt.flags;
   const { dress, SAIKA, next, missionText } = ctx;
   let seen = false, raid = null, raidT = 0, done = false, tick = 0;
+  // 敵の印がまだ無い間も、物見の場所を案内する。
+  F.monoLook = LOOK;
   rt.setPhase('mono');
   rt.unmark('goal');
   rt.obj('main', missionText, 'main', true);

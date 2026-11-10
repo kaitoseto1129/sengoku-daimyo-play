@@ -302,7 +302,8 @@ function steps(rt) {
     rest({ dur: 15, heal: 0, say: [['羽柴秀長', '上様に代わり、この秀長が総大将じゃ。宇喜多と官兵衛は讃岐、小早川は伊予から入った', 3.4],
       ['羽柴秀長', '本隊は東の大手を攻める。そなたの手は西の谷から城の水の手を断て', 3.4], [me, '水が無ければ、城は持ちませぬな', 2.6], ['蜂須賀正勝', '城兵は九千。麓の砦から手強う抗うてきますぞ', 3], ['羽柴秀長', 'まず鮎喰川を渡り、麓の砦を落とせ', 2.6]] }),
     fight({ at: FORT, noRefill: true, title: '鮎喰川', sub: '川を渡り、麓の砦へ', obj: GOALS[0],
-      foes: () => [{ name: '麓の砦の槍組', from: { x: FORT.x, z: FORT.z }, list: [uS(2), uA(12)], mass: 0, width: 4 },
+      // 共通の兵種配分で槍兵を鉄砲・弓へ替えず、柵口の槍組と奥の鉄砲組を分けて守らせる。
+      foes: () => [{ name: '麓の砦の槍組', from: { x: FORT.x, z: FORT.z }, list: [uS(2), { ...uA(12), o: { keep: true } }], mass: 0, width: 4 },
         { name: '麓の砦の鉄砲組', from: { x: FORT.x + 5, z: FORT.z + 4 }, list: [uG(4)], mass: 0, width: 3 }],
       // 守兵は柵の内に留まって鉄砲と槍で守る（前は柵の外へ出て横一列に突っ立った。11/6 critic60 十一3）
       onShout: (rt, C) => { for (const g of C.groups) {
