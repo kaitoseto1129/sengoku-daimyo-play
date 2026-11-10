@@ -127,7 +127,7 @@ import { missileSetup } from './missile.js';
 import { cgtBind } from './cgt.js';
 import { jkRelease } from './hud_jk.js';
 import { gpuGcRelease } from './gpu_gc.js';
-import { noboriForget } from './props.js';
+import { noboriForget, flagBatchDraw } from './props.js';
 import { kumiRelease } from './kumi_lead.js';
 import { vatReset } from './crowd_vat.js';
 import { goalSignRelease } from './goal_sign.js';
@@ -261,6 +261,7 @@ function stdMat(key, w, h, draw, o = {}) {
   const m = S.simpleMaterials
     ? new THREE.MeshPhongMaterial({ map: t, side: THREE.DoubleSide, shininess: 4, specular: 0x171717, alphaTest: o.alpha ? 0.5 : 0, transparent: !!o.transparent })
     : new THREE.MeshStandardMaterial({ map: t, side: THREE.DoubleSide, roughness: 0.95, alphaTest: o.alpha ? 0.5 : 0, transparent: !!o.transparent });
+  m.userData.nbInst = true;   // 隊旗の竿と布は束で描いてよい（props.js flagBatchDraw）
   STD_CACHE.set(key, m);
   return m;
 }
@@ -268,6 +269,7 @@ function plainMat(key, color, o = {}) {
   if (STD_CACHE.has(key)) return STD_CACHE.get(key);
   const m = o.basic ? new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide, transparent: !!o.opacity, opacity: o.opacity ?? 1, depthWrite: !o.opacity })
     : new THREE.MeshStandardMaterial({ color, roughness: o.rough ?? 0.8, metalness: o.metal ?? 0, side: THREE.DoubleSide });
+  m.userData.nbInst = true;   // 隊旗の竿と布は束で描いてよい（props.js flagBatchDraw）
   STD_CACHE.set(key, m);
   return m;
 }
@@ -899,7 +901,7 @@ export class Battle {
     this.player = new Player(this, def.spawn); blap('player');
     this.world.spawnAt = this.player.u?.pos || def.spawn;   // 敵の後詰めを本人の見える所へ寄せる目当て（world_army.js foeHostPlace）
     // 描く直前（行列を新しくした後）に、遠い軽い兵の部品をまとめる（Army.batchDraw）
-    { const ob = this.scene.onBeforeRender; this.scene.onBeforeRender = (r, sc, cam, rt) => { ob.call(sc, r, sc, cam, rt); this.world.flameBatch(); if (this.army) this.army.batchDraw(cam); }; }
+    { const ob = this.scene.onBeforeRender; this.scene.onBeforeRender = (r, sc, cam, rt) => { ob.call(sc, r, sc, cam, rt); this.world.flameBatch(); if (this.army) this.army.batchDraw(cam); flagBatchDraw(r, sc, this.army?.groups); }; }
     { const oa = this.scene.onAfterRender; this.scene.onAfterRender = (r, sc, cam) => { if (this.army) this.army.restoreBatchRoots(); oa.call(sc, r, sc, cam); }; }
     // 馬上で始まるときは、乗り方を一度だけ教える
     if (this.player.mounted) this.after(4, () => { if (this.player.mounted) this.hint('ride'); });   // 町では始めに馬を降りるので、降りていれば出さない

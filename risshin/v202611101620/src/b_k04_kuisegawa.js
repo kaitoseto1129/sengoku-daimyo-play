@@ -565,14 +565,17 @@ const k04_kuisegawa = {
     const el = rt.t - F.stepT;
     if (F.step === 1) {
       // 刈田の足軽は、槍が迫ると稲を捨てて立ち上がる
-      if (!F.stood && (dist(lightPos(B.bait), P.pos) < 24 || live(F.kazu) && dist(F.kazu.center(), lightPos(B.bait)) < 18 || el > 14)) { F.stood = true; for (const u of F.gamo?.units || []) u._crouch = false; }
+      if (!F.stood && (F.baitPlayerHit || dist(lightPos(B.bait), P.pos) < 24 || live(F.kazu) && dist(F.kazu.center(), lightPos(B.bait)) < 18)) { F.stood = true; for (const u of F.gamo?.units || []) u._crouch = false; }
       const hurt = B.bait && B.bait.aliveNominal() < F.baitN0 * 0.8;
       if (F.baitPlayerHit && el > 65 && (hurt || dist(lightPos(B.bait), P.pos) < 20)) this.feign(rt);   // 少し戦ってから退くふり（史実）
     } else if (F.step === 2) {
       // 退く島の兵を追い、先手と一緒に川を東へ渡ってから伏兵が出る
       // 中村の兵だけが先着しても、頼母の旗と合流したことにはしない。
       const noi = F.noiU;
-      const joined = noi && canReturn(noi) && !noi.downed && L(noi.pos).x < -6 && dist(noi.pos, P.pos) < 18;
+      const across = (u) => canReturn(u) && !u.downed && L(u.pos).x < -6 && dist(u.pos, P.pos) < 18;
+      // 頼母一人の足止め・負傷で止めない。待った後も、実際に渡った先手との合流は必須。
+      const joined = noi && across(noi) || el > 60 &&
+        (F.noi.units.some(across) || F.kazu.units.some(across));
       if (el > 35 && PL.x < -6 && L(lightPos(B.saki)).x < 10 && joined) this.toStep(rt, 3);
     } else if (F.step === 3) {
       if (!F.ringClosed) this.holdVanguard(rt);
