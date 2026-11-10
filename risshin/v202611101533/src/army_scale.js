@@ -7,7 +7,7 @@ import { MEM_TIGHT } from './settings.js';
 // [味方の数, 敵の数]（その戦場に居た両軍。城の内外・後詰めを含む）
 export const ARMY_STRENGTH = {
   inou: [700, 1700],              // 稲生は触らない（mini の作り直し）。倍率 1
-  okehazama: [3000, 25000],
+  okehazama: [2000, 25000],       // 始まりの札・兵力の棒・布陣の二千にそろえる
   moribe: [1500, 6000],
   sunomata: [3000, 6000],
   inabayama: [20000, 5000],

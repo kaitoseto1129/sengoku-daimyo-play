@@ -10,8 +10,10 @@ export function start(rt, def, C, then) {
   const F = rt.flags, v = F.o15 || (F.o15 = {});
   if (v.yoinT) return;
   v.yoinT = rt.t;
+  // 足軽の戦功を認める三言は、勝鬨と使番・信長の声の後に聞かせる。
+  const endAt = rt.G.lord ? 36 : 42;
   // 共通の終戦予約も最後の余韻にそろえ、三秒早く切り上げない。
-  if (!rt.over) rt._closing = { at: rt.t + 36, info: { scriptedEnd: true }, delay: 4 };
+  if (!rt.over) rt._closing = { at: rt.t + endAt, info: { scriptedEnd: true }, delay: 4 };
   const lord = !!rt.G.lord, NOB = lord ? '自分' : '織田信長';
   // 遠くの別働の今川勢（丸根・鷲津・大高の方）も退いてゆく
   for (const m of F.detached || []) { try { m.rout?.({ hideAfter: 60 }); } catch (e) { /* 退かせられなくても進む */ } }
@@ -25,5 +27,5 @@ export function start(rt, def, C, then) {
   rt.after(22, () => rt.say('織田の兵', 'おおう！', 1.8));
   rt.after(25, () => rt.say('使番', '大高の城の松平蔵人佐（元康）殿も、兵をまとめて三河へ退いてゆきまする！', 3.8));
   rt.after(29.5, () => rt.say(NOB, '二万の大軍も、大将を失えばこの通りじゃ。', 3.2));
-  rt.after(36, () => { if (!rt.over) then(); });
+  rt.after(endAt, () => { if (!rt.over) then(); });
 }

@@ -93,7 +93,8 @@ export function tick(rt, dt) {
     let gunner = null;
     for (const g of groups) {
       if (!g || g.routed || g.order === 'retreat' || g.order === 'flee') continue;
-      gunner = g.units.find((u) => active(u) && u.weapon === 'gun' &&
+      // 共通の射撃と同じく、馬上と弾切れの筒から斉射を鳴らさない。
+      gunner = g.units.find((u) => active(u) && u.weapon === 'gun' && !u.mounted && (u.gunAmmo ?? 20) > 0 &&
         rt.army.nearestEnemy(u, 42, (v) => active(v) && !v.isStruct &&
           rt.army.coverBetween(u.pos, v.pos, u.team) > 0 && !rt.army.shotBlocked(u, v.pos)));
       if (gunner) break;
