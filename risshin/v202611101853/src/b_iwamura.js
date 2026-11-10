@@ -981,9 +981,12 @@ const iwamura = {
         if (F.step === 3 && !roadEnemy(u, F.joinOrder || atFoot(F, p), F.footY)) continue;
         // 山肌や柵の向こうの兵を討取りの行き先にしない。
         // 見える同じ高さの相手だけを示し、見失った時は山道の案内へ戻す。
+        const d = (u.pos.x - p.x) ** 2 + (u.pos.z - p.z) ** 2;
+        // 迎撃の印（roadMarker）と同じ十二メートル内に限る。
+        // 遠い折れの敵を直に指すと、山道の案内より優先されて切岸へ誘ってしまう。
+        if (F.step === 3 && d > 12 * 12) continue;
         if (F.step === 3 && (Math.abs(u.pos.y - p.y) >= 3 || !sightUnit(rt, u) ||
             rt.army.wallBetween(p, -1, u.pos) || rt.army.terrainBlocks(p, u.pos))) continue;
-        const d = (u.pos.x - p.x) ** 2 + (u.pos.z - p.z) ** 2;
         if (d < best) { best = d; nearest = u; }
       }
     }

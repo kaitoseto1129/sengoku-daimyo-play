@@ -2832,9 +2832,18 @@ function odaniClimbCleared(rt, distance, guardsGone) {
   // 11/10 クラウド：番兵の組が登り口の外で残り続け、谷登りの段が九分止まった（act bot 8→541秒）。
   //   詰まらない決まり（全滅を条件にしない）：段の始めから二百四十秒、登り口へ来ていれば残る番兵は退き、攻め上る。
   if (!guardsGone && (F.belowEntered && rt.t - (F.stepT || 0) > 240 || rt.t - (F.stepT || 0) > 360)) {
-    for (const id of AMBUSH_IDS) { const g = F[id]; if (g && g.units) { g.noRout = false; g.morale = 0; g.order = 'retreat'; g.focus = null; } }
-    // 残兵は退かせても、谷の口に立ったまま①を果たした扱いにはしない。
-    return !!F.belowEntered;
+    for (const id of AMBUSH_IDS) {
+      const g = F[id]; if (!g?.units) continue;
+      g.noRout = false; g.morale = 0; g.order = 'retreat'; g.focus = null;
+      // 下知だけでは行き先の無い組が残る。小丸の退却と同じ処理で実際に城へ退かせる。
+      const direction = g.fleeDir ||= { x: .6, z: -1 };
+      for (const u of g.units) if (u.alive && !u.gone && !u.fleeing) {
+        u.moraleFleeDir = direction; u.fleeing = true; u.fleeT = rt.army.time; u.target = null; u.aiT = 0;
+      }
+    }
+    // 下知を出しただけで①を済ませず、次の更新で番兵の退却を確かめる。
+    F.guardsClearT = null;
+    return false;
   }
   if (!guardsGone) { F.guardsClearT = null; return false; }
   if (F.guardsClearT == null) F.guardsClearT = rt.t;

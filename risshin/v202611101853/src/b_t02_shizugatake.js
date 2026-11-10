@@ -1015,6 +1015,9 @@ const t02_shizugatake = {
       if (!live(g) || !(g.kind4 === 'flee' || g.kind4 === 'gone') || g.order !== 'retreat') continue;
       for (const u of g.units) if (u.alive && !u.gone && dist(u.pos, pp) > 80) rt.army.despawn(u);
     }
+    // 倒れた直後も退却兵は動かすが、持ち場の達成や勝利へは進めない。
+    // 命が尽きてから共通の負傷・討死処理が入るまでの一コマも含める。
+    if (!P.alive || P.hp <= 0) return;
     // 負け：賤ヶ岳の砦の中に敵が六人より多く、味方が一人以下のまま十二秒（下がって守る段）
     if (F.phase === 2.3) {
       const foes = nearCount(rt, 1, FORT, FORT.r + 3), friends = nearCount(rt, 0, FORT, FORT.r + 3);

@@ -667,7 +667,10 @@ const k04_kuisegawa = {
 
   onKill(rt, v) {
     // 六千対千三百は中村・有馬と島・明石の兵数。数に含めない岡山の旗本や民の死を引かない。
-    if (v && !v.isStruct && !v.civ && !rt.flags.ieyasu?.units.includes(v)) {
+    // 近づいて実兵になった岡山の備も、元の軽い備から所属を確かめる。
+    const hata = rt.flags.hata?.light, source = v?.wkFrom?.A;
+    const okayama = rt.flags.ieyasu?.units.includes(v) || hata && source && (source === hata || source === hata.army);
+    if (v && !v.isStruct && !v.civ && !okayama) {
       if (v.team === 0) rt.flags.deadA = (rt.flags.deadA || 0) + 1;
       else if (v.team === 1) rt.flags.deadB = (rt.flags.deadB || 0) + 1;
     }

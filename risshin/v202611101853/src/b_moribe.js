@@ -5216,7 +5216,7 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
       rt.after(9.5, () => rt.say('組頭 源八（げんぱち）', `${(F.bossDown || 0) >= 2 ? '長井も日比野も討たれた' : '長井と日比野の備は崩れた'}。首実検は薬師堂の前じゃ。首を持って参れ。次は墨俣の砦を固めるぞ`, 5));
     }
     const failureReason = won ? '' : F.friends.every(gone) || F.odaCamp.general?.woundOut
-      ? '味方の列が崩れ、川岸を守れなくなった'
+      ? '味方の列が崩れ、森部の野へ攻め進めなくなった'
       : '時間内に敵を押し返せなかった';
     // 11/4 jin（BD）：勝鬨のあと数秒で結果へ（十六秒は長い）。
     if (won) M15.ending(rt, () => rt.finish({ scriptedEnd: true, failureReason }, 12));   // 勝鬨と墨俣への伏線（moribe/yoin.js）

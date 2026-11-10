@@ -77,15 +77,20 @@ export function install(rt, ctx) {
     if (F.step !== 0) { S.done = true; return; }
     const p = rt.player.u.pos, el = rt.t - S.t0;
     if (S.k === 0 && Math.hypot(p.x - MI.x, p.z - MI.z) < 7) seen();
+    // 詰まらない決まり（docs/sunomata_spec_1109.md の7）：高みへ来ない時も、物見の小勢は時が来れば渡って来る。
+    else if (S.k === 0 && el >= 75) { S.k = 1; S.seenT = rt.t; rt.unmark('aneMi'); rt.after(1, () => scouts()); }
     if (S.k === 2 && S.g) {
       const g = S.g;
       // 生きていても戦場を去った者や戦えない負傷兵は、物見の残勢に数えない。
       let left = 0;
       for (const u of g.units) if (scoutActive(u)) left++;
       // 退く下知が出た時点で交戦は終わる。敗走の動きや退場まで待たせない。
-      if (left <= 3 || g.routed || g.order === 'retreat' || g.order === 'flee') {
-        // 味方だけで片付いた時は次の物見を出す。本人の目標を時計で果たさない。
-        if (!S.fought) {
+      // 物見の波は百秒まで（同じ決まりの7・8）。過ぎたら残りは退く。
+      const long = rt.t - S.scoutT >= 100;
+      if (left <= 3 || long || g.routed || g.order === 'retreat' || g.order === 'flee') {
+        // 味方だけで片付いた時は次の物見を一度だけ出す。本人の目標を時計で果たさない。二度目からは味方の撃退で先へ。
+        S.waves = (S.waves || 0) + 1;
+        if (!S.fought && !long && S.waves < 2) {
           g.noRout = false; g.morale = 0; g.order = 'retreat';
           S.g = null; S.k = 1; rt.unmark('aneScout');
           rt.after(6, scouts);
@@ -100,6 +105,8 @@ export function install(rt, ctx) {
       }
     }
     if (S.k === 3 && el >= MIN_T && rt.t - S.backT > 12) finish();
+    // 枠が空かず物見が出られない時も、磯野の渡河は遅くとも二百十秒で来る。
+    else if (S.k < 2 && el >= MIN_T + 60) finish();
   };
 
   function finish() {

@@ -3378,6 +3378,7 @@ const anegawa = {
     groundMistScale: 0.6,
     fogFar: 360, // 朝の霞は遠景に残し、対岸の具足と旗の色を見せる。
     battleViewDistance: 140, // 共通の八十歩の霞で対岸・本陣を白く隠さない。兵数と地形の細かさは増やさない。
+    playerHorse: true, // 11/10 関所の5：組頭から自分の馬に乗れる（組頭〜侍大将の移行期の戦）。
     naturalArrowRain: true, // 落下範囲を黒い円盤にせず、矢の影を薄く残す。
     arrowRainGroundCue: false, // 白黒の大輪で川原を覆わず、矢の影・警告・安全な退き先の印で伝える。
     arrowRainPerBow: 1, // 弓兵一人につき補助の矢は一本。少人数の射手から三十六本の束を増やさない。
@@ -4718,11 +4719,14 @@ const anegawa = {
       const crossers = [F.mori, F.kino, F.inaba, F.shibata, F.chase].some((g) => g && !gone(g));
       // 11/5（X1）：本人が北岸でしんがりと斬り結んだ時（aneStage 5）だけ勝ち。崩れを待つのは四秒まで。
       const fought = F.aneStage >= 5 && (gone(R) || rt.t - F.aneStageT > 4);
+      // 詰まらない決まり（docs/sunomata_spec_1109.md の2・7）：北岸へ渡ったのに殿と当たれないまま三分経てば、手柄は付けずに野村への追撃へ渡す。
+      const capped = !fought && rt.t - F.stepT > 180 && p.z < aneNorthBank(p.x);
       // 野村への追撃を始めた後は、毎コマ同じ殿の手柄を付け直さない。
-      if (!F.aneTsui && fought && p.z < aneNorthBank(p.x) && crossers) {
+      if (!F.aneTsui && (fought || capped) && p.z < aneNorthBank(p.x) && crossers) {
         rt.objDone('pursue'); rt.unmark('rear');
+        if (capped && R && !gone(R)) { R.noRout = false; R.morale = 0; R.order = 'retreat'; }
         // 野村への追撃と遠藤の段を終えるまでは、戦全体の達成にはしない。
-        rt.award((t) => { t.special = { label: '追い討ち', pts: 25 }; }, '浅井の殿を崩した');
+        if (fought) rt.award((t) => { t.special = { label: '追い討ち', pts: 25 }; }, '浅井の殿を崩した');
         if (rt.G.lord) this.ending(rt); else TSUI.start(rt, aneCtx(rt, this));
       } else if (!F.aneTsui && F.aneStage >= 5 && !crossers) {
         // 総崩れ後は、渡河の遅れや殿の出現待ちだけで負けにしない。
@@ -4983,6 +4987,8 @@ anegawa.botBrain = (b, inp, { goTo: goStraight, patientStrike }) => {
     goTo(p, inp, hqPost.x, hqPost.z, 4);
     return;
   }
+  // 遠藤直経が出たら、まわりの退く兵と斬り結び続けず、印の遠藤へ向かう（11/10 関所：野村の前で四分止まった）。
+  if (F.aneTsui && F.aneTsui.k >= 1 && !(attacker && attackDist < 2.5) && TSUI.bot(b, goTo, p, inp, patientStrike)) return;
   if (attacker) {
     if (p.lock && p.lock !== attacker) inp.e.add('KeyQ');
     // 敵の長槍だけ届く所で止まらない。下知の前は森の持ち場とこちら岸を守る。

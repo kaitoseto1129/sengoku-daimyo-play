@@ -364,7 +364,9 @@ export function taishoTick(rt, dt) {
     // 束5：abandon（本陣放棄）。厚みが尽きかけたら大将は本陣を捨てて退く（討ち取り即勝ちにはしない。戦は続く）
     if ((T.b.fate === 'abandon' || T.b.survives) && ratio < 0.15 && !T.b.abandoned) { T.b.abandoned = true; abandonHonjin(rt, T); return; }
     const d = d2(B.pos, P);
-    if (B.campProtected && d < 30) onceN(T, rt, 'bProtected', 20, 2, () => rt.say('旗本', '先手と二の備え、馬廻りを崩さねば、大将には届かぬぞ', 4));
+    // 旗本が退いている間（追い討ちで本陣を捨てた時）は「崩さねば届かぬ」と言わない（11/10 姉川の関所の4：「本陣はもぬけの殻」と食い違った）。
+    const leaving = T.b.g.routed || T.b.g.order === 'retreat' || T.b.g.order === 'flee';
+    if (B.campProtected && d < 30 && !leaving) onceN(T, rt, 'bProtected', 20, 2, () => rt.say('旗本', '先手と二の備え、馬廻りを崩さねば、大将には届かぬぞ', 4));
     // 迫られると、旗本が総がかりで押し返す（間合いと勢いを上げる）
     T.b.g.seekRange = d < 32 ? 34 : 22;
     T.b.g.aggro = d < 32 ? 22 : 14;
