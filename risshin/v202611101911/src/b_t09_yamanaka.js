@@ -743,7 +743,8 @@ html:root body #hud:has(#h-prog[data-battle="t09_yamanaka"]) #center-call .cc { 
       const g = F.uma;
       if (F.step !== 3 || !g || gone(g)) return;
       g.noRout = true; g.morale = 100;
-      g.fixed = false; g.historicalOrders = true; g.noPursue = true; g.order = 'path'; g.speed = 2.6;
+      // 応戦で退路を止めず、寄せ手が退く兵に続いて門へ進めるようにする。
+      g.fixed = false; g.historicalOrders = true; g.noPursue = true; g.retreatOnly = true; g.order = 'path'; g.speed = 2.6;
       g.path = [[A.uma.x, A.uma.z], [A.bridgeOut.x, A.bridgeOut.z], [A.bridgeIn.x, A.bridgeIn.z], [A.gateOut.x, A.gateOut.z], [A.gate.x, A.gate.z], [A.plaza.x, A.plaza.z]]; g.pathIdx = 0;
       g.onArrive = (q) => { for (const u of q.units) if (u.alive && !u.gone) rt.army.despawn(u); };
     });
