@@ -266,7 +266,7 @@ const ino = {
     // 味方が物見を退けても、列に加わらない本人の任務は済ませない。
     if (!F.lead?.alive || near(F.lead.pos, rt.player.u.pos) > 16) return;
     F.scoutBack = true;
-    if (live(F.scoutG)) { const g = F.scoutG; g.routing = true; g.order = 'retreat'; g.dest = { x: 12, z: -60 }; g.fleeDir = { x: 0, z: -1 }; g.speed = 3.6; g.aggro = 0; g.focus = null; for (const u of g.units) { u.noTarget = true; u.target = null; } }
+    if (live(F.scoutG)) { const g = F.scoutG; g.routing = true; g.order = 'retreat'; g.dest = { x: 12, z: -60 }; g.fleeDir = { x: 0, z: -1 }; g.speed = 3.6; g.aggro = 0; g.focus = null; g.fire = false; g.onArrive = null; for (const u of g.units) { u.noTarget = true; u.target = null; u.atk = null; u.swing = null; u.bind = null; u.watch = null; u.moveTo = null; } }
     say(rt, '隊長', '追うな！　隊列を崩すな！', 2.8);
     for (const g of [F.mates, F.kumi]) if (live(g)) { g.order = 'hold'; g.aggro = 0; }
     this.go(rt, 'van');
@@ -486,13 +486,13 @@ const ino = {
       // 前進の到着命令を残すと、追撃停止後も古い攻撃の下知が残り、持ち場を整えられない。
       g.order = 'hold'; g.aggro = 0; g.anchor = { ...g.center() };
       g.onArrive = null; g.dest = null; g.path = null; g.focus = null;
-      for (const u of g.units) { u.target = null; u.watch = null; u.moveTo = null; }
+      for (const u of g.units) { u.target = null; u.atk = null; u.swing = null; u.bind = null; u.watch = null; u.moveTo = null; }
     }
     // 退く旗本も攻撃を止める。到着時に古い攻撃命令へ戻さない。
     for (const g of F.shiba) if (live(g)) {
       g.aggro = 0; g.focus = null; g.fire = false;
       g.onArrive = (q) => { q.order = 'hold'; q.path = null; q.aggro = 0; };
-      for (const u of g.units) { u.noTarget = true; u.target = null; }
+      for (const u of g.units) { u.noTarget = true; u.target = null; u.atk = null; u.swing = null; u.bind = null; u.watch = null; u.moveTo = null; }
     }
     F.ending = true;
     rt.objDone('main'); rt.tracker.main = true;
