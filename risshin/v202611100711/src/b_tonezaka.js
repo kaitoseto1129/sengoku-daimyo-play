@@ -3046,7 +3046,7 @@ const tonezaka = {
     if (!F.fallTold) {
       F.fallTold = true;
       // 11/6 fix61（Z1）：共通の見届けの取り次ぎに回ると、坂にいる本人にも重臣の討死が届かなかった。目の前の事なのでその場で大きく出す。
-      rt.after(2, () => { if (!F.ending && !rt.over) { rt._bannerT = rt.t; rt.hud.banner('朝倉の重臣、次々討死', '山崎吉家・斎藤龍興・朝倉道景らが坂に倒れる'); } });
+      rt.after(2, () => { if (!F.ending && !rt.over) { rt._bannerT = rt.t; rt.hud.banner('朝倉の重臣、次々討死', '山崎吉家・斎藤龍興が坂に倒れる'); } });
       rt.after(6, () => { if (!F.ending) rt.say('柴田勝家', '朝倉の列は崩れた。名のある者が次々討たれておる。義景を逃がすな！', 4); });
       rt.after(13, () => { if (!F.ending) rt.say('滝川一益', '義景の旗が峠を越えた。一乗谷へ逃げる気じゃ', 3.5); });
     }

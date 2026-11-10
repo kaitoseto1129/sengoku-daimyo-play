@@ -26,7 +26,7 @@ export function install(rt, ctx) {
     F.odaMonomiDone = true;
     // 尾根の曲輪に篝火が一つずつ灯る
     ctx.fires.forEach((p, i) => rt.after(i * 1.2, () => { if (!live()) return; try { rt.world.addFire(p.x, p.z, { h: 1.3, size: 0.7 }); } catch (e) { console.warn('小谷の物見の火', e); } }));
-    sfx('taiko', 0.4);
+    // 清水谷を忍んで登る間は太鼓を鳴らさず、攻めかかる下知まで静かに進む。
     rt.banner('小谷城', '尾根に京極丸・小丸・本丸の篝火が並ぶ');
     rt.award((t) => { t.side.push('清水谷から小谷城の曲輪を見届けた'); }, '小谷城の曲輪を見届けた', MI);
     rt.say('羽柴秀吉', 'よう見よ。真ん中の京極丸を取れば、北の小丸の久政と南の本丸の長政は二つに切れる', 4.2);

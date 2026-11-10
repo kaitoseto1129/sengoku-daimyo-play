@@ -40,6 +40,7 @@ const HON = { x: 0, z: -46 };         // 本丸
 const SOUTH = { x: 0, z: 150 };       // 西軍の寄せ口
 // 脱出の行き先：本丸の裏（北）の崩れた石垣から城の外へ（正門からは出ない）
 const ESC = { x: 0, z: -86 };
+const STAGE_DATES = { 0: ['七月二十二日', '宇喜多勢が大手へ寄せる'], 1: ['七月二十三日', '島津勢が三の丸へ乗り込む'], 3: ['七月二十九日', '総攻めが迫る。二の丸へ'], 6: ['八月一日　昼', '松の丸に内応の火'], 8: ['八月一日　夕', '本丸に火が回る'] };
 // 城を囲む西軍の陣（宇喜多＝南の外・小早川＝西・島津＝南東・石田＝南西。石田は七月二十九日に着く）
 // 毛利秀元（と吉川広家）＝東。寄せ手に加わった事は確か（ja.wikipedia・日本史ウィキコーパス）だが、取り付いた方角を示す史料は無く推定（11/6 布陣の照らし合わせで、毛利の陣が無かった）
 const CAMPS = [{ x: 0, z: 178 }, { x: -96, z: 30 }, { x: 92, z: 104 }, { x: -70, z: 150 }, { x: 104, z: 22 }];
@@ -387,7 +388,7 @@ const k01_fushimi = {
     rt.after(22.4, () => rt.say('鳥居の侍', '行かれましたな。', 2.6));
     rt.after(25.4, () => rt.say('鳥居元忠', 'ああ。', 2.2));
     // ---- 包囲されていく（南→西→東と、遠くの旗が増える）
-    rt.after(28, () => { rt.banner('慶長五年七月', '西の軍勢が伏見へ寄せる'); this.camps(rt, 1); });
+    rt.after(28, () => { rt.banner('七月十九日', '西の軍勢が伏見へ寄せる'); this.camps(rt, 1); });
     rt.after(31.5, () => { this.camps(rt, 2); rt.say('鳥居の侍', '……多いな。', 2.6); });
     rt.after(35, () => { this.camps(rt, 3); rt.say('使番', '全周、敵勢！', 2.8); });
     rt.after(38, () => this.begin(rt));
@@ -427,12 +428,12 @@ const k01_fushimi = {
         ],
         noRefill: true, onEnd: (rt2) => this.delay(rt2, 15) }),
       // ① 東の隅櫓：梯子で石垣を越えた島津勢が三の丸の東へ入る（敵は一方向でない）
-      DP.fight({ at: { x: 16, z: 38 }, obj: '東の隅櫓を救え', max: 90,
+      DP.fight({ at: { x: 16, z: 38 }, obj: '三の丸の東の隅櫓を救え', max: 90,
         say: [['使番', '東の隅櫓に梯子！　島津が乗り込みます！']],
         foes: () => [keep('梯子を越えた島津勢', { x: 20, z: 40 }, 'shimazu', [{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: 7 }, { type: 'gun', n: 2 }], { morale: 97, dmg: 0.26, seek: 30 })],
         noRefill: true, onEnd: (rt2) => this.delay(rt2, 8) }),
       // ② 破城隊：掛矢と丸太で三の丸の門を叩く寄せ手
-      DP.fight({ at: { x: 0, z: 52 }, obj: '破城隊を止めろ', max: 90,
+      DP.fight({ at: { x: 0, z: 52 }, obj: '三の丸の門で破城隊を止めろ', max: 90,
         say: [['鳥居の侍', '門を叩いておるぞ！　破城隊じゃ']],
         foes: () => { sfx('crash', 0.8); return [keep('三の丸の門を破る破城隊', { x: 0, z: 62 }, 'ukita', [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 9 }], { dmg: 0.26, seek: 30 })]; },
         noRefill: true, onEnd: (rt2) => { this.delay(rt2, 8); rt2.say('使番', '大手、破られました！', 2.8); rt2.after(3, () => rt2.say('使番', '西側も敵が入りました！', 2.8)); } }),
@@ -479,7 +480,7 @@ const k01_fushimi = {
           for (const k of [10, 11.5, 13]) rt2.after(k, () => sfx('knock', 0.9));
         } }),
       // ⑨ 本丸：敵が中へ入る。元忠も前に出る。「殿、奥へ！」に退かない
-      DP.hold({ at: { x: HON.x, z: HON.z - 1 }, r: 12, dur: 36, label: '本丸', obj: '最後まで持ちこたえろ',
+      DP.hold({ at: { x: HON.x, z: HON.z - 1 }, r: 12, dur: 36, label: '本丸', obj: '本丸で最後まで持ちこたえろ',
         say: [['鳥居の侍', '殿、奥へ！'], ['鳥居元忠', '退かぬ。']],
         waves: () => [
           { t: 2, foes: () => { this.unshut(rt, 'hon_s'); sfx('crash', 0.8); return [keep('本丸へ寄せる宇喜多勢', { x: 0, z: -16 }, 'ukita', [{ type: 'samurai', n: 4 }, { type: 'ashigaru', n: 10 }, { type: 'gun', n: 2 }], { dmg: 0.28 })]; } },
@@ -488,7 +489,7 @@ const k01_fushimi = {
         ],
         noRefill: true, onEnd: (rt2) => { this.delay(rt2, 13); rt2.player.treatWounds(0.8); } }),
       // ⑩ 最後の防衛：元忠と並んで戦う。周りの味方が一人ずつ倒れる
-      DP.hold({ at: { x: -4, z: -49 }, r: 10, dur: 30, label: '元忠殿の旗', obj: '最後まで持ちこたえろ',
+      DP.hold({ at: { x: -4, z: -49 }, r: 10, dur: 30, label: '元忠殿の旗', obj: '本丸で最後まで持ちこたえろ',
         say: [['鳥居の侍', 'ここまでですか。'], ['古参の侍', 'まだだ。殿がおられる。']],
         waves: (rt2) => {
           this.thin(rt2);
@@ -503,7 +504,7 @@ const k01_fushimi = {
           rt2.after(3, () => rt2.say('鳥居元忠', '行け。', 2.2));
         } }),
       // ⑪ 脱出：正門でなく本丸の裏の崩れた石垣から、数人で城の外へ。振り返ると元忠の旗の周りに敵が集まる
-      DP.move({ to: ESC, obj: '城を抜けよ', label: '城の外', r: 8, max: 90,
+      DP.move({ to: ESC, obj: '本丸の裏口から城を抜けよ', label: '城の外', r: 8, max: 90,
         say: [['鳥居の侍', 'こちらへ！　裏の石垣が崩れております']],
         ambush: { t: 4, foes: () => { this.lastStand(rt); return []; } } }),
     ];
@@ -538,6 +539,8 @@ const k01_fushimi = {
     const F = rt.flags;
     if (F.lastG) return;
     this.magoichi(rt);
+    revealName(rt, '雑賀孫一');
+    rt.say('雑賀孫一', '雑賀の鈴木孫三郎、見参！', 2.6);
     if (F.magoG) Object.assign(F.magoG, { anchor: { x: 4, z: -44 }, facing: Math.PI });
     F.lastG = enemyGroup(rt, { fixed: true, faction: 'yatagarasu', name: '元忠の旗に群がる寄せ手', anchor: { x: -3, z: -44 }, facing: Math.PI, order: 'hold', aggro: 2, width: 8, morale: 100, noRout: true },
       dress([{ type: 'samurai', n: 6 }, { type: 'gun', n: 4 }], { ...WEST, flag: 'yatagarasu' }));
@@ -667,6 +670,7 @@ const k01_fushimi = {
       for (const [x, z] of [[-8, -46], [8, -46], [0, -8], [-12, 28], [12, 28]]) rt.scene.add(nobori(rt.world, x, z, 'ukita', 6));
     });
     rt.after(3.5, () => rt.banner('鳥居元忠、討死', '慶長五年八月一日'));
+    rt.after(6.5, () => rt.banner('血天井', '城兵の血に染まった床板は、のちに京の寺々へ伝わる'));
     rt.after(8.5, () => { sfx('messenger', 0.7); rt.say('使番', '徳川本隊は無事、東へ。', 3.4); });
     F.k01s?.ending?.();   // 「伏見城　落城」→「任務達成」（k01_fushimi/yose.js）
     rt.finish({ scriptedEnd: true }, 24);
@@ -682,12 +686,15 @@ const k01_fushimi = {
     // 段の替わり目：外郭を退く時、近正は三の丸に残り、家忠は二の丸の西の持ち場へ先に回る
     if (i !== F.lastI) {
       F.lastI = i;
+      // 別れから包囲、内応、落城へ時が飛ぶ所は日付を知らせる。
+      if (STAGE_DATES[i]) rt.banner(...STAGE_DATES[i]);
       if (i === 3) this.guardSan(rt);
       if (i === 3 && F.ie && !F.ieAway) { F.ieAway = true; Object.assign(F.ie, { anchor: { x: -17, z: -7 }, order: 'hold', fixed: true, stay: true, noAI: true, aggro: 10, facing: Math.PI / 2, focus: null }); }
       if (D?.cur?.s.kind !== 'rest') F.restNext = null;
     }
     // 守る段の間、持ち場で戦っていれば時が稼げる（内部の値。画面には出さない）
-    if (D?.cur?.s.kind === 'hold' && D.cur.k01Engaged) this.delay(rt, dt * 0.12);
+    if (D?.cur?.s.kind === 'hold' && D.cur.k01Engaged && rt.player.u.alive &&
+      Math.hypot(rt.player.u.pos.x - D.cur.at.x, rt.player.u.pos.z - D.cur.at.z) < (D.cur.botRadius || 14) + 8) this.delay(rt, dt * 0.12);
     // 本丸の段からの寄せ手は元忠を目当てに本丸へ寄せる
     if (i >= 9 && D.cur && F.toriiU) for (const g of D.cur.groups) if (!g._k01) { g._k01 = true; g.focus = F.toriiU; }
     // 守る段の刻を四十秒過ぎても、塀の外で詰まった寄せ手の残りが段を止めていた。残りは崩れて退く
@@ -764,7 +771,7 @@ k01_fushimi.botBrain = (b, inp, { goTo }) => {
 };
 
 const dpAt = (k) => (rt) => (rt.flags.dp?.i ?? -1) >= k || (rt.flags.dp && !rt.flags.dp.on && rt.flags.begun);
-STAGES.k01_fushimi = [['大手の曲輪を守る'], ['東の隅櫓を救う', dpAt(1)], ['破城隊を止める', dpAt(2)], ['二の丸へ退く', dpAt(3)], ['二の丸の西で家忠殿と押し返す', dpAt(5)], ['二の丸の東を食い止める', dpAt(6)], ['本丸へ退く', dpAt(7)], ['本丸で最後まで持ちこたえる', dpAt(9)], ['城を抜ける', dpAt(11)]];
+STAGES.k01_fushimi = [['大手の曲輪を守る'], ['三の丸の東の隅櫓を救う', dpAt(1)], ['三の丸の門で破城隊を止める', dpAt(2)], ['二の丸へ退く', dpAt(3)], ['二の丸の西で家忠殿と押し返す', dpAt(5)], ['二の丸の東を食い止める', dpAt(6)], ['本丸へ退く', dpAt(7)], ['本丸で最後まで持ちこたえる', dpAt(9)], ['本丸の裏口から城を抜ける', dpAt(11)]];
 
 // 目標の札に別の刻限を重ねず、実際の段の達成だけで判定する。
 // 守る段と日付の切り替えでは人数を出さない。字から相手を探す
