@@ -3417,8 +3417,8 @@ html:root body #hud#hud#hud.oke-goals :is(#armybar, #h-prog, #jk-vit) { z-index:
       F.entered = true; F.enteredAt = rt.t; rt.unmark('honjin');
       // 坂の戦いの間に討たれた旗本は数えず、幕の前に入ってから七人を破る（④を入った途端に済ませない）。
       F.guardStart = guards;
-      // 本陣の左右と後ろの備えが、義元を救いに駆け寄る。幕の内外で入り乱れる斬り合いになる。
-      for (const i of [2, 3, 4]) {
+      // 井伊の備えは⑥で既に敗れて退いている。退く下知を攻撃へ戻さず、未投入の左右・後ろの備えだけを寄せる。
+      for (const i of [3, 4]) {
         const g = F.enemies[i];
         if (!readyGroup(g)) continue;
         g.guard = false; g.order = 'attack'; g.seekRange = 30; g.aggro = 12; g.focus = null;

@@ -455,6 +455,20 @@ const t08_nejirozaka = {
   nameRange: 140,
   // 距離だけでなく名札の枠も確保し、近くの将で後詰二人の名を消さない。
   nameTagLimit: 12,
+  // 見回りと会話の間も、印の場所と名を今の持ち場に揃える。
+  // 五つの目標だけで選ぶと、右の堀を「土橋の塀」と呼び、会話中は土橋へ印が戻る。
+  goalTargetOverride(rt) {
+    const F = rt.flags, i = F.dp?.i ?? 0;
+    if (rt.over || F.ending || F.retreating) return null;
+    const unit = i === 7 && F.tadaU?.alive ? F.tadaU : null;
+    const at = unit ? unit.pos : i < 2 ? { x: 34, z: -6 }
+      : i === 8 || i === 9 ? shuryoku.EAST : i === 5 || i === 6 ? BREACH : POST;
+    const target = F.nejiroTarget || (F.nejiroTarget = {});
+    target.x = at.x; target.z = at.z; target.unit = unit; target.boss = !!unit;
+    target.label = unit ? '' : i < 2 || i === 8 || i === 9 ? '右の堀' : i === 5 || i === 6 ? '破れ口' : '土橋の塀';
+    target.action = unit ? '島津忠隣を討ち取れ' : `${target.label}へ向かえ`;
+    return target;
+  },
   // 猿渡の討死は名のある知らせで伝え、共通の隊崩れの札を重ねない。
   bannerAllowed: (rt, text) => !/隊が崩れた|敵の組頭が討たれた/.test(text),
   // 布陣図の地名（docs/fujin/t08_nejirozaka.md）
