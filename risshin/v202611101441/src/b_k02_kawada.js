@@ -335,6 +335,7 @@ const k02_kawada = {
   fearKind: { kind: '渡河', note: '浅瀬で足を取られ、対岸の鉄砲に撃たれる', w: { losses: 1.4, flank: 1.2 }, line: '川の中で止まるな！' },
   battleDialogue: true,   // 11/8 critic60 二5：音の無い所で誰が何を言ったか分からなかった。台詞を字でも出す（八秒の間引き・三枠は共通）
   nearbyAllySignLimit: 0,   // 11/8 critic60 五2：味方の頭上の白い小さな丸（意味の分からない印）を出さない
+  noHatamotoMass: true,   // 確認表の四1・十二2：定義した備とは別に、勝敗と兵数に入らない旗本の大群を自動追加しない
   nameTagLimit: 12,   // 名のある将を二枚の枠で隠さない。重なりと遮蔽物の判定は共通の名札処理を使う
   stageGoalsOnly: true,   // 右上の目標は四つの段だけ（「敵を何人討つ」で埋めない。物差し三の1・11/6）
   goalsVisibleRows: 4,   // 共通画面の一件表示で隠さず、①〜④を始まりから全部並べる（確認表の九1・良い所を残す）

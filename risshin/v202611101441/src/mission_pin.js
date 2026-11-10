@@ -190,7 +190,7 @@ export function updateMissionPin(rt) {
 }
 function drawMissionPin(rt) {
   // 行動の札と矢印が指す本人へ統一し、別の案内を重ねない。
-  if (rt.def.goalSignNavigation && rt.hud.goalSignVisible || rt.hud.actionGuideUnit && !(rt.hud.actionGuideUnit.team !== rt.player.u.team && target(rt)?.route)) {
+  if (rt.def.goalSignNavigation && rt.hud.goalSignVisible || rt.hud.actionGuideUnit && !(rt.hud.actionGuideUnit.team !== rt.player.u.team && (target(rt)?.route || target(rt)?.always))) {
     rt.hud.missionPinLabelShown = false;
     rt.hud.missionEnemyShown = false;
     rt.hud.missionPinOutside = false;
@@ -254,7 +254,8 @@ function drawMissionPin(rt) {
     return;
   }
   // 次に攻撃する時は頭上の▼（画面外では向きの矢印）に一本化する。
-  if (enemyMarked && !want?.route && !want?.fire) {
+  // 淀の野など、段の行き先を常に残す指定は近くの別の敵の印でも消さない。
+  if (enemyMarked && !want?.always && !want?.route && !want?.fire) {
     if (pin) pin.hidden = true;
     return;
   }

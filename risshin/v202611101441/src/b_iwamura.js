@@ -1095,6 +1095,7 @@ const iwamura = {
   openingFootSignOnly: true, // 開幕の手ほどきにも胴を囲う縦長の枠を出さない。
   groundGuideRings: true, // 坂の印は地面へ沿わせ、平たい帯を浮かせない。
   clearTravelGuide: true, // 道の矢印と旗の上に案内札を重ねない。
+  noTravelArrow: true, // 通し結果に残った足元の白い矢印を止め、行き先の▼だけを残す。
   pauseTurnPractice: false, // 見回しの操作待ちで夜討ちの兵と任務の時計を止めない。
   compactTravelArrow: true, // 道の帯より、行き先に添える短い矢印を優先する。
   compactDestinationSign: true, // 守る旗も小さくし、携帯の中央を覆う黒い案内札を畳む。

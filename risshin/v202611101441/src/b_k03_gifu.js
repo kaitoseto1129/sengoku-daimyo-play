@@ -232,7 +232,13 @@ function stoneRing(rt, k, KB, o = {}) {
 // 描く回数を抑えたコマでも働く体積の判定。人が歩く門下は空ける。
 function gifuGateCamera(W) {
   const previous = W.cameraBlockFraction;
-  const gates = [-70, -12].map(x => ({ x, z: x === -70 ? -2 : 0, y: W.heightAt(x, x === -70 ? -2 : 0) }));
+  // 渡櫓と屋根を分ける。屋根は高さ6mから棟まであり、軒は壁より張り出す。
+  // 門下の通路まで軒の幅で塞がないよう、体積を二つに分けて起動時だけ作る。
+  const gates = [-70, -12].flatMap(x => {
+    const z = x === -70 ? -2 : 0, y = W.heightAt(x, z);
+    return [{ x, z, y, hw: 2.1, hz: 5.1, low: 3.325, high: 6 },
+      { x, z, y, hw: 2.8, hz: 5.9, low: 6, high: 7.9 }];
+  });
   W.cameraBlockFraction = function (from, to) {
     let hit = previous?.call(this, from, to) ?? null;
     for (const g of gates) {
@@ -240,8 +246,8 @@ function gifuGateCamera(W) {
       for (let axis = 0; axis < 3; axis++) {
         const a = axis === 0 ? from.x - g.x : axis === 1 ? from.y - g.y : from.z - g.z;
         const d = axis === 0 ? to.x - from.x : axis === 1 ? to.y - from.y : to.z - from.z;
-        const low = axis === 0 ? -2.1 : axis === 1 ? 3.325 : -5.1;
-        const high = axis === 0 ? 2.1 : axis === 1 ? 6 : 5.1;
+        const low = axis === 0 ? -g.hw : axis === 1 ? g.low : -g.hz;
+        const high = axis === 0 ? g.hw : axis === 1 ? g.high : g.hz;
         if (Math.abs(d) < 1e-8) { if (a < low || a > high) { exit = -1; break; } }
         else {
           const t0 = (low - a) / d, t1 = (high - a) / d;
