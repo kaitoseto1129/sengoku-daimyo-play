@@ -4255,9 +4255,11 @@ function tedoHold(o) {
     C.awayT = inRing ? 0 : (C.awayT || 0) + dt;
     if (inRing) C.inT += dt;
     // 11/10：南岸の持ち場は、土手の上で篝火から二十二歩内にいる時間も数える（追手を払いに数歩出ても持ち場を捨てた事にしない）。
-    if (o.waitCross && onSouthBank && Math.hypot(p.x - C.at.x, p.z - C.at.z) < 22) C.southT = (C.southT || 0) + dt;
+    const guardingSouth = o.waitCross && onSouthBank && Math.hypot(p.x - C.at.x, p.z - C.at.z) < 22;
+    if (guardingSouth) C.southT = (C.southT || 0) + dt;
     // 持ち場の火で踏みとどまるのが殿の働き。共通の「止まったまま四十五秒」の時間切れで負けにしない（bot 11/4：南岸で守って「取り残された」で失敗）。
-    if (inRing && rt._idleP) rt._idleP.t = rt.t;
+    // 土手の端で迎え撃つ時間も守備に数える。そこで足を止めた者だけを放置扱いにしない。
+    if ((inRing || guardingSouth) && rt._idleP) rt._idleP.t = rt.t;
     // 迷ったままでも呼び戻す。川の中では下の上陸の声だけにし、重ねない。
     if (onSouthBank && el > 8 && C.awayT > 8 && rt.t >= (F.absenceAt || 0) &&
         !F.tedoQueuedSignal.kind && rt.t >= (F.tedoSignalUntil || 0) && rt.t >= (F.tedoCallUntil || 0)) {

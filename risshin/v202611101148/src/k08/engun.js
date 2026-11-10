@@ -1,7 +1,7 @@
 // k08/engun.js … 木津川口の 9〜12 分「城から加勢が来て一時押され、味方の新手で押し返す」（docs/toku15_plan_1108.md の 8）
 // 新手は湧かせない（kaito AW の6）：城の方の加勢は始めから砦の北の葦原の奥（博労淵へ通う道）に控え、
 //   浅野の後備は始めから浅野の陣の後ろに控える。④（北の口）に入ってから放つ。
-// 流れ：④の十八秒後に北で法螺と旗（足軽の一声）→ 加勢が北の口へ駆け込み、味方は一時押される →
+// 流れ：④の始めに北で法螺と旗（足軽の一声）→ 三十秒後に加勢が出撃し、北の口へ駆け込んで味方を押す →
 //   四十秒ほど後に浅野の後備が南から来て押し返す。④は北の口の守兵と加勢の両方が崩れるまで終わらない。
 // 加勢に史料の名のある将は当てない（隊の名だけ）。字の札は足さない（台詞だけ）。
 import { enemyGroup, allyGroup } from '../bhelp.js';
@@ -37,12 +37,13 @@ export function start(rt, K) {
   F.engunPushedBack = false;
   F.engunN = F.engun ? F.engun.count : 0;
   const S = (t, fn) => rt.after(t, () => { if (F.step === 4 && !F.ending) fn(); });
-  S(18, () => {
+  S(0, () => {
     // 出撃前に崩れた加勢を、これから来る敵として知らせない。
     if (!remaining(rt)) return;
     sfx('horagai', 0.45); rt.say('足軽', '北に桐の旗！　城の方から加勢が来るぞ！', 3);
   });
-  S(20, () => {
+  // 旗と法螺で知らせてから三十秒待つ（全戦共通の援軍の予告）。
+  S(30, () => {
     // 出撃の時刻までに加勢が崩れていても、迎える段を済ませる。
     // 生存確認の後に立てると、残兵が零でも④が終わらない。
     F.engunOn = true;
@@ -56,7 +57,7 @@ export function start(rt, K) {
     if (Array.isArray(F.s4) && !F.s4.includes(F.engun)) F.s4.push(F.engun);   // 印と bot の行き先に入れる
   });
   // 加勢が北の口へ着く頃：味方が押される（隊を門の内の半ばまで下げる）
-  S(40, () => {
+  S(50, () => {
     // 加勢を先に退けた時は、押されていない味方を時刻だけで下げない。
     if (!alive(F.engun) || remaining(rt) <= Math.ceil((F.engunN || 1) * 0.3)) return;
     rt.say('蜂須賀の侍', '押される！　門の内まで下がって組を立て直せ！', 3);
@@ -66,7 +67,7 @@ export function start(rt, K) {
     }
   });
   // 浅野の後備が来て押し返す
-  S(58, () => {
+  S(68, () => {
     const g = F.asano2;
     if (!alive(g)) return;
     g.noAI = false; g.order = 'path'; g.aggro = 4; g.seekRange = 12; g.speed = 4.2;

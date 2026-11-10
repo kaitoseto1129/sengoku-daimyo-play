@@ -446,7 +446,7 @@ const t03_komaki = {
       if (!F.inabaSaid) for (const g of F.gateWaves) for (const u of g.units) if (!F.inabaSaid && u.alive && dist(u.pos, GATE) < 12) {
         F.inabaSaid = true; rt.say('稲葉一鉄', 'うろたえるな！　土橋は狭い。渡る者から一人ずつ突け', 3);
       }
-      const left = F.gateWaves.reduce((s, g) => s + aliveN(g), 0);
+      const left = F.gateWaves.reduce((s, g) => s + resistingN(g), 0);
       if (dist(P.pos, GATE) < 18 && el > 125 && ((F.gateWaves.length >= 4 && left <= 4) || el > 160)) {
         for (const g of F.gateWaves) if (live(g)) { g.order = 'retreat'; g.dest = { x: g.center().x, z: ZS + 20 }; }
         rt.say('物見', '徳川勢、小牧山へ引いていく', 2.4);
