@@ -18,6 +18,8 @@ export function install(rt, ctx) {
   const F = rt.flags, S = F.aneJin = { k: 0, t0: rt.t, done: false, post: ctx.post };
   const MI = { x: 30, z: ctx.south(30) + 9 };
   S.at = MI;
+  // 物見が渡る間も、迎撃する足軽の行き先は南岸に保つ。
+  S.shore = { x: MI.x - 4, z: ctx.south(MI.x) + 3 };
   const live = () => !S.done && !F.ending && !rt.over && rt.player?.u?.alive && F.step === 0;
   rt.say('森可成', '浅井の陣立てを見て来い。岸の高みから川向こうがよう見える', 4);
   rt.after(4.5, () => live() && rt.say('組頭', '旗の数を数えよ。どの手が先に渡るか、見極めるのじゃ', 3.5));
@@ -54,7 +56,7 @@ export function install(rt, ctx) {
     const g = ctx.enemyGroup(rt, { faction: 'azai', name: '浅井の物見', anchor: { x, z }, facing: 0, fleeDir: ctx.AZAI_FLEE, aggro: 14, width: 10, morale: 70, speed: 3.2 },
       ctx.dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 6 }, { type: 'gun', n: 4 }], ctx.AZAI));
     S.g = g; S.k = 2; S.scoutT = rt.t;
-    g.order = 'move'; g.dest = { x: MI.x - 4, z: ctx.south(MI.x) + 3 };
+    g.order = 'move'; g.dest = { ...S.shore };
     g.onArrive = (q) => {
       // 退却中にも到着判定は走る。古い渡河の命令で、追い返した物見を攻撃へ戻さない。
       if (!live() || S.k !== 2 || S.g !== q || q.order !== 'move' || q.routed || !q.count) return;
@@ -147,14 +149,26 @@ function scoutTarget(g) {
   return g.units.find(scoutActive) || null;
 }
 
+// 渡河中の後列を追わず、岸へ着いた兵から槍を合わせる。
+export function target(rt) {
+  const S = rt.flags.aneJin, g = S?.g;
+  if (!S || S.done || S.k !== 2 || !scoutTarget(g)) return null;
+  return g.units.find((u) => scoutActive(u) && (!S.shore || u.pos.z >= S.shore.z)) || null;
+}
+
 // 行き先のピン：物見の高み、または物見の小勢
 export function pin(rt, q) {
   const S = rt.flags.aneJin;
   if (!S || S.done) return undefined;
   if (S.k <= 1) { q.x = S.at.x; q.z = S.at.z; q.r = 6; q.hide = 6; return q; }
   if (S.k === 2 && S.g) {
-    const u = scoutTarget(S.g);
+    const u = target(rt);
     if (u) { q.unit = u; q.enemy = true; q.x = u.pos.x; q.z = u.pos.z; q.r = q.hide = 2; return q; }
+    if (S.shore && scoutTarget(S.g)) {
+      q.unit = null; q.enemy = false;
+      q.x = S.shore.x; q.z = S.shore.z; q.r = q.hide = 2;
+      return q;
+    }
   }
   // 退く物見を追わせず、次の本手を迎える持ち場へ戻す。
   // 共通の相手探しへ落とすと、西の別戦線の敵を指す事がある。
@@ -170,7 +184,7 @@ export function bot(b, goTo, p, inp, strike) {
   if (!S || S.done) return false;
   if (S.k <= 1) { goTo(p, inp, S.at.x, S.at.z, 3); return true; }
   if (S.k === 2 && S.g) {
-    const e = scoutTarget(S.g);
+    const e = target(b);
     if (e) {
       const d = Math.hypot(e.pos.x - p.u.pos.x, e.pos.z - p.u.pos.z);
       p.yaw = Math.atan2(e.pos.x - p.u.pos.x, e.pos.z - p.u.pos.z);
@@ -178,6 +192,10 @@ export function bot(b, goTo, p, inp, strike) {
       const approach = (p.weapon === 'sword' ? 1.9 : 2.8) * 0.85;
       if (d > approach) goTo(p, inp, e.pos.x, e.pos.z, approach);
       else strike(p, inp, e, d);
+      return true;
+    }
+    if (S.shore && scoutTarget(S.g)) {
+      goTo(p, inp, S.shore.x, S.shore.z, 2);
       return true;
     }
   }

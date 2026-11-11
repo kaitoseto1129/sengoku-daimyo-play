@@ -2626,7 +2626,7 @@ function anePost(rt) {
 function aneInLine(rt, k, u, post) {
   // 本人との近さで範囲を広げると、孤立した一人を村まで追い続ける。
   // 選び直し・直前の相手・半秒の控えも同じ戦線の範囲で判定する。
-  return rt.flags.step === 2 || k !== 1 && k !== 2 || aneStageFoe(rt, k, u) && u.pos.z >= aneNorthBank(u.pos.x) &&
+  return rt.flags.step === 2 || k !== 0 && k !== 1 && k !== 2 || aneStageFoe(rt, k, u) && u.pos.z >= aneSouthBank(u.pos.x) &&
     (Math.hypot(u.pos.x - post.x, u.pos.z - post.z) <= 45 ||
      Math.hypot(u.pos.x - HQ.x, u.pos.z - HQ.z) <= 60);
 }
@@ -2635,7 +2635,7 @@ function aneNearestFoe(rt) {
   const F = rt.flags;
   const k = F.aneStage || 0;
   const me = rt.player.u.pos, post = anePost(rt), pursuit = F.step === 2;
-  const own = !pursuit && (k === 1 || k === 2);
+  const own = !pursuit && (k === 0 || k === 1 || k === 2);
   // 任務や追撃へ切り替わった時は、前の相手を半秒の控えや近さの判定で持ち越さない。
   const sameTask = F.aneFoeStage === k && F.aneFoeStep === F.step;
   if (sameTask && rt.t < (F.aneFoeAt || 0) && (F.aneFoe === null || aneFoe(F.aneFoe) &&
@@ -2922,8 +2922,7 @@ const anegawa = {
     // 物見と野村への追撃では、前の段の磯野・殿を指し続けない。
     if (F.aneTsui) return !F.aneTsui.done && F.aneTsui.k >= 1 && aneFoe(F.aneTsui.u) ? F.aneTsui.u : null;
     if (F.aneJin && !F.aneJin.done) {
-      const S = F.aneJin;
-      return S.k === 2 && !S.g?.routed ? S.g?.units.find(aneFoe) || null : null;
+      return JIN.target(rt);
     }
     const stage = aneMissionOf(rt);
     if (stage === 0 && !aneAtPost(rt)) return null;
