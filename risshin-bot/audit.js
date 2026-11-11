@@ -14,7 +14,7 @@ import { GENERALS } from './units.js';
 const IDLE_OK_ORDERS = new Set(['hold', 'guard', 'yari', 'flee']);
 const IDLE_OK_TYPES = new Set(['dummy', 'porter', 'player']);
 // 画面の部品で、重なっていてよい物（全面の飾り・浮かぶ字・印）
-const OVERLAP_OK = new Set(['vignette', 'overlay', 'floats', 'killmark', 'combo', 'banner', 'hurt', 'dirhit', 'target', 'wipe', 'staring', 'bigmap', 'radial', 'photoui', 'crosshair', 'reticle', 'compass-marks', 'dmgdir', 'prompt', 'mission-target-lines', 'follow-guide', 'leader-guide']);   // 後の二つは画面全体の透明な svg に端の矢印だけ（11/9：k02・k04・志賀で「札が 100% を覆う」と誤って数えた）
+const OVERLAP_OK = new Set(['vignette', 'overlay', 'floats', 'killmark', 'combo', 'banner', 'hurt', 'dirhit', 'target', 'wipe', 'staring', 'bigmap', 'radial', 'photoui', 'crosshair', 'reticle', 'compass-marks', 'dmgdir', 'prompt', 'mission-target-lines', 'follow-guide', 'leader-guide', 'brinkfx']);   // 後の二つは画面全体の透明な svg に端の矢印だけ（11/9：k02・k04・志賀で「札が 100% を覆う」と誤って数えた）
 // 遊び手を責める言い回し
 const BLAME = /(何をしておる|何をしている|愚か|たわけ|馬鹿|役立たず|だめだ|ダメだ|下手|失格|情けない|しっかりせい)/;
 // 断るだけで、どうすればいいかを言わない言い回し
@@ -488,7 +488,8 @@ export class Auditor {
     }
     // HUD の札どうしの重なり・戦場が札に食われていないか
     const hud = document.getElementById('hud');
-    if (hud && !hud.hidden && getComputedStyle(hud).display !== 'none') {
+    // 開戦の瞬間は出陣の支度の札が全面を覆う（遊び手が見る場面ではない）。札の重なり・面積は戦の中の定期の点検で測る
+    if (hud && !hud.hidden && getComputedStyle(hud).display !== 'none' && !/・開戦$/.test(label || '')) {
       // 左右の欄・知らせ欄・道しるべの欄は透明な入れ物。小地図の横や札・印の間の空白まで覆いと数えない。
       // 印そのものを測り、実際の重なりは検査する。
       // 中の札を個別に測り、親の送りで隠れた部分と画面外も除く。
@@ -502,6 +503,7 @@ export class Auditor {
         for (const card of cards) {
           // 任務の印は 80 角の透明な箱。描いた形と字だけを合わせて測る（箱の角が札に掛かっても読めなくはならない）。
           const ink = card.id === 'mission-goal' || card.id === 'mission-enemy-target' || card.id === 'mission-dest-arrow';
+          if (card.style.pointerEvents === 'none' && card.style.inset === '0px' && !card.id) continue;   // 画面全体の透明な入れ物（中の印が出た時にだけ描く）。入れ物の面を札と数えない
           const r = ink ? inkRect(card) : visibleRect(card);
           if (r) panels.push({ el: card, r });
         }
@@ -512,9 +514,9 @@ export class Auditor {
         const ov = inter(a.r, c.r);
         const small = Math.min(a.r.width * a.r.height, c.r.width * c.r.height);
         const nm2 = (el) => (el.id ? '#' + el.id : name(el));
-        if (ov > small * 0.15 && ov > 400) this.add('使いづらい', 'hudover:' + nm2(a.el) + '|' + nm2(c.el), 'HUD の札どうしが重なって読めない', `${nm2(a.el)} と ${nm2(c.el)}（${W}×${H}）`, '置き場所をずらすか、片方を出している間はもう片方を隠す');
+        if (ov > small * 0.15 && ov > 400) this.add('使いづらい', 'hudover:' + nm2(a.el) + '|' + nm2(c.el), 'HUD の札どうしが重なって読めない', `${nm2(a.el)} と ${nm2(c.el)}（${W}×${H}）${[a, c].map((q) => ' [' + Math.round(q.r.left) + ',' + Math.round(q.r.top) + ' ' + Math.round(q.r.width) + '×' + Math.round(q.r.height) + ']').join('')}`, '置き場所をずらすか、片方を出している間はもう片方を隠す');
       }
-      if (covered > W * H * 0.34) this.add('使いづらい', 'covered:' + W, '戦場が札に食われている（画面の3分の1超）', `${W}×${H} で ${Math.round(covered / (W * H) * 100)}%`, '札を小さくするか、平時は薄く・畳む');
+      if (covered > W * H * 0.34) this.add('使いづらい', 'covered:' + W, '戦場が札に食われている（画面の3分の1超）', `${W}×${H} で ${Math.round(covered / (W * H) * 100)}%（大きい札：${panels.slice().sort((a, c) => c.r.width * c.r.height - a.r.width * a.r.height).slice(0, 3).map((q) => (q.el.id ? '#' + q.el.id : name(q.el)) + ' ' + Math.round(q.r.width) + '×' + Math.round(q.r.height)).join('・')}）`, '札を小さくするか、平時は薄く・畳む');
     }
     // 選択の札：説明が無い・一つしかない
     const ch = document.getElementById('choice');
