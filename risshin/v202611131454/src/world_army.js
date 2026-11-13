@@ -1,0 +1,2158 @@
+import { MEM_TIGHT as isTight } from './settings.js';
+import { rng, SEG } from './world_common.js';
+import * as THREE from 'three';
+import { armyGeometryCopy, armyLayout, soldierGeo, clothGeo, soldierTint, horseGeo, horseGeoX3, armyPart, armyViewTest, frontKeep, lowKeep, hostGeo } from './world_army_geometry.js';
+import { flagTexture, yoseFlagTexture, yoseFlagKinds, enemyFlagKind } from './textures.js';
+import { WIND, GUST } from './world_weather.js';
+import { ARMY_IDLE } from './world_vegetation_materials.js';
+import { ARMY_REAL_R, ARMY_MOTION, ARMY_P, ARMY_REAL_P, CLASH_CLOSE_MAX, CLASH_CLOSE_ROW, armyShader, CLASH_NB, CLASH_ROW, clashShader, nearHideRequest, MID_NEAR } from './world_army_shader.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { MEM_TIGHT, S as SETTINGS } from './settings.js';
+import { mixFor, K_PORTER } from './army_mix.js';
+import { lacKind, houseCore, LAC_AKA, LAC_MIX1, LAC_MIX2 } from './lacquer_kind.js';
+// 前から n 人を描く時、旗持ちの番号（小さい順）のうち描かれる者の数
+// 体の束を描かない時（遠い大軍・本物に替わる輪の内。world_lod.js の allHidden）は、背旗・幟・馬も描かない（体の無い旗が宙に浮く。T）
+const bodyOff = (m) => !!m?.userData.lod?.allHidden;
+const bodyBound = (idx, n) => { let lo = 0, hi = idx.length; while (lo < hi) { const m = (lo + hi) >> 1; if (idx[m] < n) lo = m + 1; else hi = m; } return lo; };
+import { armyScale, foeHostScale, foeNearOn, foeHostMin, foeHostBudget } from './army_scale.js';
+// 携帯の間引きの割合は十六段に丸める。カメラが少し動くたびに人数が変わり、全軍の束（army_batch.js）が兵を詰め直すのを減らす（大軍でも重くしない）
+const keepStep = (v) => Math.max(1 / 16, Math.floor(v * 16) / 16);
+
+const PORTER_TINT = new THREE.Color(0.95, 0.86, 0.7);
+let SASHI_GEO = null, KIBA_FLAG_GEO = null, BANNER_GEO = null, YOSE_BANNER_GEO = null, YOSE_PLUME_GEO = null;
+
+// 軽い兵の形の頂点の印：1 胴の漆（armor・その陰の色）・2 威糸（lite）・3 陣笠・4 兜。ほかは 0（顔・腕・脚・得物は元の色）
+function impMask(g, armor) {
+  const C = g.attributes.color, P = g.attributes.aPart, n = C.count, out = new Float32Array(n);
+  const a = new THREE.Color(armor), d = a.clone().multiplyScalar(0.72), l = a.clone().lerp(new THREE.Color(0x8a8070), 0.18);
+  const eq = (i, c) => Math.abs(C.getX(i) - c.r) + Math.abs(C.getY(i) - c.g) + Math.abs(C.getZ(i) - c.b) < 1e-4;
+  for (let i = 0; i < n; i++) {
+    const pt = P ? P.getX(i) : 0;
+    out[i] = pt === 1 ? 3 : pt === 2 ? 4 : pt === 0 && (eq(i, a) || eq(i, d)) ? 1 : pt === 0 && eq(i, l) ? 2 : 0;
+  }
+  return new THREE.BufferAttribute(out, 1);
+}
+// 隊の漆の種類（家の旗の名と隊の具足の色から。1 黒漆・2 錆地・3 赤備え）
+const _lk = new THREE.Color(), _lh = {};
+function armyLacKind(mon, armor) {
+  const h = _lk.set(armor || 0x2a2622).getHSL(_lh);
+  if (h.s > 0.45 && (h.h < 0.05 || h.h > 0.95) && h.l > 0.15) return 3;
+  return mon ? lacKind(mon) : 1;
+}
+// 隊の布の色の芯と袖の板の色（world_army_shader.js の armyCloth が脚・腕・袖を一人ずつ散らす。lacquer_kind.js の表）
+// 胴の漆と陣笠も一人ずつ、近い兵（humans_dress.js の soldierVar）と同じ六組の表へ（11/2「兵が灰・黒の同じ形で単調」：遠い列が一色の黒い帯に見えた）
+function clothCore(flag, armor, kind) {
+  const core = new THREE.Color(kind === 3 ? 0x7a2c1e : houseCore(flag));
+  const lite = new THREE.Color(new THREE.Color(armor).lerp(new THREE.Color(0x8a8070), 0.18).getHex());
+  const lk = kind === 3 ? 3 : armyLacKind(flag, armor), arm = new THREE.Color(armor);
+  //   11/3 kaito の手本 ref8_uniform「一つの家の足軽は全員同じ姿」：六組とも家の一つの漆にし、差は使い込みの照りだけ（近い兵の soldierVar と同じ倍）
+  const T0 = (lk === 3 ? LAC_AKA : lk === 2 ? LAC_MIX2 : LAC_MIX1)[0];
+  const lacT = [1, 1.08, 0.94, 1.04, 0.97, 1.11].map((w) => arm.clone().lerp(new THREE.Color(T0[0]), T0[1]).multiplyScalar(T0[2] * w));
+  return { uACore: { value: core }, uALite: { value: lite }, uALac: { value: arm }, uALacT: { value: lacT } };
+}
+// 遠くの大軍のむら（11/2 c_front「遠くの大軍が棒の列」河田木曽川・関ヶ原・樫井）：四角に等しく並べた隊は、遠くから同じ高さの棒の壁に見えた。
+//   横を 5〜9m の組に分けて組の間を空け、組ごとに前後へずらし（前の線を不揃いに）、組ごとに槍の長さを替える（槍の林の高さのむら）。
+//   作る時に一度だけ（乱数は隊の種から別に取り、ほかの並び・色は変えない）。人数・形・描く回数は同じ。寄せ・槍ぶすまの列・本陣・人を指定した隊は替えない
+function clumpRanks(list, o) {
+  const w = o.w || 20, d = o.d || 10;
+  if (w < 12 || list.length < 40) return;
+  const R = rng((o.seed || 9) * 7 + 3), cl = [];
+  for (let x0 = -w / 2; x0 < w / 2 - 1;) { const x1 = Math.min(w / 2, x0 + 5 + R() * 4); cl.push({ m: (x0 + x1) / 2, x1, dz: (R() - 0.5) * Math.min(6, d * 0.55), sq: 0.66 + R() * 0.16, ex: 0.76 + R() * 0.5 }); x0 = x1; }
+  for (const q of list) {
+    const c = cl.find((c) => q.lx < c.x1) || cl[cl.length - 1];
+    q.lx = c.m + (q.lx - c.m) * c.sq;
+    q.lz += c.dz;
+    if (q.k === 0 && q.ex > 0.5) q.ex *= c.ex;
+  }
+}
+export class WorldArmy {
+
+  addDistantArmy(o) {
+    // 11/13 K285（kaito「本物の兵しか映したらいけない」）：def.noFake の戦は 絵だけの軽い兵を一人も作らない（空の入れ物を返す）。映る兵は全員 戦の中の本物
+    if (this.def.noFake) return this.emptyDistantArmy(o);
+    // 11/13 司令塔 K073（携帯 33ms）：描かれた三角形の約7割は軽い大軍の兵（実測・一人 100〜700 三角形）。携帯は束の人数を半分にする（陣形・旗・並びは同じで、密度だけ薄く）
+    if (isTight && !o.people && !o.farFill && (o.count || 300) > 40) o = { ...o, count: Math.max(24, Math.round((o.count || 300) * 0.5)) };
+    // 豊臣・徳川の戦に織田の旗の軽い兵を出さない（battle.js の noOda・11/3 AV5）
+    if (this.noOda && [o.mon, o.flag, o.flagTex?.userData.mon].some((m) => m === 'oda' || m === 'eiraku')) {
+      const k = this.noOda[o.team === 1 ? 1 : 0];
+      o = { ...o, mon: k, flag: k, flagTex: flagTexture(k) };
+    }
+    const LOG = globalThis.__mixLog;   // 割合を数える道具（tools/armymix.js）だけが置く
+    // 見える所の外の隊は作らない。ただし敵の隊は、前備えの後詰めを本人の見える所へ寄せられる時だけ作る（本物の兵には替えない：farFoe）
+    let farFoe = false;
+    // farFill：奥を満たす軽い列（front_fill.js）。見える所の外でも作る（本物へ替えない・後詰めを付けない）
+    if (!o.people && !o.farFill && this.outsideNearView(o.x, o.z, Math.hypot(o.w || 20, o.d || 10))) {
+      const fm = o.mon || o.flag || o.flagTex?.userData.mon, fk = o.kind || 'mixed';
+      farFoe = foeNearOn(this.def.battleKey) && (o.team === 1 || (o.team == null && enemyFlagKind(fm))) && fk !== 'honjin' && fk !== 'cavalry'
+        && (o.count || 300) >= foeHostMin() && this.foeHostLeft() >= 30 && !!this.foeHostPlace(o.x, o.z, o.facing || 0);
+      if (!farFoe) { if (LOG) LOG.push({ w: 'far', mon: fm, kind: fk, n: o.count || 300 }); return this.emptyDistantArmy(o); }
+    }
+    const mon = o.mon || o.flag || o.flagTex?.userData.mon;
+    const familyMon = o.yoseFamily || (['takeda', 'akazonae', 'furin', 'azai', 'asakura', 'imagawa'].includes(o.flag) ? o.flag : mon);
+    const family = ['takeda', 'akazonae', 'furin'].includes(familyMon) ? 'takeda' : familyMon;
+    // 本陣・鉄砲列・指定済みの持ち場は保つ。広い平場の備と騎馬だけ寄せの横隊にする。
+    const yose = o.yose ?? (!o.people && ['takeda', 'azai', 'asakura', 'imagawa'].includes(family)
+      && ['mixed', 'cavalry'].includes(o.kind || 'mixed') && (o.w || 20) >= 8 && (o.d || 10) >= 8);
+    const redCavalry = family === 'takeda' && o.kind === 'cavalry';
+    o = { ...o, terrainRanks: o.terrainRanks ?? this.def.distantOrganicRanks, yose, flagRate: redCavalry ? 1 : o.flagRate };
+    const R = rng(o.seed || 9);
+    if (!this.hgtTex) {
+      const t = new THREE.DataTexture(this.grid, SEG + 1, SEG + 1, THREE.RedFormat, THREE.FloatType);
+      t.needsUpdate = true;
+      this.hgtTex = t;
+    }
+    const facing = o.facing || 0;
+    // 兵の割合（army_mix.js）：後詰めが付く隊は、小者・陣夫を後詰めの奥の列へ回す。付かない隊は隊の後ろに荷駄の列を作る
+    // 敵の軽い大軍（team 1・敵の家紋）は、小さな隊にも後詰めを付け、本人の見える所へ寄せる（下の foeHostPlace）
+    const foe0 = !o.people && foeNearOn(this.def.battleKey) && (o.team === 1 || (o.team == null && enemyFlagKind(o.mon || o.flag || o.flagTex?.userData.mon)));
+    const kd0 = o.kind || 'mixed', willHost = !o.people && o.host !== false && kd0 !== 'honjin' && kd0 !== 'cavalry' && (o.count || 300) >= (foe0 ? foeHostMin() : 60) && !this.nearView;
+    o.mix = o.mix || mixFor(this.def.battleKey);
+    if (o.ownPorters === undefined) o.ownPorters = !willHost && (o.count || 300) >= 30;
+    let L;
+    if (o.people) {
+      const KD = { spear: 0, gun: 1, bow: 2, samurai: 3, banner: 4, rider: 5, seated: 6, porter: K_PORTER };
+      L = { list: o.people.map((p) => ({ wx: p.x, wz: p.z, yawW: p.facing ?? facing, k: KD[p.k] ?? (p.k | 0), helm: p.helm ?? (KD[p.k] >= 3 ? 1 : 0), ex: p.ex ?? (p.k === 'spear' ? 1.2 : 0), general: p.general, flag: p.flag ?? (p.k === 'banner' || p.k === 'seated' ? 0 : 1), yaw: 0 })) };
+    } else { L = armyLayout(o, R); if (!yose && o.fieldRanks !== true && (o.kind || 'mixed') !== 'honjin' && o.clump !== false) clumpRanks(L.list, o); }
+    if (yose && o.people) {
+      L.list.sort((a, b) => (b.k >= 3 ? 1 : 0) - (a.k >= 3 ? 1 : 0) || (b.k === 5 && (b.ex === 0 || b.ex === 2) ? 1 : 0) - (a.k === 5 && (a.ex === 0 || a.ex === 2) ? 1 : 0));
+      L.nImp = L.list.filter((p) => p.k >= 3).length;
+    }
+    const S = L.list, N = S.length;
+    if (LOG) { const c = {}; for (const q of S) c[q.k] = (c[q.k] || 0) + 1; LOG.push({ w: o.people ? 'people' : 'army', mon, kind: o.kind || 'mixed', n: N, c }); }
+    // 指定した山城だけ、遠景の騎馬武者も徒立ちへ。馬の形と材質を作る前に替える。
+    if (this.def.distantFootOnly) for (const s of S) if (s.k === 5) { s.k = 3; s.ex = 0; }
+    const near = o.near ?? N <= 160;
+    const armor = redCavalry ? 0xb52c20 : o.armor || 0x2a2622;
+    const flagKind = o.flag || o.mon || o.flagTex?.userData.mon || 'tokugawa';
+    const fieldFlag = this.def.armyFlagKinds?.[flagKind];
+    const flagTex = redCavalry ? flagTexture(flagKind === 'furin' ? 'furin_kiba' : 'takeda_kiba') : fieldFlag ? flagTexture(fieldFlag) : o.flagTex || flagTexture(flagKind);
+    const U = {
+      ...clothCore(fieldFlag || flagKind, armor, redCavalry || family === 'takeda' ? 3 : 0),
+      uYose: { value: yose ? 1 : 0 },
+      uFieldRanks: { value: o.fieldRanks === true && o.kind === 'spear' ? 1 : 0 },
+      uOrganicRanks: { value: o.terrainRanks ? 1 : 0 },
+      uAT: WIND, uGust: GUST, uIdle: ARMY_IDLE, uMarch: { value: 0 }, uCharge: { value: 0 }, uTurn: { value: 0 }, uRout: { value: 0 }, uRoutT: { value: 0 },
+      uHgt: { value: this.hgtTex }, uHP: { value: new THREE.Vector3(this.half, this.step, SEG) },
+      // 地面と実兵が三角形を使う戦では、軽い控えも同じ面へ据える。
+      uTerrainTriangles: { value: this.def.terrainTriangles && this.def.distantTerrainTriangles !== false ? 1 : 0 },
+      // 本人から60m（ARMY_REAL_R）の内の軽い兵は描かない（棒人間を出さない。10/10 kaito「なんで棒人間まだいるの」）。そこは本物の兵で埋める
+      uNear: { value: 0 }, uUnavailable: { value: 0 }, uRealNear: ARMY_REAL_R,
+      uMoveLim: { value: this.def?.moveLim || 176 },
+    };
+    // 長い守兵の列だけ、中ほどの立体を保つ距離を隊ごとに指定できる。
+    if (o.detailMiddle != null) U.uSplitR = { value: new THREE.Vector2(16, o.detailMiddle) };
+    // 低の近景は顔・袖・兜を残す軽い立体。遠さに応じて三段階で形を替える。
+    const body = new THREE.InstancedMesh(soldierGeo(armor, near || SETTINGS.quality !== 'low' ? near : 'lo'), armyShader(new THREE.MeshLambertMaterial({ vertexColors: true }), U), N);
+    if (!SASHI_GEO) { SASHI_GEO = clothGeo(0.42, 0.78, 3, 1, 0, 2.62, -0.17, 11); BANNER_GEO = clothGeo(0.86, 3.0, 3, 6, 0.3, 5.2, 0.14, 12); }
+    const flagMat = armyShader(new THREE.MeshLambertMaterial({ map: flagTex, side: THREE.DoubleSide }), U);
+    if (redCavalry && !KIBA_FLAG_GEO) KIBA_FLAG_GEO = clothGeo(0.3, 1.05, 3, 3, 0, 2.62, -0.17, 11);
+    const flags = new THREE.InstancedMesh(redCavalry ? KIBA_FLAG_GEO : SASHI_GEO, flagMat, N);
+    const info = new Float32Array(N * 4), info2 = new Float32Array(N * 2);
+    const d = new THREE.Object3D(), col = new THREE.Color(), cf = Math.cos(facing), sf = Math.sin(facing);
+    const riders = [], bearers = [], chiefs = [];
+    const lk = redCavalry || family === 'takeda' ? 3 : armyLacKind(mon, armor);
+    let sx = 0, sz = 0;
+    S.forEach((s, i) => {
+      let x, z, yaw;
+      if (s.wx !== undefined) { x = s.wx; z = s.wz; yaw = s.yawW; } else {
+        x = o.x + s.lx * cf + s.lz * sf; z = o.z - s.lx * sf + s.lz * cf;
+        yaw = facing + s.yaw + (R() - 0.5) * (yose || U.uFieldRanks.value ? 0.04 : 0.24);
+      }
+      // 山際の控えは列を緩く蛇行させる。人数と進軍の軸は保ち、高さは移した地点で読む。
+      if (o.terrainRanks && s.wx === undefined) {
+        x += Math.sin(s.lz * 0.19 + o.seed) * 1.6;
+        z += Math.sin(s.lx * 0.13 + o.seed * 0.7) * 3.2;
+      }
+      sx += x; sz += z;
+      // 高さは形の側で地面から読み直す（ここの高さは画面の外かどうかの判断用）
+      d.position.set(x, this.heightAt(x, z), z);
+      d.rotation.set(0, yaw, 0);
+      // 背丈と肩幅のばらつき（ときどき大柄な者・小柄な者）
+      // 11/1：背丈は ±5%・肩幅は ±10% ほど（近い兵の揺らぎに合わせる。乱数の数は同じ）
+      const tall = yose && s.k === 5 && s.ex === 2 ? 1.02 : 0.872 + R() * 0.1;
+      const width = 0.9 + R() * 0.2;
+      d.scale.set(tall * width, tall, tall * (0.96 + (width - 1) * 0.6));
+      d.updateMatrix();
+      body.setMatrixAt(i, d.matrix); flags.setMatrixAt(i, d.matrix);
+      // 一人ずつ少し色が違う（使い込んだ具足）
+      body.setColorAt(i, !redCavalry && yose && s.k === 5 && s.ex === 2 ? col.set(0xe7c07a) : s.k === K_PORTER ? soldierTint(col, R).multiply(PORTER_TINT) : soldierTint(col, R, lk));
+      info.set([R(), s.k, s.helm, s.ex], i * 4); info2.set([s.flag, R()], i * 2);
+      if (s.k === 5) { riders.push(i); if (yose && family === 'takeda' && s.ex === 2) chiefs.push(i); }
+      if (s.k === 4) bearers.push(i);
+    });
+    const setInfo = (mesh, idx) => {
+      const a = new Float32Array(idx.length * 4), b = new Float32Array(idx.length * 2);
+      idx.forEach((j, n) => { a.set(info.subarray(j * 4, j * 4 + 4), n * 4); b.set(info2.subarray(j * 2, j * 2 + 2), n * 2); });
+      mesh.geometry = armyGeometryCopy(mesh.geometry);
+      mesh.geometry.setAttribute('aInfo', new THREE.InstancedBufferAttribute(a, 4));
+      mesh.geometry.setAttribute('aInfo2', new THREE.InstancedBufferAttribute(b, 2));
+      mesh.geometry.setAttribute('aHost', new THREE.InstancedBufferAttribute(new Float32Array(idx.length), 1));
+    };
+    const all = S.map((_, i) => i);
+    setInfo(body, all); setInfo(flags, all);
+    this.lodTwin(body, armor);
+    body.userData.lod.deep = true;   // 遠い軍勢の体（乱戦の見せ物 addClash とは分ける）
+    this.lodFlag(flags);
+    const grp = new THREE.Group();
+    grp.add(body, flags);
+    const m4 = new THREE.Matrix4();
+    const copyTo = (mesh, idx) => { idx.forEach((j, n) => { body.getMatrixAt(j, m4); mesh.setMatrixAt(n, m4); }); setInfo(mesh, idx); };
+    // 幟（旗持ちの竿から垂れる）
+    let banners = null;
+    if (bearers.length) {
+      let geo = BANNER_GEO, mat = armyShader(new THREE.MeshLambertMaterial({ map: yose && !redCavalry && !this.def.armyFlagKinds ? yoseFlagTexture(family) : flagTex, side: THREE.DoubleSide }), U);
+      if (yose) {
+        if (!YOSE_BANNER_GEO) YOSE_BANNER_GEO = clothGeo(0.66, 3.7, 3, 6, 0.3, 5.2, 0.14, 12);
+        geo = YOSE_BANNER_GEO;
+        const compile = mat.onBeforeCompile;
+        mat.onBeforeCompile = (sh) => { compile(sh); if (family === 'takeda' && !redCavalry && !this.def.armyFlagKinds) sh.vertexShader = sh.vertexShader.replace('#include <uv_vertex>', '#include <uv_vertex>\n vMapUv.x = (clamp(vMapUv.x, 0.008, 0.992) + mod(aInfo.w, 6.0)) / 6.0;'); };
+        mat.customProgramCacheKey = () => family === 'takeda' && !redCavalry && !this.def.armyFlagKinds ? '寄せの幟六色' : '寄せの幟';
+      }
+      banners = new THREE.InstancedMesh(geo, mat, bearers.length);
+      copyTo(banners, bearers); this.lodFlag(banners, true, yose); grp.add(banners);
+    }
+    // 足もとは地形の高さへ合わせる。斜面で浮き、黒い楕円にも見える影の板は置かない。
+    // 馬
+    let horses = null;
+    if (riders.length) {
+      horses = new THREE.InstancedMesh(horseGeo(), armyShader(new THREE.MeshLambertMaterial({ vertexColors: true }), U), riders.length);
+      copyTo(horses, riders); this.lodTwin(horses, null, true, horseGeo(true), 0, horseGeoX3());
+      // 遠くの騎馬が黒い箱に人が乗った形に見えた（critic60 姉川 25）。黒鹿毛・青毛に近い暗い二色をやめ、鹿毛・栗毛の明るさに
+      const HC = [0x4a3424, 0x5a3e28, 0x6a4a30, 0x5e4430, 0x6a5040, 0x7a5434];
+      riders.forEach((i, n) => { col.set(yose && S[i].ex === 2 ? 0x5a3a26 : HC[Math.floor(R() * HC.length)])   /* 大将の馬も鹿毛（真っ白な馬が色の無い物に見えた。critic60 姉川 28） */.multiplyScalar(0.9 + R() * 0.2); horses.setColorAt(n, col); });
+      grp.add(horses);
+    }
+    // 白熊の飾りは中央の一騎だけ。全員の形へ足さず、一枚の形を使い回す。
+    let plumes = null;
+    if (chiefs.length) {
+      if (!YOSE_PLUME_GEO) {
+        const P = [];
+        const crown = new THREE.SphereGeometry(0.23, 8, 4); crown.scale(1.05, 0.75, 1); crown.translate(0, 1.89, -0.03); armyPart(P, crown, 0xeee8d9, 0);
+        for (let i = 0; i < 7; i++) {
+          const a = Math.PI * (0.45 + i * 1.1 / 6), hair = new THREE.ConeGeometry(0.075, 0.55, 4);
+          hair.rotateZ(Math.PI); hair.translate(Math.cos(a) * 0.21, 1.65, -0.12 - Math.sin(a) * 0.17); armyPart(P, hair, 0xe6dfd0, 0);
+        }
+        YOSE_PLUME_GEO = mergeGeometries(P);
+      }
+      plumes = new THREE.InstancedMesh(YOSE_PLUME_GEO, armyShader(new THREE.MeshLambertMaterial({ vertexColors: true }), U), chiefs.length);
+      copyTo(plumes, chiefs); grp.add(plumes);
+    }
+    // 本陣：陣幕と馬印
+    if (o.kind === 'honjin' && o._maku) this.honjinDressing(grp, o, facing);
+    this.scene.add(grp);
+    const cx = o.people ? sx / N : o.x, cz = o.people ? sz / N : o.z;
+    const A = { mesh: grp, x0: 0, U, body, flags, n: N, nImp: L.nImp ?? N, cx, cz, facing, face0: facing, off: new THREE.Vector3(), tw: null, rout: 0, followFn: null , hw0: (o.w || 20) / 2, hd0: (o.d || 10) / 2, people: !!o.people };
+    // 遠くほど兵を間引き、旗は体の二倍まで残す。既存の束と軽い形で旗の林を保つ。
+    const cw = new THREE.Vector3(), outside = armyViewTest(body);
+    // 同じ描画の体・旗・馬は、遠さを一度だけ数える。
+    const lodState = { n: 0, flags: false, gone: false, dd: 0 };
+    let lodFrame = -1, lodCam = null;
+    const lod = (r, cam) => {
+      if (lodFrame === r.info.render.frame && lodCam === cam) return lodState;
+      lodFrame = r.info.render.frame; lodCam = cam;
+      cw.set(A.cx + A.off.x, 0, A.cz + A.off.z).applyMatrix4(grp.matrixWorld);
+      const dd = Math.hypot(cam.position.x - cw.x, cam.position.z - cw.z);
+      // 霧の奥（見通しの一倍半より先）はほとんど見えないので描かない
+      const vis = this.detailVis || this.vis || 230, gone = dd > vis * 1.5 + 30 || outside(cam, 48 + U.uRoutT.value * 12);
+      // 高：45m（本物の兵に替わる輪の外）より先の遠い軍勢は奥ほど間引く（霞の中の人数の厚みは残す）
+      const hiQ = true, near0 = Math.min(hiQ ? 45 : 110, vis * 0.6);
+      const keep = !MEM_TIGHT ? 1 : this.def.denseFront && false ? frontKeep(this.def, dd) : keepStep((dd < near0 ? 1 : Math.max(hiQ ? 0.3 : 0.4, 1 - (dd - near0) / (hiQ ? 180 : 260))) * lowKeep(dd));
+      lodState.n = gone ? 0 : Math.max(A.nImp, Math.ceil(N * keep));
+      lodState.flags = !gone && (!MEM_TIGHT || dd < Math.min(230, vis));
+      lodState.gone = gone;
+      lodState.dd = dd;
+      return lodState;
+    };
+    // 数が 0 になる形（遠い背旗・霧の奥の馬や幟）は、次のコマから描く順に入れない（0 人でも一回ずつ描いていた）。本体の形が見張る
+    flags.userData.maskByBody = true;
+    body.onBeforeRender = (r, sc, cam) => {
+      const l = lod(r, cam); body.count = l.n;
+      flags.layers.mask = l.flags && !flags.userData.lod?.sashiCut ? 1 : 0;
+      for (const m of [banners, horses, plumes]) if (m) m.layers.mask = l.gone ? 0 : 1;
+    };
+    // 高は lodTick の兵ごとの選び（lodSplit）が同じ仕事をする。両方だと元の束を消した上に三つの写しを毎コマ描く
+    if (o.detailPerSoldier && false) this.soldierDetail(body, grp, armor, o.detailMiddle);
+    // 背の旗は描く体の数まで（体の無い旗が宙に浮く。kaito 11/2 T）
+    flags.onBeforeRender = (r, sc, cam) => { const l = lod(r, cam); flags.count = l.flags && !bodyOff(body) ? Math.min(N, l.n) : 0; };
+    //   馬も、低（携帯）では数を減らす（lowKeep）
+    const lodAll = (mesh) => { const n0 = mesh.count; mesh.onBeforeRender = (r, sc, cam) => { const l = lod(r, cam); mesh.count = l.gone || bodyOff(body) ? 0 : Math.max(mesh === horses && yose ? Math.min(n0, 21) : 0, Math.ceil(n0 * (mesh === horses ? this.def.denseFront ? frontKeep(this.def, l.dd) : lowKeep(150) : 1))); }; };
+    // 幟は、描く体（前から l.n 人）の旗持ちの分だけ（体の無い幟を宙に浮かせない）
+    if (banners) banners.onBeforeRender = (r, sc, cam) => { const l = lod(r, cam); banners.count = l.gone || bodyOff(body) ? 0 : bodyBound(bearers, l.n); };
+    if (horses) lodAll(horses);
+    if (plumes) lodAll(plumes);
+    // 後詰め：隊の後ろに、同じ旗の軽い兵を厚く続ける（地平を埋める奥行き。本体と同じ動き・崩れ方。戦の数や置き換えには入れない）
+    //   奥の列は小者・陣夫（隊と後詰めを合わせて表の二割。混ぜた備えの隊だけ。槍・鉄砲・弓だけの隊の後ろは一割）
+    //   近い視点（nearView：今の戦はみなこれ）では味方の後詰めは作らない。敵の後詰めだけは、戦ごとの上限（foeHostBudget）の内で作る。
+    //   敵の後詰めは数を足し（foeHostScale）、横に広く、遠い隊は本人の 50〜85m へ前備えとして寄せる（host: false の隊も、寄せる時は前備えを付ける）
+    const fp = foe0 && kd0 !== 'honjin' && kd0 !== 'cavalry' && N >= foeHostMin() ? this.foeHostPlace(o.x, o.z, facing) : null;
+    if (!o.people && (o.host !== false || fp) && kd0 !== 'honjin' && kd0 !== 'cavalry' && N >= (foe0 ? foeHostMin() : 60) && (!foe0 || this.foeHostLeft() >= 30)) {
+      const fs = foe0 ? foeHostScale(this.def.battleKey) : 1;
+      let hn = typeof o.host === 'number' ? o.host : Math.round(Math.max(40, Math.min(420, N * 0.8)) * armyScale(this.def.battleKey) * fs);   // 戦の兵力で厚く（army_scale.js）
+      if (foe0) hn = Math.min(hn, this.foeHostLeft());
+      const pf = Math.min(0.6, (kd0 === 'mixed' ? o.mix.porter : o.mix.porter / 2) * (N + hn) / hn);
+      const h = this.armyHost({ x: fp ? fp.x : o.x, z: fp ? fp.z : o.z, facing: fp ? fp.facing : facing, w: (o.w || 20) * (foe0 ? 1.6 : 1), d: fp ? 2 : o.d || 10, count: hn, armor, flagTex, seed: (o.seed || 9) + 71, U, porter: foe0 ? pf * 0.5 : pf, foe: foe0 });
+      if (h.meshes.length) grp.add(...h.meshes);   // 近い視点（nearView）は空。空の add は three が誤りを出す
+      A.hostD = h.depth; A.host = h;
+      if (foe0) this._foeHostN = (this._foeHostN || 0) + h.n;
+      if (foe0 && h.meshes.length) { const shift = new THREE.Vector3(); for (const m of h.meshes) m.userData.hostShift = shift; A.foeHost = { meshes: h.meshes, cx: h.cx, cz: h.cz, f: h.facing, U: h.U, shift, rot: 0, out: 0, at: -99 }; }
+    }
+    // 逃げる兵は隊の外へ出るので、画面の外かどうかの判断をやめる
+    for (const c of grp.children) if (c.isInstancedMesh) c.computeBoundingSphere();
+    const ctl = (v) => { for (const c of grp.children) { c.position.copy(A.off); if (c.userData.hostShift) c.position.add(c.userData.hostShift); } return v; };
+    grp.advance = (dist, secs, opt = {}) => {
+      const fx = Math.sin(A.face0), fz = Math.cos(A.face0);
+      A.tw = { from: A.off.clone(), to: A.off.clone().add(new THREE.Vector3(fx * dist, 0, fz * dist)), t: 0, secs: secs || Math.abs(dist) / (opt.charge ? 3 : 1.3), charge: !!opt.charge, back: dist < 0 && opt.turn !== false };
+      return grp;
+    };
+    grp.retreat = (dist, secs) => grp.advance(-Math.abs(dist), secs || Math.abs(dist) / 1.3);
+    // 部隊の下知は、初めの向きへ距離だけ進むのでなく、指定された地点へ進む。
+    grp.moveTo = (x, z, secs, opt = {}) => {
+      const lim = (this.def.moveLim || 176) - Math.max(A.hw0, A.hd0) - 2;
+      grp.updateWorldMatrix(true, false);
+      const to = new THREE.Vector3(Math.max(-lim, Math.min(lim, x)), 0, Math.max(-lim, Math.min(lim, z)));
+      grp.worldToLocal(to); to.y = 0; to.x -= A.cx; to.z -= A.cz;
+      const d = to.distanceTo(A.off);
+      A.tw = { from: A.off.clone(), to, t: 0, secs: secs || Math.max(0.1, d / (opt.charge ? 3 : 1.3)), charge: !!opt.charge, back: !!opt.back };
+      return grp;
+    };
+    grp.halt = () => { A.tw = null; return grp; };
+    grp.rout = (opt = {}) => {
+      if (A.rout) return grp;
+      A.rout = 1; A.routHide = opt.hideAfter ?? 40; A.tw = null;
+      U.uRout.value = 1; U.uRoutT.value = 0;
+      for (const c of grp.children) c.frustumCulled = false;
+      return grp;
+    };
+    grp.reform = () => {
+      A.rout = 0; A.tw = null; A.off.set(0, 0, 0); ctl();
+      U.uRout.value = 0; U.uRoutT.value = 0; U.uMarch.value = 0; U.uCharge.value = 0; U.uTurn.value = 0;
+      for (const c of grp.children) { c.visible = true; c.frustumCulled = true; }
+      return grp;
+    };
+    grp.follow = (fn, opt = {}) => { A.followFn = fn; A.gap = opt.gap ?? A.gap ?? 0; A.followSpeed = opt.speed ?? 2.6; return grp; };
+    grp.army = A;
+    // 本物の兵に道を譲る（yieldArmies）ために、形ごとの入れ物と、旗持ち・騎馬の番を覚えておく
+    A.parts = { body, flags, banners, horses, plumes, chiefs, bearers, riders, grp }; A.hid = new Float32Array(N);
+    // 最初に道を譲るコマで、軍勢全体の行列を複製しない。
+    A.base = body.instanceMatrix.array.slice();
+    // 本物の兵に置き換える時に使う：家紋・並び・人ごとの種類（0 槍 1 鉄砲 2 弓 3 侍 4 旗持ち 5 騎馬 6 床几）
+    A.mon = o.mon || o.flag || (o.flagTex && o.flagTex.userData.mon) || null; if (o.team !== undefined) A.team = o.team;   // 家紋の無い軽い大軍でも、敵か味方かを渡せる（無いと味方として起きる）
+    A.yose = yose; A.yoseFamily = family;
+    A.armor = armor; A.kind = o.kind || (o.people ? 'people' : 'mixed'); A.people = !!o.people;
+    A.kinds = S.map((s) => s.k); A.taken = new Uint8Array(N); A.took = 0;
+    // (x, z) に近い、まだ置き換えていない兵を n 人まで選んで隠し、その場所・向き・種類を返す（r m より遠い者は選ばない）
+    // 隠した兵は、大きさを 0 にするだけ（場所は残すので、隊の広がりの計算は変わらない）
+    const tq = new THREE.Quaternion(), tp = new THREE.Vector3(), ts = new THREE.Vector3(), z3 = new THREE.Vector3(0, 0, 0);
+    grp.take = (x, z, n, r = 1e9, pick = null, canStand = null) => {
+      grp.updateWorldMatrix(true, false);
+      const cand = [];
+      for (let i = 0; i < N; i++) {
+        if (A.taken[i]) continue;
+        // 道を譲って隠した兵（大きさ 0）は、元の置き場の行列から向きを取る
+        if (A.base && A.hid[i] > 0) m4.fromArray(A.base, i * 16); else body.getMatrixAt(i, m4);
+        tp.setFromMatrixPosition(m4).add(A.off); tp.applyMatrix4(grp.matrixWorld);
+        // 場外の遠景は戦う兵に替えない。出した後に境界へ飛ばすことを防ぐ。
+        const lim = this.def.moveLim || 176;
+        if (Math.abs(tp.x) > lim - 1 || Math.abs(tp.z) > lim - 1) continue;
+        if (canStand && !canStand(tp.x, tp.z)) continue;
+        const d = Math.hypot(tp.x - x, tp.z - z);
+        if (d < r && (pick ? pick(A.kinds[i]) : A.kinds[i] !== K_PORTER)) cand.push({ i, d, x: tp.x, z: tp.z, yaw: Math.atan2(m4.elements[8], m4.elements[10]) + grp.rotation.y + (A.tw && A.tw.back ? Math.PI : 0) });
+      }
+      cand.sort((a, b) => a.d - b.d);
+      const out = cand.slice(0, n);
+      // 大きさ 0 に（道を譲って既に 0 の兵を分解すると向きが NaN になるので、場所だけ残す）
+      const hide = (mesh, j) => { mesh.getMatrixAt(j, m4); tp.setFromMatrixPosition(m4); m4.makeScale(0, 0, 0).setPosition(tp); mesh.setMatrixAt(j, m4); mesh.instanceMatrix.needsUpdate = true; };
+      // 隠す前の形を覚えておく（give で軽い兵に戻す時に使う）
+      const keep = (mesh, j, i) => { const mm = new THREE.Matrix4(); if (A.base && A.hid[i] > 0) mm.fromArray(A.base, i * 16); else mesh.getMatrixAt(j, mm); return [mesh, j, mm]; };
+      for (const c of out) {
+        A.taken[c.i] = 1; A.took++;
+        const sv = [keep(body, c.i, c.i), keep(flags, c.i, c.i)];
+        hide(body, c.i); hide(flags, c.i);
+        if (banners) { const j = bearers.indexOf(c.i); if (j >= 0) { sv.push(keep(banners, j, c.i)); hide(banners, j); } }
+        if (horses) { const j = riders.indexOf(c.i); if (j >= 0) { sv.push(keep(horses, j, c.i)); hide(horses, j); } }
+        if (plumes) { const j = chiefs.indexOf(c.i); if (j >= 0) { sv.push(keep(plumes, j, c.i)); hide(plumes, j); } }
+        (A.saved || (A.saved = new Map())).set(c.i, sv);
+        c.k = A.kinds[c.i]; c.general = S[c.i].general;
+        if (yose) c.flagKind = fieldFlag || (c.k === 4 ? yoseFlagKinds(family)[Math.round(S[c.i].ex) % 6] : o.flag || family);
+        const mm = sv[0][2]; mm.decompose(tp, tq, ts);
+        c.sx = ts.x; c.sy = ts.y; c.sz = ts.z;
+        c.helm = info[c.i * 4 + 2]; c.ex = info[c.i * 4 + 3]; c.flag = info2[c.i * 2];
+      }
+      return out;
+    };
+    // (x, z) から r m の内に残っている（まだ替えていない）軽い兵の数
+    grp.left = (x, z, r) => {
+      grp.updateWorldMatrix(true, false);
+      let k = 0;
+      for (let i = 0; i < N; i++) { if (A.taken[i]) continue; body.getMatrixAt(i, m4); tp.setFromMatrixPosition(m4).add(A.off); tp.applyMatrix4(grp.matrixWorld); if (Math.hypot(tp.x - x, tp.z - z) < r) k++; }
+      return k;
+    };
+    // take で隠した兵 i を、軽い兵に戻す（本物の兵を大軍の中へ帰す時。帰した兵は、また take で選べる）
+    const giveInv = new THREE.Matrix4(), givePos = new THREE.Vector3();
+    grp.give = (i, pos = null, yaw = null) => {
+      const sv = A.saved && A.saved.get(i);
+      if (!sv || !A.taken[i]) return false;
+      if (pos) {
+        grp.updateWorldMatrix(true, false);
+        giveInv.copy(grp.matrixWorld).invert();
+        givePos.copy(pos).applyMatrix4(giveInv).sub(A.off);
+        const old = sv[0][2].elements, ox = old[12], oz = old[14];
+        const turn = yaw === null ? 0 : yaw - grp.rotation.y - Math.atan2(old[8], old[10]);
+        m4.makeRotationY(turn);
+        for (const [, , mm] of sv) {
+          mm.elements[12] -= ox; mm.elements[14] -= oz;
+          mm.premultiply(m4);
+          mm.elements[12] += givePos.x; mm.elements[14] += givePos.z;
+        }
+      }
+      for (const [mesh, j, mm] of sv) { mesh.setMatrixAt(j, mm); mesh.instanceMatrix.needsUpdate = true; }
+      if (A.base) A.base.set(sv[0][2].elements, i * 16);
+      if (A.hid[i] > 0) A.hidN = Math.max(0, (A.hidN || 0) - 1);
+      A.hid[i] = 0;
+      A.saved.delete(i); A.taken[i] = 0; A.took = Math.max(0, A.took - 1);
+      return true;
+    };
+    A.tick = (dt) => {
+      if (A._autoDistant && (!grp.visible || SETTINGS.reduceMotion)) return;
+      let moving = 0, charge = 0, turn = 0;
+      if (A.rout) {
+        U.uRoutT.value += dt;
+        if (A.routHide && U.uRoutT.value > A.routHide) for (const c of grp.children) c.visible = false;
+      } else if (A.tw) {
+        const T = A.tw; T.t += dt;
+        const k = Math.min(1, T.t / T.secs), e = yose && T.charge ? k * (0.45 + 0.55 * k) : k * k * (3 - 2 * k);
+        A.off.lerpVectors(T.from, T.to, e); ctl();
+        moving = 1; charge = T.charge ? (yose ? Math.max(0, (k - 0.55) / 0.45) : 1) : 0; turn = T.back ? 1 : 0;
+        if (k >= 1) A.tw = null;
+      } else if (A.followFn) {
+        const t = A.followFn();
+        if (t) {
+          // 後ろへ付く：隊の真ん中を、相手の後ろ gap m に置く。向きもゆっくり合わせる
+          const dh = Math.atan2(Math.sin(t.facing - A.facing), Math.cos(t.facing - A.facing));
+          const tx = t.x - Math.sin(t.facing) * A.gap, tz = t.z - Math.cos(t.facing) * A.gap;
+          const px = grp.position.x + A.cx, pz = grp.position.z + A.cz;
+          const dx = tx - px, dz = tz - pz, dl = Math.hypot(dx, dz);
+          const step = Math.min(dl, dt * (A.followSpeed ?? 2.6));
+          if (dl > 0.6) { grp.position.x += dx / dl * step; grp.position.z += dz / dl * step; A.x0 = grp.position.x; moving = 1; }
+          if (Math.abs(dh) > 0.05) {
+            const r = Math.sign(dh) * Math.min(Math.abs(dh), dt * 0.5);
+            A.facing += r; grp.rotation.y += r;
+            // 回った分だけ、隊の真ん中がずれないように置き直す
+            const c = Math.cos(r), s = Math.sin(r), qx = A.cx, qz = A.cz;
+            A.cx = qx * c + qz * s; A.cz = -qx * s + qz * c;
+            grp.position.x = px - A.cx; grp.position.z = pz - A.cz; A.x0 = grp.position.x;
+            moving = 1;
+          }
+        }
+      }
+      // 近づかれて退く（shyTick）：背を向けて行けない側へ下がる。進む・付いて歩くの最中でも、その道ごと横へずらす
+      if (A.shyV && !A.rout) {
+        const sx = A.shyV.x * dt, sz = A.shyV.z * dt;
+        A.off.x += sx; A.off.z += sz;
+        if (A.tw) { A.tw.from.x += sx; A.tw.from.z += sz; A.tw.to.x += sx; A.tw.to.z += sz; }
+        ctl(); A.shyD = (A.shyD || 0) + Math.hypot(sx, sz);
+        moving = 1; charge = 0; turn = A.shyV.turn;
+      }
+      if (A.fadeK !== undefined && A.fadeK > 0) { A.fadeK = Math.max(0, A.fadeK - dt / 3.5); if (!A.fadeK) { grp.visible = false; A.shyV = null; } }
+      // 大軍の上の土埃：歩く・駆ける・崩れる時は足もとから土煙が立ち、止まっていても大勢の足踏みで薄いかすみが漂う（乾いた日だけ）
+      A.dustT = (A.dustT ?? Math.random() * 3) - dt;
+      if (A.dustT <= 0 && N >= 40 && !(A._autoDistant && SETTINGS.reduceMotion)) {
+        const run = charge || A.rout, go = moving || run;
+        // 大きな軍勢ほど、止まっていても足踏みの土煙が絶えない
+        const big = Math.max(0.4, Math.min(1, 250 / (N + (A.hostD ? N * 0.8 : 0))));
+        A.dustT = (run ? 0.35 : go ? 0.8 : 4 + Math.random() * 3) * big;
+        const W = this;
+        if (!(W.rainLevel > 0.4 || (W.wetness || 0) > 0.5)) {
+          const hw = (o.w || 20) * 0.5, hd = (o.d || 10) * 0.5, lx = (Math.random() - 0.5) * 2 * hw, lz = go && redCavalry ? hd - 2.5 - Math.random() * 2 : go ? -hd - Math.random() * (A.hostD || hd) : hd - Math.random() * (2 * hd + (A.hostD || 0));
+          const c = Math.cos(A.facing), sn = Math.sin(A.facing);
+          const rc = Math.cos(grp.rotation.y), rs = Math.sin(grp.rotation.y);
+          const x = grp.position.x + A.cx + rc * A.off.x + rs * A.off.z + lx * c + lz * sn;
+          const z = grp.position.z + A.cz - rs * A.off.x + rc * A.off.z - lx * sn + lz * c;
+          if (!W.inWaterAt(x, z) && grp.visible && W.dustVeil) {
+            const dust = W.dustCloud(x, z, !!run || (go && o.kind === 'cavalry'), !!A._autoDistant);
+            if (go && !run && dust) {
+              const q = dust;
+              if (q) { q.s1 *= 1.5; q.a *= 0.7; q.rise *= 0.45; }
+            }
+            if (!go && dust) { dust.a *= 0.6; dust.s1 *= 1.5; dust.life *= 1.6; }
+          }
+        }
+      }
+      // 歩き出し・止まりはなめらかに
+      // 手本の動画（ref_video_1103）：号令は隊の端から順に伝わる。隊ごとに歩き出しの速さを少しずらし、一斉に動く機械の揃いを消す
+      U.uMarch.value += (moving - U.uMarch.value) * Math.min(1, dt * 2.5 * (0.7 + ((o.seed || 9) * 0.6180339 % 1) * 0.6));
+      U.uCharge.value += (charge - U.uCharge.value) * Math.min(1, dt * 1.5);
+      U.uTurn.value += (turn - U.uTurn.value) * Math.min(1, dt * 1.8);
+    };
+    // 前備えのためだけに作った遠い敵の隊は、前と同じく本物の兵に替えない（台本の take・left・give は空のまま）
+    if (farFoe) { A.noWake = true; grp.take = () => []; grp.left = () => 0; grp.give = () => false; }
+    this.armies = this.armies || [];
+    this.armies.push(A);
+    return grp;
+  }
+
+
+  // 敵の後詰めの置き場（10/30「敵の大軍が小さい・遠い」）：本人の持ち場から見通しの七割（多くは 63m・最大 95m）より遠い隊は、後詰めを隊の後ろでなく、
+  //   本人へ向かう線の上の 50〜85m（隊の 35m 前・霧の見通しの七割半まで）に前備えとして寄せる（本人の方を向き、奥へ厚く並ぶ）。近い隊・水の上・高さの違う所は隊の後ろのまま。
+  //   見せ物だけ（戦の数・本物の兵・当たり・bot には入らない）。本人とカメラの 36〜44m の内は描かない（world_army_shader.js）
+  foeHostPlace(x, z, facing) {
+    const P = this.lastFocus || this.spawnAt || this.def.spawn;
+    if (!P || this.def.noFoeNear) return null;
+    // 霧の見通しの六割より奥は霞で白く消えるので、見通しの短い戦（80〜92m）ほど近くへ。
+    //   戦の支度の時はまだ霧が決まっていないので、world_update.js と同じ見通しの上限（battleViewDistance・80〜110m の 1.15 倍）から見積もる
+    const vis = Math.max(60, Math.min(this.scene.fog?.far || 999, 1.15 * Math.max(80, Math.min(110, this.def.battleViewDistance ?? 80))));
+    const dx = P.x - x, dz = P.z - z, d = Math.hypot(dx, dz);
+    if (d < Math.min(95, vis * 0.68)) return null;
+    //   隊の 35m 前（本人が寄っても隊と一緒に見えるよう、本人の側へ寄せすぎない）。見通しの七割弱・70m まで
+    //   （11/2 c_army_thick：85m では霞に溶けて点の列になっていた。軽い兵の霞が半ばの帯＝見通しの七割の内に置く）
+    const ux = dx / d, uz = dz / d, at0 = Math.max(50, Math.min(Math.max(55, Math.min(70, vis * 0.68)), d - 35));
+    const h0 = this.heightAt(P.x, P.z);
+    // 川・堀・崖に当たる時は、線の上を前後に、また横へずらして陸を探す
+    for (const [da, side] of [[0, 0], [10, 0], [0, 16], [0, -16], [18, 0], [-6, 0], [10, 24], [10, -24]]) {
+      const at = at0 + da, hx = P.x - ux * at + uz * side, hz = P.z - uz * at - ux * side;
+      if (this.inWaterAt(hx, hz) || Math.abs(this.heightAt(hx, hz) - h0) > 14) continue;
+      return { x: hx, z: hz, facing: Math.atan2(ux, uz) };
+    }
+    return null;
+  }
+
+
+  // 後詰め（隊の後ろに続く軽い兵の厚い層）を作る。返す物：{ meshes, depth }（入れ物に足すのは呼ぶ側）
+  // o：{ x, z, facing, w, d, count, armor, flagTex, seed, U }
+  //   (x, z, facing) は隊の真ん中と向き、w・d は隊の幅と奥行き。U は動き（進む・崩れる）を共にする隊の uniform
+  //   奥ほど列の間が開き、横へ少し広がり、霧の色へ沈む。ところどころ備えの切れ目、後ろの列には幟の林
+  //   形は後詰め用の軽い形を使い回し、遠いほど数を間引く。カメラの近く（ARMY_NEAR の外 25m まで）は描かない
+  // 敵の後詰めの残りの人数（一つの戦で army_scale.js の foeHostBudget まで）
+  foeHostLeft() { return foeHostBudget(this.def.battleKey) - (this._foeHostN || 0); }
+
+  // 敵の前備え（後詰め）を見える所へ（10/31 gap_army2：開戦25秒の画面に敵の大軍が薄い。多くの戦で、前備えも本物の敵もカメラの向きの外に居る）。
+  //   見せ物だけ（戦の数・本物の兵・当たり・bot には入らない）。形・材質・兵の数は足さず、すでにある前備えを回して移すだけ（記憶は増えない）。
+  //   画面の内（本人から、本物の兵の輪の外〜見通しの六割＋16m）の前備えが二つ未満の時、2秒続けて画面の外にある前備えを、カメラの前の本人から 50〜75m（輪の外）へ移し、
+  //   霞から一人ずつ現れさせる（3秒）。移すのは敵の側（もとの隊への向きがカメラの向きの 100 度の内）だけ。一つの前備えは 6 秒に一度まで。
+  foeHostView(rt, dt) {
+    const T = this._fhv || (this._fhv = { t: 0, n: -1, list: null, v: new THREE.Vector3(), q: new THREE.Vector3(), pts: [] });
+    const all = this.armies || [];
+    if (T.n !== all.length) { T.n = all.length; T.list = all.filter((a) => a.foeHost); }
+    const L = T.list;
+    if (!L.length) return;
+    for (const A of L) { const u = A.foeHost.U.uHostIn; if (u.value < 1) u.value = Math.min(1, u.value + dt / 3); }
+    T.t -= dt; if (T.t > 0) return; T.t = 0.25;
+    const cam = rt.camera, P = rt.player?.u?.pos, D = this.def;
+    if (!cam?.isPerspectiveCamera || !P || D.noFoeNear || D.town || D.dojo || D.duel || rt.over || rt.flags?.quiet || (rt.prelude && rt.prelude !== 'done')) return;
+    cam.getWorldDirection(T.v);
+    const fl = Math.hypot(T.v.x, T.v.z);
+    if (fl < 0.2) return;
+    const cf = Math.atan2(T.v.x / fl, T.v.z / fl), half = Math.atan(Math.tan(cam.fov * Math.PI / 360) * cam.aspect) * 0.9;
+    const vis = Math.max(60, Math.min(this.scene.fog?.far || 999, 160));
+    const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
+    const pts = T.pts; pts.length = 0;
+    const h0 = this.heightAt(P.x, P.z), lim = (D.moveLim || 176) + 20, rn = (ARMY_REAL_R.value || 0) + 4, r0 = Math.max(rn + 8, Math.min(58, vis * 0.5));   // 11/2 c_army_thick：75m では霞の奥の点の列。中景の帯（軽い兵の霞が半ば）へ   // 本物の兵に任せる輪（ARMY_REAL_R）の内は軽い兵を描かないので、その外へ
+    let inV = 0;
+    for (const A of L) {
+      const H = A.foeHost, m = H.meshes[0], g = A.mesh;
+      if (!m.parent || !g.visible || A.rout || A.tw) { H.out = 0; continue; }
+      T.q.set(H.cx, 0, H.cz).applyMatrix4(m.matrix).applyMatrix4(m.parent.matrixWorld);
+      const dx = T.q.x - cam.position.x, dz = T.q.z - cam.position.z, d = Math.hypot(T.q.x - P.x, T.q.z - P.z);
+      // 本人から離れすぎた前備え（本人が進んで霞の奥に残った物）も、見えていないのと同じに数える
+      if (d > Math.max(32, rn) && d < r0 + 20 && Math.abs(wrap(Math.atan2(dx, dz) - cf)) < half) { inV++; H.out = 0; pts.push(T.q.x, T.q.z); } else H.out += 0.25;
+    }
+    if (inV >= 3) return;   // 中景に前備えを三つ重ねる（形は使い回し。記憶は増えない）
+    for (const A of L) {
+      const H = A.foeHost, g = A.mesh;
+      if (inV >= 3) break;
+      if (H.out < 2 || rt.t - H.at < 6 || !g.visible || A.rout || A.tw) continue;
+      const ax = g.position.x + A.cx + A.off.x - P.x, az = g.position.z + A.cz + A.off.z - P.z;
+      if (Math.hypot(ax, az) > 1 && Math.abs(wrap(Math.atan2(ax, az) - cf)) > 1.75) continue;
+      let sx = 0, sz = 0, ok = false;
+      for (const [k, dr] of [[0.1, 0], [0.5, 6], [-0.45, 6], [0.25, 16], [-0.25, 16], [0.7, 0], [-0.7, 0], [0, -10]]) {   // 11/2 c_army_thick：画面の真ん中の中景から埋め、左右と奥へ重ねる
+        const h = cf + k * half, r = r0 + dr;
+        sx = P.x + Math.sin(h) * r; sz = P.z + Math.cos(h) * r;
+        if (Math.abs(sx) > lim || Math.abs(sz) > lim || this.inWaterAt(sx, sz) || Math.abs(this.heightAt(sx, sz) - h0) > 14) continue;
+        let near = false;
+        for (let i = 0; i < pts.length; i += 2) if (Math.hypot(pts[i] - sx, pts[i + 1] - sz) < 20) { near = true; break; }
+        if (!near) { ok = true; break; }
+      }
+      if (!ok) continue;
+      // 隊の入れ物の中の座標へ。前備えは本人の方を向く
+      g.updateMatrixWorld();
+      const tq = g.worldToLocal(T.q.set(sx, 0, sz));
+      const rot = Math.atan2(P.x - sx, P.z - sz) - g.rotation.y - H.f, c = Math.cos(rot), s = Math.sin(rot);
+      H.shift.set(tq.x - (H.cx * c + H.cz * s), 0, tq.z - (-H.cx * s + H.cz * c));
+      for (const m of H.meshes) { m.rotation.y = rot; m.position.copy(A.off).add(H.shift); }
+      H.rot = rot; H.at = rt.t; H.out = 0; H.U.uHostIn.value = 0;
+      pts.push(sx, sz); inV++;
+    }
+  }
+
+  armyHost(o) {
+    if (this.nearView && !o.foe) return { meshes: [], depth: 0, n: 0 };
+    const R = rng(o.seed || 31);
+    const F = o.facing || 0, cf = Math.cos(F), sf = Math.sin(F);
+    const w = o.w || 20, hd = (o.d || 10) / 2, n = Math.max(1, o.count | 0);
+    // 大きい戦（army_scale.js）は奥行きの上限も伸ばす（地平まで続く備え）。列の数の上限も同じ割合
+    const big = armyScale(this.def.battleKey) * (o.foe ? 1.25 : 1), depth = Math.max(10, Math.min(42 * big, n / Math.max(6, w * 0.8) * 1.4 + 4));
+    const S = [];
+    // 前の列から後ろへ：列の間は奥ほど開き（1.1m → 1.8m）、横は奥ほど少し広がる
+    let z = -hd - 1.2, row = 0;
+    const cuts = [];
+    for (let x = -w / 2 + 8 + R() * 8; x < w / 2 - 4; x += 10 + R() * 8) cuts.push(x);   // 備えの切れ目
+    while (S.length < n && row < 60 * big) {
+      const t = Math.min(1, (-z - hd) / depth);
+      const ww = w * (1 + t * 0.35), sx = 1.0 + t * 0.45;   // 奥ほど横へ広がる（地平へ続く大軍の幅）
+      const cols = Math.max(2, Math.round(ww / sx));
+      for (let c = 0; c < cols && S.length < n; c++) {
+        const lx = -ww / 2 + (c + 0.5) * ww / cols + (R() - 0.5) * sx * 0.5;
+        if (cuts.some((q) => Math.abs(lx / (1 + t * 0.25) - q) < 0.8 + t * 1.2)) continue;
+        if (R() < 0.06 + t * 0.12) continue;   // 奥ほどまばらに
+        const r = R();
+        // 幟は奥ほど多く（後ろの備えの旗の林）。列にそろえず散らす
+        //   （11/2 c_army_thick：前の列にも幟を立て、奥は林にする。同じ一回の描きの内で数だけ）
+        const k = r < 0.06 + t * 0.1 ? 4 : r < 0.18 ? 3 : 0;
+        S.push({ lx, lz: z + (R() - 0.5) * 0.6, t, k, ex: k === 0 ? 1.2 + R() * 0.45 : 0, helm: k === 3 || R() < 0.1 ? 1 : 0, flag: k === 4 ? 0 : R() < 0.82 ? 1 : 0 });
+      }
+      z -= 1.0 + t * 0.4; row++;   // 列の間を詰めて、同じ数で厚い塊を手前に（重さは同じ）
+    }
+    const realDepth = -z - hd;
+    // 奥の列を小者・陣夫（具足の無い姿）にするのはやめた（kaito 11/2 Q「軍勢の中に民間人のような人が混ざっている。消す」）。o.porter は使わず、兵のままにする
+    // 寄せた敵の後詰めは、水の上と戦場の外に立たせない
+    if (o.foe) { const lim = (this.def.moveLim || 176) + 30; for (let i = S.length - 1; i >= 0; i--) { const q = S[i], x = o.x + q.lx * cf + q.lz * sf, zz = o.z - q.lx * sf + q.lz * cf; if (Math.abs(x) > lim || Math.abs(zz) > lim || this.inWaterAt(x, zz)) S.splice(i, 1); } }
+    // 遠くで間引く時にまだらに残るよう混ぜる
+    for (let i = S.length - 1; i > 0; i--) { const j = Math.floor(R() * (i + 1)); [S[i], S[j]] = [S[j], S[i]]; }
+    if (!S.length) return { meshes: [], depth: 0, n: 0 };
+    const N = S.length, U = { ...o.U, uRealNear: ARMY_REAL_R, uNear: { value: 0 }, uUnavailable: { value: 0 } };
+    if (o.foe) U.uHostIn = { value: 1 };   // 見える所へ移った前備えが霞から現れる割合（foeHostView）
+    if (!SASHI_GEO) { SASHI_GEO = clothGeo(0.42, 0.78, 3, 1, 0, 2.62, -0.17, 11); BANNER_GEO = clothGeo(0.86, 3.0, 3, 6, 0.3, 5.2, 0.14, 12); }
+    const body = new THREE.InstancedMesh(armyGeometryCopy(hostGeo(o.armor || 0x2a2622)), armyShader(new THREE.MeshLambertMaterial({ vertexColors: true }), U), N);
+    const flags = new THREE.InstancedMesh(armyGeometryCopy(SASHI_GEO), armyShader(new THREE.MeshLambertMaterial({ map: o.flagTex, side: THREE.DoubleSide }), U), N);
+    const bear = [];
+    const info = new Float32Array(N * 4), info2 = new Float32Array(N * 2), host = new Float32Array(N);
+    const d = new THREE.Object3D(), col = new THREE.Color(), hk = armyLacKind(o.mon || o.flag || o.flagTex?.userData.mon, o.armor);
+    S.forEach((q, i) => {
+      const x = o.x + q.lx * cf + q.lz * sf, zz = o.z - q.lx * sf + q.lz * cf;
+      d.position.set(x, this.heightAt(x, zz), zz);
+      d.rotation.set(0, F + (R() - 0.5) * 0.3, 0);
+      // 奥の者ほど少し大きく（遠い大軍が点の列に縮まないように。平たくせず三方へ同じ割合）
+      const up = 1 + q.t * 0.16;
+      d.scale.set((0.9 + R() * 0.2) * up, (0.85 + R() * 0.27) * up, (0.9 + R() * 0.2) * up);
+      d.updateMatrix();
+      body.setMatrixAt(i, d.matrix); flags.setMatrixAt(i, d.matrix);
+      // 奥ほど少し色が浅く（遠い者は細部が潰れて灰色がかる）
+      //   敵の後詰めは霞へ溶かしすぎない（旗の赤と具足の暗さを残す）
+      soldierTint(col, R, hk).lerp(new THREE.Color(0.92, 0.92, 0.9), q.t * (o.foe ? 0.08 : 0.25));
+      if (q.k === K_PORTER) col.multiply(PORTER_TINT);   // 小者は具足でなく褪せた麻の色
+      body.setColorAt(i, col);
+      info.set([R(), q.k, q.helm, q.ex], i * 4); info2.set([q.flag, R()], i * 2); host[i] = (0.12 + 0.88 * q.t) * (o.foe ? -0.45 : 1);
+      if (q.k === 4) bear.push(i);
+    });
+    const attr = (mesh, idx) => {
+      const a = new Float32Array(idx.length * 4), b = new Float32Array(idx.length * 2), h = new Float32Array(idx.length);
+      idx.forEach((j, m) => { a.set(info.subarray(j * 4, j * 4 + 4), m * 4); b.set(info2.subarray(j * 2, j * 2 + 2), m * 2); h[m] = host[j]; });
+      mesh.geometry.setAttribute('aInfo', new THREE.InstancedBufferAttribute(a, 4));
+      mesh.geometry.setAttribute('aInfo2', new THREE.InstancedBufferAttribute(b, 2));
+      mesh.geometry.setAttribute('aHost', new THREE.InstancedBufferAttribute(h, 1));
+    };
+    const all = S.map((_, i) => i);
+    attr(body, all); attr(flags, all); this.lodFlag(flags);
+    const meshes = [body, flags];
+    let banners = null;
+    if (bear.length) {
+      banners = new THREE.InstancedMesh(armyGeometryCopy(BANNER_GEO), armyShader(new THREE.MeshLambertMaterial({ map: o.flagTex, side: THREE.DoubleSide }), U), bear.length);
+      const m4 = new THREE.Matrix4();
+      bear.forEach((j, m) => { body.getMatrixAt(j, m4); banners.setMatrixAt(m, m4); });
+      attr(banners, bear); this.lodFlag(banners, true); meshes.push(banners);
+    }
+    // 遠いほど軽く：兵を間引き、背の指物は見通しの内だけ。霧の奥は描かない
+    const cx = o.x - sf * (hd + realDepth / 2), cz = o.z - cf * (hd + realDepth / 2), cw = new THREE.Vector3();
+    const lodState = { gone: false, keep: 1, flags: false };
+    const lod = (mesh, cam) => {
+      cw.set(cx, 0, cz).applyMatrix4(mesh.matrix); if (mesh.parent) cw.applyMatrix4(mesh.parent.matrixWorld);   // 前備えは回して移すので、位置だけでなく回りも入れる
+      const dd = Math.hypot(cam.position.x - cw.x, cam.position.z - cw.z), vis = this.detailVis || this.vis || 230;
+      const gone = dd > vis * 1.5 + 30 + realDepth / 2;
+      lodState.gone = gone;
+      lodState.keep = !MEM_TIGHT ? 1 : this.def.denseFront && false ? frontKeep(this.def, dd, true) : keepStep((dd < 50 ? 1 : Math.max(0.3, 1 - (dd - 50) / 180)) * lowKeep(dd, true));   // 後詰めは 50m より先を奥ほど間引く
+      lodState.flags = !gone && (!MEM_TIGHT || dd < Math.min(230, vis));
+      return lodState;
+    };
+    body.onBeforeRender = (r, sc, cam) => { const l = lod(body, cam); body.count = l.gone ? 0 : Math.ceil(N * l.keep); };
+    // 遠い塊は、とても遠い兵の形（一人 160 面ほど）で描く（lodTick。中ほどの形は持たない）
+    this.lodTwin(body, o.armor || 0x2a2622, false);
+    flags.onBeforeRender = (r, sc, cam) => { const l = lod(flags, cam); flags.count = l.flags && !bodyOff(body) ? Math.min(N, Math.ceil(N * l.keep)) : 0; };   // 体の数まで（T）
+    // 低（携帯）でも軽い旗の束を残す。見通しの外は描かない。
+    if (banners) banners.onBeforeRender = (r, sc, cam) => { const l = lod(banners, cam); banners.count = l.gone || bodyOff(body) ? 0 : bodyBound(bear, Math.ceil(N * l.keep)); };   // 描く体の旗持ちの分だけ（T）
+    for (const m of meshes) m.computeBoundingSphere();
+    return { meshes, depth: realDepth, n: N, cx, cz, facing: F, U };
+  }
+
+
+  // 戦う隊の後ろに、同じ旗・同じ並びの軽い兵を続けて置く（戦う兵と遠景の境目を消す）
+  // o：{ x, z, facing, flag（家紋の鍵）か flagTex, armor, kind, w, depth, count, gap, seed }
+  //   (x, z) は戦う隊の真ん中、facing はその向き。軽い兵はその後ろ gap m（既定 5）から depth m の奥行きで並ぶ
+  // 返す物は addDistantArmy と同じ（advance・rout・follow が使える）。
+  //   隊に付いて歩かせるには：b.follow(() => g.count ? { ...centerOf(g), facing: g.facing } : null)
+  addBacking(o) {
+    const w = o.w || 16, depth = o.depth || 10, gap = o.gap ?? 5, f = o.facing || 0;
+    const back = gap + depth / 2;
+    const grp = this.addDistantArmy({
+      x: 0, z: 0, w, d: depth, count: o.count || Math.round(w * depth * 0.8), facing: f, armor: o.armor, flagTex: o.flagTex, flag: o.flag, seed: o.seed || 77, kind: o.kind || 'spear',
+    });
+    grp.position.set(o.x - Math.sin(f) * back, 0, o.z - Math.cos(f) * back);
+    grp.army.x0 = grp.position.x;
+    grp.army.gap = back;
+    return grp;
+  }
+
+
+  // 軽い大軍の合戦：二つの軽い大軍が一本の前線で向き合い、前の列どうしで槍を叩き合い、押し合う（兵力の数には入れない）
+  // o：{ x, z, facing, w, gap, gap0, closeSpeed, seed, A, B, play, smoke, link, killRate, maxDrift, noRout, noWake, nearHide }
+  //   (x, z) は前線の真ん中、facing は A の向き（B はその逆を向く）、w は前線の幅、gap は前の列どうしの間（既定 3.4m）
+  //   A・B：{ flag か flagTex, armor, count, guns（二列目が鉄砲）, bows（後ろから矢）, flagRate }
+  //          team（0 味方・1 敵）・faction（兵の家）を渡すと本物の兵に替えられる。hidden で描かない（柵の内の本物の兵が受ける側など）
+  //   gap0：はじめの間（0 ならはじめから組み合っている。go() で寄せ合う）
+  //   play(音, 位置, 大きさ)・smoke(x, y, z, fx, fz)：戦の側の音と硝煙（rt.army.play・rt.army.smoke）
+  //   link()：本物の兵の前線の場所 { x, z } を返す（その近くの前線は、本物の押し引きに合わせて動く）
+  // 返す物（C）：
+  //   C.go()                      寄せ合って組み合う
+  //   C.push(side, k)             side（'A'|'B'）の側へ押す力を足す（k は 0〜1。0 で戻す）
+  //   C.shake(side, v)            side の士気を v 下げる（寝返り・横槍など）
+  //   C.rout(side, { from, hideAfter, minFight })   side が崩れて逃げる（from：-1 左の端から・1 右の端から・0 ばらばら。minFight 秒は組み合ってから待つ）
+  //   C.cavalry(side, { from, count, flag, armor, delay })   side の騎馬の塊が、相手の横（from の端）へ突っ込む
+  //   C.volley(side)・C.arrows(side)   鉄砲の一斉射撃（煙）・矢の雨
+  //   C.take(side, x, z, n, r)    (x, z) に近い兵を n 人隠し、その場所・向き・種類を返す（本物の兵に置き換える時に。addDistantArmy の take と同じ形）
+  //   C.stat()                    { phase, A: 生きている数, B, mA: 士気, mB, lostA, lostB }
+  addClash(o, deferred = null) {
+    if (this.def.noFake) {
+      // 11/13 K285：絵だけの乱戦の兵も作らない。台本の呼び口（go・push・rout・stat…）と .mesh だけを持つ空の乱戦を返す（姉川 b_anegawa.js:599・4028 が落ちないように）
+      const C = { o, mesh: new THREE.Group(), x: o.x, z: o.z, facing: o.facing || 0, phase: 'wait', blocks: [], woke: [], cav: [], later: [], drift: 0, empty: true };
+      C.A = { U: {}, alive: 0, m: 100, lost: 0, routed: false }; C.B = { U: {}, alive: 0, m: 100, lost: 0, routed: false };
+      for (const name of ['go', 'push', 'shake', 'rout', 'volley', 'arrows', 'cavalry', 'reinforce', 'giveBack']) C[name] = (key) => { if (name === 'rout' && C[key]) C[key].routed = true; return C; };
+      C.left = () => 0; C.take = () => []; C.tick = () => {}; C.frontAt = () => ({ x: C.x, z: C.z });
+      C.stat = () => ({ phase: C.phase, A: 0, B: 0, mA: 100, mB: 100, lostA: 0, lostB: 0, drift: 0, routed: C.A.routed ? 'A' : C.B.routed ? 'B' : '' });
+      return C;
+    }
+    if (this.noOda && !deferred) for (const [s, t] of [['A', 0], ['B', 1]]) {
+      const q = o[s], m = q && (q.flag || q.mon || q.flagTex?.userData.mon);
+      if (m === 'oda' || m === 'eiraku') { const k = this.noOda[q.team ?? t]; o = { ...o, [s]: { ...q, flag: k, mon: k, flagTex: flagTexture(k) } }; }
+    }
+    // 遠い乱戦は設定だけ保管する。近づくまで形・材質・土煙・戦闘の更新を作らない。
+    // noWake でも後で近づく兵は省かず、設定と台本の指示を同じ乱戦へ引き継ぐ。
+    if (!deferred && o.noWake && this.outsideNearView(o.x, o.z, (o.w || 60) / 2)) {
+      const C = { o, mesh: new THREE.Group(), x: o.x, z: o.z, facing: o.facing || 0,
+        phase: o.gap0 ? 'wait' : 'fight', blocks: [], woke: [], cav: [], later: [], drift: 0 };
+      C.A = { U: {}, alive: o.A?.count || 0, m: 100, lost: 0, routed: false };
+      C.B = { U: {}, alive: o.B?.count || 0, m: 100, lost: 0, routed: false };
+      // 遠景の更新間隔が使う列数は、形を作らず同じ式で求める。
+      const nb = Math.max(1, Math.min(CLASH_NB, Math.round((o.w || 60) / (o.bw || 6))));
+      const cols = Math.max(2, Math.round((o.w || 60) / nb / 0.95));
+      for (const key of ['A', 'B']) C[key].rows = Math.max(3, Math.round((o[key]?.count || nb * cols * 8) / nb / cols));
+      const commands = [];
+      for (const name of ['go', 'push', 'shake', 'rout', 'volley', 'arrows', 'cavalry', 'reinforce', 'giveBack']) {
+        C[name] = (key, value, count, pos, yaw) => {
+          // 続けて出る押し引きは最後の値、士気の変化は合計だけを保つ。
+          let old;
+          for (const q of commands) if (q.name === name && (name === 'go' || name === 'push' || q.key === key)) { old = q; break; }
+          if (old && (name === 'go' || name === 'push' || name === 'shake' || name === 'rout')) {
+            if (name === 'shake') old.value += value;
+            else { old.key = key; old.value = value; }
+          } else commands.push({ name, key, value, count, pos, yaw });
+          if (name === 'go' && C.phase === 'wait') C.phase = 'close';
+          if (name === 'rout') C[key].routed = true;
+          return C;
+        };
+      }
+      C.left = () => 0; C.take = () => [];
+      C.stat = () => ({ phase: C.phase, A: C.A.alive, B: C.B.alive, mA: C.A.m, mB: C.B.m,
+        lostA: 0, lostB: 0, drift: 0, routed: C.A.routed ? 'A' : C.B.routed ? 'B' : '' });
+      let activeTick = null, firstCmds = null;
+      C.tick = (dt, focus) => {
+        // やり直し（最初から）の写しは起こす前の C に戻す（fx・形が消える）。その時は起こし直す（10/31 設楽原で C.fx が無いで止まった）
+        if (activeTick && !C.fx) { activeTick = null; if (!commands.length && firstCmds) commands.push(...firstCmds); }
+        if (activeTick) { activeTick(dt, focus); return; }
+        if (!C.mesh.visible || this.outsideNearView(o.x, o.z, (o.w || 60) / 2)) return;
+        const wrappedTick = C.tick;
+        this.addClash(o, C);
+        activeTick = C.tick;
+        C.tick = wrappedTick;
+        for (const q of commands) C[q.name](q.key, q.value, q.count, q.pos, q.yaw);
+        if (!firstCmds) firstCmds = commands.slice();
+        commands.length = 0;
+        activeTick(dt, focus);
+      };
+      this.clashes = this.clashes || [];
+      this.clashes.push(C);
+      return C;
+    }
+    const R = rng(o.seed || 5);
+    // 演出のばらつきで討たれる抽選を変えない。
+    const effectR = rng((o.seed || 5) + 701);
+    if (!this.hgtTex) {
+      const t = new THREE.DataTexture(this.grid, SEG + 1, SEG + 1, THREE.RedFormat, THREE.FloatType);
+      t.needsUpdate = true;
+      this.hgtTex = t;
+    }
+    const F = o.facing || 0, cf = Math.cos(F), sf = Math.sin(F);
+    const W = o.w || 60, gap = o.gap ?? 3.4;
+    const nb = Math.max(1, Math.min(CLASH_NB, Math.round(W / (o.bw || 6))));
+    const bwr = W / nb, cols = Math.max(2, Math.round(bwr / 0.95));
+    const toW = (lx, lz) => [o.x + lx * cf + lz * sf, o.z - lx * sf + lz * cf];
+    const C = Object.assign(deferred || {}, { o, nb, cols, t: 0, phase: o.gap0 ? 'wait' : 'fight', app: o.gap0 ? -o.gap0 / 2 : 0, drift: 0, bias: 0, fx: { dust: 0, snd: o.soundDelay ?? 1, shout: o.shoutDelay ?? 4, gun: 5, bow: 7 }, cav: [], later: [], x: o.x, z: o.z, facing: F });
+    C.blocks = Array.from({ length: nb }, (_, j) => ({ j, lx: -W / 2 + (j + 0.5) * bwr, f: 0, ph: R() * 6.3, fight: o.gap0 ? 0 : 1, hide: 0 }));
+    if (!SASHI_GEO) { SASHI_GEO = clothGeo(0.42, 0.78, 3, 1, 0, 2.62, -0.17, 11); BANNER_GEO = clothGeo(0.86, 3.0, 3, 6, 0.3, 5.2, 0.14, 12); }
+    const grp = deferred ? C.mesh : new THREE.Group();
+    const m4 = new THREE.Matrix4(), q4 = new THREE.Quaternion(), p3 = new THREE.Vector3(), s3 = new THREE.Vector3(1, 1, 1), z3 = new THREE.Vector3(0, 0, 0), yAx = new THREE.Vector3(0, 1, 0);
+    const mkAttr = (geo, n) => {
+      const g = armyGeometryCopy(geo);
+      g.setAttribute('aInfo', new THREE.InstancedBufferAttribute(new Float32Array(n * 4), 4));
+      g.setAttribute('aInfo2', new THREE.InstancedBufferAttribute(new Float32Array(n * 2), 2));
+      g.setAttribute('aClash', new THREE.InstancedBufferAttribute(new Float32Array(n * 4), 4));
+      // 亡骸へ渡す脚・向き・肩の傾き・腰の高さ。討死の時だけ書き込む。
+      g.setAttribute('aDeath', new THREE.InstancedBufferAttribute(new Float32Array(n * 4), 4));
+      g.setAttribute('aHost', new THREE.InstancedBufferAttribute(new Float32Array(n), 1));
+      return g;
+    };
+    const setOne = (mesh, i, s, dead) => {
+      const g = mesh.geometry;
+      g.attributes.aInfo.array.set([s.sd, s.k, s.helm, s.ex], i * 4);
+      g.attributes.aInfo2.array.set([dead ? 0 : s.flag, dead ? R() : s.r2], i * 2);
+      g.attributes.aClash.array.set([s.j, dead && o.measuredMelee ? WIND.value : s.slot, s.row, dead ? 1 : 0], i * 4);
+    };
+    const place = (mesh, i, x, z, yaw, sc) => {
+      p3.set(x, this.heightAt(x, z), z); q4.setFromAxisAngle(yAx, yaw);
+      m4.compose(p3, q4, sc || s3); mesh.setMatrixAt(i, m4);
+    };
+    // 片方の側を作る
+    // 本物に替えない乱戦（台本が本物を立てない）は、本人から 16m の外を描く（11/1。前は 44m の内を描かず、置いた乱戦が画面に写らなかった）。
+    //   本物に替える乱戦は前のまま（本人の輪の内を本物で埋める）。本物の兵の立つ所は形の側で避ける（world_army_shader.js の uRealPts）
+    const clashNear = MID_NEAR && !(o.rt && !o.noWake && !(o.rt.def && o.rt.def.noWake) && o.A?.team !== undefined && o.B?.team !== undefined) ? { value: 16 } : ARMY_REAL_R;
+    const side = (key, sgn) => {
+      const P = o[key] || {};
+      const armor = P.armor || 0x2a2622;
+      const flagKind = P.flag || P.flagTex?.userData.mon || 'tokugawa';
+      const clk = armyLacKind(P.flag || P.flagTex?.userData.mon, armor);
+      const fieldFlag = this.def.armyFlagKinds?.[flagKind];
+      const flagTex = fieldFlag ? flagTexture(fieldFlag) : P.flagTex || flagTexture(flagKind);
+      const rows = Math.max(3, Math.round((P.count || nb * cols * 8) / nb / cols)), per = rows * cols;
+      const U = {
+        ...clothCore(fieldFlag || flagKind, armor, clk),
+        uAT: WIND, uGust: GUST, uIdle: typeof ARMY_IDLE !== 'undefined' ? ARMY_IDLE : { value: 0 }, uTurn: { value: 0 }, uRout: { value: 0 }, uRoutT: { value: 0 },
+        uHgt: { value: this.hgtTex }, uHP: { value: new THREE.Vector3(this.half, this.step, SEG) },
+        // 乱戦だけ別の補間へ戻すと、切岸や道の肩で脚が埋まる。
+        uTerrainTriangles: { value: this.def.terrainTriangles && this.def.clashTerrainTriangles !== false ? 1 : 0 },
+        uBlk: { value: Array.from({ length: CLASH_NB }, () => new THREE.Vector4()) }, uBlk2: { value: Array.from({ length: CLASH_NB }, () => new THREE.Vector4(0, 0, cols, 0)) },
+        uRealNear: o.realNear != null ? { value: Math.max(12, o.realNear) } : clashNear, uSide: { value: sgn }, uApp: { value: C.app }, uAppM: { value: 0 }, uAppC: { value: 0 }, uNearHide: o.nearHide != null ? { value: o.nearHide } : { value: 0 }, uMeasuredMelee: { value: o.weightedMelee ? 2 : o.measuredMelee ? 1 : 0 }, uPressPhase: { value: (o.seed || 5) * 0.37 },
+      };
+      U.uSplitR = { value: new THREE.Vector2(16, this.def.clashMiddleDetail ?? 16) };
+      // 設営後に台本が指定した近距離の設定も、材質を作る前に渡す。
+      if (deferred) Object.assign(U, C[key].U);
+      const S = { key, sgn, P, U, rows, per, n0: per * nb, alive: per * nb, lost: 0, mod: 0, m: 100, routed: false, blk: [], slots: [], near: [], far: [], all: [] };
+      for (let j = 0; j < nb; j++) {
+        const b = C.blocks[j];
+        const perm = Array.from({ length: cols }, (_, c) => c);
+        for (let i = cols - 1; i > 0; i--) { const q = Math.floor(R() * (i + 1)); [perm[i], perm[q]] = [perm[q], perm[i]]; }
+        const sl = [];
+        for (let r = 0; r < rows; r++) for (let c = 0; c < cols && sl.length < per; c++) {
+          const last = r === rows - 1;
+          let k = 0;
+          // 指定した戦だけ大幟の間を広げる。空いた所は同じ人数の槍兵にする。
+          if (last && c % (P.bannerStride ?? 3) === 1) k = 4;   // 既定は三人に一本（kaito 11/2 Q「旗を多く」）
+          else if (P.guns && r === 1) k = 1;
+          else if (P.bows && r === rows - 2) k = 2;
+          else if (R() < 0.12) k = 3;
+          // 押し合う備えは組ごとに肩を寄せる。同じ人数と乱数を保ち、均等な散開にしない。
+          const lx = b.lx + (c + 0.5 - cols / 2) * (bwr / cols) * (o.measuredMelee ? .88 : 1) + (R() - 0.5) * 0.3;
+          const lz = -sgn * (gap / 2 + r * CLASH_ROW + (R() - 0.5) * 0.35);
+          const s = { j, row: r, slot: r * cols + perm[c], lx, lz, yaw: F + (sgn > 0 ? 0 : Math.PI) + (R() - 0.5) * 0.3, k, sd: R(), r2: R(),
+            helm: k === 3 ? 1 : R() < 0.08 ? 1 : 0, ex: k === 0 ? 1.25 + R() * 0.3 : k === 1 && r === 1 ? 1 : 0, flag: k === 4 ? 0 : R() < (P.flagRate ?? 0.8) ? 1 : 0, sc: [0.9 + R() * 0.2, 0.86 + R() * 0.24 + (R() < 0.06 ? 0.06 : 0), 0.9 + R() * 0.2] };
+          sl.push(s);
+          // 近い形（高精細）は前の2列まで。3列目からは遠い形へ（姉川のように合戦が複数同時に組む戦で三角面が重くなり過ぎないよう）
+          (r < 2 ? S.near : S.far).push(s);
+        }
+        sl.sort((a, c) => a.slot - c.slot);
+        S.slots.push(sl);
+        S.blk.push({ k: 0, kd: 0, rt: 0, rDelay: -1, n0: sl.length });
+      }
+      // 遠くで間引く時に後ろの列がまだらに残るよう、後ろの者は混ぜる
+      for (let i = S.far.length - 1; i > 0; i--) { const q = Math.floor(R() * (i + 1)); [S.far[i], S.far[q]] = [S.far[q], S.far[i]]; }
+      // 画質「低」（携帯）：前の列も混ぜておく（遠くで前の列を間引く時に、塊ごと欠けないように。乱数の並びは変えない）
+      if (false) for (let i = S.near.length - 1; i > 0; i--) { const q = (i * 7919 + 13) % (i + 1); [S.near[i], S.near[q]] = [S.near[q], S.near[i]]; }
+      S.all = S.near.concat(S.far);
+      const matB = clashShader(new THREE.MeshLambertMaterial({ vertexColors: true }), U);
+      const lowG = false;   // 低（携帯）は前の列も五角の軽い形
+      const bodyN = new THREE.InstancedMesh(mkAttr(soldierGeo(armor, lowG ? this.def.denseFront ? 'xlo' : 'lo' : true), S.near.length), matB, S.near.length);
+      const bodyF = new THREE.InstancedMesh(mkAttr(soldierGeo(armor, lowG ? 'xlo' : false), Math.max(1, S.far.length)), matB, Math.max(1, S.far.length));
+      bodyF.count = S.far.length;
+      const flags = new THREE.InstancedMesh(mkAttr(SASHI_GEO, S.all.length), clashShader(new THREE.MeshLambertMaterial({ map: flagTex, side: THREE.DoubleSide }), U), S.all.length);
+      const bear = S.all.filter((s) => s.k === 4);
+      const banners = new THREE.InstancedMesh(mkAttr(BANNER_GEO, Math.max(1, bear.length)), clashShader(new THREE.MeshLambertMaterial({ map: flagTex, side: THREE.DoubleSide }), U), Math.max(1, bear.length));
+      banners.count = bear.length;
+      const CAP = o.corpses ?? 360;
+      const dead = new THREE.InstancedMesh(mkAttr(soldierGeo(armor, lowG ? 'xlo' : false), CAP), matB, CAP);
+      dead.count = 0;
+      const col = new THREE.Color();
+      const put = (mesh, list, tag) => list.forEach((s, i) => {
+        const [x, z] = toW(s.lx, s.lz);
+        place(mesh, i, x, z, s.yaw, p3.clone().set(...s.sc));
+        setOne(mesh, i, s, false);
+        if (tag) { s[tag] = i; s.mesh = mesh; }
+      });
+      put(bodyN, S.near, 'mi'); put(bodyF, S.far, 'mi');
+      for (const [mesh, list] of [[bodyN, S.near], [bodyF, S.far]]) list.forEach((s, i) => { mesh.setColorAt(i, soldierTint(col, R, clk)); });
+      S.all.forEach((s, i) => { s.fi = i; });
+      put(flags, S.all, null);
+      bear.forEach((s) => { s.bi = bear.indexOf(s); });
+      put(banners, bear, null);
+      for (let i = 0; i < CAP; i++) { dead.setColorAt(i, col.setRGB(0.85, 0.85, 0.85)); }
+      S.meshes = { bodyN, bodyF, flags, banners, dead, CAP, nd: 0 };
+      grp.add(bodyN, bodyF, flags, banners, dead);
+      if (!P.hidden) {
+        for (const m of [bodyN, bodyF, dead]) this.lodTwin(m, armor, true, null,
+          lowG && this.def.lowArmyDetail && m !== bodyN ? 2 : 0);
+        this.lodFlag(flags); this.lodFlag(banners, true);
+      }
+      for (const m of [bodyN, bodyF, flags, banners, dead]) { m.frustumCulled = false; if (P.hidden) m.visible = false; }
+      // 後詰め：組み合う列の後ろに、同じ旗の軽い兵を厚く続ける（前線が押し引きすると一緒に動く。崩れる時は一緒に逃げる）
+      if (!P.hidden && o.host !== false) {
+        const HU = { uAT: WIND, uGust: GUST, uIdle: U.uIdle, uMarch: { value: 0 }, uCharge: { value: 0 }, uTurn: { value: 0 }, uRout: { value: 0 }, uRoutT: { value: 0 }, uHgt: U.uHgt, uHP: U.uHP };
+        const back = gap / 2 + rows * CLASH_ROW, fs = F + (sgn > 0 ? 0 : Math.PI);
+        const [hx, hz] = toW(0, -sgn * back);
+        // 敵の側の後詰めは厚く・横に広く・霞へ溶かしすぎない（置き場は列の後ろのまま）
+        const foeH = P.team === 1 && foeNearOn(this.def.battleKey) && this.foeHostLeft() >= 30;
+        let hn = typeof P.host === 'number' ? P.host : Math.round(Math.max(60, Math.min(480, (P.count || nb * cols * 8) * 0.7)) * armyScale(this.def.battleKey) * (foeH ? foeHostScale(this.def.battleKey) : 1));
+        if (foeH) hn = Math.min(hn, this.foeHostLeft());
+        // 組み合う列の後ろの奥は小者・陣夫（前線には出さない。army_mix.js）
+        const h = this.armyHost({ x: hx, z: hz, facing: fs, w: W * (foeH ? 1.4 : 1.05), d: 0, foe: foeH, count: hn, armor, flagTex, seed: (o.seed || 5) * 13 + (sgn > 0 ? 1 : 2), U: HU, porter: Math.min(0.6, mixFor(this.def.battleKey).porter * ((P.count || nb * cols * 8) + hn) / hn) });
+        if (foeH) this._foeHostN = (this._foeHostN || 0) + h.n;
+        const hg = new THREE.Group();
+        if (h.meshes.length) hg.add(...h.meshes);   // 近い視点（nearView）は空。空の add は three が誤りを出す
+        for (const m of h.meshes) m.frustumCulled = false;
+        grp.add(hg);
+        S.host = { g: hg, U: HU, fx: Math.sin(fs), fz: Math.cos(fs) };
+      }
+      return S;
+    };
+    C.A = side('A', 1); C.B = side('B', -1);
+    const sides = [C.A, C.B];
+    this.scene.add(grp);
+    C.mesh = grp;
+    // 遠くほど軽く：後ろの列を間引き、背の指物をやめる。霧の奥は描かない
+    const lodState = { gone: false, dd: 0, keep: 1, flags: false };
+    let lodFrame = -1, lodCam = null;
+    const lod = (r, cam) => {
+      if (lodFrame === r.info.render.frame && lodCam === cam) return lodState;
+      lodFrame = r.info.render.frame; lodCam = cam;
+      const dx = cam.position.x - o.x, dz = cam.position.z - o.z;
+      const lx = Math.max(0, Math.abs(dx * cf - dz * sf) - W / 2), lz = Math.max(0, Math.abs(dx * sf + dz * cf) - 12);
+      const dd = Math.hypot(lx, lz), vis = this.detailVis || this.vis || 230;
+      const gone = dd > vis * 1.5 + 30, near0 = Math.min(60, vis * 0.5);   // 高は 60m より先の後ろの列を間引く（前の二列は全員）
+      lodState.gone = gone; lodState.dd = dd;
+      lodState.keep = !MEM_TIGHT ? 1 : this.def.denseFront && false ? frontKeep(this.def, dd) : (dd < near0 ? 1 : Math.max(0.3, 1 - (dd - near0) / 220)) * lowKeep(dd);
+      lodState.flags = !gone && (!MEM_TIGHT || dd < Math.min(230, vis));
+      return lodState;
+    };
+    for (const S of sides) {
+      const M = S.meshes, nF = S.far.length, nA = S.all.length, nN = S.near.length;
+      const outside = armyViewTest(M.bodyN, this.def.lowArmyDetail ? [M.bodyF, M.flags, M.banners] : null);
+      let sideFrame = -1, sideCam = null, sideGone = false;
+      const sideLod = (r, cam) => {
+        if (sideFrame === r.info.render.frame && sideCam === cam) return sideGone;
+        sideFrame = r.info.render.frame; sideCam = cam;
+        const l = lod(r, cam);
+        if (l.gone) return sideGone = true;
+        // 全列の範囲を取った低画質は、揺れ・前詰め・逃走の余裕だけ足す。
+        const margin = this.def.lowArmyDetail ? 12 : 48;
+        let padding = margin + S.rows * CLASH_ROW + Math.abs(S.U.uApp.value);
+        for (const b of S.U.uBlk.value) padding = Math.max(padding, margin + S.rows * CLASH_ROW + Math.abs(S.U.uApp.value) + Math.abs(b.x) + b.w * 12);
+        return sideGone = outside(cam, padding);
+      };
+      //   低（携帯）：背の指物を描かない遠さでは、前の列も間引く（指物は兵と同じ番号で並ぶので、指物のある内は間引かない）
+      // 0 人になる背旗・幟・後ろの列は、次のコマから描く順に入れない（前の列の形が見張る）
+      M.flags.userData.maskByBody = true;
+      const nbAll = M.banners.count;
+      M.bodyN.onBeforeRender = (r, sc, cam) => { const l = lod(r, cam); const g = l.gone || sideLod(r, cam); M.flags.layers.mask = l.flags && !g && !M.flags.userData.lod?.sashiCut ? 1 : 0; M.banners.layers.mask = g || !M.banners.count && !nbAll ? 0 : 1; M.bodyF.layers.mask = g || !nF ? 0 : 1; M.dead.layers.mask = M.dead.count ? 1 : 0; M.bodyN.count = sideLod(r, cam) ? 0 : l.flags || true ? nN : Math.ceil(nN * Math.min(1, frontKeep(this.def, l.dd) * 1.5)); };
+      M.bodyF.onBeforeRender = (r, sc, cam) => { const l = lod(r, cam); M.bodyF.count = sideLod(r, cam) ? 0 : Math.ceil(nF * l.keep); };
+      M.flags.onBeforeRender = (r, sc, cam) => { const l = lod(r, cam); M.flags.count = l.flags && !sideLod(r, cam) && !bodyOff(M.bodyN) ? nN + Math.min(nF, Math.ceil(nF * l.keep)) : 0; };   // 体の数まで（T）
+      const nb0 = M.banners.count;
+      // 幟は前の列の旗持ち全員と、奥の列で描く体（前から ceil(nF*keep) 人）の旗持ちだけ（体の無い幟を浮かせない。T）
+      const bearNear = S.all.filter((q) => q.k === 4 && q.mesh === M.bodyN).length, bearFarMi = S.all.filter((q) => q.k === 4 && q.mesh === M.bodyF).map((q) => q.mi);
+      M.banners.onBeforeRender = (r, sc, cam) => { const l = lod(r, cam); M.banners.count = sideLod(r, cam) || bodyOff(M.bodyN) && bodyOff(M.bodyF) ? 0 : Math.min(nb0, bearNear + bodyBound(bearFarMi, Math.ceil(nF * l.keep))); };
+    }
+    const other = (S) => (S === C.A ? C.B : C.A);
+    const sideOf = (k) => (k === 'B' ? C.B : C.A);
+    // 塊 j の前線の世界の場所
+    C.frontAt = (j, dz = 0) => { const b = C.blocks[j]; const [x, z] = toW(b.lx, b.f + dz); return { x, z }; };
+    C.blockNear = (x, z) => {
+      const dx = x - o.x, dz = z - o.z, lx = dx * cf - dz * sf;
+      const j = Math.max(0, Math.min(nb - 1, Math.floor((lx + W / 2) / bwr)));
+      const p = C.frontAt(j);
+      return { j, d: Math.hypot(p.x - x, p.z - z) };
+    };
+    // 兵 s の今の世界の場所
+    const posOf = (S, s) => {
+      const B = S.blk[s.j], kc = B.kd / cols, fr = Math.floor(kc);
+      const sh = s.row <= fr ? fr : kc;
+      const off = S.sgn * C.blocks[s.j].f + sh * CLASH_ROW + C.app;
+      return toW(s.lx, s.lz + S.sgn * off);
+    };
+    // 敗走中の一人の足元を描画と同じ速さ・向きで求める。声と泥で共用し、入れ物を増やさない。
+    const retreatPoint = { x: 0, z: 0 };
+    // 打撃音は短い待ち時間だけ穂先を拾い直す。音数も兵の抽選も増やさない。
+    const contactSound = o.contactMelee ? { pending: false, escape: false, side: null, j: 0, until: 0, next: 0 } : null;
+    // 設楽原の接地待ちは固定の入れ物を循環させ、毎こま増やさない。
+    const impacts = o.contactMelee ? new Float64Array(16 * 4) : null;
+    const impactPoint = { x: 0, z: 0 };
+    let impactSlot = 0;
+    // 描く時と同じ、一人の向き・体格で列の押し引きと踏み込みを世界の位置へ移す。
+    // 隊全体の向きで足すと、斜めを向く兵や背丈の違う兵の討死・泥が横へ飛ぶ。
+    // 描く体・倒れる体・足元の土で押す拍子を共用する。兵の抽選は変えない。
+    const pressurePhase = (time, j, row) => time * (0.83 + (j * 0.371 % 1) * 0.24)
+      - j * 0.62 - row * 0.38 + (o.seed || 5) * 0.37;
+    // 描く突き・足元の泥・接触音・倒れ始めで同じ攻守の拍子を使う。
+    // 描画側の個々の間も引き継ぎ、音や泥だけ元の拍子へ戻さない。
+    // 同じ列でも突き返す速さを少し変える。平均の手数を保ち、音・泥・倒れ始めにも渡す。
+    const meleeTempo = (S, s, time) => time * (0.92 + s.sd * 0.16) / (1.5 + (s.j * 0.731 % 1) * 0.8)
+      + (o.seed || 5) * 0.37 + s.j * 0.173 + s.row * 0.09 + (s.sd - 0.5) * 0.28
+      + (S.sgn < 0 ? 0.5 : 0) + 0.07 * Math.sin(time * 0.71 + s.sd * 23)
+      + 0.10 * Math.sin(time * (0.43 + s.sd * 0.17) + s.sd * 41);
+    // 本物の兵が受け持つ近景では、隠れた軽い兵の声や泥を重ねない。
+    // 描画と同じカメラ・本人の輪を使い、毎こま入れ物を作らない。
+    const contactVisible = (p) => {
+      if (!o.contactMelee) return true;
+      const radius = C.A.U.uRealNear.value, near = Math.max(o.nearHide || 0, radius);
+      const camera = ARMY_P.value, player = ARMY_REAL_P.value;
+      return (p.x - camera.x) ** 2 + (p.z - camera.y) ** 2 >= near * near
+        && (p.x - player.x) ** 2 + (p.z - player.y) ** 2 >= radius * radius;
+    };
+    const contactPoint = (S, s, forward, lateral, p) => {
+      const B = S.U.uBlk.value[s.j], kc = B.z / cols, fr = Math.floor(kc);
+      const sh = s.row <= fr + 0.5 ? fr : kc;
+      // 描く列の乱れも引き継ぎ、討死・声・泥だけ整列位置へ戻さない。
+      const disorder = S.U.uBlk2.value[s.j].x * (1 - THREE.MathUtils.smoothstep(s.row, fr + 2, fr + 5));
+      // 描画側で後列が半歩詰めた分も拾い、討死や泥だけ後ろへ跳ね戻さない。
+      const close = disorder * Math.min(CLASH_CLOSE_MAX, Math.max(0, s.row - fr) * CLASH_CLOSE_ROW);
+      const f = (S.sgn * B.x + sh * CLASH_ROW + S.U.uApp.value + forward + close
+        + disorder * (s.sd * 31.17 % 1 - 0.5) * 0.74) * s.sc[2];
+      const l = (lateral + disorder * (s.sd * 19.73 % 1 - 0.5) * 0.62) * s.sc[0];
+      const sin = Math.sin(s.yaw), cos = Math.cos(s.yaw);
+      p.x = o.x + s.lx * cf + s.lz * sf + f * sin + l * cos;
+      p.z = o.z - s.lx * sf + s.lz * cf + f * cos - l * sin;
+    };
+    // 走る兵と転んだ兵の接地点を同じ式で拾う。転倒後は描画と同じ滑り終わりで止める。
+    const escapePoint = (S, s, rt, p) => {
+      const B = S.blk[s.j], j = s.j;
+      let travelAge = rt;
+      if (o.weightedMelee && s.r2 <= 0.1) {
+        const fallAt = 1.2 + s.r2 * 50, stumble = Math.max(0, Math.min(0.5, rt - fallAt));
+        travelAge = Math.min(rt, fallAt) + stumble - stumble * stumble;
+      }
+      const travel = (o.weightedMelee ? (travelAge < 0.45 ? travelAge * travelAge / 0.9 : travelAge - 0.225) : travelAge) * (3 + s.sd * 2.2);
+      const yaw = s.yaw + Math.PI + (s.r2 - 0.5) * 1.7;
+      const kc = B.kd / cols, fr = Math.floor(kc);
+      const sh = s.row <= fr + 0.5 ? fr : kc;
+      const lz = s.lz + S.sgn * (S.sgn * C.blocks[j].f + sh * CLASH_ROW + C.app);
+      p.x = o.x + s.lx * cf + lz * sf + Math.sin(yaw) * travel;
+      p.z = o.z - s.lx * sf + lz * cf + Math.cos(yaw) * travel;
+      if (o.contactMelee) {
+        const U = S.U.uBlk.value[j];
+        const hold = 1 - THREE.MathUtils.smoothstep(rt, 0, 0.7);
+        const mix = U.y * hold * (1 - THREE.MathUtils.smoothstep(s.row, fr + 1.5, fr + 2.6));
+        const turn = Math.PI + (s.r2 - 0.5) * 1.7;
+        contactPoint(S, s, mix * (0.8 + 2.2 * (s.sd * 7.31 % 1)) + Math.cos(turn) * travel,
+          mix * 2.2 * (s.sd * 3.77 % 1 - 0.5) + Math.sin(turn) * travel, p);
+      }
+    };
+    // 敗走の見回しは描画と同じ距離で弱める。近い兵の胸や足だけ横へずらさない。
+    const escapeLook = (S, s, time) => {
+      const x = o.x + s.lx * cf + s.lz * sf, z = o.z - s.lx * sf + s.lz * cf;
+      const far = THREE.MathUtils.smoothstep(Math.hypot(x - ARMY_P.value.x, z - ARMY_P.value.y), 36, 60);
+      return (0.2 * Math.sin(time * 0.07) * Math.sin(time * 0.031 + s.sd * 9)
+        + 0.6 * THREE.MathUtils.smoothstep(Math.sin(time * 0.045 + s.sd * 20), 0.88, 1) * (s.sd > 0.5 ? 1 : -1)
+        + S.U.uIdle.value * 0.16 * Math.sin(time * (0.3 + s.r2 * 0.25) + s.sd * 23)) * 0.15 * far;
+    };
+    // 転倒の接地は、止まった足元から倒れた胸へ移す。描く体と同じ回転・体格を使う。
+    const stumbleContact = (S, s, age, p) => {
+      escapePoint(S, s, age, p);
+      const time = S.U.uAT.value + s.sd * 97 - Math.max(0, age - (1.2 + s.r2 * 50) - 0.5);
+      const yaw = escapeLook(S, s, time) + Math.PI + (s.r2 - 0.5) * 1.7;
+      const tilt = 0.035 * Math.sin(time * 0.23 + s.sd * 5);
+      const tx = -0.8 * Math.sin(tilt), tz = 0.8 * Math.cos(tilt) * Math.sin(1.45);
+      const x = (tx * Math.cos(yaw) + tz * Math.sin(yaw)) * s.sc[0];
+      const z = (-tx * Math.sin(yaw) + tz * Math.cos(yaw)) * s.sc[2];
+      p.x += x * Math.cos(s.yaw) + z * Math.sin(s.yaw);
+      p.z += -x * Math.sin(s.yaw) + z * Math.cos(s.yaw);
+    };
+    const retreatAt = (S, j, p, footfall = false, soil = false) => {
+      const B = S.blk[j], slots = S.slots[j];
+      const count = slots.length - B.k, start = Math.floor(effectR() * count);
+      // いつも先頭の一人から鳴らさず、今走っている兵を選ぶ。
+      // まだ振り向いていない兵や、転んで止まった兵から泥を蹴らせない。
+      // 設楽原は描画の踏み替えが終わる〇・四五秒まで待ち、走る声と土を先行させない。
+      for (let i = 0; i < count; i++) {
+        const s = slots[B.k + (start + i) % count];
+        const age = Math.max(0, B.rt - s.sd * 1.6);
+        if (s.taken || age < (o.contactMelee ? 0.45 : 0.001) || (s.r2 <= 0.1 && age >= 1.2 + s.r2 * 50)) continue;
+        // 土を蹴るのは描画側の走る脚が伸び、踏みしめる短い間だけ。
+        // 声の位置を拾う時は、この足の条件を使わない。
+        const time = S.U.uAT.value + s.sd * 97;
+        // 踏み外し始めた脚からは、着地音も泥も出さない。転倒の接地は別の一度だけ。
+        if (footfall && (o.weightedMelee && age < 0.22
+          || o.contactMelee && s.r2 <= 0.1 && age >= 1.2 + s.r2 * 50 - 0.12
+          || Math.abs(Math.sin(time * 10.5)) < 0.92)) continue;
+        const beat = Math.floor((time * 10.5 + Math.PI / 2) / Math.PI);
+        if (soil && s.escapeSoilBeat === beat || o.contactMelee && footfall && !soil && s.escapeSoundBeat === beat) continue;
+        escapePoint(S, s, age, p);
+        if (o.contactMelee && soil) {
+          // 腰の真下でなく、交互に前へ着く草鞋から泥を蹴る。脚の形・時計・体格を共用する。
+          const ph = Math.sin(time * 10.5), a = -Math.abs(ph) * 0.7;
+          const yaw = escapeLook(S, s, time) + Math.PI + (s.r2 - 0.5) * 1.7;
+          const foot = ph > 0 ? 0.11 : -0.11;
+          const reach = -0.79 * Math.sin(a) + 0.05 * Math.cos(a);
+          const x = (foot * Math.cos(yaw) + reach * Math.sin(yaw)) * s.sc[0];
+          const z = (-foot * Math.sin(yaw) + reach * Math.cos(yaw)) * s.sc[2];
+          p.x += x * Math.cos(s.yaw) + z * Math.sin(s.yaw);
+          p.z += -x * Math.sin(s.yaw) + z * Math.cos(s.yaw);
+        }
+        // 隠れた一人で声と泥の枠を使い切らず、同じ列の見える敗走兵を拾い直す。
+        if (!contactVisible(p)) continue;
+        if (soil) s.escapeSoilBeat = beat;
+        else if (o.contactMelee && footfall) s.escapeSoundBeat = beat;
+        return true;
+      }
+      return false;
+    };
+    // 受け手も描画と同じ突き・引き戻し・後列の詰めを使う。
+    // 音と泥で位置を共有し、受け手だけ構えの位置へ戻さない。
+    const meleeContactPoint = (S, s, p, soil = false) => {
+      const j = s.j, time = S.U.uAT.value, T = time + s.sd * 97;
+      const row = Math.floor(S.blk[j].kd / cols);
+      const strength = S.U.uBlk2.value[j].x;
+      const mix = S.U.uBlk.value[j].y * (1 - THREE.MathUtils.smoothstep(s.row, row + 1.5, row + 2.6));
+      const f = strength * (1 - THREE.MathUtils.smoothstep(s.row, row + 1.5, row + 3));
+      const tempo = meleeTempo(S, s, time), cycle = tempo - Math.floor(tempo);
+      const strike = THREE.MathUtils.smoothstep(cycle, 0.28, 0.38) * (1 - THREE.MathUtils.smoothstep(cycle, 0.43, 0.72));
+      const recover = THREE.MathUtils.smoothstep(cycle, 0.43, 0.55) * (1 - THREE.MathUtils.smoothstep(cycle, 0.72, 0.92));
+      const recoil = THREE.MathUtils.smoothstep(cycle, 0.48, 0.65) * (1 - THREE.MathUtils.smoothstep(cycle, 0.85, 1));
+      let forward = mix * (0.8 + 2.2 * (s.sd * 7.31 % 1))
+        + S.sgn * strength * ARMY_MOTION.value * 0.48 * Math.sin(pressurePhase(time, j, s.row))
+        + f * (0.60 * strike - 0.28 * recoil - 0.08 * recover);
+      let lateral = mix * 2.2 * (s.sd * 3.77 % 1 - 0.5) + f * (s.sd - 0.5) * 0.12 * strike;
+      const q = strength - f;
+      if (q > 0.01) {
+        const brace = (T + s.sd * 13) / (2.4 + s.sd), cycle = brace - Math.floor(brace);
+        const planted = THREE.MathUtils.smoothstep(cycle, 0.18, 0.36) * (1 - THREE.MathUtils.smoothstep(cycle, 0.62, 0.82));
+        forward += q * (0.12 * planted + 0.03);
+        lateral += q * (s.sd - 0.5) * 0.06 * planted;
+      }
+      contactPoint(S, s, forward, lateral, p);
+      if (soil) {
+        // 押し返しと突きの脚を描画と同じ式で拾い、腰でなく着いた草鞋から泥を蹴る。
+        const march = Math.max(S.U.uBlk2.value[j].y, S.U.uAppM.value), idle = S.U.uIdle.value;
+        const stepG = THREE.MathUtils.smoothstep(Math.sin(T * (0.11 + idle * 0.12) + s.sd * 31), 0.55, 0.95);
+        // 寄せから構えへ移る間も、まだ着いている歩きの脚を含める。
+        // 押す脚だけで測ると、実際の草鞋より後ろから泥が出る。
+        let leg = Math.sin(T * (march > 0.01 ? 5.6 : 6.5)) * Math.max(stepG * 0.2, march * 0.42)
+          * (1 - Math.min(1, strength) * (1 - Math.min(1, march)))
+          + S.sgn * strength * ARMY_MOTION.value * 0.16 * Math.cos(pressurePhase(time, j, s.row))
+          + f * (0.46 * strike - 0.18 * recoil - 0.12 * recover);
+        if (q > 0.01) {
+          const brace = (T + s.sd * 13) / (2.4 + s.sd), cycle = brace - Math.floor(brace);
+          leg += q * 0.16 * (Math.sin(THREE.MathUtils.smoothstep(cycle, 0.18, 0.36) * Math.PI)
+            - Math.sin(THREE.MathUtils.smoothstep(cycle, 0.62, 0.82) * Math.PI));
+        }
+        const look = escapeLook(S, s, T) / 0.15 * (1 - Math.min(1, march) * 0.85);
+        const yaw = look * (1 - f) + (s.sd - 0.5) * f * (0.63 + 0.22 * recoil);
+        // 突いた時は前足、引き戻しでは後ろ足へ重さを渡す。
+        const foot = cycle < 0.48 ? -0.11 : 0.11;
+        const angle = foot < 0 ? leg : -leg;
+        const reach = -0.79 * Math.sin(angle) + 0.05 * Math.cos(angle);
+        // 足留めで草鞋の位置も変わるため、泥も同じ補間で接地点へ置く。
+        // 寄せから乱戦へ移る間は足留めを弱め、歩きの草鞋へ滑らかに戻す。
+        const plant = f * (1 - THREE.MathUtils.smoothstep(march, 0.25, 0.8));
+        const advance = THREE.MathUtils.smoothstep(cycle, 0.28, 0.38);
+        const reset = THREE.MathUtils.smoothstep(cycle, 0.48, 0.58);
+        const plantedReach = foot < 0 ? 0.24 + 0.18 * (advance - reset) : -0.22;
+        const drive = f * (0.60 * strike - 0.28 * recoil - 0.08 * recover);
+        const sidestep = f * (s.sd - 0.5) * 0.12 * strike;
+        const x = ((foot * Math.cos(yaw) + reach * Math.sin(yaw)) * (1 - plant)
+          + (foot - sidestep) * plant) * s.sc[0];
+        const z = ((-foot * Math.sin(yaw) + reach * Math.cos(yaw)) * (1 - plant)
+          + (0.05 + plantedReach - drive) * plant) * s.sc[2];
+        p.x += x * Math.cos(s.yaw) + z * Math.sin(s.yaw);
+        p.z += -x * Math.sin(s.yaw) + z * Math.cos(s.yaw);
+      }
+    };
+    const receivingPoint = { x: 0, z: 0 };
+    // 同じ塊の端に一人残るだけで、反対端の空振りまで金属音にしない。
+    // 前列だけを調べ、音の位置は向き合う二人の間へ寄せる。
+    const receivingAt = (S, s, p) => {
+      const E = other(S), B = E.blk[s.j], line = E.slots[s.j];
+      const end = Math.min(line.length, B.k + cols);
+      let nearest = 16, x = 0, z = 0;
+      for (let i = B.k; i < end; i++) {
+        const q = line[i];
+        if (q.taken || q.k !== 0 && q.k !== 3 || B.rt - q.sd * 1.6 >= 0.001
+          || Math.abs(q.lx - s.lx) > 1.6) continue;
+        // 受け手も槍を合わせる構えにある時だけ鳴らす。振りかぶった刀や、
+        // 突き終えて引いた得物へ空振りの金属音を重ねない。攻撃自体は変えない。
+        const tempo = meleeTempo(E, q, E.U.uAT.value), cycle = tempo - Math.floor(tempo);
+        const strength = E.U.uBlk2.value[s.j].x;
+        if (strength < 0.1 || (q.k === 3 ? cycle < 0.28 || cycle > 0.85 : cycle > 0.72)) continue;
+        meleeContactPoint(E, q, receivingPoint);
+        const dx = receivingPoint.x - p.x, dz = receivingPoint.z - p.z;
+        const d = dx * dx + dz * dz;
+        // 刀同士は近間、槍が交わる時は長柄の間合い。背中側の相手では打ち鳴らさない。
+        // 音だけの判定なので、本物の兵の攻撃・被害・手数には触れない。
+        const reach = s.k === 3 && q.k === 3 ? 1.8 : s.k === 3 || q.k === 3 ? 3 : 4;
+        if (d > reach * reach || dx * Math.sin(s.yaw) + dz * Math.cos(s.yaw) < -0.15
+          || dx * Math.sin(q.yaw) + dz * Math.cos(q.yaw) > 0.15) continue;
+        if (d < nearest) { nearest = d; x = receivingPoint.x; z = receivingPoint.z; }
+      }
+      if (nearest === 16) return false;
+      p.x = (p.x + x) * 0.5; p.z = (p.z + z) * 0.5;
+      return true;
+    };
+    // 押す兵の前列から足元を拾う。塊の中央や、討たれて空いた場所から泥を出さない。
+    const meleeFootAt = (S, j, p, phase = 0, soil = false) => {
+      const B = S.blk[j], slots = S.slots[j], count = Math.min(cols, slots.length - B.k);
+      if (count <= 0) return false;
+      if (o.contactMelee && phase === 2) {
+        // 振る側だけで打撃音を決めない。相手の前列が逃げ切ったら具足の音へ移る。
+        // 同じ塊の前列だけを拾い、全兵どうしの探索や新しい入れ物は増やさない。
+        const enemy = other(S), E = enemy.blk[j], line = enemy.slots[j];
+        const end = Math.min(line.length, E.k + cols);
+        let receiving = false;
+        for (let i = E.k; i < end; i++) {
+          const q = line[i];
+          if (!q.taken && (q.k === 0 || q.k === 3) && E.rt - q.sd * 1.6 < 0.001) {
+            receiving = true; break;
+          }
+        }
+        if (!receiving) return false;
+      }
+      const start = Math.floor(effectR() * count);
+      for (let i = 0; i < count; i++) {
+        const s = slots[B.k + (start + i) % count];
+        if (s.taken || o.contactMelee && s.k !== 0 && s.k !== 3) continue;
+        // 踵を返した兵の足元で、突き合いの音や踏み込みの泥を出さない。
+        if (o.contactMelee && B.rt - s.sd * 1.6 >= 0.001) continue;
+        const time = S.U.uAT.value, T = time + s.sd * 97;
+        // 寄せる間も脚が着く拍子だけ土を蹴る。空中の足から泥を出さない。
+        if (phase === 3 && Math.abs(Math.sin(T * 5.6)) < 0.92) continue;
+        const approachBeat = Math.floor((T * 5.6 + Math.PI / 2) / Math.PI);
+        if (phase === 3 && (soil ? s.approachSoilBeat : s.approachSoundBeat) === approachBeat) continue;
+        const tempo = meleeTempo(S, s, time);
+        const cycle = tempo - Math.floor(tempo);
+        // 描く側と同じ踏み込み・穂先の届く間を使う。構えた兵から泥や打撃音を出さない。
+        if ((phase === 1 || phase === 2) && (s.k !== 0 && s.k !== 3 || S.U.uBlk2.value[j].x < 0.1)) continue;
+        // 足を着く短い間に土を蹴り、穂先が伸び切る間にだけ打撃音を合わせる。
+        if (phase === 1 && !(cycle >= 0.38 && cycle < 0.43 || cycle >= 0.52 && cycle < 0.58)) continue;
+        if (phase === 2 && !(cycle >= 0.38 && cycle < 0.43)) continue;
+        if (phase === 1 && o.contactMelee) {
+          // 一度の踏み込みと踏み直しで土を何度も蹴らせない。止めた足の土が脈打つのを防ぐ。
+          const footBeat = Math.floor(tempo) * 2 + (cycle >= 0.52 ? 1 : 0);
+          if (s.footBeat === footBeat) continue;
+        }
+        // 同じ突きの間に音待ちが重なっても、一振りを何度も打ち鳴らさない。
+        // 兵ごとに記録し、攻撃の拍子と兵数には触れない。
+        if (phase === 2 && o.contactMelee) {
+          const strikeCycle = Math.floor(tempo);
+          if (s.clashCycle === strikeCycle) continue;
+        }
+        const kc = B.kd / cols, fr = Math.floor(kc);
+        const sh = s.row <= fr ? fr : kc;
+        const lz = s.lz + S.sgn * (S.sgn * C.blocks[j].f + sh * CLASH_ROW + C.app);
+        p.x = o.x + s.lx * cf + lz * sf;
+        p.z = o.z - s.lx * sf + lz * cf;
+        if (o.contactMelee && C.phase === 'fight') {
+          meleeContactPoint(S, s, p, soil && phase === 1);
+        } else if (o.contactMelee) {
+          contactPoint(S, s, 0, 0, p);
+          if (soil && phase === 3) {
+            // 寄せる間も、腰の真下でなく前へ着いた草鞋から土を蹴る。
+            // 既存の歩調と脚の長さを使い、左右の踏み替えに発生位置を合わせる。
+            const ph = Math.sin(T * 5.6), foot = ph > 0 ? 0.11 : -0.11;
+            const march = Math.max(S.U.uBlk2.value[j].y, S.U.uAppM.value), idle = S.U.uIdle.value;
+            const stepG = THREE.MathUtils.smoothstep(Math.sin(T * (0.11 + idle * 0.12) + s.sd * 31), 0.55, 0.95);
+            const leg = -Math.abs(ph) * Math.max(stepG * 0.2, march * 0.42);
+            const reach = -0.79 * Math.sin(leg) + 0.05 * Math.cos(leg);
+            const yaw = escapeLook(S, s, T) / 0.15 * (1 - Math.min(1, march) * 0.85);
+            const x = (foot * Math.cos(yaw) + reach * Math.sin(yaw)) * s.sc[0];
+            const z = (-foot * Math.sin(yaw) + reach * Math.cos(yaw)) * s.sc[2];
+            p.x += x * Math.cos(s.yaw) + z * Math.sin(s.yaw);
+            p.z += -x * Math.sin(s.yaw) + z * Math.cos(s.yaw);
+          }
+        }
+        if (phase === 2 && o.contactMelee && !receivingAt(S, s, p)) continue;
+        // 実際の足元・交わる槍が見える時だけ、その一歩・一振りを使ったと記録する。
+        // 近景の本物へ隠れた兵を引いても、残る前列の声と泥を止めない。
+        if (!contactVisible(p)) continue;
+        if (phase === 1 && o.contactMelee) s.footBeat = Math.floor(tempo) * 2 + (cycle >= 0.52 ? 1 : 0);
+        if (phase === 2 && o.contactMelee) s.clashCycle = Math.floor(tempo);
+        if (phase === 3) {
+          if (soil) s.approachSoilBeat = approachBeat;
+          else if (o.contactMelee) s.approachSoundBeat = approachBeat;
+        }
+        return true;
+      }
+      return false;
+    };
+    // 一人討たれる：塊の前の列から。倒れ姿を残す
+    const kill = (S, j) => {
+      const B = S.blk[j];
+      if (B.k >= B.n0 - 1 || B.rt > 0) return false;
+      const s = S.slots[j][B.k];
+      B.k++; S.alive--; S.lost++;
+      if (s && !s.taken) {
+        const M = S.meshes, i = M.nd % M.CAP;
+        const [x, z] = posOf(S, s);
+        const fwd = S.sgn * 0.8;
+        const [x2, z2] = [x + sf * fwd * (R() - 0.3), z + cf * fwd * (R() - 0.3)];
+        const deathYaw = R() * 6.28;
+        let deathSpear = 1.1;
+        let deathLeg = 0, poseYaw = 0, deathTilt = 0, deathLift = 0;
+        if (o.measuredMelee) {
+          // 元の体と倒れる体を同時に出さず、同じ向き・大きさで受け渡す。形と材質はそのまま使う。
+          const mix = S.U.uBlk.value[j].y * (1 - THREE.MathUtils.smoothstep(s.row, Math.floor(B.kd / cols) + 1.5, Math.floor(B.kd / cols) + 2.6));
+          let forward = mix * (0.8 + 2.2 * (s.sd * 7.31 % 1));
+          let lateral = mix * 2.2 * (s.sd * 3.77 % 1 - 0.5);
+          if (o.weightedMelee) {
+            // 描く側と同じ踏み込み・押され幅を引き継ぎ、討死の瞬間に構えの位置へ戻さない。
+            const row = Math.floor(B.kd / cols), time = S.U.uAT.value, T = time + s.sd * 97;
+            const strength = S.U.uBlk2.value[j].x;
+            const f = strength * (1 - THREE.MathUtils.smoothstep(s.row, row + 1.5, row + 3));
+            const q = strength - f;
+            const march = Math.max(S.U.uBlk2.value[j].y, S.U.uAppM.value), idle = S.U.uIdle.value;
+            // 肩の傾きも討たれる直前から受け渡し、膝折れの前に直立へ戻さない。
+            deathTilt = 0.035 * Math.sin(T * 0.23 + s.sd * 5)
+              + (s.r2 - 0.5) * 0.05 + idle * 0.03 * Math.sin(T * (0.8 + s.sd * 0.5) + s.r2 * 40)
+              + strength * ARMY_MOTION.value * 0.025 * Math.sin(pressurePhase(time, j, s.row))
+              + q * 0.05 * Math.sin(T * 0.9 + s.sd * 3);
+            const stepG = THREE.MathUtils.smoothstep(Math.sin(T * (0.11 + idle * 0.12) + s.sd * 31), 0.55, 0.95);
+            const planted = 1 - Math.min(1, strength) * (1 - Math.min(1, march));
+            deathLift = Math.abs(Math.sin(T * (march > 0.01 ? 5.6 : 6.5)))
+              * (0.012 + Math.max(stepG * 0.2, march * 0.42) * 0.07) * planted
+              + strength * ARMY_MOTION.value * 0.025 * Math.abs(Math.cos(pressurePhase(time, j, s.row)));
+            deathLeg = Math.sin(T * (march > 0.01 ? 5.6 : 6.5)) * Math.max(stepG * 0.2, march * 0.42)
+              * (1 - Math.min(1, strength) * (1 - Math.min(1, march)))
+              + S.sgn * strength * ARMY_MOTION.value * 0.16 * Math.cos(pressurePhase(time, j, s.row));
+            poseYaw = (0.2 * Math.sin(T * 0.07) * Math.sin(T * 0.031 + s.sd * 9)
+              + 0.6 * THREE.MathUtils.smoothstep(Math.sin(T * 0.045 + s.sd * 20), 0.88, 1) * (s.sd > 0.5 ? 1 : -1)
+              + idle * 0.16 * Math.sin(T * (0.3 + s.r2 * 0.25) + s.sd * 23)) * (1 - Math.min(1, march) * 0.85);
+            // 亡骸では使わない列番号へ、討たれる瞬間の槍の角度を預ける。
+            const regrip = THREE.MathUtils.smoothstep(Math.sin(T * 0.083 + s.sd * 41), 0.9, 1);
+            deathSpear = (s.sd - 0.5) * 0.24 + 0.05 * Math.sin(T * 0.37) + regrip * 0.35
+              + Math.max(S.U.uBlk2.value[j].y, S.U.uAppM.value) * 0.1
+              + Math.max(f * 0.85, S.U.uAppC.value) * 1.15
+              + strength * ARMY_MOTION.value * 0.08 * Math.sin(pressurePhase(time, j, s.row))
+              + q * 0.14 * Math.sin(T * 1.2 + s.sd * 13);
+            forward += S.sgn * strength * ARMY_MOTION.value * 0.48 * Math.sin(pressurePhase(time, j, s.row));
+            if (f > 0.01 && (s.k === 0 || s.k === 3)) {
+              const tempo = meleeTempo(S, s, time);
+              const cycle = tempo - Math.floor(tempo);
+              const strike = THREE.MathUtils.smoothstep(cycle, 0.28, 0.38) * (1 - THREE.MathUtils.smoothstep(cycle, 0.43, 0.72));
+              const recover = THREE.MathUtils.smoothstep(cycle, 0.43, 0.55) * (1 - THREE.MathUtils.smoothstep(cycle, 0.72, 0.92));
+              const recoil = THREE.MathUtils.smoothstep(cycle, 0.48, 0.65) * (1 - THREE.MathUtils.smoothstep(cycle, 0.85, 1));
+              deathTilt += f * (0.075 * strike - 0.1 * recoil + 0.025 * recover);
+              forward += f * (0.60 * strike - 0.28 * recoil - 0.08 * recover);
+              lateral += f * (s.sd - 0.5) * 0.12 * strike;
+              deathLeg += f * (0.46 * strike - 0.18 * recoil - 0.12 * recover);
+              poseYaw += ((s.sd - 0.5) * 0.35 - poseYaw) * f;
+              poseYaw += f * (s.sd - 0.5) * (0.28 + 0.22 * recoil);
+              if (s.k === 3) {
+                const windup = THREE.MathUtils.smoothstep(cycle, 0.12, 0.25) * (1 - THREE.MathUtils.smoothstep(cycle, 0.28, 0.38));
+                deathSpear += f * (-0.9 * windup + 0.85 * strike - 0.24 * recoil);
+              } else {
+                deathSpear += f * (0.48 * strike - 0.08);
+                if (s.sd * 13.71 % 1 >= 0.55) deathSpear += f * (0.28 * recoil - 0.12);
+              }
+              if (s.sd * 13.71 % 1 >= 0.55) deathLift -= f * 0.06 * recoil;
+            }
+            if (q > 0.01) {
+              const brace = (T + s.sd * 13) / (2.4 + s.sd);
+              const cycle = brace - Math.floor(brace);
+              const planted = THREE.MathUtils.smoothstep(cycle, 0.18, 0.36) * (1 - THREE.MathUtils.smoothstep(cycle, 0.62, 0.82));
+              forward += q * (0.12 * planted + 0.03);
+              lateral += q * (s.sd - 0.5) * 0.06 * planted;
+              deathLeg += q * 0.16 * (Math.sin(THREE.MathUtils.smoothstep(cycle, 0.18, 0.36) * Math.PI)
+                - Math.sin(THREE.MathUtils.smoothstep(cycle, 0.62, 0.82) * Math.PI));
+            }
+          }
+          const sin = Math.sin(s.yaw), cos = Math.cos(s.yaw);
+          if (o.contactMelee) contactPoint(S, s, forward, lateral, impactPoint);
+          else { impactPoint.x = x + forward * sin + lateral * cos; impactPoint.z = z + forward * cos - lateral * sin; }
+          place(M.dead, i, impactPoint.x, impactPoint.z, s.yaw, s3.set(...s.sc));
+          s3.set(1, 1, 1);
+          const hide = (mesh, at) => { mesh.getMatrixAt(at, m4); m4.scale(z3); mesh.setMatrixAt(at, m4); mesh.instanceMatrix.needsUpdate = true; };
+          hide(s.mesh, s.mi); hide(M.flags, s.fi);
+          if (s.bi !== undefined) hide(M.banners, s.bi);
+        } else place(M.dead, i, x2, z2, o.groundedMelee ? s.yaw : deathYaw);
+        setOne(M.dead, i, s, true);
+        if (o.weightedMelee) {
+          M.dead.geometry.attributes.aClash.setZ(i, deathSpear);
+          M.dead.geometry.attributes.aDeath.setXYZW(i, deathLeg, poseYaw, deathTilt, deathLift);
+          M.dead.geometry.attributes.aDeath.needsUpdate = true;
+        }
+        if (o.groundedMelee) {
+          M.dead.geometry.attributes.aClash.array[i * 4 + 3] = 2 + S.U.uAT.value;
+          // 倒れる形へ替えた瞬間に立ち姿を隠す。後列が詰める速さは保つ。
+          const bodyAttr = s.mesh.geometry.attributes.aClash;
+          bodyAttr.setY(s.mi, -1); bodyAttr.needsUpdate = true;
+          const flagAttr = M.flags.geometry.attributes.aClash;
+          flagAttr.setY(s.fi, -1); flagAttr.needsUpdate = true;
+          if (s.bi != null) {
+            const bannerAttr = M.banners.geometry.attributes.aClash;
+            bannerAttr.setY(s.bi, -1); bannerAttr.needsUpdate = true;
+          }
+        }
+        M.nd++; M.dead.count = Math.min(M.nd, M.CAP);
+        M.dead.instanceMatrix.needsUpdate = true;
+        for (const a of ['aInfo', 'aInfo2', 'aClash']) M.dead.geometry.attributes[a].needsUpdate = true;
+        const puff = R() < 0.3;
+        if (impacts) {
+          const at = impactSlot * 4;
+          impactSlot = (impactSlot + 1) % 16;
+          // 描く側と同じ膝折れ・倒れる速さで、胴が着く時を求める。
+          const variant = M.dead.geometry.attributes.aInfo2.getY(i);
+          impacts[at] = WIND.value + s.sd * 0.14 + (0.18 + 0.58 + s.sd * 0.2) * (0.8 + variant * 0.5);
+          // 足の根元でなく、描画と同じ横傾き・倒れる向き・体格から胴の接地点を求める。
+          const tilt = (variant - 0.5) * 0.5, fall = variant > 0.5 ? 1.5 : -1.45;
+          const yaw = (s.sd - 0.5) * 1.3, sin = Math.sin(yaw), cos = Math.cos(yaw);
+          const tx = -0.8 * Math.sin(tilt), tz = 0.8 * Math.cos(tilt) * Math.sin(fall);
+          const lx = (tx * cos + tz * sin) * s.sc[0], lz = (-tx * sin + tz * cos) * s.sc[2];
+          impacts[at + 1] = p3.x + lx * Math.cos(s.yaw) + lz * Math.sin(s.yaw);
+          impacts[at + 2] = p3.z - lx * Math.sin(s.yaw) + lz * Math.cos(s.yaw);
+          impacts[at + 3] = puff ? 1 : 0;
+          // 槍を打ち合わせただけで呻かせず、実際に傷を受けた兵から声を出す。
+          // 胴が接地する音と土は、上で予約した倒れ切る時刻に分ける。
+          // 本物の兵へ切り替わって隠れた軽い兵の呻きを、近景に重ねない。
+          if (contactVisible(impactPoint)) play('umeki', impactPoint, 0.6);
+        } else if (puff) this.puff(x2, z2, 1);
+      }
+      return true;
+    };
+    const wetGround = () => this.rainLevel > 0.4 || (this.wetness || 0) > 0.5;
+    const soundPoint = { x: 0, y: 0, z: 0 };
+    const play = (k, p, v) => {
+      if (!o.play || !contactVisible(p)) return;
+      if (o.contactMelee) {
+        // 坂の兵を高さゼロの川底から鳴らさず、接地音と声を地面の高さへ置く。
+        soundPoint.x = p.x; soundPoint.z = p.z;
+        soundPoint.y = this.heightAt(p.x, p.z) + (k === 'bodyLand' || k === 'wade' ? 0.15 : 1.2);
+        o.play(k, soundPoint, v);
+      } else o.play(k, p, v);
+    };
+    C.go = () => { if (C.phase === 'wait') C.phase = 'close'; return C; };
+    C.push = (k, v) => { C.bias = (k === 'B' ? -1 : 1) * v; return C; };
+    C.shake = (k, v) => { sideOf(k).mod -= v; return C; };
+    C.rout = (k, opt = {}) => {
+      const S = sideOf(k);
+      if (S.routed) return C;
+      // minFight：組み合ってからその秒が経つまでは崩れない（寄せてすぐ崩れて、ぶつかり合いが見えないことのないように）
+      const left = (opt.minFight || 0) - (C.fightT || 0) + (C.phase === 'fight' ? 0 : -C.app / 2.5);
+      if (left > 0) { if (!S.routWait) { S.routWait = true; C.later.push({ t: left, fn: () => { S.routWait = false; C.rout(k, { ...opt, minFight: 0 }); } }); } return C; }
+      S.routed = true; S.hideAfter = opt.hideAfter ?? 45; S.routT = 0;
+      const from = opt.from ?? 0;
+      C.blocks.forEach((b, j) => {
+        const B = S.blk[j];
+        if (B.rDelay >= 0) return;
+        const ord = from > 0 ? nb - 1 - j : from < 0 ? j : R() * nb * 0.5;
+        B.rDelay = ord * 0.45 + R() * 1.2;
+      });
+      C.winner = other(S); C.pursueT = 0;
+      // 設楽原は下知の瞬間に全員で叫ばず、最初の塊が振り向く時に声を出す。
+      if (o.contactMelee) S.breakVoice = true;
+      else play('eshout', { x: o.x, z: o.z }, 2);
+      return C;
+    };
+    // 塊をいくつか崩す（横を突かれた端から）
+    const routBlocks = (S, js) => { for (const j of js) { const B = S.blk[j]; if (B.rDelay < 0) B.rDelay = R() * 1.5; } };
+    C.volley = (k) => {
+      const S = sideOf(k), E = other(S);
+      if (S.routed) return C;
+      let n = 0;
+      for (let j = 0; j < nb; j++) {
+        if (R() < 0.35 || S.blk[j].rDelay >= 0) continue;
+        const p = C.frontAt(j, -S.sgn * (gap / 2 + CLASH_ROW * 1.2));
+        // 煙は三つの塊に一つ（煙の板が重なりすぎて重くならないように）。硝煙の名残はさらに間引く
+        if (n++ % 3 === 0) { if (o.smoke) o.smoke(p.x, this.heightAt(p.x, p.z) + 1.4, p.z, sf * S.sgn, cf * S.sgn); else this.gunSmoke(p.x, p.z); }
+        if (R() < 0.6) kill(E, j);
+      }
+      play('volley', { x: o.x, z: o.z }, 1.2);
+      return C;
+    };
+    // 矢の雨：後ろの列から相手の真ん中へ、弧を描いて落ちる
+    C.arrows = (k) => {
+      const S = sideOf(k), E = other(S);
+      if (S.routed) return C;
+      const A = this.clashArrows || this.buildClashArrows();
+      for (let i = 0; i < 70; i++) {
+        const j = Math.floor(R() * nb);
+        const a = C.frontAt(j, -S.sgn * (gap / 2 + S.rows * CLASH_ROW * 0.8)), b = C.frontAt(j, S.sgn * (gap / 2 + 3 + R() * E.rows * CLASH_ROW * 0.8));
+        const lat = (R() - 0.5) * bwr;
+        A.list.push({ x0: a.x + cf * lat, z0: a.z - sf * lat, x1: b.x + cf * lat + (R() - 0.5) * 2, z1: b.z - sf * lat + (R() - 0.5) * 2, t: -R() * 0.8, dur: 2.2 + R() * 0.6, h: 16 + R() * 8 });
+      }
+      if (A.list.length > A.CAP) A.list.splice(0, A.list.length - A.CAP);
+      play('volleyBow', { x: o.x, z: o.z }, 1);
+      C.later.push({ t: 2.6, fn: () => { for (let j = 0; j < nb; j++) if (R() < 0.3) kill(E, j); } });
+      return C;
+    };
+    C.cavalry = (k, opt = {}) => {
+      const S = sideOf(k), E = other(S);
+      const from = opt.from || (R() < 0.5 ? -1 : 1);
+      // 相手の横の端から 40m ほど外、相手の列の中ほどの深さから駆ける
+      const lz = E.sgn * -1 * (gap / 2 + E.rows * CLASH_ROW * 0.5) + C.drift;
+      const lx0 = from * (W / 2 + 42);
+      const [x, z] = toW(lx0, lz);
+      const [tx, tz] = toW(from * (W / 2 - bwr), lz);
+      const face = Math.atan2(tx - x, tz - z);
+      const grp2 = this.addDistantArmy({ x, z, w: 12, d: 16, count: opt.count || 70, facing: face, armor: opt.armor || S.P.armor, flagTex: opt.flagTex, flag: opt.flag || S.P.flag, seed: 300 + C.cav.length, kind: 'cavalry' });
+      grp2.visible = false;
+      const cv = { grp: grp2, from, E, t: -(opt.delay || 0), secs: 9, hit: false, x, z, tx, tz };
+      C.cav.push(cv);
+      return grp2;
+    };
+    // 本物の兵に置き換える：(x, z) に近いまだ生きている兵を n 人隠し、その場所・向き・種類を返す
+    C.left = (k, x, z, r) => {
+      const S = sideOf(k);
+      let n = 0;
+      for (const s of S.all) {
+        if (s.taken || s.slot < S.blk[s.j].k || S.blk[s.j].rt > 0) continue;
+        const [px, pz] = posOf(S, s);
+        if (Math.hypot(px - x, pz - z) < r) n++;
+      }
+      return n;
+    };
+    C.take = (k, x, z, n, r = 1e9) => {
+      const S = sideOf(k);
+      const cand = [];
+      for (const s of S.all) {
+        if (s.taken || s.slot < S.blk[s.j].k || S.blk[s.j].rt > 0) continue;
+        const [px, pz] = posOf(S, s);
+        const d = Math.hypot(px - x, pz - z);
+        if (d < r) cand.push({ s, d, x: px, z: pz, yaw: s.yaw, k: s.k });
+      }
+      cand.sort((a, b) => a.d - b.d);
+      const out = cand.slice(0, n);
+      const M = S.meshes;
+      const hide = (mesh, i) => { mesh.getMatrixAt(i, m4); m4.decompose(p3, q4, s3); m4.compose(p3, q4, z3); mesh.setMatrixAt(i, m4); mesh.instanceMatrix.needsUpdate = true; s3.set(1, 1, 1); };
+      for (const c of out) {
+        c.s.taken = true; S.alive--;
+        hide(c.s.mesh, c.s.mi); hide(M.flags, c.s.fi);
+        if (c.s.bi !== undefined) hide(M.banners, c.s.bi);
+      }
+      C.lastTaken = out.map((c) => c.s);
+      return out.map(({ x, z, yaw, k, s }) => ({ x, z, yaw, k, helm: s.helm, flag: s.flag, sx: s.sc[0], sy: s.sc[1], sz: s.sc[2] }));
+    };
+    // 本物に替えた兵を、軽い兵へ戻す（隠した形を元の置き場に戻す）。list は take で隠した兵、n は戻す数
+    C.giveBack = (k, list, n, pos = null, yaw = null) => {
+      const S = sideOf(k), M = S.meshes;
+      for (const sv of list.slice(0, n)) {
+        if (!sv.taken) continue;
+        sv.taken = false; S.alive++;
+        if (pos) {
+          const dx = pos.x - o.x, dz = pos.z - o.z;
+          sv.lx = dx * cf - dz * sf;
+          const B = S.blk[sv.j], kc = B.kd / cols, fr = Math.floor(kc), sh = sv.row <= fr ? fr : kc;
+          sv.lz = dx * sf + dz * cf - S.sgn * (S.sgn * C.blocks[sv.j].f + sh * CLASH_ROW + C.app);
+          if (yaw !== null) sv.yaw = yaw;
+        }
+        const [x, z] = toW(sv.lx, sv.lz), sc = s3.set(...sv.sc);
+        place(sv.mesh, sv.mi, x, z, sv.yaw, sc); sv.mesh.instanceMatrix.needsUpdate = true;
+        place(M.flags, sv.fi, x, z, sv.yaw, sc); M.flags.instanceMatrix.needsUpdate = true;
+        if (sv.bi !== undefined) { place(M.banners, sv.bi, x, z, sv.yaw, sc); M.banners.instanceMatrix.needsUpdate = true; }
+      }
+    };
+    // 新手（あらて）：k の側の後ろから、新しい軍勢が駆けつけて前線に加わる（着けば、その側は士気を取り戻し、しばらく押す）
+    //   o.surge = { k: 'B', every: 50, count: 120, flank: 0.3 }：組み合っている間、every 秒ごと。flank の割合で、相手の横の端へ回り込む騎馬
+    C.surges = 0;
+    // 新手・回り込みの知らせ：本人から 90m 内の時だけ、25 秒に一度まで（同じ知らせを繰り返さない）
+    const surgeSay = (k, p, flank) => {
+      const rt = o.rt, P = rt && rt.player && rt.player.u;
+      if (!P || !rt.bark || Math.hypot(p.x - P.pos.x, p.z - P.pos.z) > 90 || (rt.t - (this.surgeSaid || -99)) < 25) return;
+      this.surgeSaid = rt.t;
+      const foe = sideOf(k).P.team !== 0;
+      rt.bark(foe ? (flank ? '敵の騎馬が横へ回り込むぞ！' : '敵の新手じゃ！　まだあれほど来るのか……！') : (flank ? '味方の騎馬が敵の横へ回った！' : '味方の後詰が来たぞ！'), foe);
+    };
+    C.reinforce = (k, opt = {}) => {
+      const S = sideOf(k), E = other(S);
+      if (S.routed || C.winner) return C;
+      const j = Math.floor(R() * nb);
+      const back = -S.sgn * (gap / 2 + S.rows * CLASH_ROW + 34);
+      const p0 = C.frontAt(j, back), face = F + (S.sgn > 0 ? 0 : Math.PI);
+      const big = (opt.count || 120) > 180;
+      const g2 = this.addDistantArmy({ x: p0.x, z: p0.z, w: Math.min(bwr * (big ? 6 : 4), big ? 46 : 30), d: big ? 16 : 10, count: opt.count || 120, facing: face, armor: S.P.armor, flagTex: S.P.flagTex, flag: S.P.flag, seed: 500 + C.surges * 7 + (k === 'B' ? 1 : 0), kind: 'spear' });
+      C.surges++;
+      g2.advance(28, 11);
+      play('toki', p0, 1.6);
+      if (big) { play('jindaiko', p0, 1.4); play('tramp', p0, 1.5); }
+      C.later.push({ t: 11, fn: () => {
+        g2.visible = false;
+        S.mod += 18; S.alive = Math.min(S.n0, S.alive + Math.round((opt.gain || opt.count || 120) * 0.4));   // 見た目の数（count）と、戦に足す数（gain）は別
+        const old = C.bias; C.push(k, 0.35);
+        C.later.push({ t: 16, fn: () => { C.bias = old; } });
+        play('eshout', C.frontAt(j), 2);
+      } });
+      if (o.onSurge) o.onSurge(k, p0); else surgeSay(k, p0, false);
+      return C;
+    };
+    C.stat = () => ({ phase: C.phase, A: C.A.alive, B: C.B.alive, mA: Math.round(C.A.m), mB: Math.round(C.B.m), lostA: C.A.lost, lostB: C.B.lost, drift: +C.drift.toFixed(1), routed: C.A.routed ? 'A' : C.B.routed ? 'B' : '' });
+    // 毎こま：寄せ・押し合い・討たれる者・崩れ・音と土煙
+    C.tick = (dt, focus) => {
+      if (C._autoDistant && (!grp.visible || SETTINGS.reduceMotion)) return;
+      // 設楽原の帯は寄せが来るまで待つ。見えない持ち場で音や泥の時計を進めない。
+      if (o.contactMelee && (!grp.visible || C.phase === 'wait')) return;
+      C.t += dt;
+      const t = C.t;
+      if (impacts) for (let at = 0; at < impacts.length; at += 4) {
+        if (impacts[at] <= 0 || WIND.value < impacts[at]) continue;
+        impacts[at] = 0;
+        impactPoint.x = impacts[at + 1]; impactPoint.z = impacts[at + 2];
+        if (contactVisible(impactPoint) && Math.hypot(impactPoint.x - focus.x, impactPoint.z - focus.z) < 150) {
+          play('bodyLand', impactPoint, 0.55);
+          // 浅瀬へ倒れた胴は、具足の音と同時に水を打つ。乾いた場所では鳴らさない。
+          const water = this.inWaterAt(impactPoint.x, impactPoint.z);
+          if (water) play('wade', impactPoint, 0.55);
+          // 土の粒を省く抽選でも、水面へ胴が着いた時は小さな飛沫を残す。
+          // 既存の粒を使い、接地一回に一度だけ。土の足跡は付けない。
+          if (water || impacts[at + 3]) this.puff(impactPoint.x, impactPoint.z, 1, true, false);
+        }
+      }
+      for (let i = C.later.length - 1; i >= 0; i--) { const L = C.later[i]; L.t -= dt; if (L.t <= 0) { C.later.splice(i, 1); L.fn(); } }
+      if (o.weightedMelee) {
+        // 接敵の瞬間に歩幅と槍の構えを切り替えず、短く重さを受け止める。
+        // 前線の速さ・入り混じり・攻撃の拍子と討死の抽選は変えない。
+        const closing = C.phase === 'close' ? 1 : 0;
+        const charge = closing && C.app > -12 ? 1 : 0;
+        const blend = 1 - Math.exp(-dt * 10);
+        for (const S of sides) {
+          S.U.uAppM.value += (closing - S.U.uAppM.value) * blend;
+          S.U.uAppC.value += (charge - S.U.uAppC.value) * blend;
+        }
+      }
+      if (C.phase === 'close') {
+        const sp = Math.max(C.app > -8 ? 3.2 : 1.5, o.closeSpeed || 0);
+        C.app = Math.min(0, C.app + sp * dt);
+        if (!o.weightedMelee) for (const S of sides) { S.U.uAppM.value = 1; S.U.uAppC.value = C.app > -12 ? 1 : 0; }
+        if (!o.contactMelee && C.fx.dust <= 0 && !wetGround()) { C.fx.dust = C._autoDistant ? 3 : 0.25; const j = Math.floor(R() * nb); for (const S of sides) { const p = C.frontAt(j, -S.sgn * (gap / 2 - C.app)); this.dustCloud(p.x, p.z, false, !!C._autoDistant); } }
+        if (C.app >= 0) {
+          C.phase = 'fight';
+          if (!o.contactMelee) play('eshout', { x: o.x, z: o.z }, 2.2);
+          else {
+            // 最初の接触も、帯の中央の空間でなく実際の前列から声を出す。
+            const S = effectR() < 0.5 ? C.A : C.B;
+            if (meleeFootAt(S, Math.floor(effectR() * nb), retreatPoint)) play('eshout', retreatPoint, 1.2);
+          }
+          for (let i = 0; i < 3; i++) {
+            const p = C.frontAt(Math.floor(R() * nb));
+            if (!o.contactMelee) play('clash', p, 1);
+          }
+          if (!o.weightedMelee) for (const S of sides) { S.U.uAppM.value = 0; S.U.uAppC.value = 0; }
+        }
+      }
+      C.fx.dust -= dt;
+      const fight = C.phase === 'fight';
+      if (fight) C.fightT = (C.fightT || 0) + dt;
+      // 押し合う前線は足元も荒れる。乱数と戦闘判定には触らず、一秒ごとに既存の跡へ加える。
+      C.wearT = (C.wearT || 0) + dt;
+      if (fight && C.wearT >= 1 && this.wearData) {
+        C.wearT = 0;
+        for (const b of C.blocks) {
+          this.stampWear(o.x + b.lx * cf + b.f * sf, o.z - b.lx * sf + b.f * cf, Math.min(4, bwr * 0.7), 14);
+        }
+      }
+      // 設楽原は乾いた後も同じ兵の足元から蹴る。湿土は泥、浅瀬は飛沫を既存の粒で出す。
+      if (o.groundedMelee && (fight || C.phase === 'close') && (wetGround() || o.contactMelee) && C.fx.dust <= 0) {
+        // 足元を拾う成否や画面の向きで、討死に使う乱数の順を変えない。
+        C.fx.dust = 0.35 + (o.contactMelee ? effectR() : R()) * 0.35;
+        let j = Math.floor((o.contactMelee ? effectR() : R()) * nb);
+        // 設楽原の押し合いは、踏み込んだ塊で泥が跳ねる。粒数と討死の抽選は保つ。
+        if (o.measuredMelee && !C.winner && C.pressSpeed > 0.3) j = C.pressBlock;
+        let side = (o.contactMelee ? effectR() : R()) < 0.5 ? C.A : C.B;
+        // 追う側が止まった後も、走っている敗走兵の足元へ泥を移す。
+        if (o.contactMelee && C.winner) side = other(C.winner);
+        // 接地を短く待つ間は同じ側・同じ列を拾う。毎回選び直すと、
+        // 踏み直しを待った泥が隣の列へ飛び、待ち時間も足の拍子から離れる。
+        if (o.contactMelee && C.soilUntil) {
+          j = C.soilBlock; side = C.soilSide;
+        }
+        const soilBlock = C.blocks[j];
+        const rt = side.blk[j].rt;
+        const escape = o.measuredMelee ? Math.max(0, rt - 0.8) * 4.1 : Math.min(12, rt * 4);
+        const lz = soilBlock.f - side.sgn * (gap / 2 - C.app + escape);
+        retreatPoint.x = o.x + soilBlock.lx * cf + lz * sf;
+        retreatPoint.z = o.z - soilBlock.lx * sf + lz * cf;
+        const moving = o.contactMelee
+          ? rt > 0 ? retreatAt(side, j, retreatPoint, true, true) : meleeFootAt(side, j, retreatPoint, fight ? 1 : 3, true)
+          : !o.weightedMelee || rt <= 0 || retreatAt(side, j, retreatPoint);
+        if (o.contactMelee) {
+          // 長い間隔の抜き取りで着地を外しても、次の踏みしめを短く待つ。
+          // 待ちは四分の一秒まで。粒の枠と通常の発生間隔は使い回す。
+          if (!moving && contactVisible(retreatPoint) && Math.hypot(retreatPoint.x - focus.x, retreatPoint.z - focus.z) < 150) {
+            if (!C.soilUntil) {
+              C.soilUntil = t + 0.24; C.soilBlock = j; C.soilSide = side;
+            }
+            if (t < C.soilUntil) C.fx.dust = 0.06;
+            else C.soilUntil = 0;
+          } else C.soilUntil = 0;
+        }
+        const x = retreatPoint.x, z = retreatPoint.z;
+        if (moving && contactVisible(retreatPoint) && Math.hypot(x - focus.x, z - focus.z) < 150 && (!C.winner || C.pursueT < 12 || o.contactMelee && rt > 0)) {
+          // 徒歩の踏み込みは一人分。二粒以上は共通処理で蹄跡になるため使わない。
+          this.puff(x, z, o.contactMelee ? 1 : wetGround() ? 2 : 1, !!o.contactMelee);
+          // 濡れた前線にも低い飛沫の霞を残す。乾いた大きな砂煙にはしない。
+          // 既存の雲の上限と再利用を守り、視界・命中判定に使わない描画だけの霞。
+          if (!o.contactMelee && effectR() < 0.4 && !this.inWaterAt(x, z)) {
+            const mist = this.dustCloud(x, z, false, true, true);
+            if (mist) {
+              mist.yOff = false; mist.s0 = 1.8; mist.s1 = 5.5;
+              mist.life = 6; mist.a = 0.1; mist.rise = 0.025;
+            }
+          }
+        }
+      }
+      // 乱戦の土煙：押し合う前線から、踏み荒らされた土が絶えず舞い上がる（乾いた日。近い前線ほど多く、崩れて追う時は騎馬の土煙も）
+      if (!o.contactMelee && fight && !wetGround() && C.fx.dust <= 0) {
+        const fd = Math.hypot(o.x - focus.x, o.z - focus.z);
+        C.fx.dust = C._autoDistant ? (2.5) : fd < 120 ? 0.22 : fd < 250 ? 0.55 : 1.4;
+        const p = C.frontAt(Math.floor(R() * nb), (R() - 0.5) * gap);
+        if (o.measuredMelee) {
+          // 押し込んでいる肩へ煙を寄せ、同じ間隔の煙幕にしない。粒の数は増やさない。
+          C.fx.dust *= 0.7 + effectR() * 0.6;
+          if (C.pressSpeed > 0.3) {
+            const b = C.blocks[C.pressBlock];
+            p.x = o.x + b.lx * cf + b.f * sf;
+            p.z = o.z - b.lx * sf + b.f * cf;
+          }
+        }
+        // 川や田の中で組み合う所は、土煙でなく水しぶき（姉川の瀬など）
+        if (this.inWaterAt(p.x, p.z)) {
+          if (fd < 160) this.spray(p.x + (R() - 0.5) * 3, p.z + (R() - 0.5) * 3, 5);
+          // 川の上の水煙の帳：蹴立てた細かな飛沫が低く白く漂い、奥の列を薄く霞ませる（地の靄と同じ板を使い回す）
+          const M = this.mistVeil;
+          if (M && fd < 100 && R() < 0.3 && M.list.length < M.CAP - 6) M.list.push({ x: p.x + (R() - 0.5) * 6, z: p.z + (R() - 0.5) * 6, t: 0, life: 9 + R() * 7, s0: 4 + R() * 2, s1: 9 + R() * 5, a: 0.05 + R() * 0.025, rise: 0.012, fin: 0.9 });
+        } else {
+        // 四つに一つは大きな土煙：前線の上に褐色の帳がかかり、奥の列を霞ませる（薄く広く、長く残る）
+        const wide = !C.winner && R() < 0.25;
+        const dust = this.dustCloud(p.x + (R() - 0.5) * 3, p.z + (R() - 0.5) * 3, wide || (!!C.winner && R() < 0.5), !!C._autoDistant);
+        if (wide && dust) { dust.a *= 0.45; dust.s1 *= 1.3; dust.rise *= 0.5; }
+        if (o.measuredMelee && dust) {
+          // 足で蹴った土は地表に薄く広がる。前列の姿を高い煙で覆わない。
+          dust.rise *= 0.3; dust.s0 *= 0.75; dust.life *= 0.8;
+        }
+        }
+      }
+      // 士気：生きている割合と、戦の側から与えた揺さぶり
+      for (const S of sides) {
+        S.m = Math.max(0, Math.min(100, 100 * (S.alive / S.n0 - 0.3) / 0.7 + S.mod));
+        if (fight && !S.routed && !o.noRout && S.m <= 0) C.rout(S.key);
+      }
+      // 押し合いの流れ：強い側が少しずつ押す。戦の側の push でも押す
+      const adv = Math.max(-1, Math.min(1, (C.A.m - C.B.m) / 100 + C.bias));
+      const maxD = o.maxDrift ?? 10;
+      if (fight && !C.winner) C.drift = Math.max(-maxD, Math.min(maxD, C.drift + adv * dt * 0.35));
+      // 崩れた後：勝った側が 12 秒ほど追って前へ出る
+      if (C.winner) {
+        C.pursueT += dt;
+        if (C.pursueT < 12) C.drift += C.winner.sgn * dt * 1.3;
+      }
+      // 本物の兵の前線（その近くの塊はそれに合わせる）
+      let linked = false, linkX = 0, linkZ = 0;
+      if (o.link) { const p = o.link(); if (p) { const dx = p.x - o.x, dz = p.z - o.z; linked = true; linkX = dx * cf - dz * sf; linkZ = Math.max(-maxD - 4, Math.min(maxD + 4, dx * sf + dz * cf)); } }
+      const kr = (o.killRate ?? 0.09) * dt;
+      let af = 0;
+      C.pressSpeed = 0; C.pressBlock = 0;
+      for (const b of C.blocks) {
+        const j = b.j;
+        // 柵際では足場を半歩ずつ譲る。両軍へ同じ幅を使い、入り混じる深さは保つ。
+        const sway = o.contactMelee ? 0.3 : 1;
+        let tg = C.drift + (fight ? sway * (1.3 * Math.sin(t * 0.42 + b.ph) + 0.6 * Math.sin(t * 1.05 + j * 2.1)) : 0);
+        // 押し引きの波：ときどき塊ごとに片方がどっと押し込み（3〜5m）、やがて押し返される。隣の塊にも少し伝わる
+        if (fight && !C.winner && !o.calm) {
+          b.sgT = (b.sgT ?? R() * 8) - dt;
+          if (b.sgT <= 0) { b.sgT = 6 + R() * 10; b.sg = (R() < 0.5 + adv * 0.3 ? 1 : -1) * (3 + R() * 2); b.sgL = 3 + R() * 4; }
+          if (b.sgL > 0) b.sgL -= dt; else b.sg = (b.sg || 0) * Math.max(0, 1 - dt * 0.4);
+          const nb2 = (C.blocks[j - 1] ? C.blocks[j - 1].sg || 0 : 0) + (C.blocks[j + 1] ? C.blocks[j + 1].sg || 0 : 0);
+          // 数メートルの横滑りを避け、押す拍子と隣へ伝わる圧は残す。
+          tg += ((b.sg || 0) + nb2 * 0.25) * sway;
+        }
+        if (linked) { const w = Math.exp(-Math.abs(b.lx - linkX) / 26); tg += (linkZ - tg) * w * 0.85; }
+        const f0 = b.f;
+        b.f += (tg - b.f) * Math.min(1, dt * 0.9);
+        af += b.f;
+        const v = (b.f - f0) / Math.max(dt, 1e-3);
+        if (Math.abs(v) > C.pressSpeed) { C.pressSpeed = Math.abs(v); C.pressBlock = j; }
+        // 敗走の知らせが届くまでは組み合い、届いた塊から斬り合いをほどく。
+        const stillFighting = o.groundedMelee && C.winner
+          && (o.contactMelee ? other(C.winner).blk[j].rt < 1.6 : other(C.winner).blk[j].rt === 0);
+        const want = fight && (!C.winner || stillFighting) ? 1 : 0;
+        b.fight += (want - b.fight) * Math.min(1, dt * 1.5);
+        for (const S of sides) {
+          const B = S.blk[j];
+          // 崩れ：遅れの秒が過ぎたら、その塊は踵を返して逃げる
+          if (B.rDelay >= 0) { B.rDelay -= dt; if (B.rDelay < 0) { B.rDelay = 1e9; B.rt = 0.001; } }
+          const U = S.U;
+          if (o.contactMelee && B.rt > 0 && !B.escapeFixed) {
+            // 踵を返す直前の足場を残す。逃げる側へ追手の押し引きを足すと、
+            // 転んで止まった体まで前線と一緒に滑り、声と泥の退路も曲がる。
+            const front = U.uBlk.value[j];
+            B.escapeFixed = true; B.escapeFront = front.x; B.escapeMix = front.y;
+            B.kd = front.z; B.escapeStrength = U.uBlk2.value[j].x;
+          }
+          if (B.rt > 0) B.rt += dt;
+          // 討たれる：押されている側ほど多く
+          if (fight && !C.winner && b.fight > 0.5) {
+            const lose = 1 - adv * S.sgn * 0.7 - (v * S.sgn < -0.3 ? -0.3 : 0);
+            if (R() < kr * Math.max(0.2, lose) && (S.alive / S.n0 > 0.35 || S.routed)) kill(S, j);
+          }
+          if (!B.escapeFixed) B.kd += (B.k - B.kd) * Math.min(1, dt * 1.2);
+          // 入り混じる強さ：組み合っている間はいつも少し、押し込んだ塊ほど深く（o.mix で戦ごとに変えられる。0 で今までどおり）
+          const mixW = (o.mix ?? 1) * b.fight * (0.45 + Math.min(0.55, Math.abs(b.sg || 0) * 0.12));
+          const breakK = o.contactMelee ? 0 : o.groundedMelee ? Math.min(1, B.rt / 0.7) : S.routed || B.rt > 0 ? 1 : 0;
+          U.uBlk.value[j].set(B.escapeFixed ? B.escapeFront : b.f,
+            B.escapeFixed ? B.escapeMix : mixW * (1 - breakK), B.kd, B.rt);
+          const mv = C.winner === S && C.pursueT < 12 ? 1 : Math.min(1, Math.abs(v) * 0.8);
+          // 列の乱れも出足の形を保ち、逃げた兵が整列位置へ吸い戻されないようにする。
+          // 構えは描画側で一人ずつほどく。追う側の前進と斬り合いには触れない。
+          U.uBlk2.value[j].set(B.escapeFixed ? B.escapeStrength : b.fight * (1 - breakK), mv, cols, b.hide);
+          // 敗走中につまずいた兵も、実際に倒れ切った時だけ胴の音と低い泥を残す。
+          // 既存の兵と粒を使い、転倒一回につき一度だけ鳴らす。
+          if (o.contactMelee && B.rt > 0 && !B.landDone) {
+            for (let i = B.k; i < S.slots[j].length; i++) {
+              const s = S.slots[j][i];
+              if (s.taken || s.r2 > 0.1 || s.landed) continue;
+              const age = B.rt - s.sd * 1.6;
+              // 踏み外した時だけ息が漏れる。討たれた兵の呻きとは分け、同じ兵から一度だけ。
+              if (!s.stumbleHeard && age >= 1.2 + s.r2 * 50) {
+                s.stumbleHeard = true;
+                escapePoint(S, s, age, retreatPoint);
+                if (age < 1.2 + s.r2 * 50 + 0.5 && contactVisible(retreatPoint)
+                  && Math.hypot(retreatPoint.x - focus.x, retreatPoint.z - focus.z) < 150) {
+                  play('soldierBreath', retreatPoint, 0.45);
+                }
+              }
+              if (age < 1.2 + s.r2 * 50 + 0.5) continue;
+              s.landed = true;
+              stumbleContact(S, s, age, retreatPoint);
+              if (contactVisible(retreatPoint) && Math.hypot(retreatPoint.x - focus.x, retreatPoint.z - focus.z) < 150) {
+                play('bodyLand', retreatPoint, 0.45);
+                if (this.inWaterAt(retreatPoint.x, retreatPoint.z)) play('wade', retreatPoint, 0.45);
+                this.puff(retreatPoint.x, retreatPoint.z, 1, true, false);
+              }
+            }
+            // 最も遅い転倒も終わったら、以後この列を調べない。
+            if (B.rt >= 8.3) B.landDone = true;
+          }
+        }
+      }
+      for (const S of sides) {
+        S.U.uApp.value = C.app;
+        // 人ごとの振り向きの遅れも待ち、実際に走り始めた兵から一度だけ漏らす。
+        if (S.breakVoice) for (let j = 0; j < nb; j++) {
+          if (S.blk[j].rt <= 0 || !retreatAt(S, j, retreatPoint)) continue;
+          // 本物の兵に隠れた軽い兵で声を使い切らず、見える退き口まで待つ。
+          if (!contactVisible(retreatPoint) || Math.hypot(retreatPoint.x - focus.x, retreatPoint.z - focus.z) >= 150) continue;
+          S.breakVoice = false;
+          play('soldierBreath', retreatPoint, 1);
+          break;
+        }
+        if (S.routed) {
+          S.routT += dt;
+          if (S.routT > S.hideAfter) for (const k of ['bodyN', 'bodyF', 'flags', 'banners']) S.meshes[k].visible = false;
+        }
+        // 後詰め：前線の押し引き（塊のずれの平均）と寄せ合いに付いて動く。崩れたら一緒に逃げる
+        const H = S.host;
+        if (H) {
+          const k = C.app + S.sgn * af / nb;
+          H.g.position.set(H.fx * k, 0, H.fz * k);
+          H.U.uMarch.value = Math.max(S.U.uAppM.value, C.winner === S && C.pursueT < 12 ? 1 : 0);
+          if (S.routed) {
+            H.U.uRout.value = 1; H.U.uRoutT.value += dt;
+            if (S.routT > S.hideAfter) H.g.visible = false;
+          }
+        }
+      }
+      // 騎馬の横槍：駆けて、着いたら相手の端の塊を崩す
+      for (const cv of C.cav) {
+        if (cv.t < 0) { cv.t += dt; if (cv.t >= 0) { cv.grp.visible = true; cv.grp.advance(Math.hypot(cv.tx - cv.x, cv.tz - cv.z), cv.secs, { charge: true }); play('gallop', { x: cv.x, z: cv.z }, 1.5); } continue; }
+        cv.t += dt;
+        if (!cv.hit && !wetGround() && R() < dt * 4) { const k = Math.min(1, cv.t / cv.secs); this.dustCloud(cv.x + (cv.tx - cv.x) * k, cv.z + (cv.tz - cv.z) * k, true); }
+        if (!cv.hit && cv.t > cv.secs * 0.9) {
+          cv.hit = true;
+          const tgt = cv.E;
+          const js = cv.from > 0 ? [nb - 1, nb - 2, nb - 3] : [0, 1, 2];
+          for (const jj of js) if (jj >= 0 && jj < nb) { for (let q = 0; q < 6; q++) kill(tgt, jj); }
+          tgt.mod -= 25;
+          routBlocks(tgt, js.filter((jj) => jj >= 0 && jj < nb).slice(0, 2));
+          play('eshout', { x: cv.tx, z: cv.tz }, 2);
+        }
+      }
+      if (!fight) {
+        if (o.contactMelee && C.phase === 'close') {
+          C.fx.snd -= dt;
+          if (C.fx.snd <= 0) {
+            C.fx.snd = 0.9 + effectR() * 1.6;
+            const side = effectR() < 0.5 ? C.A : C.B;
+            if (meleeFootAt(side, Math.floor(effectR() * nb), retreatPoint, 3)) play('yoroi', retreatPoint, 0.55);
+          }
+        }
+        return;
+      }
+      // 新手と、横へ回り込む騎馬（o.surge）
+      if (o.surge && !C.winner) {
+        const Su = o.surge;
+        // 小出しにせず、間を空けて大きな塊でどっと来る（every は 1.5 倍の間、数は 1.8 倍。数は軽い兵で、近くは本物に替わる）
+        C.fx.surge = (C.fx.surge ?? (Su.first ?? Su.every * 0.9)) - dt;
+        if (C.fx.surge <= 0) {
+          C.fx.surge = Su.every * 1.5 * (0.85 + R() * 0.3);
+          if (R() < Math.min(0.6, (Su.flank ?? 0.3) * 1.5) && C.cav.length < 3) { C.cavalry(Su.k, { count: 100, delay: 0 }); if (o.onSurge) o.onSurge(Su.k, null, 'flank'); else surgeSay(Su.k, { x: o.x, z: o.z }, true); }
+          else C.reinforce(Su.k, { count: Math.round((Su.count || 120) * 1.8), gain: (Su.count || 120) * 1.2 });   // 間が 1.5 倍なので、足す数は 1.2 倍（押しの強さはほぼ元のまま）
+        }
+      }
+      // 音：槍の打ち合う音と遠い喚き、ときどき鬨の声。鉄砲・弓の側は時々撃つ
+      C.fx.snd -= dt; C.fx.shout -= dt; C.fx.gun -= dt; C.fx.bow -= dt;
+      if (contactSound?.pending && t >= contactSound.next) {
+        const q = contactSound, side = q.side, enemy = other(side);
+        q.next = t + 0.06;
+        // 敗走の着地も短く待つ。走り去った後に、元の前線で打撃音を鳴らさない。
+        if (q.escape) {
+          if (retreatAt(side, q.j, retreatPoint, true)) {
+            if (Math.hypot(retreatPoint.x - focus.x, retreatPoint.z - focus.z) < 150) {
+              play(this.inWaterAt(retreatPoint.x, retreatPoint.z) ? 'wade' : 'yoroi', retreatPoint, 0.6);
+            }
+            q.pending = false;
+          } else if (t >= q.until) q.pending = false;
+        } else if (meleeFootAt(side, q.j, retreatPoint, 2) || meleeFootAt(enemy, q.j, retreatPoint, 2)) {
+          play('clash', retreatPoint, 0.9);
+          q.pending = false;
+        } else if (side.blk[q.j].rt > 0 || enemy.blk[q.j].rt > 0) {
+          // 待つ間に列が崩れたら、崩れた側の逃げ足へ音を受け渡す。
+          q.side = side.blk[q.j].rt > 0 ? side : enemy;
+          q.escape = true;
+          q.until = t + 0.24;
+        } else if (t >= q.until) {
+          if (meleeFootAt(side, q.j, retreatPoint)) play('yoroi', retreatPoint, 0.55);
+          q.pending = false;
+        }
+      }
+      if (C.fx.snd <= 0) {
+        C.fx.snd = 0.9 + R() * 1.6;
+        const j = Math.floor(R() * nb), p = C.frontAt(j);
+        const escaping = o.groundedMelee && C.winner
+          && other(C.winner).blk[j].rt >= (o.contactMelee ? 1.6 : 0.001);
+        if (!escaping) {
+          const kind = R() < 0.5 ? 'clash' : 'far', groan = R() < 0.3;
+          if (o.contactMelee) {
+            const side = effectR() < 0.5 ? C.A : C.B;
+            if (meleeFootAt(side, j, p, 2) || meleeFootAt(other(side), j, p, 2)) {
+              play('clash', p, 0.9);
+            } else {
+              // 一度だけの抜き取りで空振りにせず、次の踏み込みを短く待つ。
+              contactSound.pending = true; contactSound.escape = false; contactSound.side = side; contactSound.j = j;
+              contactSound.until = t + 0.24; contactSound.next = t + 0.06;
+            }
+          } else {
+            play(kind, p, 0.9); if (groan) play('umeki', p, 0.6);
+          }
+        }
+        else if (C.pursueT < 12 || o.contactMelee) {
+          let moving = true;
+          const kind = R() < 0.5 ? 'far' : 'umeki';
+          if (o.measuredMelee) {
+            // 崩れる声も逃げる兵に付いて離れる。前線だけが呻き続けない。
+            const side = other(C.winner), rt = side.blk[j].rt;
+            const back = -side.sgn * (gap / 2 - C.app + Math.max(0, rt - 0.8) * 4.1);
+            p.x += sf * back; p.z += cf * back;
+            // 具足が鳴るのは走る脚が着く拍子。苦しい声は走る間にも残す。
+            if (o.weightedMelee) moving = retreatAt(side, j, p, o.contactMelee && kind === 'far');
+            // 一瞬の抜き取りで着地を外しても、同じ列の次の一歩まで待つ。
+            // 音の通常の間隔は保ち、既存の待ち枠を使い回す。
+            if (!moving && o.contactMelee && kind === 'far') {
+              contactSound.pending = true; contactSound.escape = true;
+              contactSound.side = side; contactSound.j = j;
+              contactSound.until = t + 0.24; contactSound.next = t + 0.06;
+            }
+          }
+          if (moving && (!o.contactMelee || Math.hypot(p.x - focus.x, p.z - focus.z) < 150)) {
+            // 無傷で走る兵は息と具足。負傷の呻きは討たれた時だけに残す。
+            // 踏みしめの音は浅瀬なら水へ替える。音数を増やさず、同じ着地の拍子を使う。
+            const footSound = o.contactMelee && kind === 'far' && this.inWaterAt(p.x, p.z) ? 'wade' : 'yoroi';
+            play(o.contactMelee ? kind === 'far' ? footSound : 'soldierBreath' : kind, p, 0.6);
+          }
+        }
+      }
+      if (C.fx.shout <= 0) {
+        C.fx.shout = 9 + R() * 8;
+        if ((!o.contactMelee || fight) && (!o.groundedMelee || !C.winner)) {
+          const kind = R() < 0.5 ? 'eshout' : 'toki', p = C.frontAt(Math.floor(R() * nb));
+          if (o.measuredMelee) {
+            // 隣の塊まで同じ鬨を上げず、押す所の掛け声と押し返される所の呻きを交ぜる。
+            const b = C.blocks[C.pressBlock];
+            p.x = o.x + b.lx * cf + b.f * sf; p.z = o.z - b.lx * sf + b.f * cf;
+            if (o.contactMelee) {
+              // 押す声も塊の中央の空所でなく、まだ組み合う一人の口元から。
+              const side = effectR() < 0.5 ? C.A : C.B;
+              if ((side.blk[C.pressBlock].rt <= 0 && meleeFootAt(side, C.pressBlock, p))
+                || (other(side).blk[C.pressBlock].rt <= 0 && meleeFootAt(other(side), C.pressBlock, p))) {
+                // 押す間は掛け声、足場を守る間は息。止まった具足を鳴らし続けない。
+                play(C.pressSpeed > 0.3 ? 'eshout' : 'soldierBreath', p, C.pressSpeed > 0.3 ? 1.2 : 0.5);
+              }
+            } else play(C.pressSpeed > 0.3 ? 'eshout' : effectR() < 0.6 ? 'umeki' : kind, p, C.pressSpeed > 0.3 ? 1.2 : 0.7);
+          } else play(kind, p, 1.4);
+        }
+      }
+      if (!o.contactMelee && C.fx.dust <= 0 && !wetGround()) { C.fx.dust = C._autoDistant ? 3 : 0.5; const p = C.frontAt(Math.floor(R() * nb)); this.dustCloud(p.x, p.z, false, !!C._autoDistant); }
+      if (C.fx.gun <= 0) { C.fx.gun = 7 + R() * 6; for (const S of sides) if (S.P.guns && !S.routed && !C.winner) C.volley(S.key); }
+      if (C.fx.bow <= 0) { C.fx.bow = 10 + R() * 6; for (const S of sides) if (S.P.bows && !S.routed && !C.winner) C.arrows(S.key); }
+      C.fx.wake = (C.fx.wake || 0) - dt;
+      // 本物へ替えるのは小分けに（一度に五人ずつ・倍の速さで。替わる数の速さは同じで、一コマに兵の形を何十も作らない）
+      if (C.fx.wake <= 0) { C.fx.wake = 0.15; wakeTick(); }
+    };
+    // 本物の兵に替える（b_nagashinojo の wake と同じ決まり：take で軽い兵を隠してその場に本物を立てる・g.guard・戦う兵は250人まで）
+    // 合戦では、プレイヤーが前線の60m以内に寄った所の両方の側を替え、本物どうしで斬り合わせる。軽い側が崩れたら、替えた兵も崩れる
+    // o.rt（戦）と、A・B の team（0 味方・1 敵）・faction（兵の家）を渡した時だけ
+    const WAKE_TYPE = ['ashigaru', 'gun', 'bow', 'samurai', 'ashigaru', 'cavalry', 'samurai'];
+    C.woke = [];
+    // 11/5 BQ（九の5）：軽い合戦の兵を近づくと本物に替える仕組みは全戦でやめる（軽い兵は 150m の外だけ。world.js FAKE_NEAR）
+    C.wakeEnabled = false;
+    C.nearKey = 'clash' + Math.random().toString(36).slice(2, 7);
+    const wakeTick = () => {
+      const rt = o.rt;
+      for (const q of C.woke) for (const g of q.groups) if (g.count && !g.routed && g.clashSide.routed) { g.noRout = false; g.morale = 0; }
+      if (!C.wakeEnabled || !rt || rt.over || o.noWake || (rt.def && rt.def.noWake)) return;
+      const P = rt.player && rt.player.u;
+      if (!P || !P.alive) return;
+      // 戻す判断は控えと共通。近くで勝った兵も、60m以内では本物のまま残す。
+      for (let i = C.woke.length - 1; i >= 0; i--) {
+        if (!C.woke[i].groups.some((g) => g.count)) C.woke.splice(i, 1);
+      }
+      // 勝ち負けが決まった合戦では、新しくは替えない（残った兵は上の決まりで軽い兵の列へ戻る）
+      if (C.winner) return;
+      // 既に替えた所も、60m以内に軽い兵が残れば続けて替える。
+      const R0 = Math.max(60, o.wakeR || 0);
+      if (!sides.some((S) => C.left(S.key, P.pos.x, P.pos.z, R0))) return;
+      const at = C.frontAt(C.blockNear(P.pos.x, P.pos.z).j);
+      let alive = 0;
+      for (const u of rt.army.units) if (u.alive) alive++;
+      const room = Math.min(250, rt.def.wakeRoom ?? 250, o.room ?? 250);
+      if (room - alive < 20 && this.recycleNear) alive -= this.recycleNear(20 - (room - alive));
+      const n = Math.max(0, Math.min(5, Math.floor((room - alive) / 2)));
+      // 近くの軽い兵は本人を中心とする除外輪で隠す。
+      nearHideRequest(C.nearKey, 0);
+      if (n < 3) return;
+      const q = { x: at.x, z: at.z, groups: [], taken: {} };
+      for (const S of sides) {
+        if (S.P.team === undefined) continue;
+        // 自分の持ち場では、味方は控えめに・敵は多めに本物へ替える（o.allyWake・o.foeWake。既定 1＝これまでどおり）
+        const bias = S.P.team === P.team ? (o.allyWake ?? 1) : (o.foeWake ?? 1);
+        // 一度に替えるのは片側二人まで（0.15 秒ごとに続けて替えるので、乱戦の数は同じ。三方ヶ原で十人を一コマで作り130ms 止まっていた。11/1）
+        const nSide = Math.max(0, Math.min(Math.round(n * bias), room - alive, 2));
+        if (nSide < 2) continue;
+        const pts = C.take(S.key, P.pos.x, P.pos.z, nSide, R0);
+        q.taken[S.key] = C.lastTaken;
+        if (!pts.length) continue;
+        let x = 0, z = 0;
+        for (const p of pts) { x += p.x; z += p.z; }
+        x /= pts.length; z /= pts.length;
+        const face = F + (S.sgn > 0 ? 0 : Math.PI);
+        const g = rt.army.addGroup({ team: S.P.team, faction: S.P.faction || (S.P.team === 0 ? 'tokugawa' : 'saito'), name: '備の兵', order: 'attack', formation: 'line', anchor: { x, z }, facing: face, noGuard: true,
+          width: Math.max(4, Math.min(12, pts.length * 1.1)), aggro: 12, seekRange: 22, morale: 80, speed: 2.6, fleeDir: { x: -Math.sin(face), z: -Math.cos(face) } });
+        const mon = S.P.flag || S.P.flagTex?.userData.mon;
+        rt.army.spawn(g, pts.map((p) => ({ type: WAKE_TYPE[p.k] || 'ashigaru', n: 1, o: {
+          x: p.x, z: p.z, heading: p.yaw, armor: S.P.armor, hat: p.helm ? 'kabuto' : 'jingasa', flag: p.flag ? mon : null,
+          ...(p.k === 4 && mon ? { standard: mon, flag: null, weapon: 'none', dmg: 0 } : {}),
+        } })));
+        g.leader = g.units.find((u) => u.type === 'samurai') || null;
+        g.guard = true; g.clashSide = S; g.recyclable = true; alive += g.count;
+        g.units.forEach((u, i) => { u.wkClash = { C, key: S.key, s: q.taken[S.key][i] }; if (!rt.def.wakeFullSize) u.mesh.scale.set(pts[i].sx, pts[i].sy, pts[i].sz); });
+        q.groups.push(g);
+      }
+      if (q.groups.length) { C.woke.push(q); play('eshout', at, 1.2); }
+    };
+    this.clashes = this.clashes || [];
+    if (!deferred) this.clashes.push(C);
+    return C;
+  }
+  // 本物の兵の遠い者を、軽い兵の形でまとめて描く（units.js の Army.updateImpostors が使う）
+  // 甲冑の色と旗ごとに一つ。一人ずつの形の代わりに、胴・旗の二度の描画で何十人も描ける
+  // 返す物：{ put(i, x, z, yaw, k, helm, ex, flag, sd), commit(n), dispose() }（k は軽い兵の種類：0 槍 1 鉄砲 2 弓 3 侍）
+  makeImpostor(armor, flag, cap = 160, far = false) {
+    if (!this.hgtTex) {
+      const t = new THREE.DataTexture(this.grid, SEG + 1, SEG + 1, THREE.RedFormat, THREE.FloatType);
+      t.needsUpdate = true;
+      this.hgtTex = t;
+    }
+    if (!SASHI_GEO) { SASHI_GEO = clothGeo(0.42, 0.78, 3, 1, 0, 2.62, -0.17, 11); BANNER_GEO = clothGeo(0.86, 3.0, 3, 6, 0.3, 5.2, 0.14, 12); }
+    const U = {
+      clothT: true,   // 布の色は本物の兵の鎧下（aVarT.w）にそろえる（world_army_shader.js の armyCloth）
+      uNear: { value: 0 }, uRealNear: { value: 0 },
+      uAT: WIND, uGust: GUST, uIdle: ARMY_IDLE, uMarch: { value: 0 }, uCharge: { value: 0 }, uTurn: { value: 0 }, uRout: { value: 0 }, uRoutT: { value: 0 },
+      uHgt: { value: this.hgtTex }, uHP: { value: new THREE.Vector3(this.half, this.step, SEG) },
+    };
+    const mk = (geo) => {
+      const g = armyGeometryCopy(geo);
+      g.setAttribute('aInfo', new THREE.InstancedBufferAttribute(new Float32Array(cap * 4), 4).setUsage(THREE.DynamicDrawUsage));
+      g.setAttribute('aInfo2', new THREE.InstancedBufferAttribute(new Float32Array(cap * 2), 2).setUsage(THREE.DynamicDrawUsage));
+      g.setAttribute('aHost', new THREE.InstancedBufferAttribute(new Float32Array(cap), 1));
+      return g;
+    };
+    // 近い兵と同じ作り分けの色（humans_dress.js の soldierTint。胴の漆・威糸・笠と兜）を兵ごとに。頂点の印（aVm）と兵ごとの値（aVarT）だけで、材質と描く数は増やさない
+    const arm = new THREE.Color(armor), lite = arm.clone().lerp(new THREE.Color(0x8a8070), 0.18);
+    const lum = (c) => Math.max(1e-4, c.r * 0.3 + c.g * 0.59 + c.b * 0.11);
+    const tintGeo = (g) => {
+      g.setAttribute('aVm', impMask(g, armor));
+      g.setAttribute('aVarT', new THREE.InstancedBufferAttribute(new Float32Array(cap * 4), 4).setUsage(THREE.DynamicDrawUsage));
+      return g;
+    };
+    const uImpL = { value: new THREE.Vector4(lum(arm), lum(lite), lum(new THREE.Color(0x2c261e)), lum(new THREE.Color(0x1c1a18))) };
+    const tintMat = (mat) => {
+      const ob = mat.onBeforeCompile;
+      mat.onBeforeCompile = (sh, r) => {
+        ob(sh, r);
+        sh.uniforms.uImpL = uImpL;
+        sh.vertexShader = 'attribute float aVm; attribute vec4 aVarT; uniform vec4 uImpL;\nvec3 impUnp(float p) { return pow(vec3(floor(p / 65536.0), mod(floor(p / 256.0), 256.0), mod(p, 256.0)) / 255.0, vec3(2.2)); }\n' + sh.vertexShader
+          .replace('#include <color_vertex>', `#include <color_vertex>
+          if (aVarT.w > 0.5 && aVm > 0.5) {
+            float lb = dot(color, vec3(0.3, 0.59, 0.11));
+            vColor = aVm < 1.5 ? impUnp(aVarT.x) * (lb / uImpL.x) : aVm < 2.5 ? impUnp(aVarT.y) * (lb / uImpL.y) : impUnp(aVarT.z) * (lb / (aVm < 3.5 ? uImpL.z : uImpL.w));
+          }`);
+      };
+      return mat;
+    };
+    // 高：まとめて描く兵は 48m より先だけなので、腕・袖のある軽い形（205 面）。110m より先（far）は輪郭の形
+    // 画質「低」（携帯）：まとめて描く遠い兵は、角の少ない遠い形（一人 1100 面 → 300 面ほど。低では 12m より先の兵だけ。far：18m より先の兵の束は、さらに軽い形）
+    const body = new THREE.InstancedMesh(tintGeo(mk(soldierGeo(armor, false && (this.def.denseFront || this.def.lowArmyDetail) ? (far ? 'x3lo' : 'xlo') : far ? ('x3lo') : 'xlo'))), tintMat(armyShader(new THREE.MeshLambertMaterial({ vertexColors: true }), U)), cap);
+    const flags = new THREE.InstancedMesh(mk(SASHI_GEO), armyShader(new THREE.MeshLambertMaterial({ map: flagTexture(flag || 'tokugawa'), side: THREE.DoubleSide }), U), cap);
+    const meshes = [body, flags];
+    for (const m of meshes) { m.count = 0; m.frustumCulled = false; m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); this.scene.add(m); }
+    const col = new THREE.Color(1, 1, 1);
+    for (let i = 0; i < cap; i++) body.setColorAt(i, col);
+    const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), p = new THREE.Vector3(), sc = new THREE.Vector3(1, 1, 1), yAx = new THREE.Vector3(0, 1, 0);
+    const A = body.geometry.attributes, B = flags.geometry.attributes;
+    // 描く直前のカメラを知らせる（写真モードなどで、兵の更新なしにカメラが動いた時に、まとめ直してもらう）
+    const R = { onCam: null };
+    body.onBeforeRender = (r, sc, cam) => { if (R.onCam) R.onCam(cam.position); };
+    return Object.assign(R, {
+      cap,
+      put: (i, x, z, yaw, k, helm, ex, fl, sd, tint) => {
+        if (i >= cap) return;
+        const T = A.aVarT.array, o = i * 4;
+        if (tint) { T[o] = tint.lac; T[o + 1] = tint.lace; T[o + 2] = tint.hat; T[o + 3] = tint.cloth != null ? tint.cloth + 2 : 1; } else T[o + 3] = 0;
+        p.set(x, this.heightAt(x, z), z); q.setFromAxisAngle(yAx, yaw); m4.compose(p, q, sc);
+        body.setMatrixAt(i, m4); flags.setMatrixAt(i, m4);
+        const at = i * 4;
+        A.aInfo.array[at] = B.aInfo.array[at] = sd;
+        A.aInfo.array[at + 1] = B.aInfo.array[at + 1] = k;
+        A.aInfo.array[at + 2] = B.aInfo.array[at + 2] = helm;
+        A.aInfo.array[at + 3] = B.aInfo.array[at + 3] = ex;
+        A.aInfo2.array[i * 2] = B.aInfo2.array[i * 2] = fl; A.aInfo2.array[i * 2 + 1] = B.aInfo2.array[i * 2 + 1] = sd;
+      },
+      commit: (n) => {
+        n = Math.min(n, cap);
+        body.count = flags.count = n;
+        flags.visible = n > 0;   // 空の束は描かない（体の束は写真の視点の見張りに残す）
+        if (!n) return;
+        for (const m of meshes) { m.instanceMatrix.needsUpdate = true; m.geometry.attributes.aInfo.needsUpdate = true; m.geometry.attributes.aInfo2.needsUpdate = true; }
+        A.aVarT.needsUpdate = true;
+      },
+      dispose: () => { this.scene.remove(body, flags); },
+    });
+  }
+}

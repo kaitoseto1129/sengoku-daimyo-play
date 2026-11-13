@@ -2385,10 +2385,10 @@ async function playPersona(game, spec, aud, c) {
     for (const g of b.army.groups) {
       if (g.team !== P.team || g.isPlayerSquad || g.routed || !g.count) continue;
       const c = g.center(), q = AM.pos.get(g);
-      if (q) { const d = Math.hypot(c.x - q.x, c.z - q.z); AM.move += d; q.still = d < 1 ? q.still + 5 : 0; AM.samp++; if (q.still >= 20 && !g.units.some((u) => u.alive && (u.target || u.atk)) && b.army.nearestEnemy({ pos: c, team: P.team }, 60, (o) => !o.fleeing)) { AM.idle++; q.still = 0; } q.x = c.x; q.z = c.z; }
+      if (q) { const d = Math.hypot(c.x - q.x, c.z - q.z); AM.move += d; q.still = d < 1 ? q.still + 5 : 0; AM.samp++; if (q.still >= 20 && !g.units.some((u) => u.alive && (u.target || u.atk)) && b.army.nearestEnemy({ pos: c, team: P.team }, (g.order === 'hold' || g.order === 'yari') ? 25 : 60, (o) => !o.fleeing)) { AM.idle++; q.still = 0; (rep.idleDiag ||= []).length < 14 && rep.idleDiag.push(`${Math.round(b.t)}s ${g.id ?? g.name ?? ''} ord=${g.order} form=${g.formation} n=${g.count} mv=${!!g.marching} foc=${!!g.focus} keep=${!!g.keepMoveOrder} anch=${(g.anchorSpeed ?? 0).toFixed?.(2)} at(${Math.round(c.x)},${Math.round(c.z)}) tm=${g.units.filter((u) => u.alive)[0]?.moveTo ? 'mt' : '-'}`); } q.x = c.x; q.z = c.z; }
       else AM.pos.set(g, { x: c.x, z: c.z, still: 0 });
     }
-    rep.ally = `隊${AM.pos.size}・動いた計${Math.round(AM.move)}m・味方の討ち取り${rep.allyKills || 0}・名のある将 本人${rep.namedKill?.me || 0}/味方${rep.namedKill?.ally || 0}/他${rep.namedKill?.other || 0}${rep.namedKill?.list.length ? '（' + rep.namedKill.list.join(' ') + '）' : ''}・敵を前に20秒止まった${AM.idle}回・本物の味方5人未満${AM.low * 5}秒`;
+    rep.ally = `隊${AM.pos.size}・動いた計${Math.round(AM.move)}m・味方の討ち取り${rep.allyKills || 0}・名のある将 本人${rep.namedKill?.me || 0}/味方${rep.namedKill?.ally || 0}/他${rep.namedKill?.other || 0}${rep.namedKill?.list.length ? '（' + rep.namedKill.list.join(' ') + '）' : ''}・敵を前に20秒止まった${AM.idle}回・本物の味方5人未満${AM.low * 5}秒${rep.idleDiag ? "｜止まり: " + rep.idleDiag.join(" ／ ") : ""}`;
   };
   const hurt = {}, hitLog = [], hurtBy = {};   // hurtBy：傷を与えた組の名ごとの合計（倒れた時に多い順に三つ。11/9 徳川C）
   let retryT = -1;
