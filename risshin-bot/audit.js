@@ -191,10 +191,12 @@ export class Auditor {
       const leaderStill = g && g.order === 'follow' && (Math.hypot(P.vel ? P.vel.x : 0, P.vel ? P.vel.z : 0) < 0.3 || Math.hypot(u.pos.x - P.pos.x, u.pos.z - P.pos.z) < 12);
       // 旗持ち・押し合いの後ろの者も、指定の立ち位置に着けば待ってよい。
       // 遠くの行き先へ向かう途中で詰まった者は、これまでどおり調べる。
-      const arrived = u.moveTo && Math.hypot(u.moveTo.x - u.pos.x, u.moveTo.z - u.pos.z) < 1.2;
+      // 遠景の軽い兵（qualityAbstract・farSim）は考えを止め、行き先は _farWant（持ち場）で歩く。古い moveTo で「動かない」と数えない（11/13 クラウドか K127：関ヶ原の福島隊 aiT −120秒）
+      const mt = (u.qualityAbstract || u.farSim) ? u._farWant : u.moveTo;
+      const arrived = mt && Math.hypot(mt.x - u.pos.x, mt.z - u.pos.z) < 1.2;
       const mayIdle = IDLE_OK_TYPES.has(u.type) || u.noTarget || u.fleeing || !g || IDLE_OK_ORDERS.has(g.order) || g.holdFire || u.target || u.atk || (g.leader === u && g.order === 'hold') || leaderStill || arrived;
       const moved = Math.hypot(u.vel.x, u.vel.z) > 0.15;
-      const hasDestination = u.moveTo && Math.hypot(u.moveTo.x - u.pos.x, u.moveTo.z - u.pos.z) > 1.6;
+      const hasDestination = mt && Math.hypot(mt.x - u.pos.x, mt.z - u.pos.z) > 1.6;
       // （120m 内に敵のいない兵が立って待つのは、困り事に数えない）
       if (!mayIdle && hasDestination && !moved && b.t > 20 && !b.paused && b.army.nearestEnemy(u, 120, (o) => !o.fleeing)) {
         const n = (this.idle.get(u) || 0) + step;
