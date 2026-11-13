@@ -1,0 +1,78 @@
+// 太田城 ④ 9〜12分「堤が崩れる」：東の堤の一か所が水に押されて崩れ、水が溢れ出す。人夫は逃げ惑い、
+// 雑賀衆がここぞと崩れた所へ打って出る。崩れた所を守り、人夫が土俵で塞ぐまで持ちこたえる。
+import { P, SAIKA, porters } from './scene.js';
+import { troops, reports, move, living, broken, near } from '../toyo15/kit.js';
+import { sfx } from '../audio.js';
+
+export default {
+  goal: '崩れた東の堤を守り、人夫が塞ぐまで持ちこたえよ',
+  pin: { ...P.breach, label: '東の堤' },
+  // bot：城の板塀の内へ追い込んだ時は北の門から出る（東の塀へ向けて歩き続け、崩れ目に着かず刻限切れになった 11/10）。
+  //   崩れ目から二十二歩の内の敵だけを追い、城の塀ぎわまで追わない
+  botAt: (rt) => { const p = rt.player.u.pos; return Math.abs(p.x) < 24 && Math.abs(p.z) < 26 ? { x: P.gate.x, z: P.gate.z - 8 } : null; },
+  botLeash: 22,
+  enter(rt, F) {
+    const W = rt.world;
+    F.waterTo = -0.2; F.foesB = [];
+    sfx('taiko', 0.6);
+    rt.banner('堤が崩れた', '東の堤から水があふれる');
+    W.addSmokeColumn?.(P.breach.x, W.heightAt(P.breach.x, P.breach.z) + 1, P.breach.z, { size: 2.5 });
+    F.fixers = porters(rt, '堤を塞ぐ人夫', { x: 40, z: -70 }, 10);
+    move(F.fixers, { x: P.breach.x - 3, z: P.breach.z - 6 });
+    move(F.friends, { x: P.breach.x - 6, z: P.breach.z - 4 }, true);
+    // 隊の兵が持ち場へ着いたら移動を終え、崩れ目の見張りと迎撃に移る。
+    F.friends.onArrive = holdBreachGuard;
+    F.fix = 0; F.fixed = 0; F.breachGuard = 0; F.fixerReliefs = 0; F.fixerReliefAt = 0;
+    rt.say('人夫頭', '堤が崩れた！　水が出ていく！　土俵を持って東へ走れ！', 3.5);
+    rt.after(4, () => rt.say('羽柴秀長', '崩れた所を守れ！　雑賀は必ずそこを突いてくる！', 3.5));
+    const wave = (name, from, list) => () => { const g = troops(rt, false, name, from, list, SAIKA, { free: true, aggro: 18 }); move(g, P.breach, true); F.foesB.push(g); };
+    reports(rt, [
+      [15, '組頭', '城から打って出たぞ！　崩れ目へ来る！', wave('崩れ目へ寄せる雑賀衆', { x: 30, z: -10 }, [{ type: 'ashigaru', n: 12 }, { type: 'gun', n: 3 }, { type: 'samurai', n: 1 }])],
+      [65, '組頭', '水の中を渡って来る！', wave('水を渡る雑賀衆', { x: 36, z: 12 }, [{ type: 'ashigaru', n: 9 }, { type: 'samurai', n: 2 }])],
+      [100, '使番', '北と南の堤は持っております！　崩れたのはここだけ'],
+      [120, '雑賀の頭', '堤を崩せ！　水を抜け！', wave('雑賀の頭の組', { x: 28, z: -26 }, [{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: 6 }])],
+    ]);
+  },
+  tick(rt, dt, t) {
+    const F = rt.flags;
+    // 細かな隊列の持ち場を待ち続けず、六割が崩れ目の守備範囲へ着いたら迎撃へ移る。
+    // 遅れた兵も守備位置へ歩き続ける。城の塀の向こうにいる兵は到着に数えない。
+    const g = F.friends;
+    if (g.order === 'move' && g.onArrive === holdBreachGuard && g.dest) {
+      let ready = 0, arrived = 0;
+      for (const u of g.units) {
+        if (!u.alive || u.gone || u.fleeing || u.woundOut) continue;
+        ready++;
+        if (!u.downed && Math.hypot(u.pos.x - g.dest.x, u.pos.z - g.dest.z) <= 12 &&
+            !rt.army.wallBetween(u.pos, -1, g.dest)) arrived++;
+      }
+      if (ready && arrived >= Math.ceil(ready * 0.6)) { g.onArrive = null; holdBreachGuard(g); }
+    }
+    const n = living(F.fixers);
+    if (n < 3 && F.fixerReliefs < 2 && t >= F.fixerReliefAt) {
+      move(F.fixers, P.pile);
+      F.fixers = porters(rt, '堤を塞ぐ人夫', { x: 40, z: -70 }, 8);
+      move(F.fixers, { x: P.breach.x - 3, z: P.breach.z - 6 });
+      F.fixerReliefs++; F.fixerReliefAt = t + 30;
+    }
+    // 人夫の損耗時にも最低の速さは保ち、主人公が崩れ目を守った事を別に確かめる。
+    if (near(rt, P.breach, 26)) F.breachGuard += dt;
+    F.fix += dt * (n >= 4 ? 1 : 0.5);
+    const quiet = F.foesB.length >= 3 && F.foesB.every((g) => broken(g, 0.35));
+    if (!F.fixed && t > 150 && F.fix >= 120 && F.breachGuard >= 12 && (quiet || t > 190)) {
+      F.fixed = t; F.waterTo = 0.45;
+      rt.say('人夫頭', '塞いだぞ！　また水が溜まる！', 3);
+    }
+    return !!F.fixed && t - F.fixed > 6;
+  },
+  leave(rt, F) {
+    if (F.friends.onArrive === holdBreachGuard) F.friends.onArrive = null;
+    for (const g of F.foesB) { g.noRout = false; g.morale = 0; move(g, { x: 0, z: 0 }); g.order = 'retreat'; }
+  },
+  foes: (rt) => rt.flags.foesB,
+  max: Infinity,
+};
+
+function holdBreachGuard(g) {
+  g.order = 'hold'; g.dest = null;
+}
