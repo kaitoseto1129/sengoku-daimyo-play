@@ -289,9 +289,12 @@ async function playOnce() {
   });
   L.push('## 遊んだ記録', '');
   for (const b of bats) {
-    L.push(`- ${b.battle}${b.note ? `（${b.note}）` : ''}：${b.time}秒・任務${b.main === true ? '達成' : '失敗'}${b.down ? '（倒れた）' : ''}・戦功${b.merit}・組${b.squad}・討ち取り${b.kills ?? '—'}・突き${b.attacks ?? '—'}/当たり${b.hits ?? '—'}・号令${b.cmds ?? 0}回・指で押した数${b.taps ?? '—'}・読み込み${((b.loadMs || 0) / 1000).toFixed(1)}秒・戦の前の札${b.storyLen || 0}字${b.stepMs != null ? `・1コマ${b.stepMs}ms（実時間${b.realSec}秒・内訳 ${b.prof || '—'}）` : ''}`);
+    L.push(`- ${b.battle}${b.note ? `（${b.note}）` : ''}：${b.time}秒・任務${b.main === true ? '達成' : '失敗'}${b.down ? '（倒れた）' : ''}・戦功${b.merit}・組${b.squad}・討ち取り${b.kills ?? '—'}・首袋${b.heads ?? '—'}・突き${b.attacks ?? '—'}/当たり${b.hits ?? '—'}・号令${b.cmds ?? 0}回・指で押した数${b.taps ?? '—'}・読み込み${((b.loadMs || 0) / 1000).toFixed(1)}秒・戦の前の札${b.storyLen || 0}字${b.stepMs != null ? `・1コマ${b.stepMs}ms（実時間${b.realSec}秒・内訳 ${b.prof || '—'}）` : ''}`);
+    if (b.pinReach) L.push(`  - 行き先のピンへ歩けた：${b.pinReach}${b.pinBad ? `（行けず：${b.pinBad}）` : ''}`);
+    if (b.arrive) L.push(`  - 行き先に着いて何か起きた：${b.arrive}${b.arriveEmpty ? `（何も起きず：${b.arriveEmpty}）` : ''}`);
     if (b.flow && b.flow.length) L.push(`  - 任務の流れ：${b.flow.join(' → ')}`);
     if (b.stg && b.stg.length) L.push(`  - 段の流れ：${b.stg.join(' → ')}`);
+    if (b.botStat) L.push(`  - 戦の数：${b.botStat}`);
     if (b.ally) L.push(`  - 味方の隊：${b.ally}`);
     if (b.hurt) L.push(`  - 受けた傷：${b.hurt}`);
     (b.errors || []).forEach((e) => L.push(`  - 不具合：${e}`));

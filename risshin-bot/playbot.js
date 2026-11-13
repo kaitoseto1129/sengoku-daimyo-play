@@ -8,7 +8,7 @@ import { Auditor } from './audit.js';
 import { touchFrame, touchInput, isTouch } from './touch.js';
 import { S } from './settings.js';
 import { RADIAL } from './player.js';
-import { GENERALS, WOUND_FLOOR } from './units.js';
+import { GENERALS, WOUND_FLOOR, DEATH_END } from './units.js';
 import { lordGame, lordList } from './lord.js';
 import { depthBot } from './b_depth.js';
 import { botInput as fake } from './bot_input.js';
@@ -356,9 +356,11 @@ function survive(b, inp) {
 }
 
 // 討たれない相手も、実際に手傷を負わせられる間は突ける。深手の後は連打しない。
+// 止めを遊び手に任せる将（onWound）は、味方の槍で下限まで削られた後も、遊び手の一撃で筋書きの最期へ進む
+//   （樫井 11/11：味方が塙団右衛門を下限まで削ると bot が突かなくなり、⑤で八百秒止まって刻限切れ）
 function canStrike(p, e) {
   return !e.woundOut && (!e.invuln ||
-    (e.hp > e.maxHp * WOUND_FLOOR && p.rt.army.mayWound(e, p.u)));
+    ((e.hp > e.maxHp * WOUND_FLOOR || e.onWound) && p.rt.army.mayWound(e, p.u)));
 }
 
 // 受ける間と突く間を分ける。槍は構えたまま押すと、気力を使う払いになる。
@@ -501,6 +503,41 @@ export function brain(b, inp) {
     return;
   }
   if (!u.alive) return;
+  // 首取り（K071）：倒した敵の首が足元にあり、4m 内に敵がいない時は、立ち止まって長押しで袋に納める（桶狭間は取らない）
+  if (b.index !== 0 && !p.mounted && !p.catching) {
+    const hi = b.nearestInteract();
+    // 11/13 クラウドE：納められない首（袋が一杯など）の前で長押しを続け、山中城の出丸で十五分立ったままだった。同じ首は六秒で諦める
+    const hk = b._headHold || (b._headHold = { id: null, t: 0, skip: new Set() });
+    if (hi && hk.id !== hi.id) { hk.id = hi.id; hk.t = b.t; }
+    if (hi && b.t - hk.t > 6) hk.skip.add(hi.id);
+    if (hi && hi.id.startsWith('head') && hi.hold && !hk.skip.has(hi.id) && !b.army.nearestEnemy(u, 4, (o) => !o.fleeing && !o.noTarget && !o.isStruct)) {
+      inp.k.clear(); inp.e.clear(); inp.leftPressed = false; inp.runHeld = false; inp.chargeHold = false; inp.quickCmd = null;
+      inp.k.add('KeyE');
+      b._botHeadUntil = b.t + 0.4;   // 性格の癖（突進・連打）が次の一押しまでの間に足を出して長押しを切らない
+      return;
+    }
+  }
+  // 首取り（K071）続き：倒し終えた亡骸が 12m 内にあり、6m 内に敵がいない時は、倒れ終わった所へ歩いて戻る
+  if (b.index !== 0 && !p.mounted && !p.catching && (b.meritBagCount || 0) < 2 && b.meritKills && !b.def.noHead && !b.def.uchisute &&
+      !b.army.nearestEnemy(u, 6, (o) => !o.fleeing && !o.noTarget && !o.isStruct)) {
+    let best = null, bd = 144;
+    for (const r of b.meritKills) {
+      const f = r.foe;
+      if (r.head || r.botSkip || f.alive || f.gone || f.noHead || r.src !== u || f.death?.aid || !f.mesh?.parent) continue;
+      if (f.mounted ? f.deadT < 4 : f.death ? f.death.t < DEATH_END : !(f.deadT >= 1)) continue;
+      const q = f.mesh.position, d = (q.x - u.pos.x) ** 2 + (q.z - u.pos.z) ** 2;
+      if (Math.abs(q.y - u.pos.y) > 1.6) continue;   // 切岸の下・塀の向こうの亡骸へは歩かない
+      if (d < bd && d > 4) { bd = d; best = r; }
+    }
+    // 11/13 クラウドす：届かない亡骸へ歩き続け、小谷の act bot が小丸の口 (2,-87) で八百秒立った。一つの亡骸へは十秒で諦める。
+    if (best) {
+      if (b._headWalk?.r !== best) b._headWalk = { r: best, t: b.t };
+      // 11/13 クラウドE：二つの亡骸を交互に選ぶと時計が毎回戻り、山中城の本丸・出丸で首へ歩いたまま十分以上動かなかった。亡骸ごとに初めに狙った時から数える
+      if (best.botWalkT0 === undefined) best.botWalkT0 = b.t;
+      if (b.t - b._headWalk.t > 10 || b.t - best.botWalkT0 > 12) { best.botSkip = true; b._headWalk = null; }
+      else { const q = best.foe.mesh.position; goTo(p, inp, q.x, q.z, 1.2); return; }
+    }
+  }
   // 手綱を取る一秒ほどは歩く判断を休む。別の頭が持ち場へ歩かせると、
   // 手綱が届かなくなり、乗る前に取り消される。
   if (p.catching) {
@@ -597,7 +634,9 @@ function shitaraBrain(b, inp) {
   inp.k.delete('KeyW');
   inp.leftPressed = false; inp.chargeHold = false;
   const inside = !F.pursuit;
-  const post = F.pendingWave ? F.commandPt : F.wave === 0 ? F.prepPt : F.commandPt;
+  let post = F.pendingWave ? F.commandPt : F.wave === 0 ? F.prepPt : F.commandPt;
+  // 柵が破られた間は、人と同じく金の▼（破れ目・柵の内へ入った赤備え）へ向かう。元の持ち場へ戻らない。
+  if (F.shBreach?.s && !F.shBreach.done) { const q = b.def.missionPin?.(b); if (q) post = { x: q.x, z: q.z }; }
   const waiting = inside && (!F.close || F.waveRest || F.cur?.doneWave);
   // 下知で決まった奥の持ち場を守る。射撃待ちでも奥の柵まで抜けた敵は止める。
   // 柵間の敵は追わず、鉄砲の射線を空ける。
@@ -1406,6 +1445,18 @@ class TouchPad {
         if (k === 'Digit1' && this.shown(btn('spear'))) { this.tap(btn('spear'), '槍へ'); continue; }
         if (k === 'Digit1' && p.weapon === 'spear') continue;
         if (k === 'Digit2' && this.shown(btn('wpn'))) { this.tap(btn('wpn'), '持替'); continue; }
+        // 3・4（火縄銃・弓）は指では持替の丸（WeaponNext）が代わり
+        if ((k === 'Digit3' || k === 'Digit4') && this.shown(btn('wpn'))) { this.tap(btn('wpn'), '持替'); continue; }
+        // 1（槍）も、槍の丸が無い時は持替の丸で回す（11/13 act bot：Digit1 が17回「釦が無い」と数えられた）
+        if (k === 'Digit1' && this.shown(btn('wpn'))) { this.tap(btn('wpn'), '持替'); continue; }
+      }
+      // 持替の丸が「…」に畳まれている時は、「…」を開いてから次のコマで押す（人もそうする）
+      if (dg && /^[1-4]$/.test(dg[1])) {
+        const w = btn('wpn'), more = btn('more');
+        if (w && w.hidden && this.shown(more) && !more.classList.contains('sel')) { this.tap(more, '…（ほか）'); (this.pend = this.pend || []).push(k); continue; }
+        if (!this.shown(q('#tc')) || !this.shown(btn('atk'))) continue;
+        // 持替の丸が畳みの「…」からも出ない時（持てる武器が一つ・馬上など）は、丸が無いのが決まりどおり＝数えない
+        if (!this.shown(btn('wpn')) && !this.shown(more)) continue;
       }
       // 指の端末に釦が無い操作（鍵盤でしか出せない）
       this.ctx.noTouch(k);
@@ -1462,7 +1513,8 @@ function makeCtx(per, aud) {
     },
     noStick() { if (openingWait(ctx.b?.player?.rt?.game)) return; ctx.add('stick-none', '親指で歩こうとしても、置く所がふさがっている', '歩く範囲の四か所とも、戦場の上に札がある', 3, { shot: true, fix: '歩く範囲から札を離す／読むだけの札に指を通す' }); },
     noButton(name) { if (openingWait(ctx.b?.player?.rt?.game)) return; ctx.add(`btn-none:${name}`, `「${name}」をしたいのに、押す丸が出ていない`, `欲しかった時：${ctx.where}`, 1, { fix: 'その時に使える釦は出す（touchFrame の出し入れ）' }); },
-    noTouch(k) { const KN = { Digit3: '火縄銃に持ち替え（鍵盤の 3）', Digit4: '弓に持ち替え（鍵盤の 4）', KeyG: '号令先の切り替え（G）', KeyT: '肩の切り替え（T）' }; ctx.add(`touch-none:${k}`, `指の端末では「${KN[k] || k}」ができない（押す丸が無い）`, `bot の頭が ${k} を押したがった（${ctx.where}）`, 2, { fix: 'touch.js に釦を足すか、戦の方で要らなくする' }); },
+    // 開戦の札・布陣の見渡しの間は、まだ指の釦が出ていないので数えない（noButton・noStick と同じ・11/13 act bot で 5秒 brief の Digit3 が17回）
+    noTouch(k) { if (openingWait(ctx.b?.player?.rt?.game) || ctx.b?.phase === 'brief') return; const KN = { Digit3: '火縄銃に持ち替え（鍵盤の 3）', Digit4: '弓に持ち替え（鍵盤の 4）', KeyG: '号令先の切り替え（G）', KeyT: '肩の切り替え（T）' }; ctx.add(`touch-none:${k}`, `指の端末では「${KN[k] || k}」ができない（押す丸が無い）`, `bot の頭が ${k} を押したがった（${ctx.where}）`, 2, { fix: 'touch.js に釦を足すか、戦の方で要らなくする' }); },
     noTouchCmd(id) { ctx.add(`cmd-none:${id}`, `号令「${{ form: '陣形', fire: '射撃／停止', move: '前進', yari: '槍衾', charge: '突撃' }[id] || id}」が、指の号令の輪から出せない`, `号令の輪（RADIAL）に無い、または身分が足りず選べない（${ctx.where}）`, per.key === 'sen' ? 3 : 1, { fix: '号令の輪に足すか、短く押した時の指揮の札（数字の号令）を指で押せるようにする' }); },
     radialDone(id) { ctx.radialHandled = null; ctx.radialWant = { id, t: ctx.b ? ctx.b.t : 0 }; },
   };
@@ -1796,6 +1848,43 @@ function watchStep(b, dt, c) {
     if (!c.cmdSeen.fb && per.key === 'sen') c.add('cmd-nofb', '号令が届いたのか、画面で分からない', `号令のあと1秒、字幕も知らせも出なかった（${c.where}）`, 1, { fix: '号令を出したら、短い字幕か組の頭上の印で「届いた」を見せる' });
   }
   if (!sec) return;
+  // ---- 全員：行き先の印に着いたら何かが起きるか（K175）----
+  {
+    const mk = b.markers.find((m) => !m.red) || b.markers[0];
+    const mp = mk ? (typeof mk.pos === 'function' ? mk.pos() : mk.pos) : null;
+    const mkLab = mk ? String((typeof mk.label === 'function' ? mk.label() : mk.label) || mk.id || '印') : '';
+    const mkKey = mk ? `${mk.id || mkLab}:${mp ? `${Math.round(mp.x / 5)},${Math.round(mp.z / 5)}` : ''}` : '';
+    const objKey = b.objectives.map((o) => o.text + o.state + (o.progress || '')).join('|');
+    const near = mp ? dist(mp, u.pos) <= 10 : false;
+    c.arr ||= { n: 0, empty: 0, list: [], pend: null, seen: new Set() };
+    const A = c.arr;
+    // ---- 行き先のピンへ歩いて行けるか（K177）：立てた所が歩けない地面か、立ててから180秒近づけなかったか ----
+    const P = c.pinW ||= { n: 0, reached: 0, bad: [], first: new Map() };
+    if (mp && mkKey && !P.first.has(mkKey)) {
+      P.first.set(mkKey, { t, best: 1e9, done: false }); P.n++;
+      let ok = true; try { ok = b.world.walkable(mp.x, mp.z) !== false; } catch (e) { ok = true; }
+      if (!ok) P.bad.push(`${Math.round(t)}秒 ${mkLab}（歩けない地面）`);
+    }
+    const PF = mkKey && P.first.get(mkKey);
+    if (PF && !PF.done) {
+      const d = dist(mp, u.pos); PF.best = Math.min(PF.best, d);
+      if (d <= 10) { PF.done = true; P.reached++; }
+      else if (t - PF.t > 180) { PF.done = true; P.bad.push(`${Math.round(PF.t)}秒 ${mkLab}（180秒で最も近づけたのは${Math.round(PF.best)}m）`); }
+    }
+    if (near && mkKey && !A.seen.has(mkKey)) {
+      A.seen.add(mkKey); A.n++;
+      A.pend = { t, key: mkKey, label: mkLab, objKey, phase: b.phase || '', say: c.lastSayT || 0, foe: !!b.army.nearestEnemy(u, 20) };
+    }
+    if (A.pend && t - A.pend.t >= 6) {
+      const q = A.pend; A.pend = null;
+      const happened = objKey !== q.objKey || (b.phase || '') !== q.phase || mkKey !== q.key
+        || (c.lastSayT || 0) > q.say || q.foe || !!b.army.nearestEnemy(u, 20);   // 着いた時にもう敵が20m内なら斬り合いが起きている（天王寺の本陣の前・馬印は敵と戦う持ち場で、偽の「何も起きず」だった）
+      if (!happened) {
+        A.empty++; A.list.push(`${Math.round(q.t)}秒 ${q.label}（段 ${q.phase || '―'}）`);
+        c.add(`arrive-empty:${c.bid}:${q.key}`, '行き先の印に着いても、6秒なにも起きない', `${Math.round(q.t)}秒・印「${q.label}」・段「${q.phase || '―'}」：任務札も段も台詞も変わらず、敵も寄って来ない`, 2, { cat: '使いづらい', shot: true, fix: '着いたら台詞・段送り・敵の出現など、必ず一つ起こす（K175）' });
+      }
+    }
+  }
   // ---- 中学生：次に何をすればいいか分からない時間 ----
   if (per.key === 'chu' && !c.wander) {
     const foe = b.army.nearestEnemy(u, 25);
@@ -2124,7 +2213,7 @@ async function campaignTown(game, c, aud, spec) {
 
 async function playPersona(game, spec, aud, c) {
   const per = c.per, name = spec.name;
-  c.battle = name; c.bid = name; c.where = name;
+  c.battle = name; c.bid = name; c.where = name; c.arr = null;   // 行き先の到着（K175）は戦ごとに数え直す
   const rep = c.curRep = { battle: name, key: spec.id, kind: spec.kind, scn: spec.scn || '', errors: [], stuck: [], waits: [], flow: [], named: [], time: 0, merit: 0, main: false, squad: '—', down: false, lines: '', loadMs: 0, storyLen: 0, kills: 0, hits: 0, attacks: 0, shots: [] };
   // ---- 始める（戦の前の札 → 押して出陣） ----
   let tClick = performance.now();
@@ -2269,12 +2358,24 @@ async function playPersona(game, spec, aud, c) {
       const n = (foeHits.get(t) || 0) + 1; foeHits.set(t, n);
       if (!t.alive) { rep.finishedHits = (rep.finishedHits || 0) + n; rep.finishedFoes = (rep.finishedFoes || 0) + 1; }
       if (game.hitstop > 0 || game.slowmo > 0) c.feel = (c.feel || 0) + 1;
-      if (t.invuln && (t.type === 'busho' || t.name)) c.invulnHit = t.name || '武将';
+      if (t.invuln && !t.woundOut && !t.onWound && (t.type === 'busho' || t.name)) c.invulnHit = t.name || '武将';
     }
     return r;
   };
   const kill0 = b.army.kill.bind(b.army);
-  b.army.kill = (t, src) => { if (src === P) rep.kills++; else if (src && src.team === P.team && t && t.team !== P.team) rep.allyKills = (rep.allyKills || 0) + 1; return kill0(t, src); };
+  b.army.kill = (t, src) => {
+    if (src === P) rep.kills++; else if (src && src.team === P.team && t && t.team !== P.team) rep.allyKills = (rep.allyKills || 0) + 1;
+    // K189：名のある敵の将の討ち取りが、本人の手柄か味方に取られたかを数える（味方なら本人との間合いと待った秒も）
+    const nm = t && t.alive && t.name && t.team !== P.team && (t.type === 'busho' || t.isOfficer || t.isTaisho);
+    const r = kill0(t, src);
+    if (nm && !t.alive) {
+      const NK = rep.namedKill ||= { me: 0, ally: 0, other: 0, list: [] };
+      const mine = src === P || (t.heroDmg || 0) >= t.maxHp * 0.25;
+      if (mine) NK.me++; else if (src && src.team === P.team) NK.ally++; else NK.other++;
+      if (!mine && NK.list.length < 6) NK.list.push(`${t.name}${src && src.team === P.team ? '味方' : '他'}${Math.round(Math.hypot(P.pos.x - t.pos.x, P.pos.z - t.pos.z))}m${t.heroWaitT != null ? '待' + Math.round(b.army.time - t.heroWaitT) : ''}・${(new Error().stack || '').split('\n').slice(2, 5).map((l) => (l.match(/([\w$]+\.js:\d+)/) || [])[1] || '?').join('<')}`);
+    }
+    return r;
+  };
   // 味方の隊の働き：5 秒ごとに、味方の隊（組を除く）の中心の動いた距離と、敵が 60m 内にいるのに 20 秒動かない隊を数える
   const AM = { at: 0, pos: new Map(), move: 0, idle: 0, samp: 0, low: 0 };
   const allyTick = () => {
@@ -2287,7 +2388,7 @@ async function playPersona(game, spec, aud, c) {
       if (q) { const d = Math.hypot(c.x - q.x, c.z - q.z); AM.move += d; q.still = d < 1 ? q.still + 5 : 0; AM.samp++; if (q.still >= 20 && !g.units.some((u) => u.alive && (u.target || u.atk)) && b.army.nearestEnemy({ pos: c, team: P.team }, 60, (o) => !o.fleeing)) { AM.idle++; q.still = 0; } q.x = c.x; q.z = c.z; }
       else AM.pos.set(g, { x: c.x, z: c.z, still: 0 });
     }
-    rep.ally = `隊${AM.pos.size}・動いた計${Math.round(AM.move)}m・味方の討ち取り${rep.allyKills || 0}・敵を前に20秒止まった${AM.idle}回・本物の味方5人未満${AM.low * 5}秒`;
+    rep.ally = `隊${AM.pos.size}・動いた計${Math.round(AM.move)}m・味方の討ち取り${rep.allyKills || 0}・名のある将 本人${rep.namedKill?.me || 0}/味方${rep.namedKill?.ally || 0}/他${rep.namedKill?.other || 0}${rep.namedKill?.list.length ? '（' + rep.namedKill.list.join(' ') + '）' : ''}・敵を前に20秒止まった${AM.idle}回・本物の味方5人未満${AM.low * 5}秒`;
   };
   const hurt = {}, hitLog = [], hurtBy = {};   // hurtBy：傷を与えた組の名ごとの合計（倒れた時に多い順に三つ。11/9 徳川C）
   let retryT = -1;
@@ -2367,6 +2468,12 @@ async function playPersona(game, spec, aud, c) {
         variantHabit(b, inp, c);
       } else if (V.habit === 'hashiri') inp.runHeld = true;
       if (!b.over && !b.ended && !b.flags.ending && b.def.botSteer) b.def.botSteer(b, inp);
+      // 首を袋に納める三秒の長押しの間は、癖で足・突きを足さない（K071。敵が4mに来れば頭が長押しをやめる）
+      if (b._botHeadUntil > b.t && !b.over && b.player.u.alive) {
+        for (const k of ['KeyW', 'KeyS', 'KeyA', 'KeyD']) inp.k.delete(k);
+        inp.axis = null; inp.leftPressed = false; inp.runHeld = false; inp.chargeHold = false; inp.guardHold = false; inp.quickCmd = null;
+        inp.k.add('KeyE');
+      }
       const want = b.player.yaw;
       const t1 = performance.now();
       if (touch) {
@@ -2434,6 +2541,10 @@ async function playPersona(game, spec, aud, c) {
   if (performance.now() >= BUDGET_END.t && !b.over) { rep.cut = true; rep.note = '戦の任務とは別に、試験全体の持ち時間が尽きた'; rep.battle += '（試験の持ち時間で打ち切り）'; }
   rep.named = aud.endCheck(b, rep.timeout && cap >= 1260);
   rep.gunStats = window.__gunStats ? JSON.parse(JSON.stringify(window.__gunStats)) : null; rep.playerTeam = P.team; window.__gunStats = null;
+  rep.heads = b.meritBagCount || 0;   // 首袋に納めた数（K071 首取り）
+  { const P = c.pinW; rep.pinReach = P ? `${P.reached}/${P.n}` : '—'; rep.pinBad = P && P.bad.length ? P.bad.slice(0, 5).join('／') : ''; }   // 行き先のピンへ歩けたか（K177）
+  { const A = c.arr; rep.arrive = A ? `${A.n - A.empty}/${A.n}` : '—'; rep.arriveEmpty = A && A.list.length ? A.list.slice(0, 5).join('／') : ''; }   // 行き先に着いて何か起きた数（K175）
+  try { rep.botStat = b.def?.botStat ? String(b.def.botStat(b)) : ''; } catch (e) { rep.botStat = ''; }   // 戦ごとの数（K019 天王寺の一斉射撃など）
   rep.missile = b.army?.missile ? Object.assign({ allyN: b.army.missile.allyN }, b.army.missile.stats) : null;   // 弓・鉄砲の怖さの数（missile.js）
   rep.time = rep.decisionTime ?? Math.round(b.t);
   rep.afterDecision = Math.max(0, Math.round(b.t) - rep.time);

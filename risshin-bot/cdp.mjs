@@ -149,7 +149,15 @@ export async function openChrome({ width = 1600, height = 900, port = 9400 + Mat
     let id = 0; const pend = new Map();
     const evs = new Set();   // 知らせ（method のある便り）を受ける（Tracing など）
     ws.addEventListener('message', (m) => { const d = JSON.parse(m.data); if (d.id && pend.has(d.id)) { pend.get(d.id)(d); pend.delete(d.id); } else if (d.method) for (const f of evs) f(d); });
-    const send = (method, params = {}) => new Promise((r) => { const i = ++id; pend.set(i, r); ws.send(JSON.stringify({ id: i, method, params })); });
+    // Chrome の頁が答えなくなると（描画側の固まり・落ち）、前は永遠に待って 0% のまま何時間も止まった（11/12 桶狭間の PV で三度）。
+    //   決まった時（CDP_TIMEOUT 秒・既定 20 分）で諦めて投げ、呼び手に「固まった」と分かるようにする。知らせ（method のある便り）はこの限りでない
+    const LIMIT = (+process.env.CDP_TIMEOUT || 1200) * 1000;
+    const send = (method, params = {}) => new Promise((r, j) => {
+      const i = ++id;
+      const tm = setTimeout(() => { if (pend.has(i)) { pend.delete(i); j(new Error(`Chrome が ${Math.round(LIMIT / 60000)} 分答えません（${method}）。頁が固まったか落ちた疑い`)); } }, LIMIT);
+      pend.set(i, (d) => { clearTimeout(tm); r(d); });
+      ws.send(JSON.stringify({ id: i, method, params }));
+    });
     // THREE_LOCAL=<three の npm 展開先（package/）>：外へ出られない箱で、jsdelivr の three を手元の物で返す
     if (process.env.THREE_LOCAL) {
       const base = 'https://cdn.jsdelivr.net/npm/three@0.160.0/';

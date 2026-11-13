@@ -161,14 +161,14 @@ export class Auditor {
     const army = b.army;
     // 一息で飛ぶ兵（毎コマ）
     for (const u of army.units) {
-      if (!u.alive) { this.last.delete(u); continue; }
+      if (!u.alive || u.gone) { this.last.delete(u); continue; }
       const p = this.last.get(u);
       if (!Number.isFinite(u.pos.x) || !Number.isFinite(u.pos.z)) { this.add('数と文', 'posNaN:' + u.type, '兵の位置が数でない', who(u), '動きの計算で 0 で割っていないか見る', who(u)); continue; }
       // 暗転の場面替え（k15Fade：scene を隠す間に兵を置き直す）は飛びに数えない（11/10 木ノ芽峠の尾根道）
-      if (p && p.appearance === u.appearance && Math.hypot(u.pos.x - p.x, u.pos.z - p.z) > 6 && !u.isPlayer && b.scene?.visible !== false) this.add('辻褄', 'jump:' + u.type, '兵が一息で飛んだ（6m 超）', `${who(u)}：(${Math.round(p.x)},${Math.round(p.z)}) → (${Math.round(u.pos.x)},${Math.round(u.pos.z)})`, '位置を直接書き換えている所を探す（出し直し・押し出し）', who(u));
+      if (p && p.appearance === u.appearance && Math.hypot(u.pos.x - p.x, u.pos.z - p.z) > 6 && !u.isPlayer && !(u.isCourier && (u.gone || p.gone)) && b.scene?.visible !== false && !(b.cutT != null && b.t - b.cutT < 1.5)) this.add('辻褄', 'jump:' + u.type, '兵が一息で飛んだ（6m 超）', `${who(u)}【組：${u.group?.name || u.group?.label || '名なし'}・号令：${u.group?.order || '―'}・使番：${u.courier ? '有' : '無'}】：(${Math.round(p.x)},${Math.round(p.z)}) → (${Math.round(u.pos.x)},${Math.round(u.pos.z)})`, '位置を直接書き換えている所を探す（出し直し・押し出し）', who(u));
       const lim = b.world.def.moveLim || 176;
       if (Math.abs(u.pos.x) > lim + 0.5 || Math.abs(u.pos.z) > lim + 0.5) this.add('辻褄', 'out:' + u.type, '兵が戦場の外に出た', `${who(u)}：(${Math.round(u.pos.x)},${Math.round(u.pos.z)})`, '行き先を戦場の内側に収める', who(u));
-      if (p) { p.x = u.pos.x; p.z = u.pos.z; p.appearance = u.appearance; }
+      if (p) { p.x = u.pos.x; p.z = u.pos.z; p.appearance = u.appearance; p.gone = !!u.gone; }
       else this.last.set(u, { x: u.pos.x, z: u.pos.z, appearance: u.appearance });
     }
     this.tickAcc += dt;
@@ -353,7 +353,8 @@ export class Auditor {
       const base = u.name.replace(/^.* /, '');
       if (me && (u.name === me || base === me)) this.add('辻褄', 'twin:' + me, '自分と同じ名の者が戦場にいる', `${who(u)}（自分も ${me}）`, '遊び手がその人の時は、脇役を出さないか別の者にする（lord.js の lordWrap）', who(u));
       const gen = GENERALS[base];
-      if (gen && fac && gen.mon === fac && u.team !== P.team) this.add('辻褄', 'turncoat:' + base, '味方の家の武将が、敵の側にいる', `${who(u)}（家紋は自分と同じ ${fac}）`, '敵の組に入れる武将の名を見直す（寝返りなら、その筋を台詞で見せる）', who(u));
+      // 戦がその武将に別の旗（信雄の 'nobukatsu' など）を背負わせて敵味方を分けている時は、名だけで寝返り扱いにしない
+      if (gen && fac && gen.mon === fac && (u.look?.flag ?? gen.mon) === fac && u.team !== P.team) this.add('辻褄', 'turncoat:' + base, '味方の家の武将が、敵の側にいる', `${who(u)}（家紋は自分と同じ ${fac}）`, '敵の組に入れる武将の名を見直す（寝返りなら、その筋を台詞で見せる）', who(u));
     }
   }
   // 信長で遊ぶ時の台詞・任務の文：家来が主君を呼び捨て・自分がその場にいない者として語られる・任務が家来の下につく形
@@ -503,7 +504,7 @@ export class Auditor {
         for (const card of cards) {
           // 任務の印は 80 角の透明な箱。描いた形と字だけを合わせて測る（箱の角が札に掛かっても読めなくはならない）。
           const ink = card.id === 'mission-goal' || card.id === 'mission-enemy-target' || card.id === 'mission-dest-arrow';
-          if (card.style.pointerEvents === 'none' && card.style.inset === '0px' && !card.id) continue;   // 画面全体の透明な入れ物（中の印が出た時にだけ描く）。入れ物の面を札と数えない
+          if (card.style.pointerEvents === 'none' && card.style.inset === '0px' && (!card.id || card.id === 'kg-foe-signs')) continue;   // 画面全体の透明な入れ物（中の印が出た時にだけ描く）。入れ物の面を札と数えない
           const r = ink ? inkRect(card) : visibleRect(card);
           if (r) panels.push({ el: card, r });
         }
