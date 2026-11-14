@@ -2381,7 +2381,7 @@ async function playPersona(game, spec, aud, c) {
   const allyTick = () => {
     if (b.t < AM.at) return; AM.at = b.t + 5;
     // 11/14 クラウドわ K285：見せかけの兵（本物でない絵だけの兵：軽い大軍の束 armyBatch・armyU・splitTwin）の数を30秒ごとに数え、一番多かった時を記録に出す（0 が正しい）
-    if (b.scene && b.t >= (AM.fakeAt || 0)) { AM.fakeAt = b.t + 30; let n = 0; b.scene.traverse((o) => { if (!o.isInstancedMesh || !o.count || o.name === 'vatCrowd') return; const ud = o.userData || {}; if (ud.armyBatch || ud.splitTwin || o.material?.userData?.armyU) n += o.count; }); AM.fakeMax = Math.max(AM.fakeMax || 0, n); AM.fakeN = (AM.fakeN || 0) + 1; }
+    if (b.scene && b.t >= (AM.fakeAt || 0)) { AM.fakeAt = b.t + 30; let n = 0; b.scene.traverse((o) => { if (!o.isInstancedMesh || !o.count || o.name === 'vatCrowd') return; const ud = o.userData || {}; if (ud.realImpostor) return; if (ud.armyBatch || ud.splitTwin || o.material?.userData?.armyU) n += o.count; }); AM.fakeMax = Math.max(AM.fakeMax || 0, n); AM.fakeN = (AM.fakeN || 0) + 1; }
     let real = 0; for (const u of b.army.units) if (u.alive && u.team === P.team && !u.isPlayer && !u.fleeing) real++;
     if (real < 5 && b.t > 30) AM.low++;
     for (const g of b.army.groups) {
