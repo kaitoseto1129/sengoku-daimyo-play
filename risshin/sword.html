@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#14120f">
+<title>戦国立身3D　携帯の刀</title>
+<!-- K254（kaito 11/11「携帯を刀にしてパソコンで遊ぶ（QR でつなぐ・振る・突き・構え）」）：パソコンの設定の「携帯を刀にする」の QR を携帯で読むと開く頁。
+     振る＝斬る（回る速さ）・前へ突き出す＝突き（前への加速）・画面を押している間＝構え。動きは PeerJS（WebRTC）でパソコンへ直に送る。
+     DeviceMotion は https の頁でしか取れない（公開の github.io は https）。 -->
+<style>
+  :root { --bg: #14120f; --fg: #f1e9d8; --gold: #b8963e; --dim: #a89f8e; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg); font: 16px/1.6 "Hiragino Mincho ProN", "Yu Mincho", serif; -webkit-user-select: none; user-select: none; touch-action: none; overflow: hidden; }
+  main { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 16px; box-sizing: border-box; text-align: center; }
+  button { min-height: 56px; min-width: 220px; padding: 0 24px; font: inherit; font-size: 18px; color: var(--bg); background: var(--gold); border: 0; border-radius: 8px; }
+  #st { min-height: 1.6em; color: var(--dim); font-size: 15px; }
+  #blade { margin: 0 auto; width: 12px; height: 46vh; border-radius: 6px 6px 2px 2px; background: linear-gradient(#e9eef2, #9aa6ad); box-shadow: 0 0 0 2px #3b352c; transition: transform .12s, box-shadow .12s; }
+  #blade.guard { box-shadow: 0 0 0 4px var(--gold); }
+  #blade.hit { transform: rotate(-24deg); }
+  #blade.tsuki { transform: translateY(-18px); }
+  #tsuba { width: 64px; height: 10px; border-radius: 5px; background: #3b352c; margin-top: -12px; }
+  #tsuka { width: 18px; height: 16vh; border-radius: 4px; background: repeating-linear-gradient(45deg, #2a1d14 0 8px, #5a3e28 8px 16px); margin-top: -12px; }
+  [hidden] { display: none !important; }
+  @media (prefers-reduced-motion: reduce) { #blade { transition: none; } }
+</style>
+</head>
+<body>
+<main>
+  <section id="start">
+    <p>携帯を刀のように握ります。<br>画面を上にして、上の端をパソコンへ向けます。</p>
+    <button id="go" type="button">刀としてつなぐ</button>
+  </section>
+  <section id="play" hidden aria-label="刀">
+    <div id="blade"></div><div id="tsuba" style="margin-left:auto;margin-right:auto"></div><div id="tsuka" style="margin-left:auto;margin-right:auto"></div>
+  </section>
+  <p id="st" role="status" aria-live="polite"></p>
+</main>
+<script src="./v202611141105/src/vendor/peerjs.min.js"></script>
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const say = (t) => { $('st').textContent = t; };
+  const room = (new URLSearchParams(location.search).get('r') || '').replace(/[^a-z0-9]/gi, '').slice(0, 12);
+  if (!room) { say('パソコンの QR を読み直してください'); $('go').disabled = true; return; }
+  if (!window.isSecureContext) say('公開の頁から開き直すと動きます');
+  let conn = null, guard = false, lastSwing = 0, lastThrust = 0;
+  const send = (m) => { try { if (conn && conn.open) conn.send(m); } catch (e) { /* 切れた */ } };
+  const flash = (c) => { const b = $('blade'); b.classList.add(c); setTimeout(() => b.classList.remove(c), 160); };
+  const buzz = (ms) => { try { navigator.vibrate && navigator.vibrate(ms); } catch (e) { /* 震えなくてよい */ } };
+
+  // 振り：回る速さ（度/秒）が大きい時＝斬る。突き：前（携帯の上の端の向き＝y）への加速が大きく、回りが小さい時＝突き
+  function onMotion(e) {
+    const now = performance.now();
+    const r = e.rotationRate || {}, a = e.acceleration || {};
+    const rot = Math.hypot(r.alpha || 0, r.beta || 0, r.gamma || 0);
+    const fwd = a.y || 0;
+    if (fwd > 14 && rot < 260 && now - lastThrust > 420 && now - lastSwing > 250) { lastThrust = now; send({ t: 'k' }); flash('tsuki'); buzz(20); return; }
+    if (rot > 340 && now - lastSwing > 330 && now - lastThrust > 250) { lastSwing = now; send({ t: 's', p: Math.round(rot) }); flash('hit'); buzz(25); }
+  }
+  // 構え：画面を押している間
+  const setGuard = (on) => { if (guard === on) return; guard = on; $('blade').classList.toggle('guard', on); send({ t: 'g', on }); };
+  addEventListener('pointerdown', (e) => { if (!$('play').hidden) { e.preventDefault(); setGuard(true); } });
+  addEventListener('pointerup', () => setGuard(false));
+  addEventListener('pointercancel', () => setGuard(false));
+  setInterval(() => { if (guard) send({ t: 'g', on: true }); send({ t: 'p' }); }, 250);   // 押したままを伝え直す・生きている印
+
+  $('go').onclick = async () => {
+    try {
+      if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+        const ok = await DeviceMotionEvent.requestPermission();
+        if (ok !== 'granted') { say('動きを読む許しが要ります。もう一度押してください'); return; }
+      }
+    } catch (e) { say('動きを読む許しが取れませんでした'); return; }
+    say('つないでいます…');
+    $('go').disabled = true;
+    let ps = null; try { ps = JSON.parse(new URLSearchParams(location.search).get('ps') || 'null'); } catch (e) { ps = null; }
+    const peer = ps ? new Peer(ps) : new Peer();
+    peer.on('open', () => {
+      conn = peer.connect('risshin-sword-' + room, { reliable: false });
+      conn.on('open', () => {
+        say('つながりました。振ると斬る・突き出すと突き・押している間は構え');
+        $('start').hidden = true; $('play').hidden = false;
+        addEventListener('devicemotion', onMotion);
+        send({ t: 'hi' });
+      });
+      conn.on('close', () => { say('切れました。パソコンの QR を読み直してください'); $('play').hidden = true; $('start').hidden = false; $('go').disabled = false; });
+    });
+    peer.on('error', () => { say('つなげませんでした。パソコンの QR を読み直してください'); $('go').disabled = false; });
+  };
+})();
+</script>
+</body>
+</html>

@@ -208,7 +208,7 @@ export class Auditor {
       // 勝敗後など、敵の狙いに入らない本人は nearestEnemy と同じ条件で除く。
       if (P.alive && !P.noTarget && (!P.invuln || P.allyOk) && u.team !== P.team && !u.fleeing && !IDLE_OK_TYPES.has(u.type) && !u.noTarget && Math.hypot(u.pos.x - P.pos.x, u.pos.z - P.pos.z) < 3.5 && !u.target && !u.atk && !(g && g.order === 'hold')) {
         u.__besideT = (u.__besideT || 0) + step;
-        if (u.__besideT > 6) { this.add('辻褄', 'passive:' + u.type, '自分のすぐそばの敵が6秒以上なにもしない', who(u), '近くの敵（遊び手）を狙いに入れる', who(u)); u.__besideT = -60; }
+        if (u.__besideT > 6) { this.add('辻褄', 'passive:' + u.type, '自分のすぐそばの敵が6秒以上なにもしない', `${who(u)}（${g?.name || '名なし'}・号令：${g?.order}${g?.stay ? '・待つ' : ''}${g?.guard ? '・守り' : ''}）`, '近くの敵（遊び手）を狙いに入れる', who(u)); u.__besideT = -60; }
       } else u.__besideT = 0;
     }
     // 部隊
