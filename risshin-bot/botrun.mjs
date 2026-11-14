@@ -22,15 +22,6 @@ import { ensureServer, openChrome, sleep, PORT } from './cdp.mjs';
 process.on('uncaughtException', (e) => { if (String(e && e.stack).includes('undici')) { console.error('（通信の部品の一時的な誤りを無視）'); return; } console.error(e); process.exit(1); });
 
 const args = process.argv.slice(2);
-// 11/15 kaito「フルで」：係が多い機械（iMac の load 100）で bot の Chrome が並びすぎて全部が遅くなる。同時に走る bot を席の数までにする
-// 席＝BOT_SLOTS（既定は CPU の数の半分・最低2）。席が空くまで15秒ずつ待つ。持ち主の消えた席は取り返す
-{ const { cpus } = await import('node:os'); const D = '/tmp/risshin_bot_slots'; mkdirSync(D, { recursive: true });
-  const S = +process.env.BOT_SLOTS || Math.max(2, Math.floor(cpus().length / 2)); let mine = null, waited = 0;
-  while (!mine) { for (let i = 0; i < S && !mine; i++) { const f = `${D}/${i}`;
-      try { const pid = +readFileSync(f, 'utf8'); try { process.kill(pid, 0); continue; } catch { rmSync(f, { force: true }); } } catch {}
-      try { writeFileSync(f, String(process.pid), { flag: 'wx' }); mine = f; } catch {} }
-    if (!mine) { if (!waited) console.error(`bot の席（${S}）が空くのを待つ`); waited++; await new Promise((r) => setTimeout(r, 15000)); } }
-  process.on('exit', () => { try { if (+readFileSync(mine, 'utf8') === process.pid) rmSync(mine, { force: true }); } catch {} }); }
 // --row=番号：1000人の表（players-table.mjs）のその人として遊ぶ（性格・戦の数・画面・変わり目を表から足す）
 { const ra = args.find((a) => a.startsWith('--row=')); if (ra) { const m = await import('./players-table.mjs'); args.push(...m.argsOf(m.ROWS[+ra.slice(6) % m.TOTAL])); } }
 const N = +(args.find((a) => /^\d+$/.test(a)) || 3);
