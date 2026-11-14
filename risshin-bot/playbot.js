@@ -8,6 +8,7 @@ import { Auditor } from './audit.js';
 import { touchFrame, touchInput, isTouch } from './touch.js';
 import { S } from './settings.js';
 import { RADIAL } from './player.js';
+import { cmdAllowed } from './command_rank.js';
 import { GENERALS, WOUND_FLOOR, DEATH_END } from './units.js';
 import { lordGame, lordList } from './lord.js';
 import { depthBot } from './b_depth.js';
@@ -1323,6 +1324,8 @@ class TouchPad {
     const i = RADIAL.findIndex((r) => r.id === id);
     const el = document.querySelector('#tc [data-b="cmd"]');
     if (i < 0 || !this.shown(el)) return false;
+    // 今の位・組で出せない号令（輪の上で選べない所）へは滑らせない。選べない所で放して「号令が出なかった」と数える誤りを防ぐ（K072 の一回り・墨俣 397秒）
+    if (this.ctx.b && !cmdAllowed(this.ctx.b, id)) return false;
     if (!this.radial) this.radial = { id, i, n: 0, el };
     return true;
   }
