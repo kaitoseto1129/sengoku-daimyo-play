@@ -28,7 +28,7 @@ import { camp } from './b_mid.js';
 import { osakaFar } from './osaka_far.js';
 import { ending as katame } from './k09/katame.js';   // 締め：今福に旗を立てて固め、鴫野の鉄砲の音へ
 import * as DP from './b_depth.js';
-import { depthStart, depthTick } from './b_depth.js';
+import { depthStart, depthTick, depthJump } from './b_depth.js';
 import { clamp01, gone, uS, uA, uG, uB, dress, gunLine, busho, makeLose, makeBot, setStages } from './b_k_help.js';
 import { timeslipField } from './timeslip_field.js';
 import { stageNow } from './stages.js';
@@ -483,6 +483,26 @@ const k09_imafuku = {
     rt.after(11.5, () => this.begin(rt));
   },
 
+  // 戦の途中の保存（battle_checkpoint.js・K211 kaito「途中が全部消えるのは最悪」）：②砦を奪う・③木村の反撃・④押し返すの始まりから続ける。
+  //   段の番号は段の流れ（b_depth.js）の番号（間の休みは飛ばす）。飛ばした段の出来事（夜明け・砦を奪う・渋江の討死・上杉の加勢）は resumeFx で音もなく
+  checkpointStep(rt) { const D = rt.flags.dp; return D && D.on ? D.i : -1; },
+  resumeSteps: [2, 4, 6].map((k) => [k, function (rt) {
+    const F = rt.flags;
+    if (!F.begun) this.begin(rt);
+    if (!F.dp?.on) return;
+    for (let j = F.dp.i; j < k; j++) this.resumeFx(rt, j);
+    depthJump(rt, k);
+  }]),
+  resumeFx(rt, j) {
+    const F = rt.flags;
+    if (j === 0) { F.step = 2; this.dawn(rt); }
+    if (j === 2) this.taken(rt);
+    if (j === 4) { this.shibueFalls(rt); this.reinforce(rt); }
+  },
+  resumeAt(rt, step) {
+    const P = step === 2 ? { x: FORT.x + 50, z: 0 } : step === 4 || step === 6 ? { x: KEEP.x + 4, z: 0 } : null;
+    return P;
+  },
   dawn(rt) {
     if (rt.flags.dawn) return;
     rt.flags.dawn = true;

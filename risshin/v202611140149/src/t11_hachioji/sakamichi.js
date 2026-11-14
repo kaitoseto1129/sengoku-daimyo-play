@@ -58,7 +58,8 @@ export function step(H) {
       // 二巡 11/9：坂の脇の崖へ逃げた数人を討てず、十五分止まった。長引けば残りが少なくなった所で進む（味方が残りを払う）
       // 長引いても時刻だけでは突破にしない。新手まで含む六割以上を崩した時だけ、残兵を退かせる。
       const total = C.n0 + (C.spear2?.units.length || 0);
-      return !!C.down && top && (left <= 2 || (el > 150 && left <= 5) || (el > 220 && left <= total * 0.4));
+      // 11/14 クラウド：act bot で坂の段が440秒続いた。坂の上に着いて五分を過ぎれば、残りの数に関わらず残兵を退かせる
+      return !!C.down && top && (left <= 2 || (el > 150 && left <= 5) || (el > 220 && left <= total * 0.4) || el > 300);
     },
     end(rt, C) {
       for (const g of [C.spear, C.spear2]) retreat(g);

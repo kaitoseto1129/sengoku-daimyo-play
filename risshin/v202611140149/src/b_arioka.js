@@ -2746,6 +2746,31 @@ const arioka = {
     // 侍町への火は、城下へ進む段の下知で付ける。
   },
 
+  // 木戸を押さえた後の段の流れ（W 惣構え → A 侍町の辻 → C 辻の守り → D 焼け跡 → U 奥の木戸 → 勝ち）を i 番目から
+  dpChain(rt, i) {
+    const L = ['W', 'A', 'C', 'D', 'U'];
+    if (i >= L.length) { this.win(rt); return; }
+    rt.flags.dpWhich = i + 1;
+    this.deep(rt, L[i], () => this.dpChain(rt, i + 1));
+  },
+  // 戦の途中の保存（battle_checkpoint.js・K211 kaito「途中が全部消えるのは最悪」）：木戸を押さえた後の五つの段の流れ（1〜5）の始まりから続ける
+  checkpointStep(rt) { const F = rt.flags; return F.dpOn && F.dpWhich ? F.dpWhich : -1; },
+  resumeSteps: [1, 2, 3, 4, 5].map((k) => [k, function (rt) {
+    const F = rt.flags;
+    if (!(F.step >= 1)) this.open(rt);
+    F.g1Done = true;
+    if (F.dp) F.dp.on = false;
+    F.dpOn = false;
+    for (const q of [F.g1, ...(F.gateInner || [])]) if (q && !gone(q)) for (const u of q.units.slice()) if (u.alive) rt.army.despawn(u);
+    this.dpChain(rt, k - 1);
+  }]),
+  // 続ける時の置き場：木戸の内（1）・惣構えの通り（2）・侍町の辻（3〜5）
+  resumeAt(rt, step) {
+    if (step === 1) return { x: GATE.x + 12, z: GATE.z };
+    if (step === 2) return { x: TOWN_X - 24, z: GATE.z };
+    if (step >= 3) return { x: ARI_JUNCTION.x - 6, z: ARI_JUNCTION.z };
+    return null;
+  },
   sendAid(rt) {
     const F = rt.flags;
     if (F.aidSent || F.ending || rt.over || !rt.player.u.alive || F.step !== 1 || F.dpOn || ariSpent(F.aid)) return;
@@ -2970,7 +2995,7 @@ const arioka = {
         F.g1Done = true;
         // 主任務は木戸の防衛が済んで初めて達成。
         // 15分の段：木戸の内 → 惣構えの通り（arioka/sotoguruwa.js）→ 侍町の辻 → 辻の守り → 焼け跡を改める（arioka/seiatsu.js）→ 官兵衛
-        this.deep(rt, 'W', () => this.deep(rt, 'A', () => this.deep(rt, 'C', () => this.deep(rt, 'D', () => this.deep(rt, 'U', () => this.win(rt))))));
+        this.dpChain(rt, 0);
       } else if (rt.t - F.stepT > 150 && !gone(F.g1) && !F.g1Broke) {
         // 二分半押し合えば、内応で口を失った木戸の荒木勢は砦の奥へ崩れる（11/8 bot：数人が残り段が進まず負けた）
         let able = 0;

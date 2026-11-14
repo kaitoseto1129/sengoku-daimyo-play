@@ -1350,7 +1350,7 @@ const takato_siege = {
   spawn: { x: 115, z: 0, heading: -Math.PI / 2 },
   noFieldMap: true,   // 稲生の標準：小さな地図は出さず、行き先のピンと敵の印に絞る
   playerRegen: 0.02,   // 稲生の標準：戦っていない間は命が戻り、血も止まる（player_hurt.js）
-  playerTaken: 0.6,   // 受ける傷を六割に（塀の上と曲輪の城兵に囲まれやすい。稲生の初陣と同じ）
+  playerTaken: 0.4,   // 11/14 MB係四：③三の丸で新手と塀の上の鉄砲に二百秒で倒れた（act bot 4回中3回）ので0.6→0.4。受ける傷を四割に（塀の上と曲輪の城兵に囲まれやすい。稲生の初陣と同じ）
   // 身の回りの当時の場（timeslip_field.js）。天正十年三月二日は今の三月末・信濃の山の雪解け。
   // 解けた雪でぬかるむ大手道と門の前、水たまり。枯れ草の丈は低い。門の前ほど倒れた槍・矢・脱げた陣笠が多い。
   timeslip: {
@@ -2266,6 +2266,8 @@ const takato_siege = {
       // 11/13 MB係四：打って出た城兵が味方に討たれて尽き、本人の斬り合いが三秒で止まったまま、②が十八分終わらなかった（Mac act bot 1080秒・跡 s1u c3）。
       //   退く刻から六十秒たって本人が一度でも斬り合っていれば、受けた事にする（城兵はもう門の外にいない）。
       if (F.sallyUntil && rt.t - F.sallyUntil > 60 && (F.sallyContact || 0) > 0 && !receivedSally(F)) F.sallyContact = 4;
+      // 11/14 MB係四：退く刻が立たないまま（sallyUntil 0）②が十八分続いた（act bot 跡 s1c3k6・本人は門前で無傷）。②に入って本人が斬り合った後、百八十秒で受けた事にする
+      if (F.step >= 1 && !F.sanFell && !receivedSally(F) && (F.sallyContact || 0) > 0) { F._sallyWaitT ??= rt.t; if (rt.t - F._sallyWaitT > 180) F.sallyContact = 4; }
       // 主人公が打って出た城兵と斬り合うまで（四秒）、城兵は退かない。総懸かりだけでは交戦の代わりにしない。
       if (F.sallyUntil && rt.t >= F.sallyUntil && receivedSally(F)) {
         for (const q of F.sallyGates) if (!q.gate.breached) q.gate._openNow(false);
@@ -2877,9 +2879,21 @@ takato_siege.botBrain = (b, inp, { goTo, patientStrike }) => {
   // 11/13 MB係四：⑤で二の丸の空堀の脇（−7,12）から道の点（−41,−8）へ真っすぐ押し続け、切岸に阻まれて八百秒動けなかった（act bot）。
   //   六秒同じ所に留まったら、近い順に道の点を一つずつ四秒ずつ試して道へ乗り直す。
   if (target && !(target.gate && Math.hypot(u.pos.x - target.x, u.pos.z - target.z) < 2.5)) {   // 門を掛矢で叩く間は動かさない
-    const cell = Math.round(u.pos.x / 2) + ',' + Math.round(u.pos.z / 2);
+    // 11/14 MB係四：「寄せ道へ戻る」の印の四〜七歩手前で塀に阻まれ、二歩の升目を行き来して数え直し、五百秒動けなかった（act bot 4回中2回）。
+    //   升目を四歩にし、詰まったら一度は道探し（mountainWay）で回り込む
+    const cell = Math.round(u.pos.x / 4) + ',' + Math.round(u.pos.z / 4);
     if (F.botRoadCell !== cell) { F.botRoadCell = cell; F.botRoadCellT = b.t; F.botRoadTry = 0; }
-    if (F.botRoadAlt && b.t < F.botRoadAlt.until) { goTo(p, inp, F.botRoadAlt.pt[0], F.botRoadAlt.pt[1], 1); return; }
+    if (F.botRoadAlt && b.t < F.botRoadAlt.until) {
+      const foot = F._botFoot || (F._botFoot = { id: 0, group: null, pos: { x: 0, y: 0, z: 0 } });   // 本人のままでは道探しが素通しを返す
+      foot.pos.x = u.pos.x; foot.pos.y = u.pos.y; foot.pos.z = u.pos.z;
+      const w = F.botRoadAlt.way ? mountainWay(b.army, foot, F.botRoadAlt.way, true) : null;
+      goTo(p, inp, w ? w.x : F.botRoadAlt.pt[0], w ? w.z : F.botRoadAlt.pt[1], 1); return;
+    }
+    if (b.t - F.botRoadCellT > 6 && F.botRoadTry % 2 === 0) {
+      F.botRoadTry++; F.botRoadCellT = b.t;
+      F.botRoadAlt = { pt: [target.x, target.z], way: { x: target.x, z: target.z }, until: b.t + 5 };
+      return;
+    }
     if (b.t - F.botRoadCellT > 6) {
       const order = BOT_ROAD.map((q) => [q, Math.hypot(q[0] - u.pos.x, q[1] - u.pos.z)]).filter(([, d]) => d > 2.5).sort((m, n) => m[1] - n[1]);
       const pt = order[(F.botRoadTry++) % Math.min(4, order.length)]?.[0];

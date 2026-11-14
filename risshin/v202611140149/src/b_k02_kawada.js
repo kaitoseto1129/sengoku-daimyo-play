@@ -30,7 +30,7 @@ import { sfx } from './audio.js';
 import { allyGroup, enemyGroup, nm } from './bhelp.js';
 import { distToPolyline } from './world.js';
 import * as DP from './b_depth.js';
-import { depthStart, depthTick, depthBot } from './b_depth.js';
+import { depthStart, depthTick, depthBot, depthJump } from './b_depth.js';
 import { routeTools } from './b_k_route.js';
 import { timeslipField } from './timeslip_field.js';
 import { revealName } from './battle_intel.js';
@@ -370,6 +370,7 @@ const k02_kawada = {
   pacingWait: (rt) => !rt.flags.ending,
   minutes: 25,
   depth: kawadaDepth,   // 陣立て（army_depth.js）：河田の本物の隊の後ろと翼に、福島・黒田・細川・秀信の備（k02_kawada/tosen.js）
+  reserveDmgMult: 0.35,   // 11/14 クラウド：共通の待つ備の新手（既定 0.7・騎馬で一太刀60）が米野の段で倒れの傷の一番（215）だった
   lethal: { max: 2, firstAt: 200, gap: 120 },   // 命懸けの戦場（docs/lethal_howto.md）。11/9 二巡（徳川D）：既定では北の筋で bot が十七分止まった。弱める
   fearKind: { kind: '渡河', note: '浅瀬で足を取られ、対岸の鉄砲に撃たれる', w: { losses: 1.4, flank: 1.2 }, line: '川の中で止まるな！' },
   battleDialogue: true,   // 11/8 critic60 二5：音の無い所で誰が何を言ったか分からなかった。台詞を字でも出す（八秒の間引き・三枠は共通）
@@ -511,6 +512,37 @@ const k02_kawada = {
     rt.after(14.4, () => rt.say('浅野幸長', '浅瀬は細い。詰まれば撃たれる。止まらず駆け抜けよ', 4));
   },
 
+  // 戦の途中の保存（battle_checkpoint.js・K211 kaito「途中が全部消えるのは最悪」）：②河田の渡し・③米野・④新加納の砦の始まりから続ける。
+  //   段の番号は段の流れ（b_depth.js）の番号（間の休みは飛ばす）。飛ばした段の出来事（島の旗・木造と百々の退き・昼と夕）は resumeFx で音もなく
+  checkpointStep(rt) { const D = rt.flags.dp; return D && D.on ? D.i : -1; },
+  resumeSteps: [2, 4, 6].map((k) => [k, function (rt) {
+    const F = rt.flags;
+    if (!F.begun) this.begin(rt);
+    if (!F.dp?.on) return;
+    for (let j = F.dp.i; j < k; j++) this.resumeFx(rt, j);
+    depthJump(rt, k);
+  }]),
+  resumeFx(rt, j) {
+    const F = rt.flags;
+    const friends = (at) => [F.mine, F.nagayoshi, F.asano, F.hitotsu].forEach((q, k) => { if (q && q.count && !q.routed) { q.order = 'hold'; q.anchor = at(k); } });
+    if (j === 0 && !F.isleFlag) {
+      F.isleFlag = true;
+      for (const [x, z] of [[ISLE.x + 2, ISLE.z], [ISLE.x + 5, ISLE.z - 1.5], [ISLE.x - 2, ISLE.z + 1]]) rt.scene.add(nobori(rt.world, x, z, 'ageha', 6));
+      moveHonjin(rt);
+    }
+    if (j === 2) {
+      F.gumasaDown = F.northBroke = true;
+      for (const g of [F.northGun, F.northGuard]) for (const u of (g?.units || []).slice()) if (u.alive) rt.army.despawn(u);
+      friends((k) => ({ x: YONENO.x + 40, z: YONENO.z + (k - 1.5) * 7 }));
+    }
+    if (j === 3) rt.world.setTime('day');
+    if (j === 4) { F.dodoDown = F.yonenoBroke = true; F.otsukaDone = true; friends((k) => ({ x: -104 + (k - 1.5) * 6, z: -146 + (k % 2) * 5 })); }
+    if (j === 5) rt.world.setTime('afternoon');
+  },
+  resumeAt(rt, step) {
+    const P = step === 2 ? ISLE : step === 4 ? { x: YONENO.x + 44, z: YONENO.z } : step === 6 ? { x: -104, z: -140 } : null;
+    return P ? { x: P.x, z: P.z } : null;
+  },
   begin(rt) {
     const F = rt.flags;
     if (F.begun) return;

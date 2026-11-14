@@ -175,9 +175,15 @@ export function autoReserve(rt, enemyGroup, allyGroup) {
 //   戦の中で動き・戦い・倒れる本物。遠くは qualityTier 2（army_quality.js）で骨無しの束・考えを間引いて安く描く。装束は bhelp.js が覚えた rt._tpl から。
 export function realFromLight(rt, o, enemyGroup, allyGroup, scale = 0.12, max = 36, name = '遠くの備', leaders = null) {
   const T = rt._tpl && rt._tpl[o.team === 1 ? 'E' : 'A']; if (!T) return null;
+  // 同じ名の備は一つだけ（K287「同じ名は一つ」：二度作られて 秋田・松平の名が二つずつ出た）
+  const seen = rt._farNames || (rt._farNames = new Set()); if (name && name !== '遠くの備') { if (seen.has(name)) return null; seen.add(name); }
   const n = Math.max(8, Math.min(max, Math.round((o.count || 100) * scale)));
   const m = fromTpl(T, n, { x: o.x, z: o.z }, name, { width: Math.max(8, Math.min(30, (o.w || 20) * 0.6)), facing: o.facing || 0, formation: T.o.formation || 'yari', stay: true, fixed: true, noRout: true, morale: 100, aggro: 15, seekRange: 16, ...(o.team === 1 ? {} : { fullStrength: true }) });
   // 布陣図の名（K287）：その列の大名・将の名を 名のある武将として一人ずつ付ける（真上・遠くでも頭の上に名が出る。同じ名は一つ）
+<<<<<<<< HEAD:risshin/v202611140149/src/depth_reserve.js
+========
+  if (o.look) m.list = m.list.map((e) => ({ ...e, o: { ...(e.o || {}), ...o.look } }));   // 表の旗・具足の色（fujin_table.js）
+>>>>>>>> 5418e4fde (戦国立身：最新（自動・毎時）):risshin/v202611140156/src/depth_reserve.js
   if (leaders && leaders.length) m.list = [...leaders.map((nm) => ({ type: 'busho', n: 1, o: { name: nm, horse: false } })), ...m.list];
   const g = o.team === 1 ? enemyGroup(rt, m.o, m.list) : allyGroup(rt, m.o, m.list);
   if (g) { g.stay = true; g.order = 'hold'; g._far = true; }

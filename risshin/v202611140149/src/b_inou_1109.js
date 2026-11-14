@@ -289,6 +289,25 @@ const ino = {
     this.march(rt);
   },
 
+  // 戦の途中の保存（battle_checkpoint.js・K211 kaito「途中が全部消えるのは最悪」）：柴田の前進（shibata）・名塚へ退く（retreat）・殿が来て向き直る（rally）の始まりから続ける。
+  //   林勢との押し合いまでの済み（物見・隊長の討死・佐久間隊への合流・林の大旗）は音もなく済ませる
+  checkpointStep(rt) { const ph = rt.flags.ph; return ph === 'shibata' || ph === 'retreat' || ph === 'rally' ? ph : -1; },
+  resumeSteps: [
+    ['shibata', function (rt) {
+      const F = rt.flags, C = F.capU;
+      F.scoutBack = true; F.scoutJoined = true; F.joined = true; F.hayaDown = true; F.contactT = rt.t;
+      if (C?.alive) { F.capDead = true; C.invuln = false; C.hp = 0; rt.army.despawn(C); }
+      if (F.sakumaU) F.lead = F.sakumaU;
+      for (const g of [F.scoutG, ...(F.haya || [])]) if (g) for (const u of g.units.slice()) if (u.alive) rt.army.despawn(u);
+      this.shibata(rt);
+    }],
+    ['retreat', function (rt) { this.retreat(rt); }],
+    ['rally', function (rt) { this.rally(rt); }],
+  ],
+  resumeAt(rt, step) {
+    const P = step === 'shibata' ? { x: 12, z: 22 } : step === 'retreat' ? { x: 12, z: 40 } : step === 'rally' ? NAZUKA_PT : null;
+    return P ? { x: P.x, z: P.z } : null;
+  },
   // 段を変える（右上の一行が変わる）
   go(rt, ph) {
     const F = rt.flags;

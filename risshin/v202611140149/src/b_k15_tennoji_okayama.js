@@ -43,6 +43,7 @@ import { install as installEchizen } from './k15/echizen.js';
 import { install as installOkayama } from './k15/okayamaguchi.js';   // 岡山口の段
 import { freeRoom, markRecyclable } from './battle_army_kit.js';
 import { buildFieldworks } from './yasen_obstacles.js';   // 11/13 K287：野の作り（竹束・柵・逆茂木）
+import * as hataTaore from './k15/hata_taore.js';   // 11/14 K293：真田の突撃で徳川の旗の列と厭離穢土の大幟が倒れる
 import * as jindate from './k15/jindate.js';   // 陣立ての厚み（陣ごとの後ろの軽い大軍と、段ごとに崩れる様子）
 import { K15_KACCHU } from './kacchu_data.js';
 import { layout as fujinLayout, draw as fujinDraw } from './k15/fujinzu.js';
@@ -256,8 +257,9 @@ const k15_tennoji_okayama = {
   courierPath: [[HON.x + 6, HON.z + 14], [HON.x + 22, HON.z - 6], [HONF.x + 24, HONF.z - 22], [FRONT.x + 12, FRONT.z + 36], [FRONT.x - 14, FRONT.z + 44], [HONF.x - 16, HONF.z - 6], [HON.x - 18, HON.z + 10], [HON.x + 6, HON.z + 14]],
   courierN: 4,
   // K019：bot の記録に旗本の鉄砲の一斉射撃の回数と落とした騎馬の数を出す（playbot.js rep.botStat）
-  botStat(rt) { const F = rt.flags; return `旗本の一斉射撃${F.volN || 0}回・落とした騎馬${F.volKill || 0}騎`; },
+  botStat(rt) { const F = rt.flags; const H = hataTaore.STAT; return `旗本の一斉射撃${F.volN || 0}回・落とした騎馬${F.volKill || 0}騎・倒れた徳川の旗${H.fell}本（列へ一番近づいた敵${H.minD ?? '—'}m）`; },
   world: {
+    noboriBand: 4,   // 11/14 K292 クラウドせ：無名の足軽・鉄砲の四人に一人を高さのそろった幟に。備ごとに頭の上の旗の帯を作る（図鑑の天王寺の絵）
     seed: 1615507,
     drawLow: true,   // 携帯の描く解像度を .7/.6 に（実機 46→34ms。K073）
     noFake: true,   // 11/13 K285：見せかけの兵（addDistantArmy・addClash）を一人も出さない。映る兵は全員 戦の中の本物
@@ -322,6 +324,7 @@ html:root body #hud:has(#h-prog[data-battle="k15_tennoji_okayama"]) #center-call
     scenery(rt);
     installOkayama(rt, this);   // 岡山口の段（k15/okayamaguchi.js）：毛利の先手の後、真田の突撃の前に入る
     k15SoundSetup(rt);   // 音と声（k15/sound.js）
+    hataTaore.install(rt, { HON, HONF });
     jindate.install(rt, { FRONT, NIJIN, HON, HONF, SHITENNO, CHAUSU, ECHI });
 
     // ---- 徳川方：大御所の本陣（旗本の侍に囲まれて床几に座る。床几の主の前で近臣の正純は馬を下りる）・旗本の二の備・本多忠朝の先手・自分の手勢 ----
@@ -363,12 +366,12 @@ html:root body #hud:has(#h-prog[data-battle="k15_tennoji_okayama"]) #center-call
     // ---- 豊臣方：四天王寺の南門の前の毛利勝永の先手・茶臼山の真田（初めは丘の上で待つ） ----
     F.mori = enemyGroup(rt, { fixed: true, faction: 'toyotomi', name: '毛利勝永の先手', anchor: { x: SHITENNO.x, z: SHITENNO.z + 8 }, facing: 0, width: 10, aggro: 10, seekRange: 20, order: 'hold', morale: 95, formation: 'yari' },
       [sq(TOYO, 'busho', 1, { name: NAMES.katsunaga, invuln: true, horse: true }), sq(TOYO, 'cavalry', 6), sq(TOYO, 'samurai', 8), sq(TOYO, 'ashigaru', 21), sq(TOYO, 'gun', 9)]);   // 11/9 kaito 四2・10：勝永の騎馬が先に立ち、鉄砲も厚く   // 11/8 kaito：勝永が前線に立ち、大勢がまとまって中央を突破してくる
-    F.sanada = enemyGroup(rt, { fixed: true, faction: 'toyotomi', name: '真田の赤備え', anchor: { x: CHAUSU.x + 2, z: CHAUSU.z - 8 }, facing: 0.6, width: 12, aggro: 4, seekRange: 6, order: 'hold', morale: 100, noRout: true },
+    F.sanada = enemyGroup(rt, { fixed: true, faction: 'toyotomi', name: '真田の赤備え', anchor: { x: CHAUSU.x + 2, z: CHAUSU.z - 8 }, facing: 0.6, width: 26, aggro: 4, seekRange: 6, order: 'hold', morale: 100, noRout: true },
       [sq(SANADA, 'busho', 1, { name: NAMES.otani, horse: true, hat: 'kabuto_m' }), sq(SANADA, 'cavalry', 12), sq(SANADA, 'samurai', 5), sq(SANADA, 'ashigaru', 10), sq(SANADA, 'gun', 6)]);   // 11/9 kaito 四3・5・10：騎馬と鉄砲を増やし、大谷吉治は馬で隊と駆ける（徒で取り残され突っ立った）   // 11/8 kaito：真田は騎馬を増やす
     // 大谷吉治（大谷吉継の子）は真田の手に加わり、この日討死した（史実）。②で主人公が首を狙う将。家臣が必死に守る
     F.otaniU = F.sanada.units.find((u) => u.name === NAMES.otani);
     if (F.otaniU) F.otaniU.hp = F.otaniU.maxHp = Math.round((F.otaniU.maxHp || 100) * 1.6);
-    F.nobu = enemyGroup(rt, { fixed: true, faction: 'toyotomi', name: '真田信繁の旗本', anchor: { x: CHAUSU.x - 4, z: CHAUSU.z - 14 }, facing: 0.6, width: 8, aggro: 4, seekRange: 6, order: 'hold', morale: 100, noRout: true },
+    F.nobu = enemyGroup(rt, { fixed: true, faction: 'toyotomi', name: '真田信繁の旗本', anchor: { x: CHAUSU.x - 4, z: CHAUSU.z - 14 }, facing: 0.6, width: 20, aggro: 4, seekRange: 6, order: 'hold', morale: 100, noRout: true },
       [sq(SANADA, 'busho', 1, { name: '真田信繁', invuln: true, horse: true, hat: 'kabuto_sanada' }), sq(SANADA, 'cavalry', 18), sq(SANADA, 'samurai', 8)]);   // 11/9 kaito 四3：信繁の率いる最初の隊が少なすぎた（騎馬10→18）
     F.nobuU = F.nobu.units.find((u) => u.name === '真田信繁');
     // 11/9 kaito 四7「信繁の HP が多すぎる（攻撃されても死なない）」：命を三割減らし、深手（命の三割五分）を負えば、④なら安居の天神へ退く。②③はよろめいて「浅手じゃ」と踏み止まる
@@ -590,7 +593,7 @@ html:root body #hud:has(#h-prog[data-battle="k15_tennoji_okayama"]) #center-call
     // 毛利勝永は崩れず、手をまとめて城の方へ退く（史実）
     flee([F.katsu]);
     // 茶臼山から真田の二番手（先手の残りと新手。重さのため、先の赤備えが退いてから出す）
-    F.sanada2 = enemyGroup(rt, { fixed: true, faction: 'toyotomi', name: '真田の二番手', anchor: { x: CHAUSU.x + 4, z: CHAUSU.z + 16 }, facing: 0.6, width: 12, aggro: 6, order: 'hold', morale: 100, noRout: true },
+    F.sanada2 = enemyGroup(rt, { fixed: true, faction: 'toyotomi', name: '真田の二番手', anchor: { x: CHAUSU.x + 4, z: CHAUSU.z + 16 }, facing: 0.6, width: 22, aggro: 6, order: 'hold', morale: 100, noRout: true },
       [sq(SANADA, 'cavalry', 10), sq(SANADA, 'samurai', 5), sq(SANADA, 'ashigaru', 13), sq(SANADA, 'gun', 3)]);
     F.sanada2.noFrontline = true; F.sanada2.defMult = 1.3;   // 二の突撃は騎馬を先に立てて厚く（すぐ済んだ）
     this.charge(rt, F.sanada2, 6); this.charge(rt, F.nobu, 6);
@@ -1185,7 +1188,7 @@ html:root body #hud:has(#h-prog[data-battle="k15_tennoji_okayama"]) #center-call
     if (!live.length) return;
     const covered = (x) => live.some((r) => x > r[0] && x < r[1]);
     for (const u of rt.army.units) {
-      if (!u.alive || u.isPlayer || u.fleeing || u.mounted || u.atk || u.isStruct) continue;
+      if (!u.alive || u.isPlayer || u.fleeing || u.atk || u.isStruct) continue;   // 11/14 クラウドぬ：騎馬も柵沿いに口へ（敵の騎馬が柵の東の端 (-6,24) で20秒止まった）
       const z = u.pos.z; if (Math.abs(z - LZ) > 2.6) { u._fsT = 0; continue; }
       const m = (u.farSim || u.qualityAbstract) ? u._farWant : u.moveTo;
       if (!m || Math.abs(m.z - LZ) < 1 || (m.z > LZ) === (z > LZ) || !covered(u.pos.x)) { u._fsT = 0; continue; }
@@ -1233,10 +1236,13 @@ html:root body #hud:has(#h-prog[data-battle="k15_tennoji_okayama"]) #center-call
   update(rt, dt) {
     const F = rt.flags;
     k15SoundTick(rt, dt);
+    // 11/14 クラウドを（K287）：真上の図の時は霧を遠くへ（列の兵が見えるように）。戻る時は元の値へ
+    { const fg = rt.scene?.fog; if (fg && fg.far) { if (F._fog0 === undefined) F._fog0 = fg.far; const up = rt.camera && rt.player?.u && rt.camera.position.y - rt.player.u.pos.y > 30; fg.far = up ? Math.max(F._fog0, 2400) : F._fog0; } }
     // 11/14 K278 クラウドら：戦場の端（176 の外）へ押し出された兵を枠の内へ引き戻す（act bot で『戦場の外に出た』(-53,180) 13回）
     for (const u of rt.army.units) { if (!u.alive || u.gone || !u.pos) continue; if (u.pos.z > 174) u.pos.z = 174; else if (u.pos.z < -174) u.pos.z = -174; if (u.pos.x > 174) u.pos.x = 174; else if (u.pos.x < -174) u.pos.x = -174; }
     if (F.jinchi && F.jinchi.tick) F.jinchi.tick(dt);
     jindate.tick(rt, { FRONT, NIJIN, HON, HONF, SHITENNO });
+    hataTaore.tick(rt, dt);
     // 11/13 K285：歩いて近づく間ずっと、本人の前 60m に本物が 40 人以上（足りなければ前 45m に新手を置く。depth_reserve.js frontFill）
     frontFill(rt, { active: () => (F.step >= 1 || F.step === 'oka') && !F.ending,
       enemy: (r, at, face) => enemyGroup(r, { fixed: true, faction: 'toyotomi', name: '毛利の新手', anchor: at, facing: face, width: 18, aggro: 15, seekRange: 16, order: 'hold', morale: 100, noRout: true }, [sq(TOYO, 'samurai', isTouch ? 4 : 8), sq(TOYO, 'ashigaru', isTouch ? 14 : 28), sq(TOYO, 'gun', isTouch ? 3 : 6)]),
@@ -1375,7 +1381,7 @@ html:root body #hud:has(#h-prog[data-battle="k15_tennoji_okayama"]) #center-call
       // 目標の数（赤備え）を討ち尽くし大谷も討ったら、毛利の手が残っていても進む（数の札と進みを合わせる）
       if ((od && rt.t - F.tS > 140 && (sum(F.s2) <= F.n2 * 0.4 || sum([F.sanada]) <= 2 || F.nearDone)) || (rt.t - F.tS > 170 && sum(F.s2) <= F.n2 * 0.55) || rt.t - F.tS > 240) this.stage3(rt);
     } else if (F.step === 3) {
-      if (!F.umaUp && near(P, F.uma.position, 10)) { F.umaUp = true; rt.say(nm(rt), '馬印を起こした！　大御所はご無事ぞ！', 3); sfx('taiko', 0.6); }
+      if (!F.umaUp && near(P, F.uma.position, 16)) { F.umaUp = true; rt.say(nm(rt), '馬印を起こした！　大御所はご無事ぞ！', 3); sfx('taiko', 0.6); }
       F.umaSt?.update(dt);
       // 引き返した越前勢が真田の二番手の後ろを突く（史実。主人公が動かなくても段が進む）
       if (!F.echi3 && rt.t - F.tS > 55 && alive(F.echizen) && alive(F.sanada2)) {

@@ -587,7 +587,7 @@ for (const [name, bowl, crest, armor, lace, doStyle, haori, menpo, mon, ref] of 
   ["長井甲斐守", "momonari", "sun", 0x22241e, 0x5a5a3a, "okegawa", 0x4a5a22, 0x22241e, "none", ""],
   ["戸田勝成", "momonari", "kuwa_wide", 0x24221f, 0x4a4a2a, "okegawa", 0x4a5a22, 0x24221f, "none", ""],
   // 大坂夏の陣図屏風の鹿角・赤備えと同時代の桶側二枚胴による復元案。出所：docs/generals_look_1108/真田信繁.md。
-  ["真田信繁", "zunari", "honda_shika", 0x8e1f16, 0x232c40, "okegawa", 0, 0x8e1f16, "sanada", ""],
+  ["真田信繁", "zunari", "sanada_rokumon", 0x8e1f16, 0x232c40, "okegawa", 0, 0x8e1f16, "sanada", ""],   // K292 11/14：鹿角の脇立＋六連銭の前立
   ["今福浄閑", "momonari", "cross", 0x2a2420, 0x7a2a1c, "sugake", 0x3a2a1a, 0x2a2420, "takeda", ""],
   ["河窪信実", "momonari", "shida", 0x2a2420, 0x9a2e20, "sugake", 0x3a2a22, 0x2a2420, "takeda", ""],
   ["島津豊久", "momonari", "bellflower", 0x1c1a1a, 0x2a2a2a, "sugake", 0x2a2a2a, 0x1c1a1a, "shimazu", ""],

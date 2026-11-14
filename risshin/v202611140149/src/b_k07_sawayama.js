@@ -31,7 +31,7 @@ import { horiboriHeight, mizubori } from './castle_parts.js';
 import * as hata from './k07/hata.js';   // 曲輪が落ちるたび石田の幟が倒れる（11/8）
 import * as hoi from './k07/hoi.js';     // 寄せ手一万五千の包囲（奥の軽い大軍・11/8）
 import * as DP from './b_depth.js';
-import { depthStart, depthTick, depthBot } from './b_depth.js';
+import { depthStart, depthTick, depthBot, depthJump } from './b_depth.js';
 import { timeslipField } from './timeslip_field.js';
 import { revealName } from './battle_intel.js';
 import { addTaba, patchGunCover, tickTabas } from './taketaba.js';
@@ -536,6 +536,26 @@ html body #hud.enemy-action-guide:has(#h-prog[data-battle="k07_sawayama"]) #goal
     after(15, () => this.begin(rt));
   },
 
+  // 戦の途中の保存（battle_checkpoint.js・K211 kaito「途中が全部消えるのは最悪」）：三の丸へ（2）・三の丸（3）・二の丸の下（5）・上（6）・本丸（8）の始まりから続ける。
+  //   段の番号は段の流れ（b_depth.js）の番号。門は段の番号で開く（gates）。飛ばした段の出来事（日暮れ・正澄の退き・夜明け・宇多の討死）は resumeFx で音もなく
+  checkpointStep(rt) { const D = rt.flags.dp; return D && D.on ? D.i : -1; },
+  resumeSteps: [2, 3, 5, 6, 8].map((k) => [k, function (rt) {
+    const F = rt.flags;
+    if (!F.begun) this.begin(rt);
+    if (!F.dp?.on) return;
+    for (let j = F.dp.i; j < k; j++) this.resumeFx(rt, j);
+    depthJump(rt, k);
+  }]),
+  resumeFx(rt, j) {
+    if (j === 1) this.dusk(rt);
+    if (j === 3) { this.sumiOut(rt); const u = rt.flags.sumiU; if (u?.alive) rt.army.despawn(u); rt.flags.sumiU = null; }
+    if (j === 4) this.dawn(rt);
+    if (j === 6) this.udaEnd(rt);
+  },
+  resumeAt(rt, step) {
+    const P = { 2: OTE, 3: SAN_FOOT, 5: SAN, 6: NI3, 8: NI1 }[step];
+    return P ? { x: P.x, z: P.z } : null;
+  },
   begin(rt) {
     const F = rt.flags;
     if (F.begun) return;

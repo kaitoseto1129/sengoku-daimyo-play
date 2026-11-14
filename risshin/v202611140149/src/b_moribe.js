@@ -4816,25 +4816,7 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
       rt.objProgress(F.vBroken ? 'support' : 'break', '');
       // 先手が退いた時点で本備と控えを寄せる。次の斬り合いを待ってから下知しない。
       if (F.vBroken && M15.holdOk(rt)) {   // 田の畦の物頭（moribe/azemichi.js）を討ってから
-        rt.objRemove('break'); rt.unmark('V');
-        rt.objRemove('support'); rt.unmark('support');
-        moribeHoldPoint(rt);
-        F.stage = 'hold'; F.holdStart = rt.t; F.lineT = 0; F.holdK0 = rt.stats?.kills || 0;
-        F.lineReached = Math.hypot(p.x - F.linePoint.x, p.z - F.linePoint.z) < 18;
-        F.lineReturning = !F.lineReached;
-        rt.setPhase('hold'); rt.banner('槍を打ち合わせる', '雨の中、両軍が押し合う');
-        // 先手が北岸から退いた後、信長の本陣が同じ流れを越えて三手の後ろへ寄る。北岸を持ち場にし、南岸へ戻らない・敵を追って前へ出ない。
-        const nobu = F.odaCamp;
-        if (!gone(nobu)) {
-          nobu.leader = nobu.general || nobu.leader;
-          nobu.anchor = { x: NOBU_NORTH.x, z: NOBU_NORTH.z };
-          nobu.order = 'move'; nobu.dest = { x: NOBU_NORTH.x, z: NOBU_NORTH.z }; nobu.speed = 2;
-          nobu.onArrive = (g) => { g.order = 'hold'; g.anchor = { x: NOBU_NORTH.x, z: NOBU_NORTH.z }; g.seekRange = 8; };
-        }
-        rt.obj('line', '前備の列で仲間と槍をそろえよ', 'main');
-        rt.marker('line', () => F.linePoint, () => F.lineT >= 25 ? '前備の列を支えた。控えに備えよ' : '前備の槍の列', { hideNear: 24, hideOnArrival: true });
-        orderSpeech(rt, '前備の槍の列へ寄れ。槍をそろえ、長井と日比野の槍列を受け止めよ', 5);
-        for (const g of [F.M, F.N]) if (!gone(g)) { if (g.order !== 'move') g.order = 'attack'; g.seekRange = 30; }
+        this.toHold(rt);
       }
     } else if (F.stage === 'hold') {
       const el = rt.t - F.holdStart;
@@ -4872,25 +4854,7 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
       // 味方だけが敵を退けても、本人が列を支える前に失敗として飛ばさない。
       // 反撃へ進むと目標の一覧も済みになるため、本人の働きをここで必ず確かめる。
       if (F.lineT >= 25 && (el >= 100 && holdKills >= 10 || counterattack || frontBroken || enemyBroken) && M15.pressOk(rt)) {   // 左の畦の弓・鉄砲衆（moribe/yumi.js）を討ってから
-        rt.objDone('line');
-        rt.objRemove('line'); rt.unmark('line'); rt.unmark('lineFlag'); rt.unzone('line');
-        F.stage = 'press'; F.pressStart = rt.t; rt.setPhase('press');
-        rt.banner(enemyBroken ? '敵が退いた' : counterattack ? '組の働きで、反撃へ' : '大将の旗本へ', enemyBroken ? '深追いせず、列を保て' : counterattack ? '支えた槍列が、両将の旗本へ押し出す' : '長井甲斐守・日比野下野守の旗が、雨の向こうに残る');
-        rt.obj('commanders', !F.ownHatamoto ? '長井・日比野の旗本へ進み、旗本の侍を自分で討て' : '味方と長井・日比野の旗本を攻めよ', 'main');
-        orderSpeech(rt, enemyBroken ? '敵は退いた。組を離すな。残る旗を見届けよ' : counterattack ? 'お主の組が列を支えた！　陣太鼓の早打ちじゃ、味方と押し出して両将の旗本を囲め！' : '陣太鼓の早打ちじゃ！　長井と日比野の旗本へ、味方と並んで押すぞ。一人で走るな！', 5);
-        if (!enemyBroken) {
-          moribeSignal(rt, 'kakari');
-          // 長い押し合いで両将も手負い。旗本に守られても、囲めば討てる。
-          for (const g of [F.HM, F.HN]) if (!gone(g)) {
-            g.speed = 2.2; g.seekRange = 8;
-            g.order = 'hold'; g.dest = null; g.onArrive = null;
-            for (const u of g.units) if (u.type === 'busho' && u.alive) u.hp = Math.min(u.hp, u.maxHp * 0.5);
-            // 11/6 fixc（kaito 一-6・AA）：後備・二の備を戦の途中に湧かせない。両将の旗本が自ら前へ出て、本人の組の前へ寄せる。
-            g.noAI = false; g.order = 'attack'; g.seekRange = 60; g.aggro = 10;
-          }
-          battleEvent(rt, EVENT_COMMANDER_ADVANCE, F.HM.anchor, F.HM, 1, true, '長井甲斐守・日比野下野守が、旗本を率いて自ら前へ出た');
-        }
-        for (const g of F.friends) if (!gone(g)) { g.calm = false; g.order = 'attack'; g.seekRange = 35; }
+        this.toPress(rt, enemyBroken, counterattack);
       }
     } else if (F.stage === 'press') {
       if (rt.t - F.pressStart >= 8) nearbyVoice(rt, F.HM, '日比野下野守', 'hibinoVoice', '日比野下野守はここじゃ！　旗を捨てるな、槍で押し返せ！');
@@ -5190,6 +5154,73 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
     }
   },
 
+  // 先手が退き畦の物頭を討った後：本備と控えを寄せ、槍の押し合い（hold）へ
+  toHold(rt) {
+    const F = rt.flags, p = rt.player.u.pos;
+    rt.objRemove('break'); rt.unmark('V');
+    rt.objRemove('support'); rt.unmark('support');
+    moribeHoldPoint(rt);
+    F.stage = 'hold'; F.holdStart = rt.t; F.lineT = 0; F.holdK0 = rt.stats?.kills || 0;
+    F.lineReached = Math.hypot(p.x - F.linePoint.x, p.z - F.linePoint.z) < 18;
+    F.lineReturning = !F.lineReached;
+    rt.setPhase('hold'); rt.banner('槍を打ち合わせる', '雨の中、両軍が押し合う');
+    // 先手が北岸から退いた後、信長の本陣が同じ流れを越えて三手の後ろへ寄る。北岸を持ち場にし、南岸へ戻らない・敵を追って前へ出ない。
+    const nobu = F.odaCamp;
+    if (!gone(nobu)) {
+      nobu.leader = nobu.general || nobu.leader;
+      nobu.anchor = { x: NOBU_NORTH.x, z: NOBU_NORTH.z };
+      nobu.order = 'move'; nobu.dest = { x: NOBU_NORTH.x, z: NOBU_NORTH.z }; nobu.speed = 2;
+      nobu.onArrive = (g) => { g.order = 'hold'; g.anchor = { x: NOBU_NORTH.x, z: NOBU_NORTH.z }; g.seekRange = 8; };
+    }
+    rt.obj('line', '前備の列で仲間と槍をそろえよ', 'main');
+    rt.marker('line', () => F.linePoint, () => F.lineT >= 25 ? '前備の列を支えた。控えに備えよ' : '前備の槍の列', { hideNear: 24, hideOnArrival: true });
+    orderSpeech(rt, '前備の槍の列へ寄れ。槍をそろえ、長井と日比野の槍列を受け止めよ', 5);
+    for (const g of [F.M, F.N]) if (!gone(g)) { if (g.order !== 'move') g.order = 'attack'; g.seekRange = 30; }
+    },
+  // 押し合いを支えた後：両将の旗本へ反撃（press）
+  toPress(rt, enemyBroken = false, counterattack = false) {
+    const F = rt.flags;
+    rt.objDone('line');
+    rt.objRemove('line'); rt.unmark('line'); rt.unmark('lineFlag'); rt.unzone('line');
+    F.stage = 'press'; F.pressStart = rt.t; rt.setPhase('press');
+    rt.banner(enemyBroken ? '敵が退いた' : counterattack ? '組の働きで、反撃へ' : '大将の旗本へ', enemyBroken ? '深追いせず、列を保て' : counterattack ? '支えた槍列が、両将の旗本へ押し出す' : '長井甲斐守・日比野下野守の旗が、雨の向こうに残る');
+    rt.obj('commanders', !F.ownHatamoto ? '長井・日比野の旗本へ進み、旗本の侍を自分で討て' : '味方と長井・日比野の旗本を攻めよ', 'main');
+    orderSpeech(rt, enemyBroken ? '敵は退いた。組を離すな。残る旗を見届けよ' : counterattack ? 'お主の組が列を支えた！　陣太鼓の早打ちじゃ、味方と押し出して両将の旗本を囲め！' : '陣太鼓の早打ちじゃ！　長井と日比野の旗本へ、味方と並んで押すぞ。一人で走るな！', 5);
+    if (!enemyBroken) {
+      moribeSignal(rt, 'kakari');
+      // 長い押し合いで両将も手負い。旗本に守られても、囲めば討てる。
+      for (const g of [F.HM, F.HN]) if (!gone(g)) {
+        g.speed = 2.2; g.seekRange = 8;
+        g.order = 'hold'; g.dest = null; g.onArrive = null;
+        for (const u of g.units) if (u.type === 'busho' && u.alive) u.hp = Math.min(u.hp, u.maxHp * 0.5);
+        // 11/6 fixc（kaito 一-6・AA）：後備・二の備を戦の途中に湧かせない。両将の旗本が自ら前へ出て、本人の組の前へ寄せる。
+        g.noAI = false; g.order = 'attack'; g.seekRange = 60; g.aggro = 10;
+      }
+      battleEvent(rt, EVENT_COMMANDER_ADVANCE, F.HM.anchor, F.HM, 1, true, '長井甲斐守・日比野下野守が、旗本を率いて自ら前へ出た');
+    }
+    for (const g of F.friends) if (!gone(g)) { g.calm = false; g.order = 'attack'; g.seekRange = 35; }
+    },
+  // 戦の途中の保存（battle_checkpoint.js・K211 kaito「途中が全部消えるのは最悪」）：槍の押し合い（2）・両将の旗本へ（3）の始まりから続ける。
+  //   渡河・畦の物頭・弓衆（moribe/ の十五分の構成）の済みは F.m15 にあり保存に入らないので、続けた段より前の分を済みにする
+  checkpointStep(rt) { const st = rt.flags.stage; return st === 'hold' ? 2 : st === 'press' ? 3 : -1; },
+  resumeSteps: [
+    [2, function (rt) {
+      const F = rt.flags, v = F.m15 || (F.m15 = {});
+      v.kishiDone = true; v.azeDone = true; v.ph = null;
+      if (!F.signal) this.signal(rt);
+      F.vBroken = true;
+      for (const u of (F.V?.units || []).slice()) if (u.alive) rt.army.despawn(u);
+      this.toHold(rt);
+    }],
+    [3, function (rt) {
+      const F = rt.flags, v = F.m15 || (F.m15 = {});
+      v.yumiDone = true; v.ph = null;
+      F.lineT = Math.max(F.lineT || 0, 25); F.lineAwarded = true;
+      this.toPress(rt);
+    }],
+  ],
+  // 続ける時の置き場：前備の槍の列（toHold が決める linePoint）の少し後ろ
+  resumeAt(rt) { const q = rt.flags.linePoint; return q ? { x: q.x, z: q.z + 6 } : null; },
   signal(rt) {
     const F = rt.flags;
     if (rt.over || F.ending || F.signal) return;

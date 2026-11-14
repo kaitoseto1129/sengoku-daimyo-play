@@ -20,6 +20,23 @@ export function uploadedGeometryCount() { return UPLOADED.size; }
 
 const _keep = new Set();
 function keepGeo(g) { if (g && g.isBufferGeometry) _keep.add(g); }
+// 残す形が使う属性（交互に詰めた属性は元の詰め物）と index の数。返す形がこれを他と共有していたら返さない：
+//   three の dispose は共有の GL buffer ごと消し、生きている形の描き方（VAO）は消えた buffer を指したまま描けなくなる
+//   （11/14 金ヶ崎：本人の胴の法線を共有した写しを返し、本人の体が毎コマ INVALID_OPERATION で消えていた）
+const _keepRefs = new Map();
+const refKey = (a) => a && (a.isInterleavedBufferAttribute ? a.data : a);
+function countKeepRefs() {
+  _keepRefs.clear();
+  for (const g of _keep) {
+    for (const k in g.attributes) { const r = refKey(g.attributes[k]); if (r) _keepRefs.set(r, (_keepRefs.get(r) || 0) + 1); }
+    if (g.index) _keepRefs.set(g.index, (_keepRefs.get(g.index) || 0) + 1);
+  }
+}
+function sharedWithLive(g, kept) {
+  const own = kept ? 1 : 0;
+  for (const k in g.attributes) { const r = refKey(g.attributes[k]); if (r && (_keepRefs.get(r) || 0) > own) return true; }
+  return !!g.index && (_keepRefs.get(g.index) || 0) > own;
+}
 function keepObject(o) {
   if (!o || !o.isObject3D) return;
   o.traverse((c) => {
@@ -93,6 +110,7 @@ function gcStep() {
     // 一度返して、また描かれて送り直した形は、もう返さない（idleAgain。10/31 iPhone 三木が開戦150秒に落ちた。
     //   向きを変えるたびに景色や兵の形を返しては送り直し、形の数が 450〜816 と揺れ続けていた）
     if (idle && (!MEM_TIGHT || g.userData.gpuUse === undefined || g.userData.gpuUse > w.clock - (g.userData.idleFreed ? GPU_GC.idleAgain : GPU_GC.idle))) continue;
+    if (sharedWithLive(g, idle)) continue;
     let bytes = 0, need = 0, big = false;
     for (const k in g.attributes) {
       const a = g.attributes[k]; if (!a) continue;
@@ -116,10 +134,10 @@ function gcStep() {
   last.idle = w.idle; last.idleMB = +(w.idleBytes / 1048576).toFixed(1);
   last.ms = +w.ms.toFixed(1); last.peakMs = +w.peakMs.toFixed(1); last.frames = w.frames;
   GPU_GC.total += w.freed; GPU_GC.idleFreed += w.idle; GPU_GC.idleMB += w.idleBytes / 1048576;
-  _keep.clear(); gcWork = null;
+  _keep.clear(); _keepRefs.clear(); gcWork = null;
 }
 // 戦を出た時に、終えた戦（rt）と途中の仕事を手放す（11/8 docs/crash_1108.md：GPU_GC.rt が戦をまるごと残していた）
-export function gpuGcRelease() { GPU_GC.rt = null; gcWork = null; _keep.clear(); }
+export function gpuGcRelease() { GPU_GC.rt = null; gcWork = null; _keep.clear(); _keepRefs.clear(); }
 // rt：戦（scene・army）。caches：手放してはいけない表の並び（units_model の sharedUnitResources・humans の humanCaches）
 export function gpuGcTick(rt, dt, caches) {
   if (!hooked || !rt || !rt.scene) return;
@@ -141,6 +159,7 @@ export function gpuGcTick(rt, dt, caches) {
   }
   if (rt.world) { keepFrom(rt.world.armyBatch); keepFrom(rt.world.cullList); keepFrom(rt.world.buildingDetails); }
   for (const c of (typeof caches === 'function' ? caches() : caches) || []) keepFrom(c);
+  countKeepRefs();
   const ms = performance.now() - t0;
   gcWork = { iterator: UPLOADED.values(), left: UPLOADED.size, clock: GPU_GC.clock, pending: null,
     freed: 0, readback: 0, idle: 0, idleReadback: 0, idleBytes: 0, frames: 1, ms, peakMs: ms };

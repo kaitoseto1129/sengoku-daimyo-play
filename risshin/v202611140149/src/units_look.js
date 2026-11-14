@@ -235,7 +235,7 @@ export function buildModel(u, look) {
     // 旗の形で兵種が読めるように：槍組の隊旗は細長い長旗、鉄砲の小旗は横に広い四角、騎馬は細く長い（吹流しに寄せる）。下の端の高さは変えない
     if (!look.hero) {
       const s = look.flagScale || 1, ty = u && u.type;
-      const sh = ty === 'cavalry' ? [0.6, 1.25] : ty === 'gun' ? [1.2, 0.78] : ty === 'ashigaru' && s >= 1.8 ? [0.78, 1.12] : null;
+      const sh = ty === 'cavalry' ? [0.6, 1.25] : ty === 'gun' && s < 2.3 ? [1.2, 0.78] : (ty === 'ashigaru' || ty === 'gun') && s >= 1.8 ? [0.78, 1.12] : null;   // 2.3 以上の鉄砲は幟の帯（K292・noboriBand）
       if (sh) { flag.scale.set(s * sh[0], s * sh[1], s); flag.position.y += 0.36 * s * (sh[1] - 1); }
     }
     if (look.flagShape) {

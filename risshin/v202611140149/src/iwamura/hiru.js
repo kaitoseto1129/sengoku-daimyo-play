@@ -171,7 +171,7 @@ function sally(rt, H, n) {
   path.push([MOUTH.x, MOUTH.z]);
   const [x, z] = path[0];
   const g = enemyGroup(rt, { faction: 'takeda', flag: 'takeda', name: n === 1 ? '城方の出撃' : n === 2 ? '城方の二の手' : '大島杢之助の手', fixed: true, noGuard: true,
-    anchor: { x, z }, facing: 0, fleeDir: { x: 0, z: -1 }, aggro: 4, seekRange: 8, width: 2, formation: 'column', morale: 100, noRout: true, speed: 3.4 },
+    anchor: { x, z }, facing: 0, fleeDir: { x: 0, z: -1 }, aggro: 4, seekRange: 8, width: 2, spacing: 1.8, formation: 'column', morale: 100, noRout: true, speed: 3.4 },
   n === 1 ? [{ type: 'samurai', n: 2, o: { flag: 'takeda' } }, { type: 'ashigaru', n: 9, o: { flag: 'takeda' } }]
     : n === 2 ? [{ type: 'samurai', n: 2, o: { flag: 'takeda' } }, { type: 'ashigaru', n: 7, o: { flag: 'takeda' } }, { type: 'gun', n: 2, o: { flag: 'takeda' } }]
     // 三の手は城の侍大将・大島杢之助が率いる（後に開城の礼に出て磔にされる三将の一人。ここでは討たれずに退く）

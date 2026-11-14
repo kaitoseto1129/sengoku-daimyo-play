@@ -2878,6 +2878,35 @@ echizen.botBrain = function (rt, inp, helpers) {
 };
 
 const echGoryuCtx = (rt) => ({ gate: () => rt.flags.gateKinome?.struct, kannonIn: { x: KX(-6), z: KZ(-105) }, kannonGate: { x: KX(0), z: KZ(-126) } });
+// 戦の途中の保存（battle_checkpoint.js・K211 kaito「途中が全部消えるのは最悪」）：観音丸（1）・木戸内（2）・奥の曲輪（3）を押さえた所と、
+//   四城を押さえた後の追い討ち（5）から続ける。郭の持ち主と木戸は保存に入らないので、続けた段より前の郭を味方の物にし、木戸を倒し、中の守兵を下げる
+const ECH_ALL = ['kannon', 'kinome_sou', 'kinome_fuku', 'kinome_hon', 'saikoji_mae', 'saikoji_hon', 'hachibuse_mae', 'hachibuse_hon'];
+echizen.checkpointStep = function (rt) {
+  const F = rt.flags;
+  if (F.echAdv) return 5;
+  if (!F.step || !F.SZ) return -1;
+  let n = 0;
+  for (const id of PASS_COURTS.slice(0, 3)) { if (F.SZ.byId[id]?.owner === 'friend') n++; else break; }
+  return n || -1;
+};
+echizen.resumeSteps = [1, 2, 3, 5].map((k) => [k, function (rt) {
+  const F = rt.flags;
+  if (!F.step) { F.echOpeningHit = true; this.assault(rt); }
+  const ids = k === 5 ? ECH_ALL : PASS_COURTS.slice(0, k);
+  for (const st of [k >= 1 && F.gateKannon?.struct, k >= 2 && F.gateKinome?.struct]) if (st && st.alive) { st._shattered = true; st.alive = false; st.hp = 0; rt.army.structFall(st); }
+  for (const id of ids) {
+    const z = F.SZ.byId[id];
+    if (!z || z.owner === 'friend') continue;
+    for (const u of rt.army.units.slice()) if (u.alive && u.team === 1 && !u.isStruct && z.test(u.pos.x, u.pos.z)) rt.army.despawn(u);
+    z.owner = z.state = 'friend'; z.fallen = true; z.enemies = 0; z.retakeT = 0;
+    try { this.onZoneFall(rt, id); } catch (e) { console.error('郭の作り直し', id, e); }
+  }
+  if (k === 5) echizenAdvance(rt);
+}]);
+echizen.resumeAt = function (rt, step) {
+  const id = step === 5 ? 'kinome_hon' : PASS_COURTS[step - 1], p = rt.flags.SZ?.byId[id]?.pos;
+  return p ? { x: p.x, z: p.z } : null;
+};
 echizen.onZoneFall = function (rt, id) {
   // 目の前で押さえた郭の次の任務は、使番の到着を待たない。
   // 古い「守れ、あと一秒」と運搬中の札を、その場の下知で取り替える。

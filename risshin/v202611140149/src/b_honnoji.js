@@ -18,7 +18,7 @@ import { Garan } from './temple1571.js';
 import { allyCover } from './ally_cover.js';
 import { coverGuide } from './cover_guide.js';
 import { retreatThroughGap, retreatRunFromBlade } from './bot_retreat.js';
-import { buildTera, teraTick, breakNear, hallAt, TERA, inTera, GATES, CLIMB, PT } from './honno_tera.js';
+import { buildTera, teraTick, breakNear, hallAt, TERA, inTera, GATES, CLIMB, PT, teraMoatDepth } from './honno_tera.js';
 import { flagTexture } from './textures.js';
 import { RANKS } from './state.js';
 import { S as SETTINGS } from './settings.js';
@@ -1445,17 +1445,22 @@ function climbIn(rt, pts, list, call, to) {
 // ---- 囲まれる絵（kaito 10/10「敵勢にめっちゃ囲まれてやばいみたいな感じにして」） ----
 // 塀の外を埋める桔梗の旗と松明。六十メートルの内では軽い兵の形は隠れるので、旗と火だけを二重の並びで立てる。
 // 幟の竿・布・松明の竿・火をそれぞれ一つの InstancedMesh にまとめ、描く回数を四つに抑える。
-const RING_POLE = new THREE.CylinderGeometry(0.045, 0.06, 3.3, 5).translate(0, 1.65, 0);
-const RING_FLAME = new THREE.ConeGeometry(0.2, 0.7, 6).translate(0, 3.6, 0);
+// 11/14 クラウドす（K289 写真）：細く高い竿の先の円錐の火が、通りに並ぶ街灯に見えた。地に挿した松明の高さ（約2.6m）に下げ、
+//   先に松の割り木を束ねた太い頭を付け、火は束の上で燃える形にする（形は一つにまとめ、描く回数は増やさない）。
+const RING_POLE = mergeGeometries([
+  new THREE.CylinderGeometry(0.04, 0.055, 2.3, 5).translate(0, 1.15, 0),
+  new THREE.CylinderGeometry(0.085, 0.07, 0.6, 6).translate(0, 2.55, 0),
+], false);
+const RING_FLAME = new THREE.ConeGeometry(0.2, 0.8, 5).translate(0, 3.2, 0);
 const RING_POLE_MAT = new THREE.MeshLambertMaterial({ color: 0x2a2018 });
-const RING_FLAME_MAT = new THREE.MeshBasicMaterial({ color: 0xff8a2a, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false, fog: false });
+const RING_FLAME_MAT = new THREE.MeshBasicMaterial({ color: 0xff6418, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false, fog: false });
 // 松明の火の照り（丸くぼかした点。全部で一回の描画）
 let RING_GLOW_MAT = null;
 function ringGlowMat() {
   if (RING_GLOW_MAT) return RING_GLOW_MAT;
   const c = document.createElement('canvas'); c.width = c.height = 64;
   const x = c.getContext('2d'), gr = x.createRadialGradient(32, 32, 0, 32, 32, 32);
-  gr.addColorStop(0, 'rgba(255,190,110,1)'); gr.addColorStop(0.25, 'rgba(255,130,40,0.55)'); gr.addColorStop(1, 'rgba(255,90,20,0)');
+  gr.addColorStop(0, 'rgba(255,150,60,1)'); gr.addColorStop(0.25, 'rgba(255,105,30,0.5)'); gr.addColorStop(1, 'rgba(255,90,20,0)');
   x.fillStyle = gr; x.fillRect(0, 0, 64, 64);
   RING_GLOW_MAT = new THREE.PointsMaterial({ map: new THREE.CanvasTexture(c), size: 2.6, sizeAttenuation: true, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending, depthWrite: false, fog: false });
   return RING_GLOW_MAT;
@@ -1481,8 +1486,16 @@ function honnoRing(rt) {
         // 10/29：塀の外を巡る三重の幟は、朝靄で灰の四角の列になり、地平に並ぶ高い建物（ビル）に見えた（東の側も同じ）。
         // 囲みの幟は立てず、松明の火の列で囲みを見せる。桔梗の旗は門前の寄せ手（P2）と備の旗だけ。
         if (HONNO_RING_FLAGS) flags.push([x, z, j]);
-        if (off < 4 && Math.round(s / step) % 2 === 0) torches.push([x + tx * 1.6 - nx * 0.6, z + tz * 1.6 - nz * 0.6]);
-        if (off > 4 && off < 9 && Math.round(s / step) % 3 === 1) torches.push([x - tx * 1.2, z - tz * 1.2]);
+        // 11/14 クラウドす（K289 写真）：塀から2.4〜4.2m の列は外堀（塀から0.8〜4.8m）の水の中と表門の土橋の上に竿が立っていた。
+        //   堀の外の岸（塀から6m 余り）へ出し、門・脇門の口の前（土橋と通り道）には立てない。
+        const tPush = (px, pz) => {
+          for (let k = 0; k < 4 && teraMoatDepth(px, pz) > 0; k++) { px += nx * 1.5; pz += nz * 1.5; }
+          if (teraMoatDepth(px, pz) > 0) return;
+          if ([...Object.values(GATES), { ...CLIMB, w: 4 }].some((g) => Math.hypot(px - g.x, pz - g.z) < g.w / 2 + 5)) return;
+          torches.push([px, pz]);
+        };
+        if (off < 4 && Math.round(s / step) % 2 === 0) tPush(x + tx * 1.6 + nx * 2.6, z + tz * 1.6 + nz * 2.6);
+        if (off > 4 && off < 9 && Math.round(s / step) % 3 === 1) tPush(x - tx * 1.2, z - tz * 1.2);
       }
     }
   }
@@ -1505,12 +1518,14 @@ function honnoRing(rt) {
     inst(staffSrc.geometry, staffSrc.material, flags, place);
     inst(noboriClothLite(6.4), flagSrc.material, flags, place);
   }   // 囲みの幟は数が多いので、割りを減らした布
-  const tp = ([x, z], P, E, S) => { P.set(x, W.heightAt(x, z), z); E.set(0, 0, 0); S.setScalar(1); };
+  // 挿した竿は少しずつ傾ける（真っ直ぐに揃うと街灯の列に見える）。照りの点も傾いた先に置く
+  const tilt = (x, z, E) => E.set((rr(x, z, 5) - 0.5) * 0.3, rr(x, z, 7) * 6.28, (rr(x, z, 6) - 0.5) * 0.3, 'YXZ');
+  const tp = ([x, z], P, E, S) => { P.set(x, W.heightAt(x, z), z); tilt(x, z, E); S.setScalar(1); };
   inst(RING_POLE, RING_POLE_MAT, torches, tp);
   const flame = inst(RING_FLAME, RING_FLAME_MAT, torches, tp);
   rt.scene.add(grp);
   const gp = new Float32Array(torches.length * 3);
-  torches.forEach(([x, z], i) => { gp[i * 3] = x; gp[i * 3 + 1] = W.heightAt(x, z) + 3.75; gp[i * 3 + 2] = z; });
+  torches.forEach(([x, z], i) => { tilt(x, z, e); v.set(0, 3.2, 0).applyEuler(e); gp[i * 3] = x + v.x; gp[i * 3 + 1] = W.heightAt(x, z) + v.y; gp[i * 3 + 2] = z + v.z; });
   const gg = new THREE.BufferGeometry(); gg.setAttribute('position', new THREE.BufferAttribute(gp, 3));
   const glow = new THREE.Points(gg, ringGlowMat()); glow.frustumCulled = false; grp.add(glow);
   F.ring = { grp, flame, glow };
@@ -2797,6 +2812,17 @@ const honnoji = {
           : k === 2 ? (q.flags.lastHold || 0) >= 10
           : q.flags.nEngaged === true && (q.flags.nHold || 0) >= HOLD_NEED) })),
   cameraVolumeView: true,
+  // 戦の途中の保存（battle_checkpoint.js・K211 kaito「20〜30分の戦で途中が全部消えるのは最悪」）：寺（段0）を落ちた後は、
+  //   二条御所（3）・西の門の守り（4）・京を落ちる（5）・使者の家（6）の始まりから続ける。寺の中は段0のまま（最初から）
+  resumeSteps: [[3, function (rt) { rt.flags.nTransition = true; this.toNijo(rt); }], [4, 'arrive'], [5, 'escape'],
+    [6, function (rt) { rt.flags.tadaFallen = true; this.toShisha(rt); }]],
+  // 続ける時の置き場：門の守りは門の内・落ちる段は御所の北の口の内・使者の家は京の外れの木戸を抜けた所
+  resumeAt(rt, step) {
+    if (step === 3 || step === 4) return { x: NIJO_GATE.x + 5, z: NIJO_GATE.z + 2 };
+    if (step === 5) return { x: NIJO_BACK.x, z: NIJO_BACK.z + 5 };
+    if (step === 6) return { x: OUT.x, z: OUT.z - 3, heading: Math.PI };
+    return null;
+  },
   sightBlocked(rt, a, p, ay, by, postMargin = 0) {
     const T = rt.flags.T, posts = T?.sightPosts;
     if (!posts) return false;
@@ -3937,7 +3963,7 @@ const honnoji = {
     gravelCourt: { x0: TERA.x0, x1: TERA.x1, z0: TERA.z0, z1: TERA.z1, color: [.80, .77, .70], pathZ: 50, pathX: -64, pathWidth: 0.95, buildings: COURT_BUILDINGS, garden: COURT_GARDEN },
     opaqueCorpses: true, // 亡骸は床に残し、片付ける時まで薄くしない。
     allyPersonalSpace: 1.25,
-    ordinaryFlagStride: 3, // 狭い門と堂内では指物を三人に一本。隊旗と名のある者の旗は残す。
+    ordinaryFlagStride: 2, // 11/14 クラウドし（K295 図鑑「水色の桔梗の旗が塀を越えて入る」）：三人に一本では関所の写真に桔梗の旗がほぼ写らず、二人に一本へ。隊旗と名のある者の旗は残す。
     fallenHelmets: true,
     variedMarch: true, livingSpearHedge: true, // 列と人数を保ち、歩調・呼吸・押し返す手元を一人ずつずらす。
     fallPaceSpread: 0.35, groundedFalls: true, // 膝が折れる間をずらし、横倒しの胴と槍を地面で支える。

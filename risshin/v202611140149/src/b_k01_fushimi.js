@@ -25,7 +25,7 @@ import { distToPolyline } from './world.js';
 import { heightOf, buildCastlePlan, rectPoly } from './castle_plan.js';
 import { interiorBase } from './yagura_inside.js';
 import * as DP from './b_depth.js';
-import { depthStart, depthTick, depthBot } from './b_depth.js';
+import { depthStart, depthTick, depthBot, depthJump } from './b_depth.js';
 import { routeTools } from './b_k_route.js';
 import { timeslipField } from './timeslip_field.js';
 import { customFlag } from './b_inabayama.js';
@@ -576,6 +576,35 @@ const k01_fushimi = {
     for (const [k, t] of lines) if (F.delay >= k && !(F.delaySaid || (F.delaySaid = {}))[k]) { F.delaySaid[k] = true; rt.after(1.5, () => rt.say('使番', t, 3)); break; }
   },
 
+  // 戦の途中の保存（battle_checkpoint.js・K211 kaito「20〜30分の戦で途中が全部消えるのは最悪」）：段（①〜⑪）の始まりから続ける。
+  //   段の番号は段の流れ（b_depth.js）の番号。飛ばした段の出来事（門の開け閉め・家忠らの討死・火）は resumeFx で音もなく起こす
+  checkpointStep(rt) { const D = rt.flags.dp; return D && D.on ? D.i : -1; },
+  resumeSteps: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map((k) => [k, function (rt) {
+    const F = rt.flags;
+    if (!F.begun) this.begin(rt);
+    if (!F.dp?.on) return;
+    for (let j = F.dp.i; j < k; j++) this.resumeFx(rt, j);
+    depthJump(rt, k);
+  }]),
+  // 続ける時の置き場：守る段・救う段はその持ち場の手前、退く段（③⑦⑪）は前の持ち場（行き先の手前に置くと着いただけで済む）
+  resumeAt(rt, step) {
+    const P = { 1: [8, 44], 2: [0, 46], 3: [0, 48], 4: [NI.x, NI.z + 2], 5: [-10, -5], 6: [6, -5], 7: [6, -5], 8: [HON.x, HON.z + 3], 9: [HON.x, HON.z + 1], 10: [-4, -46], 11: [-4, -48] }[step];
+    return P ? { x: P[0], z: P[1] } : null;
+  },
+  resumeFx(rt, j) {
+    const F = rt.flags;
+    if (j === 3) { this.guardSan(rt); if (F.ie && !F.ieAway) { F.ieAway = true; Object.assign(F.ie, { anchor: { x: -17, z: -7 }, order: 'hold', fixed: true, stay: true, noAI: true, aggro: 10, facing: Math.PI / 2, focus: null }); } }
+    if (j === 4) this.shut(rt, 'ni_s');
+    if (j === 5) this.unshut(rt, 'ni_s');
+    if (j === 6) this.ieFall(rt);
+    if (j === 8) {
+      this.shut(rt, 'hon_s'); this.burn(rt); this.naitoFall(rt);
+      for (const nn of ['松平近正', '上林竹庵']) this.fall(rt, nn);
+      this.fallAll(rt, [F.chika, F.chikuan]);
+    }
+    if (j === 9) this.unshut(rt, 'hon_s');
+    if (j === 10) this.thin(rt);
+  },
   begin(rt) {
     const F = rt.flags;
     if (F.begun) return;

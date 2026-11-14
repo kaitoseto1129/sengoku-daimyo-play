@@ -2436,6 +2436,11 @@ function kgContactTick(rt, dt) {
   if (F.engaged >= 3) { F.lossA += dt * 3.2; F.lossB += dt * 6.5; }
 }
 // 味方が用意した砦（柵と土の切れ目・物見）。笙の川の南岸と南の狭路に。道の上は虎口として開ける
+// 続ける時：n 番目より前の備は追手と当たり、持ちこたえた事にする（battle_checkpoint.js の resumeSteps）
+function kgResumeHeld(rt, n) {
+  const F = rt.flags, ca = F.contactAt || (F.contactAt = [null, null, null]), hl = F.heldLines || (F.heldLines = [false, false, false]);
+  for (let k = 0; k < n; k++) { if (ca[k] == null) ca[k] = rt.t; hl[k] = true; }
+}
 function kgForts(rt) {
   const W = rt.world, batch = makeSimpleBatch();
   const fence = (ax, az, bx, bz, h) => {
@@ -2505,6 +2510,16 @@ const kanegasaki = {
   bannerAllowed: (rt, title) => rt.over || !!rt.flags.ending || /重傷|討死|任務失敗/.test(title),
   // 11/4 jin（AR1・AW3・BK4）：場所と行いで言う。行き先はいつも備の旗か退き口の一つ（近くの敵へ移さない）。「▼」「印」の字は使わない
   missions: ['備の旗へ進め', '旗の前で追手を止めよ', '旗の周りで追手を止めよ', '旗の周りで追手を止めよ', '若狭への道の退き口へ退け'],
+  // 戦の途中の保存（battle_checkpoint.js・K211 kaito「途中が全部消えるのは最悪」）：笙の川へ退く（2）・川の砦（3）・狭路へ退く（4）・狭路の砦（5）の始まりから続ける。
+  //   済んだ備の「当たった・持ちこたえた」（contactAt・heldLines）は保存に入らないので、続けた段より前の備の分を立てる（立てないと最後の退き口で務めが欠ける）
+  resumeSteps: [
+    [2, function (rt) { kgResumeHeld(rt, 1); rt.flags.dpA = true; this.fallBack(rt, 1); }],
+    [3, function (rt) { rt.flags.in1 = true; this.wave2(rt); }],
+    [4, function (rt) { kgResumeHeld(rt, 2); rt.flags.dpB = true; this.fallBack(rt, 2); }],
+    [5, function (rt) { rt.flags.in2 = true; this.wave3(rt); }],
+  ],
+  // 続ける時の置き場：退く段は前の備の旗（行き先の砦に置くと着いただけで済む）、受ける段はその砦
+  resumeAt(rt, step) { const L = LINES[{ 2: 0, 3: 1, 4: 1, 5: 2 }[step]]; return L ? { x: L.x, z: L.z } : null; },
   missionOf(rt) {
     const F = rt.flags, L = rt.G.lord || F.fleeing ? KUTSUKI : LINES[F.line || 0];
     // 守備中は、味方が打ち合う来た道の三十歩も持ち場。退却中の到着は旗で測る。

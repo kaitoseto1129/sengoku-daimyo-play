@@ -13,7 +13,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 export const MAEDATE = {
   佐竹義宣: 'satake_kemushi',
   伊達政宗: 'date_moon',
-  真田信繁: 'honda_shika', 真田幸村: 'sanada_rokumon',
+  真田信繁: 'sanada_rokumon', 真田幸村: 'sanada_rokumon',   // K292 11/14 図鑑：信繁の兜は鹿角の脇立と六連銭の前立（docs/books/sanada_zukan_1114.md 4）
   武田信玄: 'suwa_hossho',
   上杉謙信: 'kenshin_izuna',
   徳川家康: 'ieyasu_shida',

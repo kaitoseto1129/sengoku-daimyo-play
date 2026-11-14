@@ -33,6 +33,14 @@ export function depthStart(rt, ctx, steps, done) {
   nextStep(rt);
 }
 
+// 途中の保存から続ける時（battle_checkpoint.js の resumeSteps）：今の段を捨て、k 番目の段の始まりへ飛ぶ（前へは戻らない）
+export function depthJump(rt, k) {
+  const D = rt.flags.dp;
+  if (!D || !D.on || !(k > D.i)) return;
+  D.i = k - 1;
+  nextStep(rt);
+}
+
 function nextStep(rt) {
   const D = rt.flags.dp;
   D.i++;

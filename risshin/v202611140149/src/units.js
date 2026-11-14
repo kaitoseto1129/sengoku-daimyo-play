@@ -1084,7 +1084,9 @@ export class Army {
     const out = [];
     let banner = total >= 8 && !g.isPlayerSquad && !g.units.some((x) => x.banner);
     // 隊旗のほかに、六人に一人は大きな幟の指物（kaito 11/2 Q「軍勢が少なくても旗がぶわっと並べば本物らしくなる」）。戦う兵のまま
-    let bigFlags = total >= 6 && !g.isPlayerSquad ? Math.floor(total / 6) : 0, bigStep = 0;
+    // 戦が noboriBand（N）を決めた時は、N 人に一人を幟にし、指物の大きさを決めた隊でも幟を立てる（K292 図鑑の「旗の帯」）
+    const band = this.world.def.noboriBand || 0, bigEvery = band || 6;
+    let bigFlags = total >= 6 && !g.isPlayerSquad ? Math.floor(total / bigEvery) : 0, bigStep = 0;
     // 組の番号：同じ側・同じ家の徒歩の隊に、出た順に一番〜三番（騎馬の隊・小さな隊には付けない）
     if (!g.kumiNo && !g.cav && total >= 6) {
       const K = this.kumiCount || (this.kumiCount = {}), k = g.team + '|' + g.faction;
@@ -1116,7 +1118,7 @@ export class Army {
         const liteSam = spec.type === 'samurai' && total >= 10 && !g.isPlayerSquad && !(chiefSpec && g.lordHere) && !spec.o?.name && !spec.o?.keep && !spec.o?.horse && !spec.o?.armor && samN++ % 3 !== 0;
         // 大きめの部隊には隊旗を持つ旗持ちを一人（鉄砲の隊は、小旗の中に大きな隊旗が一本）
         const bo = banner && (spec.type === 'ashigaru' || (g.isGun && spec.type === 'gun')) && !(spec.o && spec.o.flag === null) ? { flagScale: 2.1 } : {};
-        const big = !bo.flagScale && bigFlags > 0 && spec.type === 'ashigaru' && !spec.o?.name && spec.o?.flag !== null && spec.o?.flagScale == null && bigStep++ % 6 === 3 ? { flagScale: 1.9 } : {};
+        const big = !bo.flagScale && bigFlags > 0 && (spec.type === 'ashigaru' || (band && spec.type === 'gun')) && !spec.o?.name && spec.o?.flag !== null && (spec.o?.flagScale == null || (band && spec.o.flagScale < 1.8)) && bigStep++ % bigEvery === (band ? band >> 1 : 3) ? { flagScale: band ? 2.4 : 1.9 } : {};
         if (big.flagScale) bigFlags--;
         const so = standard && spec.type === 'ashigaru' && !spec.o?.name && !spec.o?.sohei && !spec.o?.kosode && !spec.o?.keep && !spec.o?.horse && spec.o?.flag !== null
           ? { standard: chiefGear?.flag || chiefSpec.o.flag || GENERALS[chiefSpec.o.name.replace(/^.* /, '')]?.flag || FACTION[g.faction]?.flag || 'oda', flag: null, weapon: 'none', dmg: 0 } : {};
@@ -1126,7 +1128,7 @@ export class Army {
           && !list.some((e) => e.n > 0 && e.type === 'ashigaru' && !e.o?.name && !e.o?.horse && !e.o?.keep && e.o?.flag !== null);
         const uo = umaKind && !so.standard && !bo.flagScale && (footUma || horseUma)
           ? { uma: umaKind, flag: null, weapon: 'none', dmg: 0 } : {};
-        const u = this.addUnit(g, { type: liteSam ? 'ashigaru' : spec.type, x: p.x + (Math.random() - 0.5) * 0.4, z: p.z + (Math.random() - 0.5) * 0.4, ...big, ...(spec.o || {}), ...bo, ...so, ...uo });
+        const u = this.addUnit(g, { type: liteSam ? 'ashigaru' : spec.type, x: p.x + (Math.random() - 0.5) * 0.4, z: p.z + (Math.random() - 0.5) * 0.4, ...(spec.o || {}), ...big, ...bo, ...so, ...uo });
         if (uo.uma) { u.isUma = u.isStandard = true; umaBearer = u; umaKind = null; }   // 旗持ちと同じく斬り合わず主将の後ろに付く
         if (so.standard) { u.isStandard = true; standardBearer = u; standard = false; }
         if (bo.flagScale && !so.standard) { u.banner = true; banner = false; }

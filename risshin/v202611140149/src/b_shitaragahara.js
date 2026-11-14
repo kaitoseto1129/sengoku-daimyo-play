@@ -470,6 +470,21 @@ function shRunnerWay(army, u, target) {
     else { out.x = target.x; out.z = gz; }
     return out;
   }
+  // 口から柵の間へ入った武田の兵（新手の鉄砲など）も、次の柵越しの相手へ真っすぐ寄って柵に貼り付かず、口の筋を通る
+  //   （11/14 クラウドわ K119：act bot で武田の新手の鉄砲が大宮前の口の脇 (13,-282) で26m 先の行き先へ向いたまま116回止まった）
+  //   味方の新手の足軽も同じ（同じ流しで (6,-264) で柵の向こうの敵へ向いたまま31回止まった）
+  if (!u.isPlayer && (u.team === 1 || u.group?.order === 'attack') && !u.group?.isRunner && u.pos.x < SB.x0 + 1 && u.pos.x > SB.x0 - 2 * SB.gap - 3 && Math.abs(target.x - u.pos.x) > 2) {
+    if (!(u.shInAt > army.time)) { u.shInAt = army.time + 0.5; u.shInBlocked = army.wallBetween(u.pos, -1, target, false); }
+    if (u.shInBlocked) {
+      let gate = SB.gates[0];
+      for (const z of SB.gates) if (Math.abs(z + 4.5 - u.pos.z) < Math.abs(gate + 4.5 - u.pos.z)) gate = z;
+      const out = u.shRunnerPoint || (u.shRunnerPoint = { x: 0, z: 0 }), gz = gate + 4.5;
+      // 口へ向かう間は柵と柵の真ん中の筋を歩く（柵の際を歩くと杭に当たって止まる：(-2,-306)・(0,-21) で止まった）
+      const lane = u.pos.x > SB.x0 - SB.gap ? SB.x0 - SB.gap / 2 : u.pos.x > SB.x0 - 2 * SB.gap + 0.5 ? SB.x0 - 1.5 * SB.gap : SB.x0 - 2 * SB.gap - 4;
+      if (Math.abs(u.pos.z - gz) > 1) { out.x = lane; out.z = gz; } else { out.x = target.x; out.z = gz; }
+      return out;
+    }
+  }
   if (u.isPlayer ? !(u.pos.x > SB.x0 + 1 && target.x < SB.x0) : !u.group?.isRunner) return target;
   const rearX = SB.x0 - 2 * SB.gap - 6;
   const p = u.pos, out = u.shRunnerPoint || (u.shRunnerPoint = { x: 0, z: 0 });

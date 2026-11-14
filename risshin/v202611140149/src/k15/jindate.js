@@ -13,7 +13,9 @@ import { isTouch } from '../touch.js';
 import { centerOf } from '../bhelp.js';
 import { clash } from '../b_sekigahara.js';
 import { realFromLight } from '../depth_reserve.js';
+import { fujinFor } from '../fujin_place.js';
 import { enemyGroup, allyGroup } from '../bhelp.js';
+import { topple } from './hata_taore.js';   // 11/14 クラウドさ K293：幟は一コマで寝かせず、根元からゆっくり倒す
 
 const S = Math.PI;
 const alive = (g) => g && !g.routed && g.count > 0;
@@ -34,7 +36,8 @@ export function install(rt, P) {
   //   二つは残し、人数は六割のさらに四分の三（落ちた時の十五塊・千七百人より十分軽い）
   const MINOR = new Set([16204, 16212, 16213, 16214, 16215]);   // 脇・伊達・酒井・浅野・黒田（真田の騎馬・明石・大野は残す）
   const LIGHTER = new Set([16216, 16217]);
-  const mk = (o) => { if (W.def && W.def.noFake) { (st0.pending ||= []).push(o); return null; } if (isTouch && MINOR.has(o.seed)) return null; if (isTouch && LIGHTER.has(o.seed)) o = { ...o, count: Math.round(o.count * 0.75) }; try { return W.addDistantArmy({ host: false, kind: 'mixed', ...o, flagTex: flagTexture(o.flag) }); } catch (e) { return null; } };
+  // noFake の戦：布陣の表（fujin_table.js）のある戦は 表が並べる。無ければ pending に積み、兵の装束が覚えられた後に tick が作る
+  const mk = (o) => { if (W.def && W.def.noFake) { if (fujinFor(rt)) return null; (st0.pending ||= []).push(o); return null; } if (isTouch && MINOR.has(o.seed)) return null; if (isTouch && LIGHTER.has(o.seed)) o = { ...o, count: Math.round(o.count * 0.75) }; try { return W.addDistantArmy({ host: false, kind: 'mixed', ...o, flagTex: flagTexture(o.flag) }); } catch (e) { return null; } };
   const { FRONT, NIJIN, HON, SHITENNO, CHAUSU, ECHI } = P;
   const apx = (typeof window !== 'undefined' && window.__apx) || {};   // 自動計測専用：x_noband=新しい帯四本を作らない・x_nojin=陣立ての軽い大軍を全部作らない（実機の重さの切り分け）
   if (apx.nojin) return null;
@@ -67,7 +70,11 @@ export function install(rt, P) {
     sanaK2: mk({ x: CHAUSU.x - 10, z: CHAUSU.z - 8, w: 30, d: 12, count: isTouch ? 70 : 120, facing: 0.5, team: 1, armor: 0x8e1f16, flag: 'sanada', kind: 'cavalry', seed: 16226 }),
   };
   // 岡山口の二重の列（kaito 11/13 の布陣図・K287）：一の列＝前田利常・本多康紀・片桐且元／二の列＝井伊直孝・細川忠興・藤堂高虎／後ろ＝徳川秀忠。noFake の戦は 本物の備で置く（人数は元の 12%・最大 36）
+<<<<<<<< HEAD:risshin/v202611140149/src/k15/jindate.js
   if (W.def && W.def.noFake) for (const o of [
+========
+  if (W.def && W.def.noFake && !fujinFor(rt)) for (const o of [
+>>>>>>>> 5418e4fde (戦国立身：最新（自動・毎時）):risshin/v202611140156/src/k15/jindate.js
     { x: 46, z: 40, w: 56, d: 8, count: 500, facing: S, flag: 'tokugawa', seed: 16231, team: 0 },
     { x: 50, z: 66, w: 60, d: 8, count: 500, facing: S, flag: 'tokugawa', seed: 16232, team: 0 },
     { x: 40, z: 118, w: 36, d: 10, count: 300, facing: S, flag: 'tokugawa', seed: 16233, team: 0 }]) (st0.pending ||= []).push(o);
@@ -215,7 +222,7 @@ function crisis(rt, st, P) {
     if (rt.t - st.flagT > 15 && F.honNobori && F.honNobori.length > 4) {
       st.flagT = rt.t;
       const nb = F.honNobori.splice(Math.floor(Math.random() * F.honNobori.length), 1)[0];
-      if (nb) { nb.rotation.z = (Math.random() < 0.5 ? -1 : 1) * 1.45; nb.position.y -= 0.3; }
+      if (nb) { if (F._hata) topple(rt, nb); else { nb.rotation.z = (Math.random() < 0.5 ? -1 : 1) * 1.45; nb.position.y -= 0.3; } }
     }
   }
   // 真田が家康の退いた後の旧本陣へ着く：倒れた幟・空の床几。「逃したか……！」（完璧に守っても間に合わない所）
@@ -226,7 +233,8 @@ function crisis(rt, st, P) {
     if (got && far) {
       st.rep.nige = true;
       rt.say('真田信繁', '逃したか……！　家康を追え！', 3);
-      for (const nb of F.honNobori || []) { nb.rotation.z = (Math.random() < 0.5 ? -1 : 1) * 1.45; }
+      for (const nb of F.honNobori || []) { if (F._hata) topple(rt, nb); else nb.rotation.z = (Math.random() < 0.5 ? -1 : 1) * 1.45; }
+      for (const nb of F._hata?.big || []) topple(rt, nb);   // 厭離穢土の大幟も倒れる（K293）
       F.honNobori = [];
     }
   }

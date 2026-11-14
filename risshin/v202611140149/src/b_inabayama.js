@@ -4711,7 +4711,11 @@ const inabayama = {
   siegeKit: {
     plan: { x: OTE.x, z: OTE.z, rot: 0, W: 18, koguchi: 'kuichigai', yokoya: { at: 11, w: 4.5, d: 3 }, moat: false, kirigishi: 0,
       // K291（docs/books/shiro_semekata_tsukurikata.md・master_shiro.md）：馬出し（特に武田系の丸馬出し）は1570年代以降。永禄十年の稲葉山には置かず、喰違いの口・横矢・逆茂木・柵だけにする
+<<<<<<<< HEAD:risshin/v202611140149/src/b_inabayama.js
       umadashi: false, sakamogi: { at: 7, canPlace: inabaGateSakamogi }, shiyori: false },
+========
+      umadashi: false, sakamogi: { at: 7 }, shiyori: false },
+>>>>>>>> 5418e4fde (戦国立身：最新（自動・毎時）):risshin/v202611140156/src/b_inabayama.js
     build: { team: 1, wall: 'saku', umadashiWall: 'saku', wallHp: 520, gateHp: 460, fire: { hurt: () => INABA_TSUKE.on && !INABA_TSUKE.gate ? 0 : .25, near: 90, close: 18, base: 1, peak: 4.5 } },
     // 付け入りの登りの間は、逃げ上る味方の背に付く者を狭間から狙えない（味方を撃つ）。自分への当たりは木戸の前の斬り合いから（矢玉の雨は味方の列へ降り続ける）。
     // 七曲りの上の折れで四十秒狙われ続け、木戸へ着く前に倒れた（11/5 bot・馬出しの脇の狭間から百十）

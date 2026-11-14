@@ -189,6 +189,8 @@ export function applyCheckpoint(rt, cp) {
   const loud = () => { rt.say = keep.say; rt.banner = keep.banner; hud.bark = keep.bark; hud.banner = keep.hbanner; };
   // 戦の前の話・開戦の約束（setup の after）は流さない
   rt.timers.length = 0;
+  // 開戦の溜め（prelude.js の陣中の間・太鼓）は戦の始めだけ。続ける時は次のコマで解く（解かないと途中の段で兵と筋書きの時計が最大35秒止まる。K211 11/14）
+  if (rt.prelude && rt.prelude !== 'done') rt.prelude.danger = true;
   rt.t = Math.max(rt.t, cp.t ?? cp.t0 ?? 0);   // 保存した時の時刻（flags の時刻と合わせる）
   rt.setPhase?.('battle');
   const pinOf = () => { try { const g = rt.def.goalSignTarget?.(rt) || rt.def.missionPin?.(rt); return g && Number.isFinite(g.x) ? { x: g.x, z: g.z } : null; } catch (e) { return null; } };

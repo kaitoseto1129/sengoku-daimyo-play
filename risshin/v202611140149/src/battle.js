@@ -1,5 +1,6 @@
 import { enemyGroup, allyGroup } from './bhelp.js';
 import { autoReserve, engageNear } from './depth_reserve.js';
+import { fujinTick } from './fujin_place.js';
 import { withBushou } from './bushou_roster.js';
 import { unmirror } from './units_look.js';
 import { victoryMoment } from './victory_moment.js';
@@ -2776,7 +2777,7 @@ export class Battle {
     this.goalsDoneTick(dt);
     this.dangerTick(dt);
     if (!this.over && !this.pacingExpired) runScriptOrders(this, this.def.update, dt);
-    if (!this.over && !this.pacingExpired) { try { autoReserve(this, enemyGroup, allyGroup); engageNear(this); } catch (e) { /* 待つ備が作れなくても戦は進む */ } }
+    if (!this.over && !this.pacingExpired) { try { fujinTick(this, enemyGroup, allyGroup); autoReserve(this, enemyGroup, allyGroup); engageNear(this); } catch (e) { /* 待つ備が作れなくても戦は進む */ } }
     battlePacingTick(this);
     timeLimitTick(this, tdt);
     frontlineDensityTick(this, dt);

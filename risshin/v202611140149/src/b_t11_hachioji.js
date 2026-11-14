@@ -538,10 +538,20 @@ function kuruwaFight(o) {
     // 長引いても六割を崩して本人が曲輪にいる時は残兵を退かせる。待つだけでは済ませない。
     if (C.later?.length) return false;
     let left = 0;
-    for (const g of C.groups) left += live(g);
+    // 11/14 クラウド：御主殿の守り19人が石垣の外の角 (17,15) に重なって止まり、本人が届かず段が950秒続いた。
+    //   一分を過ぎたら、曲輪の外（縁から三歩より外）へはぐれた守りは残りの数に入れない（段の終わりに退かせる）
+    for (const g of C.groups) {
+      if (!k || el < 60) { left += live(g); continue; }
+      if (!live(g)) continue;
+      for (const u of g.units) {
+        if (!u.alive || u.gone || u.dying || u.fleeing || u.downed || u.noTarget || u.woundOut) continue;
+        if (u.pos.x >= k.poly[0][0] - 3 && u.pos.x <= k.poly[1][0] + 3 && u.pos.z >= k.poly[0][1] - 3 && u.pos.z <= k.poly[2][1] + 3) left++;
+      }
+    }
     const total = C.nTot || C.n0 || 0;
     const inside = k && p.x >= k.poly[0][0] && p.x <= k.poly[1][0] && p.z >= k.poly[0][1] && p.z <= k.poly[2][1];
-    return total > 0 && (left <= total * 0.2 || (inside && el >= s.max && left <= total * 0.4));
+    // 11/14 クラウド：act bot で高丸の段が370秒続き、戦が上限で切れた。曲輪へ入った後、段の長さ＋三分を過ぎて守りの四割を崩していれば残兵を退かせる
+    return total > 0 && (left <= total * 0.2 || (inside && el >= s.max && left <= total * 0.4) || (el >= s.max + 180 && left <= total * 0.6));
   };
   return s;
 }
@@ -775,6 +785,10 @@ const t11_hachioji = {
   },
   // 曲輪の狭い所で四方から打たれやすい。本人へ同時に打ち込むのは二人まで（高遠の城攻めと同じ）
   playerAtkMax: 2,
+  // 11/14 クラウド：坂〜本丸の尾根の細い曲輪では、待つ備の新手が段の守りに重なって本人を撃ち（act 三回とも金子丸で倒れ、傷の一番が新手）、
+  //   bot の的にも段の守りにも入らない。尾根の段の間は待つ備を畳む（岩村の追い討ちと同じ手）
+  reserveFold: (rt) => { const D = rt.flags.dp; return !!(D?.on && D.i >= IX.sakamichi && D.i <= IX.hon); },
+  reserveDmgMult: 0.3,   // 11/14 クラウド：共通の待つ備の新手（既定 0.7）が尾根の曲輪で倒れの傷の一番だった。城方の守り（0.36）にそろえて軽く
   // 11/8 15分の構成：段が八つ続く長い山城攻め。傷が積もって途中で倒れ続けないよう、受ける傷を少し軽く・戦わない間の戻りを早く
   playerTaken: 0.5,   // 二巡 11/9：bot が山下曲輪で二回続けて倒れた（敵の打ち込みも 0.58→0.45）
   playerRegen: 0.012,
@@ -905,6 +919,8 @@ const t11_hachioji = {
       // 曲輪を攻める間は今の守備隊を狙い、前の曲輪の残兵を追い直さない。
       botFoeAllowed: (o) => {
         const D = F.dp, C = D?.cur;
+        // 11/14 クラウド：共通の待つ備の「新手」が金子丸の段で本人を斬り続け（act 二回とも傷の一番・110／99）、的から外れて打ち返さず倒れた。近い新手は討つ
+        if (o.group?.name === '新手' && rt.player?.u && Math.hypot(o.pos.x - rt.player.u.pos.x, o.pos.z - rt.player.u.pos.z) < 8) return true;
         return !D?.on || D.i < IX.kaneko || D.i > IX.hon || !C?.groups || C.groups.includes(o.group);
       } }, [
       sanroku.step(H),
