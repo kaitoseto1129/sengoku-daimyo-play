@@ -265,6 +265,7 @@ async function playOnce() {
         await ev(`window.__shotDone = window.__shotDone || {}; window.__shotDone[${want.id}] = ${JSON.stringify(shots[want.id])}; return 1;`).catch(() => {});
       }
     }
+    if (process.env.SUNOLOG) { const sl = await ev('return (window.__sunoLog || []).slice(-60)').catch(() => []); writeFileSync(process.env.SUNOLOG, JSON.stringify(sl).replace(/},{/g, '},\n{')); }   // 墨俣の最後の段の条件（b_sunomata.js の __sunoLog）
     if (process.env.DENLOG) { const den = await ev('return window.__den || []').catch(() => []); writeFileSync(process.env.DENLOG, den.join('\n')); console.log(`  分母の記録 ${den.length}行 → ${process.env.DENLOG}`); }
     if (!data) data = await ev('if (window.__botFlush) window.__botFlush(); return window.__botPartial || null;').catch(() => null);
     // ページが固まって答えない時は、最後に聞けた途中の記録を使い、「固まった」ことも問題として残す
