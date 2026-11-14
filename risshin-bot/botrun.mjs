@@ -215,6 +215,7 @@ async function playOnce() {
     // 性格付きも通常の bot と同じ描画指定に従う。描かない時は写真を待たない。
     await c.goto(`http://localhost:${PORT}/?bot&persona=${PERSONA}&shots=${!RENDER || loadavg()[0] > 110 ? 0 : 1}&maxshots=${MAXSHOTS}&budget=${budget}${NBAT ? '&n=' + NBAT : ''}${ONLY ? '&only=' + ONLY : ''}${RENDER ? '' : '&norender' + (SPEED > 1 ? '&speed=' + SPEED : '')}${VQ ? '&' + VQ : ''}&r=${Date.now()}`, OUT ? 6000 : 3000);
     await c.ev('Storage.prototype.setItem = function () {}; return 1;');
+    if (process.env.DENLOG) await c.ev(`window.__den = []; const S = await import('/src/stages.js'); setInterval(() => { const b = window.__game && window.__game.battle; if (!b) return; try { const s = S.stageNow(b); if (!s) return; window.__den.push(Math.round(b.t) + ' 段' + s.i + ' ' + s.goals.map((g) => (g.count ? g.count.join('/') : '-')).join(',') + ' 札' + (s.count ? s.count.join('/') : '-')); } catch (e) {} }, 1000); return 1;`);
     let last = '', lastT = 0, keep = null, keepT = 0, slow = 0, frozeAt = '';
     while (!data) {
       if (Date.now() > deadline) { cut = `${LIMIT_MIN}分で打ち切った`; break; }
@@ -264,6 +265,7 @@ async function playOnce() {
         await ev(`window.__shotDone = window.__shotDone || {}; window.__shotDone[${want.id}] = ${JSON.stringify(shots[want.id])}; return 1;`).catch(() => {});
       }
     }
+    if (process.env.DENLOG) { const den = await ev('return window.__den || []').catch(() => []); writeFileSync(process.env.DENLOG, den.join('\n')); console.log(`  分母の記録 ${den.length}行 → ${process.env.DENLOG}`); }
     if (!data) data = await ev('if (window.__botFlush) window.__botFlush(); return window.__botPartial || null;').catch(() => null);
     // ページが固まって答えない時は、最後に聞けた途中の記録を使い、「固まった」ことも問題として残す
     if (!data && keep) data = keep;
