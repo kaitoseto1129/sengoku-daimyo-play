@@ -199,7 +199,7 @@ export class Auditor {
       const moved = Math.hypot(u.vel.x, u.vel.z) > 0.15;
       const hasDestination = mt && Math.hypot(mt.x - u.pos.x, mt.z - u.pos.z) > 1.6;
       // （120m 内に敵のいない兵が立って待つのは、困り事に数えない）
-      if (!mayIdle && hasDestination && !moved && b.t > 20 && !b.paused && b.army.nearestEnemy(u, 120, (o) => !o.fleeing)) {
+      if (!mayIdle && hasDestination && !moved && b.t > 20 && !b.paused && b.army.nearestEnemy(u, 120, (o) => !o.fleeing) && !b.army.nearestEnemy(u, 4, (o) => !o.fleeing)) {   // 敵が4m内なら斬り合いの最中で、立っていて当然（11/14 クラウドち：天王寺 (-82,-11) 近い敵2〜3m の誤検出）
         const n = (this.idle.get(u) || 0) + step;
         this.idle.set(u, n);
         if (n > 20) { this.add('辻褄', 'stuck:' + (g.name || g.label || u.type), '行き先があるのに20秒動かない兵', `${who(u)}（号令：${g.order}・${g.name || '名なし'}・頭：${g._ai ? (g._ai.ctl || '無') + '/' + (g._ai.mode || '―') : '無'}${g.guard ? '・守り' : ''}${g.focus ? '・的あり' : ''}・近い敵${(() => { const e = b.army.nearestEnemy(u, 200); return e ? Math.round(Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z)) + 'm' + (e.fleeing ? '逃' : '') : 'なし'; })()}${u.type === 'gun' || u.type === 'bow' ? `・射手[撃${g.fire === false ? '止' : '可'}・込${u.reload ? Math.round(u.cd) : '-'}・弾${u.gunAmmo ?? '-'}・射程${Math.round(u.range || 0)}・遠${u.farSim ? '1' : u.qualityAbstract ? 'q' : '0'}・先${mt ? Math.round(Math.hypot(mt.x - u.pos.x, mt.z - u.pos.z)) : '-'}m]` : ''}）at (${Math.round(u.pos.x)},${Math.round(u.pos.z)})`, '道が塞がれていないか、行き先に着いたと見なせているかを見る', who(u)); this.idle.set(u, -60); }
