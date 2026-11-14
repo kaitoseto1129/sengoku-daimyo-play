@@ -1878,7 +1878,7 @@ function watchStep(b, dt, c) {
     if (A.pend && t - A.pend.t >= 6) {
       const q = A.pend; A.pend = null;
       const happened = objKey !== q.objKey || (b.phase || '') !== q.phase || mkKey !== q.key
-        || (c.lastSayT || 0) > q.say || q.foe || !!b.army.nearestEnemy(u, 20);   // 着いた時にもう敵が20m内なら斬り合いが起きている（天王寺の本陣の前・馬印は敵と戦う持ち場で、偽の「何も起きず」だった）
+        || (c.lastSayT || 0) > q.say || (c.lastSayT || 0) >= q.t - 2 || q.foe || !!b.army.nearestEnemy(u, 20);   // 着いた時にもう敵が20m内なら斬り合いが起きている（天王寺の本陣の前・馬印は敵と戦う持ち場で、偽の「何も起きず」だった）
       if (!happened) {
         A.empty++; A.list.push(`${Math.round(q.t)}秒 ${q.label}（段 ${q.phase || '―'}）`);
         c.add(`arrive-empty:${c.bid}:${q.key}`, '行き先の印に着いても、6秒なにも起きない', `${Math.round(q.t)}秒・印「${q.label}」・段「${q.phase || '―'}」：任務札も段も台詞も変わらず、敵も寄って来ない`, 2, { cat: '使いづらい', shot: true, fix: '着いたら台詞・段送り・敵の出現など、必ず一つ起こす（K175）' });
