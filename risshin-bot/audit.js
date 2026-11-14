@@ -182,9 +182,9 @@ export class Auditor {
         continue;
       }
       if (u.hp > (u.maxHp || 1e9) + 0.5) this.add('数と文', 'hpOver:' + u.type, '体力が最大を超えている', `${who(u)}：${Math.round(u.hp)}/${u.maxHp}`, '回復の所で上限を掛ける', who(u));
-      if (u.target && u.target.alive === false && !u.target.isStruct) {
+      if (u.target && u.target.alive === false && !u.target.isStruct && b.phase !== 'end') {   // 戦の終わり（end）は兵の更新が止まり、最後の将を討った後の狙いが残るだけ（11/14 設楽原の act bot）
         u.__deadT = (u.__deadT || 0) + step;
-        if (u.__deadT > 3) this.add('辻褄', 'deadTarget:' + u.type, '死んだ相手を3秒以上狙い続けている', who(u), '相手が倒れたら狙いを外す', who(u));
+        if (u.__deadT > 3) this.add('辻褄', 'deadTarget:' + u.type, '死んだ相手を3秒以上狙い続けている', who(u) + `（相手：${u.target.type}・倒れ中${u.target.dying ? 'はい' : 'いいえ'}・去った${u.target.gone ? 'はい' : 'いいえ'}・遠景${u.farSim ? 'はい' : 'いいえ'}・号令${u.group && u.group.order}）`, '相手が倒れたら狙いを外す', who(u));
       } else u.__deadT = 0;
       // 動けなくなった兵（行き先があるのに20秒動かない。持ち場を守る者は除く）
       const g = u.group;
