@@ -2385,7 +2385,8 @@ async function playPersona(game, spec, aud, c) {
     let real = 0; for (const u of b.army.units) if (u.alive && u.team === P.team && !u.isPlayer && !u.fleeing) real++;
     if (real < 5 && b.t > 30) AM.low++;
     for (const g of b.army.groups) {
-      if (g.team !== P.team || g.isPlayerSquad || g.routed || !g.count) continue;
+      // 11/14 クラウドわ：戦わない群れ（有岡の逃げる町の者など g.civ）は道の終わりで止まるのが正しいので数えない
+      if (g.team !== P.team || g.isPlayerSquad || g.routed || !g.count || g.civ) continue;
       const c = g.center(), q = AM.pos.get(g);
       if (q) { const d = Math.hypot(c.x - q.x, c.z - q.z); AM.move += d; q.still = d < 1 ? q.still + 5 : 0; AM.samp++; if (q.still >= 20 && !g.qualityCombat && !g.units.some((u) => u.alive && (u.target || u.atk)) && b.army.nearestEnemy({ pos: c, team: P.team }, (g.order === 'hold' || g.order === 'yari') ? 25 : 60, (o) => !o.fleeing)) { AM.idle++; q.still = 0; const far = g.units.filter((u) => u.alive && (u.farSim || u.qualityAbstract)).length * 2 > g.count; if (far) AM.idleFar = (AM.idleFar || 0) + 1; (rep.idleDiag ||= []).length < 14 && rep.idleDiag.push(`${Math.round(b.t)}s ${g.id ?? g.name ?? ''} ord=${g.order} form=${g.formation} n=${g.count} mv=${!!g.marching} foc=${!!g.focus} keep=${!!g.keepMoveOrder} anch=${(g.anchorSpeed ?? 0).toFixed?.(2)} at(${Math.round(c.x)},${Math.round(c.z)}) tm=${g.units.filter((u) => u.alive)[0]?.moveTo ? 'mt' : '-'}${far ? ' 遠くの本物' : ''}`); } q.x = c.x; q.z = c.z; }
       else AM.pos.set(g, { x: c.x, z: c.z, still: 0 });
