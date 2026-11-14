@@ -2629,6 +2629,8 @@ async function runPersona(game, key) {
   const all = listPlayable();
   const n = clamp(+(Q.get('n') || 1 + Math.floor(Math.random() * 3)), 1, 3);
   let only = ONLY ? all.filter((x) => ONLY.has(x.id) && (V.mode === 'lord' ? x.kind === 'lord' : !(x.kind === 'lord' && x.scn === 'oda'))) : null;
+  // 鍵が一つも合わない時は部分一致（inaba→稲葉山の id）で探す。それでも無ければ別の戦を流さず、ログに残す
+  if (ONLY && !(only && only.length)) { const part = all.filter((x) => [...ONLY].some((k) => k && x.id.includes(k))); if (part.length) only = part; else console.warn('[playbot] --only に合う戦が無い:', [...ONLY].join(',')); }
   // 同じ鍵が織田家編と試しの筋書きの両方にある時（echizen_ikko）は、織田家編の方を遊ぶ。
   if (only && V.mode !== 'lord') only = only.filter((x) => x.kind === 'camp' || !only.some((y) => y.kind === 'camp' && y.id === x.id));
   const pool = only && only.length ? only : (per.prefer(all).length ? per.prefer(all) : all);

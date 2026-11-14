@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#14120f">
 <title>戦国立身3D　携帯の刀</title>
 <!-- K254（kaito 11/11「携帯を刀にしてパソコンで遊ぶ（QR でつなぐ・振る・突き・構え）」）：パソコンの設定の「携帯を刀にする」の QR を携帯で読むと開く頁。
-     振る＝斬る（回る速さ）・前へ突き出す＝突き（前への加速）・画面を押している間＝構え。動きは PeerJS（WebRTC）でパソコンへ直に送る。
+     振る＝斬る（回る向きで上段・袈裟・逆袈裟・横薙ぎ、回る速さで重さ）・前へ突き出す＝突き（前への加速）・横へ寝かせる／画面を押す間＝構え。当たると震える。動きは PeerJS（WebRTC）でパソコンへ直に送る。
      DeviceMotion は https の頁でしか取れない（公開の github.io は https）。 -->
 <style>
   :root { --bg: #14120f; --fg: #f1e9d8; --gold: #b8963e; --dim: #a89f8e; }
@@ -18,6 +18,7 @@
   #blade.guard { box-shadow: 0 0 0 4px var(--gold); }
   #blade.hit { transform: rotate(-24deg); }
   #blade.tsuki { transform: translateY(-18px); }
+  #blade.cut { background: linear-gradient(#fff, #c43c2c); }
   #tsuba { width: 64px; height: 10px; border-radius: 5px; background: #3b352c; margin-top: -12px; }
   #tsuka { width: 18px; height: 16vh; border-radius: 4px; background: repeating-linear-gradient(45deg, #2a1d14 0 8px, #5a3e28 8px 16px); margin-top: -12px; }
   [hidden] { display: none !important; }
@@ -27,7 +28,7 @@
 <body>
 <main>
   <section id="start">
-    <p>携帯を刀のように握ります。<br>画面を上にして、上の端をパソコンへ向けます。</p>
+    <p>画面を上にして、上の端をパソコンへ向けて握ります。<br>振ると斬る・前へ突くと突き・横へ寝かせると構え。</p>
     <button id="go" type="button">刀としてつなぐ</button>
   </section>
   <section id="play" hidden aria-label="刀">
@@ -35,7 +36,8 @@
   </section>
   <p id="st" role="status" aria-live="polite"></p>
 </main>
-<script src="./v202611141105/src/vendor/peerjs.min.js"></script>
+<script src="./v202611141205/src/vendor/peerjs.min.js"></script>
+<label id="hap" aria-hidden="true" style="position:fixed;left:-99px;top:0;opacity:0"><input type="checkbox" switch tabindex="-1"></label>
 <script>
 (() => {
   const $ = (id) => document.getElementById(id);
@@ -43,26 +45,49 @@
   const room = (new URLSearchParams(location.search).get('r') || '').replace(/[^a-z0-9]/gi, '').slice(0, 12);
   if (!room) { say('パソコンの QR を読み直してください'); $('go').disabled = true; return; }
   if (!window.isSecureContext) say('公開の頁から開き直すと動きます');
-  let conn = null, guard = false, lastSwing = 0, lastThrust = 0;
+  let conn = null, press = false, tilt = false, guard = false, lastSwing = 0, lastThrust = 0, rtt = 0, tiltT = 0;
+  let g = null;   // 振りの途中（回る速さが閾を越えてから、山を過ぎるか 50ms まで向きを足し合わせる）
   const send = (m) => { try { if (conn && conn.open) conn.send(m); } catch (e) { /* 切れた */ } };
-  const flash = (c) => { const b = $('blade'); b.classList.add(c); setTimeout(() => b.classList.remove(c), 160); };
-  const buzz = (ms) => { try { navigator.vibrate && navigator.vibrate(ms); } catch (e) { /* 震えなくてよい */ } };
+  const flash = (c, ms = 160) => { const b = $('blade'); b.classList.add(c); setTimeout(() => b.classList.remove(c), ms); };
+  // 震え：Android は vibrate。iPhone の Safari は vibrate が無いので、iOS 18 からの「切り替えの釦」を押した時の手応えを借りる
+  const buzz = (ms) => {
+    try { if (navigator.vibrate && navigator.vibrate(ms)) return; } catch (e) { /* 次へ */ }
+    try { $('hap').click(); } catch (e) { /* 震えなくてよい */ }
+  };
 
-  // 振り：回る速さ（度/秒）が大きい時＝斬る。突き：前（携帯の上の端の向き＝y）への加速が大きく、回りが小さい時＝突き
+  // 持ち方：画面を上にして、上の端をパソコンへ向ける。携帯の軸＝x 右・y 上の端・z 画面の表。
+  //   上段（真っ向）＝x の回り（beta）が大きい／横薙ぎ＝z の回り（alpha）が大きい／袈裟＝両方（alpha の向きで袈裟と逆袈裟）
+  //   突き＝前（y）への加速が大きく、回りが小さい。速さ（回る速さの山）で重さ 0.85〜1.3 倍。
+  function fire(now) {
+    const A = g.a, B = g.b, peak = g.peak;
+    const d = Math.abs(B) > Math.abs(A) * 2 ? 'kara' : Math.abs(A) > Math.abs(B) * 2 ? 'nagi' : A > 0 ? 'kesa' : 'gyaku';
+    const p = Math.max(0.85, Math.min(1.3, 0.85 + (peak - 340) / 1500));
+    send({ t: 's', d, p: +p.toFixed(2), ts: g.ts });
+    lastSwing = now; g = null; flash('hit'); buzz(12);
+  }
   function onMotion(e) {
     const now = performance.now();
-    const r = e.rotationRate || {}, a = e.acceleration || {};
-    const rot = Math.hypot(r.alpha || 0, r.beta || 0, r.gamma || 0);
+    const r = e.rotationRate || {}, a = e.acceleration || {}, ag = e.accelerationIncludingGravity || {};
+    const al = r.alpha || 0, be = r.beta || 0, rot = Math.hypot(al, be, r.gamma || 0);
+    // 構え：携帯を横へ寝かせる（画面を横へ向け、刃を横一文字に）と構える。0.15 秒続けたら
+    const gx = Math.abs(ag.x || 0);
+    if (gx > 7) { if (!tiltT) tiltT = now; if (!tilt && now - tiltT > 150) { tilt = true; setGuard(); } }
+    else if (gx < 5) { tiltT = 0; if (tilt) { tilt = false; setGuard(); } }
+    if (g) {
+      g.a += al; g.b += be;
+      if (rot < g.last || now - g.t0 >= 50) return fire(now);
+      g.peak = Math.max(g.peak, rot); g.last = rot; return;
+    }
     const fwd = a.y || 0;
-    if (fwd > 14 && rot < 260 && now - lastThrust > 420 && now - lastSwing > 250) { lastThrust = now; send({ t: 'k' }); flash('tsuki'); buzz(20); return; }
-    if (rot > 340 && now - lastSwing > 330 && now - lastThrust > 250) { lastSwing = now; send({ t: 's', p: Math.round(rot) }); flash('hit'); buzz(25); }
+    if (fwd > 14 && rot < 260 && now - lastThrust > 420 && now - lastSwing > 250) { lastThrust = now; send({ t: 'k', p: Math.max(0.85, Math.min(1.3, 0.85 + (fwd - 14) / 30)), ts: Date.now() }); flash('tsuki'); buzz(12); return; }
+    if (rot > 340 && now - lastSwing > 330 && now - lastThrust > 250) g = { t0: now, ts: Date.now(), a: al, b: be, peak: rot, last: rot };
   }
-  // 構え：画面を押している間
-  const setGuard = (on) => { if (guard === on) return; guard = on; $('blade').classList.toggle('guard', on); send({ t: 'g', on }); };
-  addEventListener('pointerdown', (e) => { if (!$('play').hidden) { e.preventDefault(); setGuard(true); } });
-  addEventListener('pointerup', () => setGuard(false));
-  addEventListener('pointercancel', () => setGuard(false));
-  setInterval(() => { if (guard) send({ t: 'g', on: true }); send({ t: 'p' }); }, 250);   // 押したままを伝え直す・生きている印
+  // 構え：携帯を横へ寝かせている間か、画面を押している間
+  const setGuard = () => { const on = press || tilt; if (guard === on) return; guard = on; $('blade').classList.toggle('guard', on); send({ t: 'g', on }); };
+  addEventListener('pointerdown', (e) => { if (!$('play').hidden) { e.preventDefault(); press = true; setGuard(); } });
+  addEventListener('pointerup', () => { press = false; setGuard(); });
+  addEventListener('pointercancel', () => { press = false; setGuard(); });
+  setInterval(() => { if (guard) send({ t: 'g', on: true }); send({ t: 'p', ts: Date.now(), rtt }); }, 250);   // 構えの伝え直し・生きている印と往復の遅れ
 
   $('go').onclick = async () => {
     try {
@@ -76,17 +101,24 @@
     let ps = null; try { ps = JSON.parse(new URLSearchParams(location.search).get('ps') || 'null'); } catch (e) { ps = null; }
     const peer = ps ? new Peer(ps) : new Peer();
     peer.on('open', () => {
-      conn = peer.connect('risshin-sword-' + room, { reliable: false });
+      // 振りは待たせず送る（reliable:false＝順番待ちをしない。遅れ 100ms 以下のため）
+      conn = peer.connect('risshin-sword-' + room, { reliable: false, serialization: 'json' });
       conn.on('open', () => {
-        say('つながりました。振ると斬る・突き出すと突き・押している間は構え');
+        say('');
         $('start').hidden = true; $('play').hidden = false;
         addEventListener('devicemotion', onMotion);
         send({ t: 'hi' });
+      });
+      conn.on('data', (m) => {
+        if (!m) return;
+        if (m.t === 'q') rtt = Date.now() - m.ts;
+        else if (m.t === 'hit') { buzz(35); flash('cut', 220); }
       });
       conn.on('close', () => { say('切れました。パソコンの QR を読み直してください'); $('play').hidden = true; $('start').hidden = false; $('go').disabled = false; });
     });
     peer.on('error', () => { say('つなげませんでした。パソコンの QR を読み直してください'); $('go').disabled = false; });
   };
+  window.__sword = { stat: () => ({ rtt, guard, open: !!(conn && conn.open) }) };
 })();
 </script>
 </body>
