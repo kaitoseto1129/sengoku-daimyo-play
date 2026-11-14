@@ -201,7 +201,7 @@ export class Auditor {
       if (!mayIdle && hasDestination && !moved && b.t > 20 && !b.paused && b.army.nearestEnemy(u, 120, (o) => !o.fleeing)) {
         const n = (this.idle.get(u) || 0) + step;
         this.idle.set(u, n);
-        if (n > 20) { this.add('辻褄', 'stuck:' + (g.name || g.label || u.type), '行き先があるのに20秒動かない兵', `${who(u)}（号令：${g.order}・${g.name || '名なし'}・頭：${g._ai ? (g._ai.ctl || '無') + '/' + (g._ai.mode || '―') : '無'}${g.guard ? '・守り' : ''}${g.focus ? '・的あり' : ''}・近い敵${(() => { const e = b.army.nearestEnemy(u, 200); return e ? Math.round(Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z)) + 'm' + (e.fleeing ? '逃' : '') : 'なし'; })()}）at (${Math.round(u.pos.x)},${Math.round(u.pos.z)})`, '道が塞がれていないか、行き先に着いたと見なせているかを見る', who(u)); this.idle.set(u, -60); }
+        if (n > 20) { this.add('辻褄', 'stuck:' + (g.name || g.label || u.type), '行き先があるのに20秒動かない兵', `${who(u)}（号令：${g.order}・${g.name || '名なし'}・頭：${g._ai ? (g._ai.ctl || '無') + '/' + (g._ai.mode || '―') : '無'}${g.guard ? '・守り' : ''}${g.focus ? '・的あり' : ''}・近い敵${(() => { const e = b.army.nearestEnemy(u, 200); return e ? Math.round(Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z)) + 'm' + (e.fleeing ? '逃' : '') : 'なし'; })()}${u.type === 'gun' || u.type === 'bow' ? `・射手[撃${g.fire === false ? '止' : '可'}・込${u.reload ? Math.round(u.cd) : '-'}・弾${u.gunAmmo ?? '-'}・射程${Math.round(u.range || 0)}・遠${u.farSim ? '1' : u.qualityAbstract ? 'q' : '0'}・先${mt ? Math.round(Math.hypot(mt.x - u.pos.x, mt.z - u.pos.z)) : '-'}m]` : ''}）at (${Math.round(u.pos.x)},${Math.round(u.pos.z)})`, '道が塞がれていないか、行き先に着いたと見なせているかを見る', who(u)); this.idle.set(u, -60); }
       } else this.idle.set(u, 0);
       // 自分のすぐそばで何もしない敵（持ち場の者・敗走中は除く）。
       // 勝敗後など、敵の狙いに入らない本人は nearestEnemy と同じ条件で除く。
