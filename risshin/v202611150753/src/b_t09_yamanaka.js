@@ -1220,8 +1220,8 @@ html:root body #hud:has(#h-prog[data-battle="t09_yamanaka"]) #center-call .cc { 
       // 11/14 クラウドE：間宮が討たれ出丸の札が〔済〕になっても、本人が東岸の二陣（12,194）で手当てしている間は段が進まず、
       //   障子堀の段まで三百三十秒立った（act 1028秒）。間宮の討死から二十秒たてば、出丸から七十m 内（東岸の二陣を含む）で制圧とする
       const daiD = Math.hypot(p.x - KURUWA.dai.x, p.z - KURUWA.dai.z);
-      // 11/15 クラウド：中学生の bot が出丸の段のまま 1080 秒止まった。七分を過ぎたら寄せ手が間宮を討ち柵を倒し、残兵は退いて障子堀の段へ
-      if (T > 420) {
+      // 11/15 クラウド：中学生の bot が出丸の段のまま 1080 秒止まった。五分を過ぎたら寄せ手が間宮を討ち柵を倒し、残兵は退いて障子堀の段へ（11/15 クラウドか：七分→五分。act bot で出丸だけ七分かかり一戦が十七分）
+      if (T > 300) {
         if (mu && mu.alive) { mu.invuln = false; mu.mustLive = false; mu.hp = 0; rt.army.kill(mu, null); }
         if (F.daiBridge?.alive) rt.army.damage(F.daiBridge, F.daiBridge.hp + 1, null);
         F.mamiyaDead = true; F.mamiyaDeadT ??= rt.t;
@@ -1314,7 +1314,7 @@ html:root body #hud:has(#h-prog[data-battle="t09_yamanaka"]) #center-call .cc { 
       }
       // 旗本は退かせず、松田康長が討たれるまで本丸で戦う（critic60 山中 37「退いただけで落城・康長の討たれる所が見えない」）
       // 旗本が崩れなくても、三分余りで康長が自ら打って出る（討つのは本人と寄せ手。時間で討ち死にはさせない。11/9 見回り：本丸で十分止まった）
-      if (F.honOn && !F.honOut && T > 200 && F.honU?.alive) { F.honOut = true; g.fixed = false; g.order = 'attack'; g.aggro = 40; g.seekRange = 60; rt.say('松田康長', '者ども、討って出るぞ！', 3);
+      if (F.honOn && !F.honOut && T > 120 && F.honU?.alive) { F.honOut = true; g.fixed = false; g.order = 'attack'; g.aggro = 40; g.seekRange = 60; rt.say('松田康長', '者ども、討って出るぞ！', 3);
         // 11/10 クラウド：打って出た旗本の鉄砲と槍に背から撃たれ、本丸の段で倒れた（act 982秒）。打って出た後は旗本の打ち込みを半分・鉄砲を三割に
         g.dmgMult = (g.dmgMult || 1) * 0.5; for (const q of g.units) if (q.type === 'gun') q.dmg *= 0.3; }
       // 11/14 クラウド：act bot で本丸の段が 435→1080 秒続き、康長を討てず刻限で失敗した（今日二度）。段が七分を過ぎたら康長の守りを解き命を細らせる（時間で死なせはせず、とどめは要る）
@@ -1327,10 +1327,15 @@ html:root body #hud:has(#h-prog[data-battle="t09_yamanaka"]) #center-call .cc { 
       //   康長が討たれたら、本人が本丸の南口から六十m 内にいれば二十秒で落城とする（本丸の内に入れば今までどおりすぐ）
       // 11/15 クラウド：本丸の段が 487→1080 秒済まなかった（本人が本丸の五十歩に届かず honOn が立たない・康長を討った後も位置の条件で締まらない）。
       //   四分で旗本が打って出る扱いにし、六分で寄せ手が康長を討ち、討たれて四十秒で居所に関わらず落城
-      if (!F.honOn && T > 240) { F.honOn = true; g.fixed = false; g.aggro = 40; g.order = 'attack'; g.seekRange = 60; }
-      if (F.honOn && T > 360 && F.honU?.alive) { const u = F.honU; u.invuln = false; u.mustLive = false; u.hp = 0; rt.army.kill(u, null); }
+      // 11/15 クラウドか：act bot 二回とも本人が康長の五〜九十七m まで寄りながら旗本に阻まれ、六分の台本の討死で締まった（本丸の段だけで六分・一戦862〜1007秒）。
+      //   本人が康長の二十五m 内に合わせて二十秒いたら、康長が手負いで旗本の前へ出て本人に挑む（とどめは本人）。台本の討死は四分半に早める
+      // 11/15 クラウドか（二度目）：act bot で本丸の段が四分半（466→736秒）・一戦756秒。本丸へ掛かるのを二分・台本の討死を三分四十秒に
+      if (F.honOn && F.honU?.alive && !F.honWeak && Math.hypot(p.x - F.honU.pos.x, p.z - F.honU.pos.z) < 25) F.honNearT = (F.honNearT || 0) + dt;
+      if (F.honOn && F.honU?.alive && !F.honWeak && F.honNearT > 20) { F.honWeak = true; const u = F.honU; u.invuln = false; u.mustLive = false; u.maxHp = Math.min(u.maxHp, 60); u.hp = Math.min(u.hp, 25); u.fixed = false; g.fixed = false; g.order = 'attack'; g.aggro = 60; g.seekRange = 80; u.target = rt.player.u; rt.say('松田康長', '小癪な。この康長が相手じゃ！', 3); }
+      if (!F.honOn && T > 120) { F.honOn = true; g.fixed = false; g.aggro = 40; g.order = 'attack'; g.seekRange = 60; }
+      if (F.honOn && T > 220 && F.honU?.alive) { const u = F.honU; u.invuln = false; u.mustLive = false; u.hp = 0; rt.army.kill(u, null); }
       if (F.honOn && slain(F.honU) && F.honSlainT === undefined) F.honSlainT = rt.t;
-      if (F.honOn && slain(F.honU) && F.honSlainT !== undefined && rt.t - F.honSlainT > 40) this.win(rt);
+      if (F.honOn && slain(F.honU) && F.honSlainT !== undefined && rt.t - F.honSlainT > 25) this.win(rt);
       if (F.honOn && slain(F.honU) && ((p.z < -87 && Math.hypot(p.x - KURUWA.hon.x, p.z - KURUWA.hon.z) < 20) ||
           (rt.t - F.honSlainT > 20 && Math.hypot(p.x - 24, p.z + 84) < 60))) this.win(rt);
     }
@@ -1401,6 +1406,9 @@ t09_yamanaka.botBrain = (b, inp, { goTo, patientStrike }) => {
         b.botRestEnd = b.botWp - 2;
       }
       // 本丸への退きも虎口と土橋を逆順に通る。回復後は退いた点から登り直す。
+      // 11/15 クラウドか：段の替わり目（大手の土橋の上・10,51）で道の番号がまだ無いまま深手になり、十四m 南へ下がって土橋から堀の底（11,60）へ落ち、
+      //   新手と矢に倒れた（act 590秒）。番号が無い時もここで近い折れを決め、門の内へ退く
+      if (F.step === 4 && b.botUp === undefined) { let bi = 0, bd = Infinity; UP_ROUTE.forEach(([x, z], i) => { const d = Math.hypot(u.pos.x - x, u.pos.z - z); if (d < bd) { bd = d; bi = i; } }); b.botUp = bi; }
       if (F.step === 4 && b.botUp !== undefined) {
         b.botRestUp = Math.max(0, b.botUp - 1);
         b.botRestEnd = Math.max(0, b.botUp - 2);
