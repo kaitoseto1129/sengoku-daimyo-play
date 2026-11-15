@@ -1813,7 +1813,7 @@ export const ArmyThink = {
       const d = Math.hypot(dx, dz);
       // 敵へ寄せる途中の詰まりは到着ではない。止めると moving が戻らず、jammed が解けなくなる。
       // 11/5 kaito BQ「ぐちゃぐちゃに動き回る」：かかれの隊も、持ち場が止まっていて的の無い者は持ち場で落ち着く（足踏みで列を崩さない）
-      const busy = u.fleeing || order === 'retreat' || order === 'attack' && (g.anchorSpeed >= 0.3 || d > 1.6 || u.target?.alive) ||
+      const busy = u.fleeing || order === 'retreat' || order === 'attack' && (g.anchorSpeed >= 0.3 || d > (u.jammed ? 2.6 : 1.6) || u.target?.alive) ||
         u._pacing === g._pacing && pacingOrderActive(g, this) ||
         (g.focus && g.focus.alive) || u.confused > 0 || g.regroupT > 0;
       // 持ち場に着いたら落ち着く（隊が止まっている間は、少しずれても歩き直さない）
@@ -1824,12 +1824,12 @@ export const ArmyThink = {
       // 遠い行き先では止まり続けず、steer の回り込みを続ける。
       // 混んだ持ち場で休む場合も二秒後には通れるか試し直す。
       if (u.jamT > 10) { u.jamT = 0; u.jammed = false; }
-      else if (u.jamT > 8 && d < 1.6) u.jammed = true;
+      else if (u.jamT > 8 && d < 2.6) u.jammed = true;   // 11/15 クラウドわ：天王寺の浅野隊の足軽が持ち場の 2.2m 手前で味方に塞がれ、かかれの間ずっと押し続けて20秒止まった（act bot）→ 2.6m 内の詰まりは持ち場に着いたと見なす
       else if (u.moving > 0.4) u.jammed = false;
       const stopRow = Math.floor(u.slot / Math.max(1, g._stepCols || 1));
       const closing = stopRow > 0 && !g.marching && !u.mounted && !g.isGun && !g.cav && !g.routed && !(g.cavShare > 0.1) && (g.formation === 'line' || g.formation === 'yari') &&
         g._stopT != null && this.time - g._stopT < Math.min(0.65, stopRow * 0.18) + 0.25;
-      const stay = !closing && !busy && g.anchorSpeed < 0.3 && ((u.jammed && d < 1.6) || (u.settled ? d < 1.2 : d < 0.6 || u.nearT > 1));   // 11/5 BQ：押し合いで持ち場の前を揺れ続けない
+      const stay = !closing && !busy && g.anchorSpeed < 0.3 && ((u.jammed && d < 2.6) || (u.settled ? d < 1.2 : d < 0.6 || u.nearT > 1));   // 11/5 BQ：押し合いで持ち場の前を揺れ続けない
       // 11/13 K074 く：止まって重なる者は持ち場に着いていなくても、同じ点に重なって立つ味方（旗本など）は、横へ少しずつずれて重なりを解く
         if ((stay || (u.moving < 0.25 && !busy)) && !u.mounted && this.time >= (u._ovT || 0)) {
           u._ovT = this.time + 0.5;

@@ -1854,7 +1854,10 @@ function watchStep(b, dt, c) {
   if (!sec) return;
   // ---- 全員：行き先の印に着いたら何かが起きるか（K175）----
   {
-    const mk = b.markers.find((m) => !m.red) || b.markers[0];
+    // 戦が「今の行き先」を決めている時（guideMarker）はその印を見る。先に立った人の印（本能寺の「信長」）を行き先と取り違えて、
+    //   本当の行き先（本堂の口）へ向かう途中で上様の横に並んだだけで「着いて何も起きない」と数えていた（11/15 クラウドわ）
+    const gid = b.def.guideMarker?.(b);
+    const mk = (gid && b.markers.find((m) => m.id === gid)) || b.markers.find((m) => !m.red) || b.markers[0];
     const mp = mk ? (typeof mk.pos === 'function' ? mk.pos() : mk.pos) : null;
     const mkLab = mk ? String((typeof mk.label === 'function' ? mk.label() : mk.label) || mk.id || '印') : '';
     const mkKey = mk ? `${mk.id || mkLab}:${mp ? `${Math.round(mp.x / 5)},${Math.round(mp.z / 5)}` : ''}` : '';

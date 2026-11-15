@@ -567,6 +567,10 @@ const k04_kuisegawa = {
     if (F.ending || !F.step) return;
     const P = rt.player.u, PL = L(P.pos);
     butaiTick(rt, dt);
+    // 行き先の印に着いたら必ず一言（K175：着いても6秒何も起きない）
+    if (!F.arrSaid) F.arrSaid = {};
+    if (F.step === 1 && !F.arrSaid[1] && B.bait && dist(PL, lightPos(B.bait)) < 9) { F.arrSaid[1] = 1; rt.say('島左近の兵', 'おのれ、東の者か。稲刈りの邪魔をするな', 2.6); }
+    if (F.step === 5 && !F.arrSaid[5] && dist(PL, ARIMA) < 12) { F.arrSaid[5] = 1; rt.say('有馬豊氏', 'よう戻った。ここまで来ればもう案ずるな', 2.8); }
     // 刈田の段は先手と刈田の兵の小競り合いだけ（囮が数で押されて先に崩れ、退くふりの前に川を越えて逃げないように）
     if (F.step <= 2) fieldTick(rt, dt, { list: F.baitBlocks, reach: 40, k: 0.004, routAt: 0 });
     // 史実の杭瀬川は討死数十人の小競り合い（東軍が千余り減る大敗に見えた。11/8 critic60 十二1・二1）。塊どうしの削り合いは浅く

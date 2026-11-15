@@ -19,12 +19,28 @@ function walkChildren(o, force) {
     if (c.matrixWorldAutoUpdate === true || force === true) c.updateMatrixWorld(force);
   }
 }
+// 11/15 K314：骨の行列の掛け算を自前の一つの関数で。three の multiplyMatrices は場面の全部から色々な形で呼ばれて最適化が外れ、
+//   関ヶ原で毎秒140MB の数の箱詰め（使い捨て）を出していた。骨だけはここを通し、同じ形の呼びにそろえる
+function mulMW(out, a, b) {
+  const ae = a.elements, be = b.elements, te = out.elements;
+  const a11 = ae[0], a12 = ae[4], a13 = ae[8], a14 = ae[12];
+  const a21 = ae[1], a22 = ae[5], a23 = ae[9], a24 = ae[13];
+  const a31 = ae[2], a32 = ae[6], a33 = ae[10], a34 = ae[14];
+  const a41 = ae[3], a42 = ae[7], a43 = ae[11], a44 = ae[15];
+  for (let c = 0; c < 16; c += 4) {
+    const b1 = be[c], b2 = be[c + 1], b3 = be[c + 2], b4 = be[c + 3];
+    te[c] = a11 * b1 + a12 * b2 + a13 * b3 + a14 * b4;
+    te[c + 1] = a21 * b1 + a22 * b2 + a23 * b3 + a24 * b4;
+    te[c + 2] = a31 * b1 + a32 * b2 + a33 * b3 + a34 * b4;
+    te[c + 3] = a41 * b1 + a42 * b2 + a43 * b3 + a44 * b4;
+  }
+}
 // 骨の根元の親：自分の行列 → 骨の並び → 子（皮・受け）
 function anchorMW(force) {
   if (this.matrixAutoUpdate) this.updateMatrix();
   if (this.matrixWorldNeedsUpdate || force) {
     if (this.parent === null) this.matrixWorld.copy(this.matrix);
-    else this.matrixWorld.multiplyMatrices(this.parent.matrixWorld, this.matrix);
+    else mulMW(this.matrixWorld, this.parent.matrixWorld, this.matrix);
     this.matrixWorldNeedsUpdate = false;
     force = true;
   }
@@ -42,7 +58,7 @@ function syncRig(R, force) {
     let d = p < 0 ? force : D[p] === 1;
     if (b.matrixAutoUpdate) b.updateMatrix();
     if (b.matrixWorldNeedsUpdate || d) {
-      b.matrixWorld.multiplyMatrices(b.parent.matrixWorld, b.matrix);
+      mulMW(b.matrixWorld, b.parent.matrixWorld, b.matrix);
       b.matrixWorldNeedsUpdate = false;
       d = true;
     }

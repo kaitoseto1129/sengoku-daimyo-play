@@ -1739,10 +1739,14 @@ function kgRoadColumn(rt, q, n) {
       at = { x: a[0] + (b[0] - a[0]) * k, z: a[1] + (b[1] - a[1]) * k, dx: -(b[0] - a[0]), dz: -(b[1] - a[1]) };
     } else at = kgRoadAt(RETREAT_ROAD, baseZ - row * 1.6);
     const len = Math.hypot(at.dx, at.dz) || 1, px = -at.dz / len, pz = at.dx / len, yaw = Math.atan2(at.dx / len, at.dz / len);
+    // 11/15 クラウドせ（K103・NORENDER の probe）：峠道の西の端 (2,-85) に置いた兵は、すぐ下（z -84）の歩けない筋に前を塞がれ、
+    //   回り込みで西の山裾 (-15,-85) まで三十秒さまよい、隊がその一人を待って峠道 (z -73) と木戸の前で止まった。道を四歩下る筋が歩けない所には置かない。
+    const ahead = east ? null : kgRoadAt(RETREAT_ROAD, baseZ - row * 1.6 + 4);
     for (const s of [-1.5, 0, 1.5]) {
       if (out.length >= n) break;
       const x = at.x + px * s, z = at.z + pz * s;
       if (Math.hypot(x - me.x, z - me.z) < 22 || !rt.world.walkable(x, z) || rt.world.inWaterAt(x, z) || rt.world.slopeTan(x, z) > 0.6) continue;
+      if (ahead && !kgWalkLine(rt.world, x, z, ahead.x + px * s, ahead.z + pz * s)) continue;
       out.push({ x, z, yaw });
     }
   }

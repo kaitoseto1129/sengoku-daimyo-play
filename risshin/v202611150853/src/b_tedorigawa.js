@@ -210,7 +210,9 @@ const FLOW = RIVER.slice(1).map((b, i) => {
   return { ax: a[0], az: a[1], dx, dz, len2: len * len, x: -dx / len, z: -dz / len };
 });
 const FORD = { x: 0, z: -26 };              // 北の岸の渡り口
-const SOUTH = { x: 4, z: 34 };              // 南の岸（退く先）
+const SOUTH = { x: 4, z: 34 };
+// 11/15 K324 クラウドさ（kaito 11/15「隣の隊でも相当離れている」）：丹羽・前田の備えは柴田の本陣から30m で一つの塊に見えた。左右へ倍の60m に離す
+const NIWA_C = { x: -60, z: -60 }, MAEDA_C = { x: 64, z: -62 };              // 南の岸（退く先）
 // 右上の目標は退き口の旗まで初めから並べ、戦の間は言い替えない。
 const TEDO_GOALS = ['水島の柴田勝家の旗へ集まれ', '北岸の篝火で謙信の追手を止めよ', '二本の旗の間の浅瀬を渡れ', '南岸の篝火で渡る味方を守れ', '南の退き口の旗まで退け'];
 const TEDO_ACTIONS = ['柴田の旗へ進め', '北岸の篝火へ退け', '追手を止めよ', '浅瀬を渡れ', '渡る味方を守れ', '追手を討て', '北岸の篝火へ退け'];
@@ -2775,14 +2777,14 @@ const tedorigawa = {
     rt.scene.add(tawara(W, -14, -64, 0.3, 5), tawara(W, 20, -60, -0.2, 4));
     F.cargo = tawara(W, 8, FORD.z - 2, 0.2, 4); rt.scene.add(F.cargo);
     // 柴田の雁金、丹羽の筋違、前田の梅鉢を各備えの両脇へ並べ、中央の渡河列を空ける。
-    for (const [x, z, mon] of [[0, -64, 'kari'], [-30, -60, 'sujikai'], [32, -62, 'maeda']])
+    for (const [x, z, mon] of [[0, -64, 'kari'], [NIWA_C.x, NIWA_C.z, 'sujikai'], [MAEDA_C.x, MAEDA_C.z, 'maeda']])
       for (const side of [-1, 1]) rt.scene.add(nobori(W, x + side * 8, z, mon, 5.4));
     // 丹羽の備えの脇に、伝承の「竹に金の短冊」の馬印を補う。
     // 当日の使用と配置は未確認。払いかけの陣の据物として置き、渡河列・斬り合う兵は保つ。
     // 結合済みの形と材質を使い回し、更新処理や当たりは足さない。
     const niwaUma = new THREE.Mesh(umaGeometry(NAMED_GEAR['丹羽長秀'].campUma),
       niwaUmaMat || (niwaUmaMat = new THREE.MeshLambertMaterial({ color: 0xffffff, vertexColors: true })));
-    niwaUma.position.set(-37, W.heightAt(-37, -63) - .9, -63);
+    niwaUma.position.set(NIWA_C.x - 7, W.heightAt(NIWA_C.x - 7, -63) - .9, -63);
     niwaUma.castShadow = true; rt.scene.add(niwaUma);
     // ---- 総大将の護衛、丹羽・前田の渡河列 ----
     // 信長公記巻十の北国出陣名簿にある四将を、既存の侍四人と置き換える。
@@ -2795,8 +2797,8 @@ const tedorigawa = {
     F.shibaU = F.shiba.units[0];
     shelterGeneral(F.shiba, F.shibaU);
     F.others = [
-      allyGroup(rt, { fixed: true, name: '丹羽長秀の手', anchor: { x: -30, z: -60 }, facing: 0, width: 12, aggro: 3, noRout: false, formation: 'column', colW: 2 }, dress([{ type: 'samurai', n: 1, o: { name: '丹羽長秀', invuln: true, horse: true, flag: 'sujikai' } }, { type: 'samurai', n: 1, o: { name: '氏家直昌', flag: null } }, { type: 'ashigaru', n: 10 }, { type: 'gun', n: 3 }], ODA)),
-      allyGroup(rt, { fixed: true, name: '前田利家の手', anchor: { x: 32, z: -62 }, facing: 0, width: 12, aggro: 3, noRout: false, formation: 'column', colW: 2 }, dress([{ type: 'busho', n: 1, o: { name: '前田利家', invuln: true, horse: true } }, { type: 'ashigaru', n: 11 }, { type: 'gun', n: 3 }], { flag: 'maeda' })),
+      allyGroup(rt, { fixed: true, name: '丹羽長秀の手', anchor: NIWA_C, facing: 0, width: 12, aggro: 3, noRout: false, formation: 'column', colW: 2 }, dress([{ type: 'samurai', n: 1, o: { name: '丹羽長秀', invuln: true, horse: true, flag: 'sujikai' } }, { type: 'samurai', n: 1, o: { name: '氏家直昌', flag: null } }, { type: 'ashigaru', n: 10 }, { type: 'gun', n: 3 }], ODA)),
+      allyGroup(rt, { fixed: true, name: '前田利家の手', anchor: MAEDA_C, facing: 0, width: 12, aggro: 3, noRout: false, formation: 'column', colW: 2 }, dress([{ type: 'busho', n: 1, o: { name: '前田利家', invuln: true, horse: true } }, { type: 'ashigaru', n: 11 }, { type: 'gun', n: 3 }], { flag: 'maeda' })),
     ];
     for (const g of F.others) shelterGeneral(g, g.units[0]);
     for (const g of [F.shiba, ...F.others]) { g.defMult = 1; g.dmgMult = 1; }
@@ -2911,6 +2913,8 @@ const tedorigawa = {
     F.honjin = camp(rt, { x: 34, z: 104, facing: Math.PI, team: 0, faction: 'oda', mon: 'takigawa', noUma: true, tate: false, general: { name: '滝川一益' }, guard: 8, reserve: 0, runTo: { x: SOUTH.x, z: SOUTH.z + 10 } });
     F.ehon = camp(rt, { x: 64, z: -206, facing: 0, team: 1, faction: 'uesugi', mon: 'uesugi', noUma: true, tate: false, armor: 0x2a2a2a, guard: 8, reserve: 0, runTo: { x: 0, z: -150 } });
     F.ehon.guard.name = '上杉謙信の旗本';
+    // 11/15 bot（クラウドせ）：滝川の座の組（供回りを足すと九人）が150秒ごろ「敵が来た」で attack になり、届かない敵を指して幕の前 (27〜41,99) を行き来し重なった（★★）。座は持ち場のまま。
+    { const hg = F.honjin.general?.group; if (hg) { hg.stay = true; hg.order = 'hold'; } }
     // 11/6 kaito 十二4：謙信は馬上で、自ら先頭に立って追い討ちに来る（陣幕の床几に座らせない）。
     //   馬廻の騎馬を連れ、陣幕の前で待つ。討てない（伝わる討死は無い）。謙信が先頭で川岸まで追ったかは軍記と伝承の筋で、書状写は追い討ちを伝えるだけ。
     // 11/6 BT：陣幕（北東の奥）から駆けて来るのでは殿の火へ着くまで二分かかった。上杉の先手のすぐ後ろ（闇の中）で待たせる。

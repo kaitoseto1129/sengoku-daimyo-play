@@ -42,6 +42,7 @@ import { demDetail } from './dem.js';
 import { distToPolyline } from './world.js';
 import { groundAt } from './floors.js';
 import { camNearMaterials } from './player.js';
+import { makeRockTraps } from './siege_rocks.js';
 
 // 通しの見回り：台の中心だけを接地すると、坂の低い側の脚が宙に浮く。
 // 岩村の台だけ、既存の三本脚の下を各接地点まで延ばす。籠と炎の高さは保つ。
@@ -2251,6 +2252,12 @@ html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.iwamura-army #army
     if (F.ending || rt.over || !rt.player.u.alive || F.step >= 3) return;
     F.step = 3; F.stepT = rt.t;
     F.footY = rt.world.heightAt(FOOT.x, FOOT.z);
+    // K141（kaito 11/3「城攻めの理想：近づくほど弓・鉄砲・石が雨」）：麓を越えて登城道へ追い過ぎると、大手の木戸の上から石が転がる（共通の siege_rocks.js。竹束を抱えれば七割防ぐ）。
+    //   筋は道の真上でなく折れの脇の斜面を真っ直ぐ下る（道の真上だと追う列がまとめて倒れる。沢山の学び）。麓の平場（z -100 より手前）には届かない。
+    const overreach = () => F.step === 3 && !F.iwYoru && !F.iwKaijo && !F.ending && !rt.over && rt.player.u.alive && rt.player.u.pos.z < FOOT.z - 12;
+    F.iwRocks = makeRockTraps(rt, { posts: [
+      { id: 'kido_w', team: 1, stock: 4, interval: [9, 14], lane: [[-12, -156], [-12, -132], [-11, -112], [-10, -104]], active: overreach },
+      { id: 'kido_e', team: 1, stock: 4, interval: [11, 16], lane: [[14, -156], [14, -134], [13, -114], [12, -105]], active: overreach }] });
     // critic60：追い討ちの坂を走るのが自分一人で、後ろに誰も付いて来なかった（一5・九4）。口の浅野・猿荻の備えも河尻・毛利と一緒に追う。
     if (!gone(F.gate) && !F.front.includes(F.gate)) F.front.push(F.gate);
     // 本人と歩く組も河尻の追撃の手。麓へ着いた実兵を、所属だけで到着人数から外さない。
@@ -2428,6 +2435,7 @@ html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.iwamura-army #army
     }
     const F = rt.flags;
     KIT.backTick(rt);
+    if (F.iwRocks) F.iwRocks.tick(dt);
     for (const g of F.raidFleeGroups || F.waves || []) {
       let east = 0, n = 0;
       for (const u of g.units) if (u.alive && u.fleeing) { n++; if (u.pos.x > 33) east++; }

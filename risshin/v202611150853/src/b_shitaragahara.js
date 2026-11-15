@@ -1463,12 +1463,39 @@ function nfStagger(rt) {
     sfx('taiko', 0.6);
   }
 }
+// K281（11/15 クラウドわ）：夜明け前に真田の備を段丘から連吾川の向こうまで下ろし、柵の三十六m 先（本人の持ち場から約四十五m）に構えさせる（90秒に本人から60m 内の敵が1人だった）。
+//   内藤の控え（nfStagger）と同じく、寄せ（nfSend）までは討たれず狙われず撃たない。物見の誘い出しはこの備の前で行う
+const NF_SANADA_STAGE = { at: 8, x: SB.x0 + 36 };   // 連吾川（x≈23）と沼の向こうの田の縁
+function nfSanadaStage(rt) {
+  const F = rt.flags, N = F.nf, g = F.waveGroups?.[0];
+  if (N.sanadaDown || rt.t < NF_SANADA_STAGE.at || !g || g.nfAt != null) return;
+  N.sanadaDown = true;
+  const gz = g.def.z + 4.5, x = NF_SANADA_STAGE.x;
+  [[g, 0, 0], [g.cavalry, 4, 10], [g.missiles, 8, -10]].forEach(([q, dx, dz]) => {
+    if (!q) return;
+    for (const u of q.units) if (u.alive && u.shStage == null) { u.shStage = [!!u.invuln, !!u.noTarget]; u.invuln = true; u.noTarget = true; }
+    q.shPrev ??= { holdFire: q.holdFire, aggro: q.aggro, stay: q.stay };
+    q.holdFire = true; q.noFrontline = true; q.aggro = 4; q.stay = true;   // stay：目標の敵を呼ぶ共通の仕組み（goal_foe.js）に柵まで引き出させない
+    q.order = 'move'; q.dest = { x: x + dx, z: gz + dz }; q.speed = Math.min(q.speed || 3, 3);
+    q.onArrive = (r) => { r.order = 'hold'; r.anchor.x = x + dx; r.anchor.z = gz + dz; r.facing = -Math.PI / 2; };
+  });
+}
+// K334（11/15 クラウドす）：山県が柵の南の端を回る時、南の帯の鉄砲衆（z425・470）を柵の端（z≒500）へ据え直し、
+//   回り込む赤備えを横から撃ち止める。兵は足さない（今いる本物の兵を据え直すだけ）。fixed の組は move で歩かないので、
+//   本人から五百m離れた夜明けのうちに持ち場ごと移す。向きは柵の端の外（東南）
+function k334Flank(rt) {
+  const F = rt.flags;
+  // 据え場へは初めから置く（11/15 クラウドわ：一息に飛ばさない）。ここでは向きと撃つ構えだけ替える
+  (F.lineGuns || []).filter((q) => q.anchor.z > 400).forEach((q) => {
+    q.facing = Math.PI / 3; q.aggro = 64; q.fireArc = Math.PI * 150 / 180; q.fire = true; q.holdFire = false;
+  });
+}
 function nfSend(rt, g, gateZ) {
   const gz = gateZ + 4.5;
   // 控えで付けた「討たれず狙われない」を元へ戻す（nfStagger）
   for (const q of [g, g.cavalry, g.missiles]) for (const u of q.units) if (u.shStage) { u.invuln = u.shStage[0]; u.noTarget = u.shStage[1]; u.shStage = null; }
   // noFrontline は残す：寄せの後も共通の加勢（army_relief.js）に attack で別の所へ引き抜かせない（11/14 K119 クラウドわ）
-  for (const q of [g, g.cavalry, g.missiles]) q.shWaiting = false;
+  for (const q of [g, g.cavalry, g.missiles]) { q.shWaiting = false; if (q.shPrev) { q.holdFire = q.shPrev.holdFire; q.aggro = q.shPrev.aggro; q.stay = q.shPrev.stay; q.shPrev = null; } }
   g.noRout = true; g.morale = 100; g.focus = null;
   g.order = 'path'; g.pathIdx = 0; g.formation = 'line'; g.roadColumn = false; g.speed = 4;
   g.path = [[SB.x0 + 5, gz]]; g.dest = null;
@@ -1541,6 +1568,7 @@ function nfTick(rt, dt) {
   if ((N.step === 2 && N.breachDone || N.step === 3) &&
       p.x < SB.x0 && Math.hypot(p.x - NF_CENTER.x, p.z - NF_CENTER.z) < 30) N.defendedCenter = true;
   // 導入の段（柵の見回り・物見の誘い出し）が済むまで夜明けの寄せを待つ
+  if (N.step === 0) nfSanadaStage(rt);
   if (N.step === 0 && ST_INTRO.tick(rt, dt)) return;
   if (N.step === 0 && !N.t0) { N.t0 = rt.t; N.at = rt.t; ST_WALL.start(rt); }
   if (N.t0) ST_PLUS.tobiTick(rt, N.t0);
@@ -1548,7 +1576,7 @@ function nfTick(rt, dt) {
   // ― 0：夜明け。鳶ヶ巣山の知らせ（未明に落ちた砦の煙）と、南の山県の寄せ ―
   if (N.step === 0) {
     // 鳶ヶ巣山は開戦の報で済ませず、戦の途中で音・煙・陥落の順に効かせる（shitaragahara/plus.js tobiTick）
-    if (!N.south && rt.t > N.t0 + 2) { N.south = true; nfSend(rt, F.south, SB.gates[2]); rt.after(14, () => rt.say('大久保忠世', '山県の赤備えが柵の端を回るぞ！　鉄砲衆、放て！', 3.5)); rt.after(26, () => { if (!F.ending && !F.kbSaid) rt.say('使番', '佐久間殿が武田へ内応するとの話が流れたそうな。じゃが柵の内は誰も動いておらぬ', 3.5); }); F.jinkeiBound.shitara_yamagata?.advance(25, 12);
+    if (!N.south && rt.t > N.t0 + 2) { N.south = true; nfSend(rt, F.south, SB.gates[2]); k334Flank(rt); rt.after(14, () => rt.say('大久保忠世', '山県の赤備えが柵の端を回るぞ！　鉄砲衆、放て！', 3.5)); rt.after(26, () => { if (!F.ending && !F.kbSaid) rt.say('使番', '佐久間殿が武田へ内応するとの話が流れたそうな。じゃが柵の内は誰も動いておらぬ', 3.5); }); F.jinkeiBound.shitara_yamagata?.advance(25, 12);
       for (const fc of F.far) if (!fc.v && Math.abs(fc.z - MOUTHS[2].z) < 50) { fc.v = 1; fc.m.advance(80, 16, { charge: true }); } sfx('taiko', 1); }
     // 第一波：試しの寄せ（shitaragahara/tameshi.js）。崩れてから真田の本隊を寄せる
     if (rt.t > N.t0 + 3 && ST_TAME.tick(rt, dt, stCtx(rt))) return;
@@ -3296,7 +3324,10 @@ const shitaragahara = {
     //   K285 で絵の鉄砲列が無くなり空だった。帯ごとに本物の小さな鉄砲組を三つの柵へ順に置く（口の斉射の番には入れず、寄った敵を撃つ）
     F.lineGuns = [];
     [-470, -425, -215, -165, 100, 150, 200, 250, 425, 470].forEach((z, i) => {
-      const q = allyGroup(rt, { faction: z < odaZ ? 'oda' : 'tokugawa', name: '柵の鉄砲衆', noRetinue: true, fixed: true, fullStrength: true, noGuard: true, anchor: { x: SB.x0 - 2.4 - (i % 3) * SB.gap, z }, facing: Math.PI / 2, width: 8, spacing: 1.6, ranks: 1, aggro: 44, fire: true, holdFire: false, dmgMult: 0.8 }, [{ type: 'gun', n: 2 }]);   // 11/15 iMac三十四（K210）：口から遠い帯は二挺（十帯で三十→二十）   // 11/14 K119 iMac二十五：パソコンも三挺（本物の兵が316人で上限290を超えていた）
+      // 11/15 クラウドわ：南の端の二組は初めから柵の端（k334Flank の据え場）に置く（62秒で七十m一息に飛んでいた）
+      const fl = z > 400 ? (z > 450 ? 1 : 0) : -1;
+      const q = allyGroup(rt, { faction: z < odaZ ? 'oda' : 'tokugawa', name: '柵の鉄砲衆', noRetinue: true, fixed: true, fullStrength: true, noGuard: true, anchor: fl >= 0 ? { x: SB.x0 - 3 - fl * 4, z: SB.z1 - 3 - fl * 5 } : { x: SB.x0 - 2.4 - (i % 3) * SB.gap, z }, facing: Math.PI / 2, width: 8, spacing: 1.6, ranks: 1, aggro: 44, fire: true, holdFire: false, dmgMult: 0.8 }, [{ type: 'gun', n: 2 }]);   // 11/15 iMac三十四（K210）：口から遠い帯は二挺（十帯で三十→二十）   // 11/14 K119 iMac二十五：パソコンも三挺（本物の兵が316人で上限290を超えていた）
+      if (z > 400) q.directOrders = true;   // K334：南の端の二組は大久保が自ら下知する（k334Flank で柵の端へ据え直す）
       F.lineGuns.push(q);
     });
     // 列を機械的に回さず、別の組が弾込めの間を補う。
@@ -3470,6 +3501,28 @@ const shitaragahara = {
     const edgeY = edgeCtx.createLinearGradient(0, 0, 0, 32);
     edgeY.addColorStop(0, 'rgba(0,0,0,1)'); edgeY.addColorStop(0.45, 'rgba(0,0,0,0)'); edgeY.addColorStop(0.7, 'rgba(0,0,0,0)'); edgeY.addColorStop(1, 'rgba(0,0,0,1)');
     edgeCtx.fillStyle = edgeY; edgeCtx.fillRect(0, 0, 64, 32);
+    // K332 11/15 さ：高の幕は上の絵だと粒の濃さ0.06〜0.22×縁の帯（高さの四分の一だけ見える）で、動画に映らなかった。
+    //   高だけ、濃い粒で下から埋めた絵と、裾は地に着き上だけ薄れる縁を別に一枚ずつ作る（全ての帯で使い回す・描く数は同じ）。
+    if (SETTINGS.quality === 'high') {
+      smokeCtx.clearRect(0, 0, 128, 64);
+      for (let n = 0; n < 110; n++) {
+        const x = smokeRnd() * 128, y = 18 + smokeRnd() * 44, r = 8 + smokeRnd() * 16, a = 0.22 + smokeRnd() * 0.3;
+        const v = 200 + Math.floor(smokeRnd() * 40);
+        for (const ox of [-128, 0, 128]) {
+          smokeCtx.save(); smokeCtx.translate(x + ox, y); smokeCtx.scale(2.0, 0.9);
+          const gr = smokeCtx.createRadialGradient(0, 0, 0, 0, 0, r);
+          gr.addColorStop(0, `rgba(${v},${v - 4},${v - 12},${a})`); gr.addColorStop(1, `rgba(${v},${v - 4},${v - 12},0)`);
+          smokeCtx.fillStyle = gr; smokeCtx.fillRect(-r, -r, r * 2, r * 2); smokeCtx.restore();
+        }
+      }
+      edgeCtx.globalCompositeOperation = 'source-over';
+      const hx = edgeCtx.createLinearGradient(0, 0, 64, 0);
+      hx.addColorStop(0, '#000'); hx.addColorStop(0.18, '#fff'); hx.addColorStop(0.82, '#fff'); hx.addColorStop(1, '#000');
+      edgeCtx.fillStyle = hx; edgeCtx.fillRect(0, 0, 64, 32);
+      const hy = edgeCtx.createLinearGradient(0, 0, 0, 32);
+      hy.addColorStop(0, 'rgba(0,0,0,1)'); hy.addColorStop(0.4, 'rgba(0,0,0,0)'); hy.addColorStop(0.92, 'rgba(0,0,0,0)'); hy.addColorStop(1, 'rgba(0,0,0,0.5)');
+      edgeCtx.fillStyle = hy; edgeCtx.fillRect(0, 0, 64, 32);
+    }
     const smokeTex = new THREE.CanvasTexture(smokeCanvas), smokeEdgeTex = new THREE.CanvasTexture(smokeEdge);
     smokeTex.wrapS = THREE.RepeatWrapping;
     const smokeGeo = new THREE.PlaneGeometry(14, 3.2);
@@ -3629,7 +3682,7 @@ const shitaragahara = {
     F.katsuyori.noWake = true; F.katsuyori.army.noWake = true;
     // 近接する寄せ手と殿は開戦前からそれぞれの備に置く。
     F.waveGroups = this.WAVES.map((w) => this.makeWave(rt, w));
-    F.south = this.makeWave(rt, { name: '山県昌景', general: '赤備えの侍大将', hq: 'shitara_yamagata', fac: 'akazonae', z: MOUTHS[2].z, home: { x: 60, z: MOUTHS[2].z + 4.5 }, cav: 3, ash: 8, bamboo: true });
+    F.south = this.makeWave(rt, { name: '山県昌景', general: '赤備えの侍大将', hq: 'shitara_yamagata', fac: 'akazonae', z: MOUTHS[2].z, home: { x: 60, z: MOUTHS[2].z + 4.5 }, cav: 6, ash: 8, bamboo: true });   // K334：柵の端を回る赤備えが一騎では見えないので三→六（足すのは騎馬だけ）
     // 退路の旗と馬は軽い備の討死の跡。元の馬の形・材質を共用する。
     const fallenModel = F.south.cavalry.units.find((u) => u.horse)?.horse;
     // 10/31 iPhone の記憶：three の clone は userData を JSON で写し直す。乗った馬の userData から辿れる物まで
@@ -3936,7 +3989,7 @@ const shitaragahara = {
         // K332 11/15 さ：動画で幕が薄く7〜10秒で消えて見えたので、28秒残し・始めから濃く（0.55→最大0.88）、終わりの12秒で薄れる
         const thick = Math.min(0.88, 0.55 + 0.06 * ((smoke.shotN || 1) - 1));
         smoke.mesh.material.opacity = Math.max(0, thick * Math.min(1, (life - since) / 12)) * Math.min(1, age / 0.35);
-        const spread = Math.min(1, age / 4), drift = Math.min(age, 24);
+        const spread = Math.min(1, age / 4), drift = Math.min(age, 24) * 0.4;   // K332：柵の前に溜まる。風下へは6mほどまで（14m 流れて柵から外れていた）
         smoke.mesh.scale.set(0.3 + spread * 2.6, 0.6 + Math.min(1, age / 5) * 2.2, 1);
         smoke.mesh.position.set(smoke.x + drift * smoke.vx, smoke.y + 0.4 + Math.min(1, age / 5) * 1.4 + drift * 0.04, smoke.z + drift * smoke.vz);
         smoke.map.offset.x -= dt * 0.035;
