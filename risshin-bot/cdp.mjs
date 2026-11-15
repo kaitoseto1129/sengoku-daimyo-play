@@ -38,10 +38,14 @@ function hookRelease() {
 function cftCount() {
   try { return +execSync("ps -Ao command= | grep -c '[G]oogle Chrome for Testing.app/Contents/MacOS/[G]oogle Chrome for Testing '", { encoding: 'utf8' }).trim() || 0; } catch (e) { return 0; }
 }
+// 記憶の空き（％）。11/16 iMac で裏の Chrome 9個＋係の Claude で「アプリのメモリが足りない」が繰り返し出た。数だけでなく空きでも待つ
+function memFree() {
+  try { return +execSync('sysctl -n kern.memorystatus_level', { encoding: 'utf8' }).trim() || 100; } catch (e) { return 100; }
+}
 async function waitMachine() {
   if (process.platform !== 'darwin') return;
-  const hard = +process.env.CHROME_HARD || 8, t0 = Date.now();
-  while (Date.now() - t0 < 20 * 60e3 && (existsSync('/tmp/risshin_mem_heavy') || cftCount() >= hard)) await sleep(5000 + Math.random() * 5000);
+  const hard = +process.env.CHROME_HARD || 4, low = +process.env.CHROME_MEMFREE || 35, t0 = Date.now();
+  while (Date.now() - t0 < 30 * 60e3 && (existsSync('/tmp/risshin_mem_heavy') || cftCount() >= hard || memFree() < low)) await sleep(5000 + Math.random() * 5000);
 }
 async function acquireSlot() {
   const n = slotCount();
