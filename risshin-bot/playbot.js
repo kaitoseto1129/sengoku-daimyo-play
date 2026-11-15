@@ -1392,7 +1392,7 @@ class TouchPad {
     // 取る：押し続ける物（inp.k）は押したまま、一度だけの物（inp.e）は叩く
     const use = btn('use');
     // 長押しの作業（放火・杭抜きなど）は「取る」の丸を隠し、任務の欄の作業札を長押しする（人の指と同じ所）
-    const work = inp.k.has('KeyE') && !this.shown(use) ? q('#prompt button[data-work]') : null;
+    const work = inp.k.has('KeyE') && !this.shown(use) ? (q('#mission-goal.fire-action:not([hidden]) .goal-label') || q('#prompt button[data-work]')) : null;
     if (inp.k.has('KeyE') && this.shown(use)) this.down('use', use, '取る');
     else if (work && this.shown(work)) {
       // 押していた作業札が隠れたり作り直されたりすると、指を置いたままでも長押しが外れる（雑賀の竹束 11/2）。
