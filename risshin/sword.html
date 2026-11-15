@@ -36,7 +36,7 @@
   </section>
   <p id="st" role="status" aria-live="polite"></p>
 </main>
-<script src="./v202611141943/src/vendor/peerjs.min.js"></script>
+<script src="./v202611142044/src/vendor/peerjs.min.js"></script>
 <label id="hap" aria-hidden="true" style="position:fixed;left:-99px;top:0;opacity:0"><input type="checkbox" switch tabindex="-1"></label>
 <script>
 (() => {
@@ -84,9 +84,28 @@
   }
   // 構え：携帯を横へ寝かせている間か、画面を押している間
   const setGuard = () => { const on = press || tilt; if (guard === on) return; guard = on; $('blade').classList.toggle('guard', on); send({ t: 'g', on }); };
-  addEventListener('pointerdown', (e) => { if (!$('play').hidden) { e.preventDefault(); press = true; setGuard(); } });
-  addEventListener('pointerup', () => { press = false; setGuard(); });
-  addEventListener('pointercancel', () => { press = false; setGuard(); });
+  // K312：画面の左下は親指の棒（押して滑らせると進む・向く）。右側の押しは構え。字は使わず絵だけ
+  let stickId = null, sx = 0, sy = 0, lastM = '';
+  const R = 56, stickEl = document.createElement('div'), knob = document.createElement('div');
+  stickEl.setAttribute('aria-hidden', 'true');
+  stickEl.style.cssText = 'position:fixed;left:max(16px,env(safe-area-inset-left));bottom:16px;width:112px;height:112px;border-radius:50%;border:2px solid rgba(241,233,216,.55);background:rgba(20,18,15,.35);touch-action:none;z-index:5';
+  knob.style.cssText = 'position:absolute;left:28px;top:28px;width:56px;height:56px;border-radius:50%;background:rgba(184,150,62,.85)';
+  stickEl.appendChild(knob); document.body.appendChild(stickEl);
+  const sendMove = (x, y) => { const k = x.toFixed(2) + ',' + y.toFixed(2); if (k === lastM) return; lastM = k; send({ t: 'm', x: +x.toFixed(2), y: +y.toFixed(2) }); };
+  const stickTo = (e) => { let dx = e.clientX - sx, dy = e.clientY - sy; const d = Math.hypot(dx, dy); if (d > R) { dx = dx / d * R; dy = dy / d * R; } knob.style.transform = `translate(${dx}px,${dy}px)`; sendMove(dx / R, dy / R); };
+  const stickEnd = () => { stickId = null; knob.style.transform = ''; sendMove(0, 0); };
+  addEventListener('pointerdown', (e) => {
+    if ($('play').hidden) return;
+    e.preventDefault();
+    const r = stickEl.getBoundingClientRect();
+    if (stickId === null && e.clientX >= r.left - 24 && e.clientX <= r.right + 24 && e.clientY >= r.top - 24) { stickId = e.pointerId; sx = r.left + r.width / 2; sy = r.top + r.height / 2; stickTo(e); return; }
+    press = true; setGuard();
+  });
+  addEventListener('pointermove', (e) => { if (e.pointerId === stickId) stickTo(e); });
+  const up = (e) => { if (e.pointerId === stickId) stickEnd(); else { press = false; setGuard(); } };
+  addEventListener('pointerup', up);
+  addEventListener('pointercancel', up);
+  setInterval(() => { if (lastM !== '0.00,0.00' && lastM !== '') send({ t: 'm', x: +lastM.split(',')[0], y: +lastM.split(',')[1] }); }, 250);   // 止まった印を取りこぼさない
   setInterval(() => { if (guard) send({ t: 'g', on: true }); send({ t: 'p', ts: Date.now(), rtt }); }, 250);   // 構えの伝え直し・生きている印と往復の遅れ
 
   $('go').onclick = async () => {

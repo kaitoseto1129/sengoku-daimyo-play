@@ -11,7 +11,7 @@
 <style>
   html, body { margin: 0; height: 100%; background: #14120f; overflow: hidden; }
   canvas { display: block; width: 100vw; height: 100vh; }
-  #enter { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); min-height: 56px; min-width: 220px; padding: 0 24px;
+  #enter, #ble { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); min-height: 56px; min-width: 220px; padding: 0 24px;
     font: 18px "Hiragino Mincho ProN", "Yu Mincho", serif; color: #14120f; background: #b8963e; border: 0; border-radius: 8px; }
   [hidden] { display: none !important; }
 </style>
@@ -31,14 +31,14 @@ let device = null;
 // ゴーグルの無い機械（Mac の Chrome など）は IWER の作り物の Quest 3 を入れる
 const native = !!navigator.xr && await navigator.xr.isSessionSupported('immersive-vr').catch(() => false);
 if (Q.has('emu') || !native) {
-  const I = await import('./v202611141943/web_only/xr/iwer.module.min.js');
+  const I = await import('./v202611142044/web_only/xr/iwer.module.min.js');
   device = new I.XRDevice(I.metaQuest3);
   device.stereoEnabled = Q.get('stereo') === '1';
   device.installRuntime({ forceInstall: true });   // Chrome の本物の navigator.xr（ゴーグル無し）を作り物で置き換える
   device.position.set(0, 1.6, 0);
   window.__xrDevice = device;
 }
-const { startXR } = await import('./v202611141943/src/xr_okehazama.js');
+const { startXR } = await import('./v202611142044/src/xr_okehazama.js');
 const { renderer } = startXR({ canvas: document.getElementById('c') });
 const btn = document.getElementById('enter');
 async function enter() {
@@ -49,6 +49,12 @@ async function enter() {
 }
 btn.onclick = () => enter().catch((e) => console.error(e));
 btn.hidden = false;
+// 段5：?ble で「刀の柄をつなぐ」を出す（刀の柄・打ち込み台の板を Web Bluetooth でつなぐ。docs/physical/）
+if (Q.has('ble') && navigator.bluetooth) {
+  const b2 = btn.cloneNode(); b2.id = 'ble'; b2.textContent = '刀の柄をつなぐ'; b2.hidden = false; b2.style.bottom = '92px';
+  b2.onclick = () => import('./v202611142044/src/ble_sword.js').then((m) => m.openBleSword((t) => { b2.textContent = t; })).catch((e) => console.error(e));
+  document.body.appendChild(b2);
+}
 
 // 作り物の右手を振る（?demo=1）：構え（右上）→ 袈裟に振り下ろす → 戻す。いちばん近い足軽へ体と刀を向ける
 if (device && Q.has('demo')) {
