@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#14120f">
+<title>戦国立身3D　桶狭間 VR</title>
+<!-- 段4（K310・docs/specs/physical_roadmap_1115.md）：桶狭間の本陣前の坂に足軽の目で立ち、手の操作器で刀を振って今川の足軽を斬る試作。
+     ゴーグル（Quest のブラウザ）は「ゴーグルで入る」を押す。ゴーグルが無い時は WebXR の作り物 IWER（Meta・MIT・web_only/xr/）を入れる：?emu=1
+     ?emu=1&demo=1 は作り物の右手の操作器を自動で振る（確かめと録画用）。アプリの index.html・main.js には何も足さない（Web 版だけ）。 -->
+<style>
+  html, body { margin: 0; height: 100%; background: #14120f; overflow: hidden; }
+  canvas { display: block; width: 100vw; height: 100vh; }
+  #enter { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); min-height: 56px; min-width: 220px; padding: 0 24px;
+    font: 18px "Hiragino Mincho ProN", "Yu Mincho", serif; color: #14120f; background: #b8963e; border: 0; border-radius: 8px; }
+  [hidden] { display: none !important; }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<canvas id="c"></canvas>
+<button id="enter" hidden>ゴーグルで入る</button>
+<script type="module">
+const Q = new URLSearchParams(location.search);
+let device = null;
+// ゴーグルの無い機械（Mac の Chrome など）は IWER の作り物の Quest 3 を入れる
+const native = !!navigator.xr && await navigator.xr.isSessionSupported('immersive-vr').catch(() => false);
+if (Q.has('emu') || !native) {
+  const I = await import('./v202611141943/web_only/xr/iwer.module.min.js');
+  device = new I.XRDevice(I.metaQuest3);
+  device.stereoEnabled = Q.get('stereo') === '1';
+  device.installRuntime({ forceInstall: true });   // Chrome の本物の navigator.xr（ゴーグル無し）を作り物で置き換える
+  device.position.set(0, 1.6, 0);
+  window.__xrDevice = device;
+}
+const { startXR } = await import('./v202611141943/src/xr_okehazama.js');
+const { renderer } = startXR({ canvas: document.getElementById('c') });
+const btn = document.getElementById('enter');
+async function enter() {
+  const s = await navigator.xr.requestSession('immersive-vr', { optionalFeatures: ['local-floor', 'hand-tracking'] });
+  btn.hidden = true;
+  s.addEventListener('end', () => { btn.hidden = false; });
+  await renderer.xr.setSession(s);
+}
+btn.onclick = () => enter().catch((e) => console.error(e));
+btn.hidden = false;
+
+// 作り物の右手を振る（?demo=1）：構え（右上）→ 袈裟に振り下ろす → 戻す。いちばん近い足軽へ体と刀を向ける
+if (device && Q.has('demo')) {
+  const THREE = await import('three');
+  const e = new THREE.Euler(0, 0, 0, 'YXZ'), q = new THREE.Quaternion(), p = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
+  const R = device.controllers.right, L = device.controllers.left;
+  let t = 0, aim = 0;
+  const ease = (k) => k * k * (3 - 2 * k);
+  window.__xrTick = (dt) => {
+    t += dt;
+    const X = window.__xr; if (!X) return;
+    // いちばん近い立つ足軽の向き（台の中の向き）
+    let best = null, bd = 1e9; const head = new THREE.Vector3(); X.rig.localToWorld(head.set(0, 1.6, 0));
+    for (const f of X.foes) { if (f.state === 'fall') continue; const d = Math.hypot(f.pos.x - head.x, f.pos.z - head.z); if (d < bd) { bd = d; best = f; } }
+    if (best) { const l = X.rig.worldToLocal(best.pos.clone()); const want = Math.atan2(-l.x, -l.z); aim += (want - aim) * Math.min(1, dt * 3); }
+    q.setFromAxisAngle(up, aim); device.quaternion.set(q.x, q.y, q.z, q.w);
+    const C = 1.5, k = (t % C) / C;   // 一振り 1.5 秒：0〜.6 構え・.6〜.75 振り・.75〜1 戻し
+    const near = best && bd < 1.9;
+    let s = k < 0.6 ? 0 : k < 0.75 ? ease((k - 0.6) / 0.15) : 1 - ease((k - 0.75) / 0.25);
+    if (!near) s = 0;
+    e.set(1.65 + (-0.75 - 1.65) * s, aim - 0.5 + 0.8 * s, -0.5 + 0.8 * s, "YXZ");
+    q.setFromEuler(e); R.quaternion.set(q.x, q.y, q.z, q.w);
+    p.set(0.28 - 0.5 * s, 1.72 - 0.75 * s, -0.18 - 0.3 * Math.sin(s * Math.PI) - 0.15 * s).applyAxisAngle(up, aim);
+    R.position.set(p.x, p.y, p.z);
+    p.set(-0.25, 1.05, -0.25).applyAxisAngle(up, aim); L.position.set(p.x, p.y, p.z);
+  };
+}
+</script>
+</body>
+</html>
