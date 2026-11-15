@@ -312,6 +312,37 @@ function inabaWoodGateWait(rt) {
 }
 
 // 裏道の列は曲がり角をたどる。共通の移動は変えず、町では従来の道案内を使う。
+// 11/15 クラウドし K294：麓の段丘（z 26〜30・高さ8〜12）と山すその家の台（x 10〜22・z 34〜40・高さ6）・町の間は、x −6〜30 で
+//   切岸の帯（z 29〜36・歩けない所と傾き0.9超）。味方の新手（佐久間の手）が帯の向こうの敵へ真っすぐ歩き、(9,18)→(47,73)・(13,33)→(9,11) で
+//   崖に当たって20秒動かなかった（act bot 138秒・16回）→ 帯を越える時だけ、西の緩い坂（x −24 の z 31〜42）を回る。家の台からは南西の口 (4,40) を通る。
+const SCARP_UP = { x: -24, z: 31 }, SCARP_DOWN = { x: -24, z: 42 }, SCARP_POCKET = { x: 4, z: 40 };
+function scarpCross(W, ax, az, bx, bz) {
+  for (let i = 1; i < 8; i++) {
+    const t = i / 8, x = ax + (bx - ax) * t, z = az + (bz - az) * t;
+    if (x > -6 && x < 30 && z > 29 && z < 36 && (W.walkable?.(x, z) === false || W.slopeTan?.(x, z) > 0.9)) return true;
+  }
+  return false;
+}
+function scarpWay(army, u, want) {
+  const g = u.group;
+  if (!want || u.isPlayer || u.fleeing || u.naka || g?.team !== 0 || g.roadColumn && g.order === 'path' || INABA_TSUKE.on) return null;
+  const p = u.pos;
+  if (p.x < -30 || p.x > 34 || p.z < 12 || p.z > 46) return null;
+  const q = u._inabaScarp || (u._inabaScarp = { x: 0, z: 0, at: -1, gx: 0, gz: 0, on: false });
+  if (q.at > army.time && Math.hypot(want.x - q.gx, want.z - q.gz) < 1) return q.on ? q : null;
+  q.at = army.time + 0.5; q.gx = want.x; q.gz = want.z;
+  const W = army.world;
+  if (!scarpCross(W, p.x, p.z, want.x, want.z) || Math.abs(W.heightAt(want.x, want.z) - p.y) < 2.5) return (q.on = false, null);
+  const inPocket = (x, z) => x > 8 && x < 24 && z > 32 && z < 42;
+  const north = p.z < 33 && p.x > -20, nearP = Math.hypot(p.x - SCARP_POCKET.x, p.z - SCARP_POCKET.z) < 3;
+  let pick;
+  if (inPocket(want.x, want.z) && !inPocket(p.x, p.z)) pick = north ? SCARP_UP : nearP ? null : SCARP_POCKET;
+  else if (inPocket(p.x, p.z)) pick = SCARP_POCKET;
+  else pick = north ? SCARP_UP : p.x > -20 ? SCARP_DOWN : null;
+  if (!pick) return (q.on = false, null);
+  q.x = pick.x; q.z = pick.z; q.on = true;
+  return q;
+}
 function inabaMoveWay(army, u, want, fightApproach = false) {
   if (!want || INABA_TSUKE.on) return want;
   const g = u.group;
@@ -356,6 +387,8 @@ function inabaMoveWay(army, u, want, fightApproach = false) {
       return q;
     }
   }
+  const band = scarpWay(army, u, want);
+  if (band) return band;
   if (!want || u.isPlayer || u.target || u.fleeing || g?.team !== 0 || !g.roadColumn || g.order !== 'path' || g.pathIdx < 1) return townWay(army, u, want);
   const q = u._inabaWay || (u._inabaWay = { x: 0, z: 0, at: -1, gx: 0, gz: 0 });
   if (q.at > army.time && Math.hypot(want.x - q.gx, want.z - q.gz) < 0.5) return q;
@@ -4456,12 +4489,19 @@ function nearestFoeOf(rt, group, visibleOnly = false) {
 }
 // 本丸の柵の外から中の守りへ直進させない。柵の口→口の内→相手の順にピンを進める（城の中で迷わない）。
 const HON_INNER = { x: KARA[5][0], z: KARA[5][1] };
+const HON_WAY_PIN = { x: 0, z: 0 };
 function honGateStep(rt, enemy) {
   const p = rt.player.u.pos;
   // 壁の見通しは相手ごとに四分の一秒に一度だけ調べる。
   if (enemy._inaGateAt > rt.t && enemy._inaGateAt - rt.t <= .25) return enemy._inaGate;
   enemy._inaGateAt = rt.t + .25;
   if (!rt.army.wallBetween(p, -1, enemy.pos, false)) return (enemy._inaGate = null);
+  // 11/15 クラウドか（act が入口曲輪 (-5,-84) で八十秒止まる）：本丸の外からは本丸の内の口を真北に指さず、合図の段と同じ道（二ノ門→中枢曲輪→本丸の口）の次の点を指す
+  if (Math.hypot(p.x - HON.x, p.z - HON.z) > 22 && p.z > HON_GATE_OUT.z + 4) {
+    const k = nearestWay(rt, p, SIG_WAY), w = SIG_WAY[Math.min(SIG_WAY.length - 1, Math.hypot(SIG_WAY[k][0] - p.x, SIG_WAY[k][1] - p.z) < 4 ? k + 1 : k)];
+    const g = HON_WAY_PIN; g.x = w[0]; g.z = w[1];
+    return (enemy._inaGate = g);
+  }
   return (enemy._inaGate = p.x < HON_GATE_OUT.x + 1.5 ? HON_GATE_OUT : HON_INNER);
 }
 const inabayama = {
@@ -7277,8 +7317,13 @@ const inabayama = {
     if (F.step >= 3 && (F._resHoldT = (F._resHoldT || 0) - dt) <= 0) {
       F._resHoldT = 1;
       for (const g of rt.army.groups) {
-        if (g.team !== 0 || g.name !== '味方の新手' || g._inaHeld || gone(g)) continue;
-        const c = g.center();
+        if (g.team !== 0 || g.name !== '味方の新手' || gone(g)) continue;
+        // 11/15 クラウドす：固めた後も共通の仕組みが号令を attack に戻し、組の真ん中（坂の上）へ登ろうとして (-13,38)→(0,16) で20秒止まった（act bot 27回）。
+        //   号令が変わっていたら固め直す。持ち場は組の真ん中でなく、一番低い所に立つ兵の足元（坂を登らせず、上の者は下りて寄る）
+        if (g._inaHeld && g.order === 'hold') continue;
+        let c = null, lo = Infinity;
+        for (const u of g.units) if (u.alive && !u.gone) { const h = rt.world.heightAt(u.pos.x, u.pos.z); if (h < lo) { lo = h; c = u.pos; } }
+        if (!c) continue;
         g._inaHeld = true; g.stay = false; g.noAI = true;   // 共通の『一緒に突っ込む』・『総がかり』・『助け』に引き出させない（比叡山の伏兵と同じ）
         g.order = 'hold'; g.anchor = { x: c.x, z: c.z }; g.dest = null; g.focus = null; g.path = null; g.onArrive = null;
         g.aggro = 8; g.seekRange = 8;
@@ -8177,6 +8222,12 @@ inabayama.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
         const d = Math.hypot(o.pos.x - u.pos.x, o.pos.z - u.pos.z);
         if (d < distance) { target = o; distance = d; }
       }
+    }
+    // 11/15 クラウドか：道を歩き終えた後に相手を追って本丸の塀の外へ出ると、塀越しの相手へ直進し続け、本丸の段の百五十秒を (6,-104) で使い切って失敗した（act bot 829秒）。
+    //   塀を挟む相手で、本丸の内の口から離れている時は、二十秒に一度だけ道を選び直して口から入り直す。
+    if (target && !(F.botHonReroute > b.t) && Math.hypot(u.pos.x - HON_INNER.x, u.pos.z - HON_INNER.z) > 4 && b.army.wallBetween(u.pos, -1, target.pos, false)) {
+      F.botHonReroute = b.t + 20; b.botRoadPath = null;
+      if (botRoad(b, inp, goTo, F.tsuke ? BOT_NANA : BOT_KARA, F.tsuke ? BOT_NANA.length - 1 : BOT_KARA.length - 1)) return;
     }
     if (target) { goTo(p, inp, target.pos.x, target.pos.z, 2); return; }
     return;

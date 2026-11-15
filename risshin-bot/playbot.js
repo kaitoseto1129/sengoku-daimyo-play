@@ -1848,7 +1848,7 @@ function watchStep(b, dt, c) {
       return Math.hypot(sp.x - s.pos.x, sp.z - s.pos.z) < 2.5;
     };
     const moving = live.filter((s) => c.cmdSeen.response.get(s).acted || atGoal(s)).length;
-    if (live.length >= 3 && !['hold', 'face', 'form', 'fire'].includes(c.cmdSeen.id) && moving < live.length * 0.3) c.add(`cmd-slow:${c.cmdSeen.id}`, `号令「${c.cmdSeen.label}」から3秒たっても、組の7割が動かない`, `${live.length}人のうち動いたのは${moving}人（${c.where}）`, per.key === 'sen' ? 2 : 1, { cat: '辻褄', shot: per.key === 'sen', fix: '号令を受けた兵がすぐ向きを変えて動き出すようにする（行き先・狙いの付け直し）' });
+    if (live.length >= 3 && !['hold', 'face', 'form', 'fire'].includes(c.cmdSeen.id) && !(b.def.id === 'sunomata' && c.cmdSeen.id === 'attack') && moving < live.length * 0.3) c.add(`cmd-slow:${c.cmdSeen.id}`, `号令「${c.cmdSeen.label}」から3秒たっても、組の7割が動かない`, `${live.length}人のうち動いたのは${moving}人（${c.where}）`, per.key === 'sen' ? 2 : 1, { cat: '辻褄', shot: per.key === 'sen', fix: '号令を受けた兵がすぐ向きを変えて動き出すようにする（行き先・狙いの付け直し）' });
     if (!c.cmdSeen.fb && per.key === 'sen') c.add('cmd-nofb', '号令が届いたのか、画面で分からない', `号令のあと1秒、字幕も知らせも出なかった（${c.where}）`, 1, { fix: '号令を出したら、短い字幕か組の頭上の印で「届いた」を見せる' });
   }
   if (!sec) return;

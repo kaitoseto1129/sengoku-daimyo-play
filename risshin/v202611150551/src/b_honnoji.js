@@ -2944,6 +2944,16 @@ const honnoji = {
   // 11/15 クラウドさ：前を埋める備（frontFill）は reserveBound を見ず、上様と奥へ退く段から寺の内（渡り廊下の北の端 (-68,82)）に新手を立て、
   //   本人が裏門へ落ちた後も築地の向こうの本人を追って二十秒動かなかった（act bot 789秒）。退く段（hp6）から寺を出るまでは前を埋める備を出さない
   //   （reserveOk を置くと frontFill の「印より遠くへ置かない」決まりが外れるので、出す段で絞る）
+  // 11/15 クラウドか：門の段（128秒）でも前を埋める敵の新手が寺の内の北西 (-84,28) に立ち、塀と棟に阻まれて行き先 (-61,34) へ二十秒動かなかった（act bot ★★10回）。
+  //   敵の新手は寺の築地の内（外へ3m）に置かない。置き場の決まりを置くと共通の「印より遠くへ置かない」が外れるので、同じ決まり（一番近い印から 65m か本人の距離＋10m まで）をここで持つ
+  reserveOk: (r, p, enemySide) => {
+    if (!enemySide) return true;
+    if (inTera(p.x, p.z, 3)) return false;
+    const me = r.player?.u?.pos; if (!me) return true;
+    let best = null, bd = 1e9;
+    for (const m of r.markers || []) { const q = typeof m.pos === 'function' ? m.pos() : m.pos; if (!q || !Number.isFinite(q.x)) continue; const d = Math.hypot(q.x - me.x, q.z - me.z); if (d < bd) { bd = d; best = q; } }
+    return !best || Math.hypot(p.x - best.x, p.z - best.z) <= Math.max(65, bd + 10);
+  },
   frontFillWhen: (r) => { const F = r.flags, p = r.player?.u?.pos; return (F.hp || 0) < 6 || !p || !(p.x > TERA.x0 - 3 && p.x < TERA.x1 + 3 && p.z > TERA.z0 - 3 && p.z < TERA.z1 + 3); },
   reserveFrom: 60, // 11/13 クラウドし（K281）：門の段（50秒〜）から通りの奥に新手の層を置く。九十秒で本人から30〜60mに寄せ手を厚く
   reserveCombatCues: true, // 間合い・気力の字に、上様の行き先を重ねない。
@@ -5057,6 +5067,10 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
     for (const b of Object.values(F.blazes || {})) b.stop();
     for (const g of [F.nbG, F.kosho, F.uma, F.frontGuard, F.kinju, F.umayaOda, ...(F.templeCourtiers || []), ...(F.posts || []), ...F.foes]) if (g) for (const u of g.units) if (u.alive) rt.army.despawn(u);
     F.foes.length = 0;
+    // 11/15 クラウドせ：寺の段の新手（depth_reserve の「新手」「味方の新手」）も消す。残すと寺の西の外れ (-172,11) で
+    //   二十秒斬り合いのまま立ち尽くし（act bot 682秒 defend・★★6回）、二条の段まで本物の兵の数と重さを食っていた
+    for (const g of rt.army.groups || []) if (g && (g.isReserve || g.name === '新手' || g.name === '味方の新手')) for (const u of g.units) if (u.alive) rt.army.despawn(u);
+    if (F._dr) { F._dr.E.length = 0; F._dr.A.length = 0; if (F._dr.F) F._dr.F.length = 0; }
     teleport(rt, NIJO_GATE.x + 5, NIJO_GATE.z + 2);
     rt.after(1.2, () => { rt.scene.visible = true; });
     rt.banner('二条御所の西の門を守れ', '信忠様は妙覚寺から二条御所へ移り、明智を迎え撃つ');   // 時が飛ぶので、真ん中に次の目標を出す（kaito AT7）
@@ -5207,6 +5221,8 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
       g.anchor = { x: c.x, z: c.z };
       for (const u of g.units) { u.target = null; u.moveTo = null; }
     }
+    // 11/15 クラウドせ：御所に残った信忠の手は御所で討死した（史実）。木戸まで落ちた後も門の前 (44,-59) に十五人が重なって残っていた（act bot 683秒 end）
+    for (const g of [F.tada, F.nGuard, F.ngun]) if (g) for (const u of g.units) if (u.alive) rt.army.despawn(u);
     F.shisha = allyGroup(rt, { fixed: true, name: '使者', anchor: { ...SHISHA_DOOR }, facing: Math.PI / 2, width: 1, aggro: 0, noRout: true, order: 'hold' },
       [{ type: 'porter', n: 1, o: { name: '使者', kosode: 1, kosodeCol: 0x544a3e, obi: 0x30251c, flag: null, horse: false, invuln: true } }]);
     F.shishaU = F.shisha.units[0];

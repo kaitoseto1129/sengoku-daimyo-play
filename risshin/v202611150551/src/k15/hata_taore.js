@@ -84,20 +84,36 @@ export function tick(rt, dt) {
   // 豊臣方の兵が幟の根元に寄ったら倒す（0.2 秒に一度だけ見る）
   if ((st.scanT -= dt) > 0) return;
   st.scanT = 0.2;
-  const left = st.line.filter((nb) => !nb.userData.fall);
-  const bigLeft = st.big.filter((nb) => !nb.userData.fall);
-  if (!left.length && !bigLeft.length) return;
-  for (const u of rt.army.units) {
+  // 11/15 K314：前は 0.2 秒ごとに全兵（約二千）×幟12本の hypot と配列二つを作り、パソコンで毎秒50MB の使い捨てになっていた。
+  //   幟の列を囲む箱（60m 広げ）の外の兵は飛ばし、遠さは二乗で比べる
+  let any = false;
+  if (!st.box) {
+    let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9;
+    for (const nb of st.line.concat(st.big)) { const f = nb.userData.foot; x0 = Math.min(x0, f.x); x1 = Math.max(x1, f.x); z0 = Math.min(z0, f.z); z1 = Math.max(z1, f.z); }
+    st.box = { x0: x0 - 60, x1: x1 + 60, z0: z0 - 60, z1: z1 + 60 };
+  }
+  for (const nb of st.line) if (!nb.userData.fall) { any = true; break; }
+  if (!any) for (const nb of st.big) if (!nb.userData.fall) { any = true; break; }
+  if (!any) return;
+  const B = st.box, units = rt.army.units;
+  for (let k = 0; k < units.length; k++) {
+    const u = units[k];
     if (!u.alive || u.team !== 1 || u.fleeing || !u.pos) continue;
+    const ux = u.pos.x, uz = u.pos.z;
+    if (ux < B.x0 || ux > B.x1 || uz < B.z0 || uz > B.z1) continue;
     const r = u.type === 'cavalry' || u.horse ? 3.6 : 2.4;
-    { let dz = 1e9; for (const nb of st.line) { const f = nb.userData.foot; dz = Math.min(dz, Math.hypot(u.pos.x - f.x, u.pos.z - f.z)); } if (dz < (STAT.minD ?? 1e9)) STAT.minD = Math.round(dz); }   // 確かめ：敵が旗の列に一番近づいた前後の遠さ（botStat）
-    for (const nb of left) {
+    let d2 = 1e18;
+    for (let i = 0; i < st.line.length; i++) { const f = st.line[i].userData.foot, dx = ux - f.x, dz = uz - f.z; const q = dx * dx + dz * dz; if (q < d2) d2 = q; }
+    { const dz = Math.round(Math.sqrt(d2)); if (dz < (STAT.minD ?? 1e9)) STAT.minD = dz; }   // 確かめ：敵が旗の列に一番近づいた前後の遠さ（botStat）
+    for (let i = 0; i < st.line.length; i++) {
+      const nb = st.line[i]; if (nb.userData.fall) continue;
       const p = nb.userData.foot;
-      if (Math.abs(u.pos.x - p.x) < r && Math.abs(u.pos.z - p.z) < r) { topple(rt, nb, u.pos.x < p.x ? -1 : 1); if (!st.cined) look(rt, st, p); }
+      if (Math.abs(ux - p.x) < r && Math.abs(uz - p.z) < r) { topple(rt, nb, ux < p.x ? -1 : 1); if (!st.cined) look(rt, st, p); }
     }
-    for (const nb of bigLeft) {
+    for (let i = 0; i < st.big.length; i++) {
+      const nb = st.big[i]; if (nb.userData.fall) continue;
       const p = nb.userData.foot;
-      if (Math.abs(u.pos.x - p.x) < 5 && Math.abs(u.pos.z - p.z) < 5) topple(rt, nb, u.pos.x < p.x ? -1 : 1);
+      if (Math.abs(ux - p.x) < 5 && Math.abs(uz - p.z) < 5) topple(rt, nb, ux < p.x ? -1 : 1);
     }
   }
 }

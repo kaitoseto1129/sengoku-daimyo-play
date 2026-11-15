@@ -6,6 +6,7 @@ export const pcq = { bad: 0, step: 0, acc: 0, n: 0, wait: 0, battle: null };
 window.__pcq = pcq;   // 確かめ用
 // 毎コマ呼ぶ。段が変わった時だけ true（呼び手が倍率を作り直す）
 export function pcqSample(battle, elapsed, cap, active) {
+  if (!/[?&]pcq=on/.test(location.search)) return false;   // 11/15 kaito「画質は高しか認めない」＝自動で画質を下げる仕組みは既定で止める（?pcq=on の時だけ動く）
   if (battle !== pcq.battle) { pcq.battle = battle; const was = pcq.step; pcq.step = 0; pcq.acc = pcq.n = pcq.wait = 0; return was !== 0; }
   if (!active || /[?&]nopcq/.test(location.search)) { pcq.acc = pcq.n = 0; return false; }
   if (pcq.wait > 0) { pcq.wait -= elapsed; return false; }

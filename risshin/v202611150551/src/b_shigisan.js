@@ -2004,7 +2004,9 @@ function honmaruDefendersGone(rt) {
   if (!zone) return false;
   return !rt.army.units.some((u) => u.team !== rt.player.u.team && siegeFighter(u) &&
     Math.abs(u.pos.y - rt.world.heightAt(u.pos.x, u.pos.z)) < 3 &&
-    zone.test(u.pos.x, u.pos.z));
+    zone.test(u.pos.x, u.pos.z) &&
+    // 本人が持ち場に着いているのに、柵・壁越しで届かない守兵は数えない（立ち止まった敵で城取りが止まらない）
+    !(rt.flags.step === 4 && zone.test(rt.player.u.pos.x, rt.player.u.pos.z) && rt.army.wallBetween(rt.player.u.pos, -1, u.pos)));
 }
 // 南口を離れた後に、以前の滞在時間だけで城取りを認めない。
 function honmaruPostReached(rt) {

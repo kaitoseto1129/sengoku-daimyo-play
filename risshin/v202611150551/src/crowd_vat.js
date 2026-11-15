@@ -183,6 +183,10 @@ function growBatch(b, need) {
   mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
   mesh.frustumCulled = false; mesh.castShadow = false; mesh.receiveShadow = true; mesh.matrixAutoUpdate = false;
   mesh.name = 'vatCrowd'; mesh.userData.noFreeze = true; mesh.userData.armyBatch = true; mesh.count = 0;
+  // 11/15 K328：兵の根は左右に映してある（units_look.js mirrorMatrix・行列の向きが負）。束の一人ずつの行列が負だと three は表と裏を取り違え、
+  //   体の外側を「裏」として描いていた（裏の暗化 0.3・光も裏から）＝遠くの兵が黒い影の塊に見えた。束の側を左右に映し（three が表裏を返す）、
+  //   一人ずつの行列は put で映し返す（形の位置は同じ）
+  mesh.matrix.makeScale(-1, 1, 1); mesh.matrixWorld.copy(mesh.matrix);
   if (old) { scene?.remove(old); old.geometry.dispose(); old.dispose(); }
   b.mesh = mesh; b.vat = vat; b.var = vv; b.cap = cap;
   scene?.add(mesh);
@@ -800,7 +804,9 @@ export function vatDraw(army, cam) {
 function put(B, e, V, w, fk = 1) {
   if (B.n >= B.cap) growBatch(B, B.n + 1);
   const i = B.n++;
-  B.mesh.instanceMatrix.array.set(e, i * 16);
+  const M = B.mesh.instanceMatrix.array, o = i * 16;
+  M.set(e, o);
+  M[o] = -M[o]; M[o + 4] = -M[o + 4]; M[o + 8] = -M[o + 8]; M[o + 12] = -M[o + 12];   // 束の左右の映し（growBatch）を打ち消す
   const a = B.vat.array;
   a[i * 4] = V.out0; a[i * 4 + 1] = V.out1; a[i * 4 + 2] = V.outW; a[i * 4 + 3] = w;
   const q = V.var || VAR0, c = B.var.array; c[i * 3] = q[0] * fk; c[i * 3 + 1] = 1 + (q[1] - 1) * fk; c[i * 3 + 2] = q[2] * fk;

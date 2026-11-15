@@ -910,7 +910,10 @@ function humansStep(rt, dt, army, cam) {
       let lim = u.isPlayer ? 1e9 : named ? (Math.max(60, Q.far ?? HUM.far)) : Q.near;
       if (FLAT.on && !vatCan(u)) lim = Math.max(lim, FLAT.far);   // VAT に乗れない兵は霧の手前まで人にする（隠して消さない。no_pop）
       // 今もう人の兵は霧の手前まで人のまま（VAT へ渡せない騎馬・旗持ち等が、境で消えたり部品の姿に戻ったりしない。no_pop）
-      const liveH = !!(u.human && humans.has(u.human)), keepH = liveH && FLAT.on && d < FLAT.far;
+      const liveH = !!(u.human && humans.has(u.human)), keepH = liveH && FLAT.on && d < FLAT.far &&
+        // 11/15 K314（パソコンで天王寺 100ms）：VAT（立体の束）に乗れる兵まで霧の手前（約92m）まで骨の人のままだった＝40m より先に骨の人 286人・描く回数 486。
+        //   VAT に乗れる兵は、作る距離より 10m 先で VAT へ返す（立体のまま・数も場所も同じ。乗れない騎馬・旗持ち・武将は前のまま霧の手前まで人）
+        (d < lim + 10 || window.__omKeepAll || !vatCan(u));   // __omKeepAll：測りで前の形と比べる時だけ
       if (!required && d >= lim && !keepH) continue;
       if (!dmLoading && (wantsDomaru(u.look) || crowdDomaru(u.look))) loadDomaru(); if (!kbLoading && wantsDomaru(u.look)) loadKabuto();
       if (!GUSOKU.ready && !GUSOKU.failed && wantsGusoku(u.look, u)) { loadGusoku(); if (!dmLoading) loadDomaru(); if (!kbLoading) loadKabuto(); }

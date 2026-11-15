@@ -50,7 +50,7 @@ import {
   WALL_Z, GATE, SOTO_MOAT, SOTO_MOAT_SEGS, SOTO_BRIDGE,
   ROU, CAMP, HON_ISHIGAKI_SEGS, HON_MOAT, HON_MOAT_SEGS, TENSHU_POS,
   HON_W, HON_E, HON_N, HON_Z, HON_X, HON_CENTER_Z, HON_GAP, HON_ENTRY_X, HON_APPROACH_Z,
-  SOKAKU_X, SOKAKU_N, KISHI_TORIDE, JORO_TORIDE, HON_W_MOAT, HON_W_MOAT_SEGS,
+  SOKAKU_X, SOKAKU_N, KISHI_TORIDE, JORO_TORIDE, HIYODORI_TORIDE, HON_W_MOAT, HON_W_MOAT_SEGS,
   ARIOKA_PLAN, MACHIYA_Z, TORIDE_WORKS, ARIOKA_ROADS, TOWN_X, TOWN_SOUTH_Z,
 } from './castles/arioka.js';
 const ARIOKA_BATTLE_PLAN = ARIOKA_PLAN;
@@ -3730,6 +3730,26 @@ arioka.beats = [
   { kind: 'rout', r: 45, chase: true, when: inStage(3, 45) },
 ];
 arioka.depth = DEPTH_ARIOKA;
+// 11/15 K327：軍議の図の隊（docs/fujin/arioka.md と arioka/depth.js の表どおり）。以前は名が二つだけで、二万五千の囲みが見えなかった。
+//   本物の隊に結んだ備は、その隊の今いる所に置く。囲みの付城（二万五千の残り・北は池田恒興）と、荒木の岸の砦・鵯塚砦（野村丹後守）の手も足す（兵は復元の仮の数）。
+arioka.introFujin = (rt) => {
+  const at = (s, fb) => {
+    if (s.at) return s.at;
+    try { const g = s.bind?.(rt); const us = g?.units?.filter((u) => u.alive) || []; if (us.length) { let x = 0, z = 0; for (const u of us) { x += u.pos.x; z += u.pos.z; } return { x: x / us.length, z: z / us.length }; } } catch (e) { /* 結ぶ隊がまだ無い */ }
+    return fb;
+  };
+  const FB = { taki: { x: GATE.x - 14, z: GATE.z }, kuri: { x: GATE.x - 26, z: GATE.z + 10 }, aid: { x: GATE.x - 60, z: GATE.z - 8 },
+    g1: { x: GATE.x + 12, z: GATE.z }, tsuji: { x: TOWN_X, z: GATE.z }, sei: { x: TOWN_X + 40, z: GATE.z - 40 }, kyu: { x: TOWN_X + 120, z: GATE.z + 20 } };
+  const out = [], seen = new Set();
+  for (const [side, team] of [['A', 0], ['B', 1]]) for (const s of DEPTH_ARIOKA[side].sonae) {
+    const p = at(s, FB[s.id] || { x: GATE.x, z: GATE.z });
+    const name = s.taisho && !seen.has(s.taisho) ? s.taisho : undefined; if (name) seen.add(name);
+    out.push({ team, name, x: p.x, z: p.z, men: s.men });
+  }
+  out.push({ team: 0, name: '池田恒興', x: GATE.x - 70, z: SOKAKU_N + 300, men: 6000 }, { team: 0, x: GATE.x - 70, z: WALL_Z - 280, men: 7000 });
+  out.push({ team: 1, x: KISHI_TORIDE.x, z: KISHI_TORIDE.z + 30, men: 800 }, { team: 1, name: '野村丹後守', x: HIYODORI_TORIDE.x, z: HIYODORI_TORIDE.z - 30, men: 1200 });
+  return out;
+};
 arioka.reserveFrom = 60;   // 陣の厚み：城攻めの既定の90秒からでは90秒に30〜60m の敵が22人（11/13 クラウドH）
 // 討死の開始・間隔・上限は定義内の設定を保つ。真偽値で上書きすると共通の強い既定値へ戻る。
 arioka.fearKind = { kind: '町筋', note: '狭い町筋で、塀と町屋の陰から撃たれる', w: { iso: 1.4 }, line: '町屋の陰から撃たれるぞ！' };

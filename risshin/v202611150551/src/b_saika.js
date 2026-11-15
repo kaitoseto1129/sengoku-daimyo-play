@@ -21,6 +21,7 @@ import { makeGunSmoke } from './b_tennoji.js';
 import { rockShape } from './rock_shape.js';
 import { NAMED_GEAR } from './named_gear.js';
 import { place as placeSaikaBushou } from './saika/bushou.js';   // 浜手の三将と雑賀の顔（孫一・土橋）の持ち場
+import * as TEPPO_SHU from './saika/teppo_shu.js';   // K122：柵の内の鉄砲衆の多さを、幟・一斉射の火と白煙・篝火・鳥で（人の形は足さない）
 import { install as installMono } from './saika/mono.js';   // 0〜2分：川べりの物見と、川上から渡る小組
 import { install as installMago } from './saika/magoichi.js';   // 渡河の中：孫一の手、高岸を下る（この戦の一番の場面）
 import { install as installTsutsumi } from './saika/tsutsumi.js';   // 対陣の中：川下の堤の鉄砲陣
@@ -1977,6 +1978,16 @@ function warnBank(rt, key, title, text, at = BACK) {
   rt.banner(title, text);
   rt.marker('bankDanger', at, title, { h: 3 });
 }
+// 西岸の家並み（-66,±27・家の当たりは半径14）を、a から b への真っすぐな道が抜けるか（新手の横の列の幅を見て半径20で見る）
+function throughSaikaVillage(a, b) {
+  for (const vz of [-27, 27]) {
+    const dx = b.x - a.x, dz = b.z - a.z, l2 = dx * dx + dz * dz || 1;
+    const t = Math.max(0, Math.min(1, ((-66 - a.x) * dx + (vz - a.z) * dz) / l2));
+    if (Math.hypot(a.x + dx * t + 66, a.z + dz * t - vz) < 20) return true;
+  }
+  return false;
+}
+
 function phase(rt, step, name, text, at, label) {
   const F = rt.flags;
   F.step = step; F.stepT = rt.t; F.inT = 0;
@@ -2444,8 +2455,10 @@ const saika = {
   immediatePhaseTasks: true, // 渡河から引き退きへ替わった下知をすぐに見せる。
   noReserve: true, // 近い控えの置換とは別に、後詰の新兵を足さない。
   // 自動の備も岸ごとの持ち場に置く。川中や対岸に味方を作ると、杭越しの追撃で止まる。
+  // 11/15 クラウドす（K324・act bot 196秒「新手12人が重なり17組で止まる」(-58,21)）：西岸の家並み（-66,±27・半径14）の中には置かない。
+  //   家の間に置かれた新手は、柵の内の空きへ出る道を家に塞がれ、一点に重なったまま動けなかった。
   reserveOk: (rt, p, foe) => !rt.flags.bankCeasefire && rt.flags.step < 6 &&
-    Math.abs(p.z) < 100 && (foe ? p.x <= -54 : p.x >= 16),
+    Math.abs(p.z) < 100 && (foe ? p.x <= -54 && Math.hypot(p.x + 66, Math.abs(p.z) - 27) > 24 : p.x >= 16),   // 新手は幅18の横の列。端の兵も家に掛からない間を取る
   reserveRelease: () => false, // 渡河と寄せは筋書きの組が担い、二線は岸を守る。
   reserveFold: (rt) => !!rt.flags.bankCeasefire || rt.flags.step >= 6,
   footRunners: true, // 杭と竹束が並ぶ浅瀬では使番も徒歩。馬で作業兵の間へ割り込まない。
@@ -3339,6 +3352,7 @@ const saika = {
       saikaSettlement(rt);
       saikaMiroku(rt);
       saikaFoundry(rt);
+      TEPPO_SHU.build(rt);
       // 柵の内の雑賀の家並み（資料との差 10/28：広い砂地に小屋が四つだけだった）。川へ出る真ん中の道は空ける。
       // 柵の際へ寄せ、川の手前の持ち場から屋根と軒が見える所に置く（10/28 資料との差：家並みを大きく）。
       // 高の集落は家全体の当たりで戸口を塞がず、村の民家の出入りと内装を共用する。
@@ -3516,6 +3530,20 @@ const saika = {
     }
     for (const u of F.envoy.units) { u.noTarget = true; u.invuln = true; u.cd = 1e9; }
     F.magoichi = F.envoy;
+    // 11/15 K122（iMac四十六）：本物の兵は両軍で290の内。支度の終わりで二百七十に収め、開戦すぐに来る物見櫓の守り（六）と
+    //   川上から渡る小組（七）を足しても越えない。組下（本人の配下・最大三十）がいる時もこの内。削るのは名の無い兵だけで、
+    //   後ろの旗本・本陣の供・柵の控え・堀の先手・鉄砲の列の順に、各組の芯（下の数）を残す。寄せ・浅瀬・杭抜きの組は削らない。
+    {
+      let n = 0; for (const u of rt.army.units) if (u.alive && !u.gone && !u.isStruct) n++;
+      let over = n - 270;
+      const thin = [[F.honjin.guard, 8], [F.lordCamp, 8], [F.reserve, 12], [F.hori, 14], [F.teppo, 8], [F.skirmish, 14], ...F.gunPosts.map((g) => [g, 8])];
+      for (const [g, keep] of thin) {
+        if (over <= 0) break;
+        if (!g?.units) continue;
+        const plain = g.units.filter((u) => u.alive && !u.gone && !u.name && u.type !== 'busho' && !u.isPlayer).reverse();
+        for (const u of plain.slice(0, Math.max(0, plain.length - keep))) { if (over <= 0) break; rt.army.despawn(u); over--; }
+      }
+    }
     rosterBuild(rt, JIN);
     F.lightHosts = [];
     for (const plan of JIN) for (const s of plan.sonae) {
@@ -3710,8 +3738,23 @@ const saika = {
       const c = g.center();
       if (g.team === 1 && c.x < -57 && Math.abs(Math.abs(c.z) - 27) < 16) {
         const fm = g.formation, face = g.facing;
-        g.order = 'move'; g.dest = { x: -54, z: c.z };
+        // 家並みの横（同じ z）へ真っすぐ出ると、間の家に当たって止まる（act bot 11/15 (-60,26)「号令 move」のまま重なる）。家並みの間の道（z ±9）へ出る。
+        g.order = 'move'; g.dest = { x: -55, z: Math.sign(c.z || 1) * 9 };
         g.onArrive = (q) => { q.order = 'hold'; q.dest = null; q.formation = fm; q.facing = face; };
+      }
+    }
+    // 11/15 クラウドす（K324・act bot 201秒「新手12人 号令 hold・(-64,17)」）：共通の待つ備は本人の動きに合わせて持ち場（anchor）を置き直す。
+    //   新しい持ち場への真っすぐな道が西岸の家並みを抜けると、兵が家に当たって一点に重なる。道が家並みに掛かる置き直しは取り消し、元の持ち場で構えさせる。
+    if (rt.t >= (rt.flags.sbAnchorT || 0)) {
+      rt.flags.sbAnchorT = rt.t + 0.5;
+      for (const g of rt.army.groups) {
+        if (!g.saikaBankReserve || g.team !== 1 || g.routed || !g.anchor) continue;
+        const A = g._sbA;
+        if (!A) { g._sbA = { x: g.anchor.x, z: g.anchor.z }; continue; }
+        if (A.x === g.anchor.x && A.z === g.anchor.z) continue;
+        const c = g.center();
+        if (c && throughSaikaVillage(c, g.anchor)) { g.anchor.x = A.x; g.anchor.z = A.z; }
+        else { A.x = g.anchor.x; A.z = g.anchor.z; }
       }
     }
     huntPlayer(rt, dt);
@@ -3739,6 +3782,7 @@ const saika = {
     const F = rt.flags;
     tickSaikaRear(rt);
     F.gunSmoke?.update(dt);
+    TEPPO_SHU.tick(rt, dt);
     if (F.ending || rt.over || !rt.player.u.alive) return;
     // 倒れた後に物見の手柄や堤の占拠を進めない。各段も本人の生存を確かめてから動かす。
     F.paceMono?.update(dt); F.paceMago?.update(dt); F.paceTsutsumi?.update(dt);

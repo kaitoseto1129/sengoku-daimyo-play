@@ -1733,7 +1733,8 @@ export class Battle {
   }
 
   nearestInteract() {
-    const p = this.player.u.pos;
+    const p = this.player?.u?.pos;
+    if (!p) return null;   // 戦を捨てた後・戻しの合間の残りのコマで主人公が空の時（K313）
     let best = null, bd = Infinity;
     for (const it of this.interacts) {
       if (it.hold && /火/.test(it.label) &&
