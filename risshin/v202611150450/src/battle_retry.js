@@ -481,7 +481,9 @@ export function offerRetry(rt, info, delay) {
     showResumeCard(rt, label);
   };
   const near = (o) => {
-    const p = m.goal || (rt.t - m.recent.time >= 8 ? m.recent : m.previous);
+    const r = rt.t - m.recent.time >= 8 ? m.recent : m.previous;
+    // 段の始まりより新しい写しがあればそちらへ（百秒戻らない・K313 11/15「途中から遊べない」）
+    const p = m.goal && !(r && r.time > m.goal.time) ? m.goal : (r || m.goal);
     restore(p, p === m.goal ? m.cp : cpLabel(rt));
     if (o) setAssist(rt.army, o);   // 写しを戻した後に置く（Symbol の鍵なので次の再開でも残る）
     // 時間切れで負けた後に直前から戻すと、すぐ同じ打ち切りに当たって負け直した（11/9 稲葉山・1.7.1 と揃える）。負けた数だけ打ち切りを四分ずつ延ばす

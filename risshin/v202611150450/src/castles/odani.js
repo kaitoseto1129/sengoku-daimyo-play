@@ -254,7 +254,8 @@ export const ODANI_PLAN = {
     { kind: 'tatebori', pts: [[21, OHORIKIRI.z], [36, OHORIKIRI.z + 4], [55, OHORIKIRI.z + 12]], w: 5, deep: 3.5 },
     { kind: 'tatebori', pts: [[21, GATE_KYO_KOMA.z], [38, GATE_KYO_KOMA.z - 5], [54, GATE_KYO_KOMA.z - 15]], w: 4.5, deep: 3 },
     // 京極丸と小丸の間の小さな堀切（土橋あり）
-    { kind: 'horikiri', pts: [[-20, GATE_KYO_KOMA.z], [-18, GATE_KYO_KOMA.z]], w: 4.4, deep: 3.4 },
+    // 11/15 クラウドし K289②：西の脇道の土橋の外も斜面まで切り通す（短い窪みでは堀切が曲輪の中で閉じて見えた）
+    { kind: 'horikiri', pts: [[-26, GATE_KYO_KOMA.z], [-18, GATE_KYO_KOMA.z]], w: 4.4, deep: 3.4 },
     { kind: 'horikiri', pts: [[-12, GATE_KYO_KOMA.z], [-2.6, GATE_KYO_KOMA.z]], w: 4.4, deep: 3.4 },
     { kind: 'horikiri', pts: [[2.6, GATE_KYO_KOMA.z], [20, GATE_KYO_KOMA.z]], w: 4.4, deep: 3.4 },
     // 大手の畝堀（道と重ならない東の斜面）。b_odani は堀を pts で読むので、並んだ竪堀として渡す。

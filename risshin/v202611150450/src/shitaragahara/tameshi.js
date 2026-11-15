@@ -37,14 +37,28 @@ export function tick(rt, dt, ctx) {
     T.s = 1; T.at = rt.t;
   }
   if (!T.g) {
-    T.g = ctx.black(() => enemyGroup(rt, { faction: 'takeda', name: '武田の先手', fixed: true, noGuard: true, anchor: { x: 80, z: gz + 10 }, facing: -Math.PI / 2, fleeDir: { x: 1, z: 0 }, aggro: 10, width: 16, formation: 'line', morale: 90, noRout: true, speed: 3.6 },
+    // K330（kaito 11/15）：一番手の出は 陣太鼓 → 揃った足音（歩み）→ 侍大将の「かかれ！」→ 槍の列の駆け足 の順。
+    T.g = ctx.black(() => enemyGroup(rt, { faction: 'takeda', name: '武田の先手', fixed: true, noGuard: true, anchor: { x: 80, z: gz + 10 }, facing: -Math.PI / 2, fleeDir: { x: 1, z: 0 }, aggro: 10, width: 16, formation: 'line', morale: 90, noRout: true, speed: 1.3, noRun: true },
       [{ type: 'samurai', n: 1, o: { flag: 'takeda' } }, { type: 'cavalry', n: 4, o: { horseBattle: 'mounted', flag: 'takeda' } }, { type: 'ashigaru', n: 10, o: { flag: 'takeda' } }]));
     T.g.order = 'path'; T.g.pathIdx = 0; T.g.path = [[ctx.SB.x0 + 5, gz]]; T.g.dest = null;   // 構え！の後、柵へ駆けて来る
     T.g.onArrive = (q) => { q.order = 'attack'; q.seekRange = 24; q.aggro = 20; T.arrive ??= rt.t; };
-    T.n0 = ctx.ready(T.g);
-    try { sfx('hooves', 0.8); sfx('taiko', 0.9); } catch (e) { /* 音が無くても進む */ }
-    rt.say('組頭', '武田の先手が段丘を下りて来る！　構え！　引き付けて放て！', 3.6);
+    T.n0 = ctx.ready(T.g); T.k = 0;
+    try { sfx('jindaiko', 1); } catch (e) { /* 音が無くても進む */ }
     return true;
+  }
+  // 太鼓（0秒）→ 足並みを揃えた歩みの足音（1.2秒）→「かかれ！」で駆け足（3秒）→ 組頭の「構え！」（4.4秒）
+  if (T.k < 3) {
+    const k = rt.t - T.at;
+    if (T.k === 0 && k > 1.2) {
+      T.k = 1;
+      for (let i = 0; i < 4; i++) rt.after(i * 0.55, () => { try { sfx('stepScrape', 0.9); } catch (e) { /* なし */ } });
+    }
+    if (T.k === 1 && k > 3) {
+      T.k = 2; T.g.noRun = false; T.g.speed = 3.6;
+      try { sfx('tokiOrder', 0.8); sfx('hooves', 0.8); } catch (e) { /* なし */ }
+      rt.say('武田の侍大将', 'かかれ！', 2.2);
+    }
+    if (T.k === 2 && k > 4.4) { T.k = 3; rt.say('組頭', '武田の先手が駆けて来る！　構え！　引き付けて放て！', 3.4); }
   }
   // 後列が川や柵で遅れても、先頭が虎口へ着いた刻から受け合いを数える。
   // 真田・内藤の寄せと同じく、離脱した兵や遠い兵は到着に含めない。

@@ -13,6 +13,7 @@ import { scenarioKey, RANKS } from './state.js';
 import { S as SETTINGS } from './settings.js';
 import { isTouch } from './touch.js';
 import { nagashinojo } from './b_nagashinojo.js';
+import { nagashinoFar } from './shitaragahara/nagashino_far.js';
 import { nobori, tawara, lumber, stumps, yagura, hiraTateGeo, WOOD_MAT, paintGeo } from './props.js';
 import { goten } from './castle_parts.js';
 import { tabaGeo, tabaMat } from './taketaba.js';
@@ -223,12 +224,16 @@ function shSmoke(rt) {
       if (field) {
         // 煙が残る間は発生点を固定する。続く銃口の煙は既存の粒で重ね、
         // 一枚の煙を別の射手へ引き戻したり、広がりを最初からやり直したりしない。
-        if (rt.t - smoke.shotAt >= 7) {
+        // K332 高：撃つたびに同じ幕へ重ねて濃くする。幕が消え切るまでは始めの時と場所を保ち、縮めてやり直さない。
+        smoke.shotN = rt.t - (smoke.lastShot ?? -99) < 28 ? (smoke.shotN || 0) + 1 : 1;
+        smoke.lastShot = rt.t;
+        if (smoke.shotN === 1) {
           smoke.shotAt = rt.t;
           smoke.x = mx; smoke.y = my; smoke.z = mz;
           smoke.vx = WIND_STATE.dirX * WIND_STATE.gust * 0.6;
           smoke.vz = WIND_STATE.dirZ * WIND_STATE.gust * 0.6;
-          smoke.mesh.rotation.y = heading;
+          // 幕は柵に沿って南北へ張る（狙う向きで斜めや横向きにすると、武田の側から細い筋に見える）
+          smoke.mesh.rotation.y = Math.PI / 2;
         }
       }
       rt.army.smoke(mx, my, mz, fx, fz, 2.4);
@@ -666,7 +671,8 @@ function shFortHeight(coarse, x, z) {
     const d = -r;
     // 西の岸：川床 → 崖（二・八メートル）→ 一の柵の前の浅い空堀 → 二の柵の前の切岸 → 三の柵の前の切岸 → 弾正山へ緩く登る
     let p = -0.45 + 3.25 * shSmooth((d - hw) / run) + lump * Math.exp(-((d - hw - run / 2) ** 2) / 1.5);
-    p -= 0.8 * Math.exp(-((x - (SB.x0 + 2.4)) ** 2) / 1.2) * shSmooth((d - 4) / 1.5);
+    // 11/15 K331 クラウドせ：草に隠れた空堀を、駆けて来た兵が落ちて転ぶ深さ（0.8→1.3m・幅も広く）にする
+    p -= 1.3 * Math.exp(-((x - (SB.x0 + 2.4)) ** 2) / 2.0) * shSmooth((d - 4) / 1.5);
     p += 2.2 * shSmooth((SB.x0 - SB.gap + 3.4 - x) / 2.6);
     p += 2.4 * shSmooth((SB.x0 - 2 * SB.gap + 3.6 - x) / 2.6);
     p += 0.8 * shSmooth((-1 - x) / 12);
@@ -689,9 +695,37 @@ function shFortHeight(coarse, x, z) {
 // 足の重さ：沼の低地と窪地の底は terrain_tags.js の 'hori'（歩み六割・上の柵から撃たれると損が増える）。
 function shHoriAt(x, z) {
   if (Math.abs(z) > 520) return false;
+  if (shKaraboriAt(x, z)) return true;
   const r = x - rengoX(z);
   if (r > 3.6 && r < 12 && shGateK(z) < 0.5) return true;
   return x > 54 && x < 100 && shHollowAt(x, z) > 0.5;
+}
+// 11/15 K331 クラウドせ：一の柵の前の空堀（草で見えにくい）。底は 'hori'＝足が六割・柵から撃たれると損が増える。
+function shKaraboriAt(x, z) {
+  if (Math.abs(z) > 520 || Math.abs(x - (SB.x0 + 2.4)) > 1.4) return false;
+  return rengoX(z) - x > 4.2 && shGateK(z) < 0.5;
+}
+// 駆けて来た武田の徒歩が、空堀に初めて入った時に三人に一人ほど落ちて転び、手をついてよじ登る（転ぶ動きは army_anim の tumble を使い回す）。
+// 最初に落ちた時に武田の声「空堀だ、用心しろ！」、その少し後に佐久間の内応の噂を疑う声を一度ずつ。
+const KB_STAT = { in: 0, fall: 0, said: 0 };   // 確かめの数（rt.flags は戦の後に空になるので、ここに残す）
+function shKaraboriTick(rt, dt) {
+  const F = rt.flags, A = rt.army;
+  if ((F.kbT = (F.kbT || 0) - dt) > 0) return;
+  F.kbT = 0.2;
+  for (const u of A.units) {
+    if (u.team !== 1 || !u.alive || u.dying || u.isPlayer || u.mounted || u.isStruct || u.fleeing || u.kbSeen) continue;
+    if (!shKaraboriAt(u.pos.x, u.pos.z)) continue;
+    u.kbSeen = true; KB_STAT.in++;
+    if (u.hit || u.downed || u.climb || !(u.moving > 0.4) || Math.random() > 0.35) continue;
+    u.hit = { kind: 'kneel', t: 0, dur: 2.2 + Math.random() * 0.6, amp: 1, severity: 0.3, from: 'back', side: 1, tumble: true };
+    u.lastKneelT = A.time; u.pinT = A.time + 1.4; KB_STAT.fall++;
+    if (!F.kbSaid) {
+      F.kbSaid = true; KB_STAT.said = Math.round(rt.t);
+      sfx('thud', 0.6);
+      rt.say(u.group?.leader?.name || '武田の組頭', '空堀だ、用心しろ！', 3);
+      rt.after(5, () => { if (!F.ending) rt.say(u.group?.leader?.name || '武田の組頭', '佐久間の内応は偽りであったか……構わず突っ込め！', 3.5); });
+    }
+  }
 }
 // 元の三角形を抜いて同じ材質の細かい面で埋め、境の一升だけ元の地面へつなぐ（b_iga.js の igaRoadGroundPatch と同じ作り）。
 function shGroundPatch(W, left, right, north, south, divisions, height) {
@@ -1444,6 +1478,8 @@ function nfSend(rt, g, gateZ) {
   const cav = g.cavalry;
   cav.noRout = true; cav.order = 'path'; cav.pathIdx = 0; cav.formation = 'column'; cav.colW = 2; cav.speed = 4;
   cav.path = [[78, gz + 10], [SB.x0 + 9, gz + 8]]; cav.dest = null;
+  // K334（11/15）：山県の赤備えは柵の南の端（z1）を回り込み、連合軍の背へ出ようとする。回る道の途中で徳川の鉄砲に撃ち止められる
+  if (gateZ === SB.gates[2]) cav.path = [[78, gz + 10], [SB.x0 + 40, SB.z1 + 24], [SB.x0 - 6, SB.z1 + 12], [SB.x0 + 9, gz + 8]];
   cav.onArrive = (q) => { q.order = 'hold'; q.anchor.x = SB.x0 + 8; q.anchor.z = gz + 6; q.aggro = 18; };
   const m = g.missiles;
   m.holdFire = false; m.order = 'move'; m.dest = { x: SB.x0 + 30, z: gz - 12 };
@@ -1512,7 +1548,7 @@ function nfTick(rt, dt) {
   // ― 0：夜明け。鳶ヶ巣山の知らせ（未明に落ちた砦の煙）と、南の山県の寄せ ―
   if (N.step === 0) {
     // 鳶ヶ巣山は開戦の報で済ませず、戦の途中で音・煙・陥落の順に効かせる（shitaragahara/plus.js tobiTick）
-    if (!N.south && rt.t > N.t0 + 2) { N.south = true; nfSend(rt, F.south, SB.gates[2]); F.jinkeiBound.shitara_yamagata?.advance(25, 12);
+    if (!N.south && rt.t > N.t0 + 2) { N.south = true; nfSend(rt, F.south, SB.gates[2]); rt.after(14, () => rt.say('大久保忠世', '山県の赤備えが柵の端を回るぞ！　鉄砲衆、放て！', 3.5)); rt.after(26, () => { if (!F.ending && !F.kbSaid) rt.say('使番', '佐久間殿が武田へ内応するとの話が流れたそうな。じゃが柵の内は誰も動いておらぬ', 3.5); }); F.jinkeiBound.shitara_yamagata?.advance(25, 12);
       for (const fc of F.far) if (!fc.v && Math.abs(fc.z - MOUTHS[2].z) < 50) { fc.v = 1; fc.m.advance(80, 16, { charge: true }); } sfx('taiko', 1); }
     // 第一波：試しの寄せ（shitaragahara/tameshi.js）。崩れてから真田の本隊を寄せる
     if (rt.t > N.t0 + 3 && ST_TAME.tick(rt, dt, stCtx(rt))) return;
@@ -3512,7 +3548,8 @@ const shitaragahara = {
     // 25秒の画面の右手前に入る所。口（z -280）から十歩以上離し、当たりは足さない（10/28 採点：柵の内が草の野だけ）。
     rt.scene.add(lumber(W, 9.6, -266, 0.12), lumber(W, 10.8, -262.6, -0.18), tawara(W, 12.2, -268.6, 0.6, 4, { solid: false }));
     // 柵際と避難路を空けた南北の集落。戸数を保ち、各家の戸口から入れる。
-    // 室内は推定。長篠城と鳶ヶ巣山の砦は、この戦場には置かない。
+    // 室内は推定。長篠城と鳶ヶ巣山の砦は東の遠景に置く（11/15 K329・shitaragahara/nagashino_far.js。当たりは無い）。
+    try { rt.flags.nagaFar = nagashinoFar(rt); } catch (e) { console.warn(e); }
     for (const [i, v] of PEOPLE_VILLAGES.entries()) KT.farVillage(rt, v.x, v.z,
       { rot: i ? 0 : Math.PI, n: i ? 5 : 6, fields: 0, seed: 21 + i,
         interiorHomes: { name: i ? '南の集落の民家' : '北の集落の民家', kind: 'minka', profile: 'shitaragahara' } });
@@ -3800,6 +3837,7 @@ const shitaragahara = {
     const p = rt.player.u.pos;
     nfTick(rt, dt);
     ST_WALL.tick(rt, dt);
+    shKaraboriTick(rt, dt);
     // 替えた兵にも同じ武器の威力を使う。柵の内では控えを勝手に侵入させない。
     if ((F.wkT = (F.wkT || 0) - dt) <= 0) {
       F.wkT = 0.5;
@@ -3884,18 +3922,23 @@ const shitaragahara = {
     const linger = F.ending || F.pursuit || lt > 45 ? 0 : 0.2 * Math.min(1, lt / 3) * Math.min(1, (45 - lt) / 10);
     // 筒先の煙は shSmoke の実際の発砲だけで出す。開戦前の名残は帯で表す。
     for (const smoke of F.smokeBands) {
-      const age = rt.t - smoke.shotAt, fresh = age < 7;
+      const age = rt.t - smoke.shotAt, fresh = SETTINGS.quality === 'high' ? rt.t - (smoke.lastShot ?? smoke.shotAt) < 28 : age < 7;
       smoke.mesh.visible = (fresh || linger > 0) && !F.ending;
       if (!smoke.mesh.visible) continue;
       const field = SETTINGS.quality === 'high';
       if (field) {
         // 発砲点に残した同じ煙を風下へ広げる。次の射手へ飛び移らせない。
-        smoke.mesh.visible = fresh;
-        if (!fresh) continue;
-        smoke.mesh.material.opacity = Math.max(0, 0.28 * (1 - age / 7)) * Math.min(1, age / 0.35);
-        const spread = Math.min(1, age / 1.4);
-        smoke.mesh.scale.set(0.16 + spread * 0.84, 0.45 + Math.min(1, age / 2.4) * 0.75, 1);
-        smoke.mesh.position.set(smoke.x + age * smoke.vx, smoke.y + age * 0.12, smoke.z + age * smoke.vz);
+        // K332 柵の前に溜まる煙の幕：16秒残り、濃く、横へ大きく広がって柵の向こうを霞ませる。
+        //   撃つたびに濃くなり（重ねた数で0.42→0.75）、最後の発砲から16秒で薄れて消える。人の背より高い壁にして裾を地に埋めない。
+        const life = 28, since = rt.t - (smoke.lastShot ?? smoke.shotAt), freshH = since < life;
+        smoke.mesh.visible = freshH;
+        if (!freshH) continue;
+        // K332 11/15 さ：動画で幕が薄く7〜10秒で消えて見えたので、28秒残し・始めから濃く（0.55→最大0.88）、終わりの12秒で薄れる
+        const thick = Math.min(0.88, 0.55 + 0.06 * ((smoke.shotN || 1) - 1));
+        smoke.mesh.material.opacity = Math.max(0, thick * Math.min(1, (life - since) / 12)) * Math.min(1, age / 0.35);
+        const spread = Math.min(1, age / 4), drift = Math.min(age, 24);
+        smoke.mesh.scale.set(0.3 + spread * 2.6, 0.6 + Math.min(1, age / 5) * 2.2, 1);
+        smoke.mesh.position.set(smoke.x + drift * smoke.vx, smoke.y + 0.4 + Math.min(1, age / 5) * 1.4 + drift * 0.04, smoke.z + drift * smoke.vz);
         smoke.map.offset.x -= dt * 0.035;
       } else {
         const drift = fresh ? age : 0, k = smoke.x * 0.7;
@@ -4088,6 +4131,20 @@ shitaragahara.generalLines = (name, scene) => {
 };
 // 織田家編では、味方の紋を織田の木瓜に
 shitaragahara.sides = { a: { name: '織田・徳川軍', get mon() { return scenarioKey() === 'oda' ? 'oda' : 'tokugawa'; } }, b: { name: '武田軍', mon: 'takeda' } };
+// 11/15 K326：軍議の図の隊（docs/fujin/shitaragahara.md と、戦の中の将の陣 ALLIED_POSTS・REAR_POSTS・TAKEDA_POSTS
+//   ・CHAUSU・IEYASU・KATSUYORI と同じ所）。以前は印が数個と名が四つで、三万八千対一万五千に見えなかった。兵数は通説の概数。
+//   鉄砲の五奉行は柵の際（x≒0〜14 の三重の柵の内）に並べ、陣所（x−55）でなく撃つ所に置く。
+shitaragahara.introFujin = [
+  ...ALLIED_POSTS.filter((p) => p[5] === 'spear').map(([name, x, z]) => ({ team: 0, name, x, z, men: { 佐久間信盛: 3000, 滝川一益: 2500, 榊原康政: 1500, 本多忠勝: 2000 }[name] || 1500 })),
+  ...ALLIED_POSTS.filter((p) => p[5] === 'gun').map(([name, , z]) => ({ team: 0, name, x: -4, z, men: 400 })),
+  ...REAR_POSTS.map(([name, x, z]) => ({ team: 0, name, x, z, men: { 織田信忠: 4000, 柴田勝家: 3000 }[name] || 2500 })),
+  { team: 0, name: '織田信長', x: CHAUSU.x, z: CHAUSU.z, men: 7000 }, { team: 0, name: '池田恒興', x: -430, z: 120, men: 4000 },
+  { team: 0, name: '徳川家康', x: IEYASU.x, z: IEYASU.z, men: 3000 }, { team: 0, name: '大久保忠世', x: 40, z: 410, men: 500 },
+  { team: 0, name: '松平信康', x: -250, z: 450, men: 1000 },
+  ...TAKEDA_POSTS.map(([name, x, z]) => ({ team: 1, name: name.replace('武田逍遥軒信廉', '武田信廉'), x, z, men: { 馬場信春: 1200, 真田信綱: 600, 真田昌輝: 400, 原昌胤: 800, 小山田信茂: 800, 山県昌景: 1500 }[name] || 1000 })),
+  { team: 1, name: '穴山信君', x: 260, z: -380, men: 1500 }, { team: 1, name: '小幡信貞', x: 200, z: 230, men: 1000 },
+  { team: 1, name: '武田信豊', x: 240, z: 400, men: 1000 }, { team: 1, name: '武田勝頼', x: KATSUYORI.x, z: KATSUYORI.z, men: 2000 },
+];
 // 史実でこの戦にいた名のある武将（battle.js の placeFamous が、その家の隊に加える。敵は名乗り、討てば手柄）
 // 奉行は各持ち場へ初めから置く。別名の同一人物や土屋を他将の隊へ追加しない。
 shitaragahara.famous = [];
@@ -4155,3 +4212,4 @@ shitaragahara.reserveYieldBack = true;
 shitaragahara.reserveOk = (rt, p, foe) => (rt.flags.nf?.step ?? 0) >= 4 ? !foe : foe ? p.x > SB.x0 + 6 : p.x < SB.x0 - 2;
 // 柳田前の段（段3）の終わりの条件を bot の跡に残す（K119：段3が終わらない訳を見る）
 shitaragahara.botDbg = (b) => { const N = b.flags.nf; if (!N) return ''; const S = b.flags.shSoko, g = b.flags.waveGroups?.[1]; const pp = nfPinPoint(b); const v = `q${pp ? pp.x.toFixed(0) + ',' + pp.z.toFixed(0) : '-'}c${N.defendedCenter ? 1 : 0}s${S ? (S.call ? 'C' : '') + (S.done ? 'D' : '') + (S.there ? 'T' : '') + (S.fight || 0).toFixed(0) : '-'}g${g ? (g.nfAt != null ? 'A' : '') + (g.nfArrive != null ? 'R' : '') + nfReady(g) + '/' + (g.nfN0 ?? '') + '@' + g.center().x.toFixed(0) + ',' + g.center().z.toFixed(0) : '-'}}h${b.flags.shHara ? (b.flags.shHara.arrive != null ? 'R' : '') + (b.flags.shHara.there ? 'T' : '') + b.flags.shHara.g.center().x.toFixed(0) + ',' + b.flags.shHara.g.center().z.toFixed(0) : '-'}p${b.player.u.pos.x.toFixed(0)},${b.player.u.pos.z.toFixed(0)}e${(() => { const e = b.army.nearestEnemy(b.player.u, 12); return e ? (e.group?.name || e.type) + Math.hypot(e.pos.x - b.player.u.pos.x, e.pos.z - b.player.u.pos.z).toFixed(0) + (e.group?.reserve || e.group?.fromReserve || e.group?.fill ? 'F' : '') : '-'; })()}`; if (!(b._nf3T > b.t)) { b._nf3T = b.t + 30; (b._nf3 || (b._nf3 = [])).push(Math.round(b.t) + 'n' + N.step + v); } return b._nf3.join('/'); };
+shitaragahara.botStat = () => `空堀に入った武田の徒歩${KB_STAT.in}・落ちて転んだ${KB_STAT.fall}・空堀の声${KB_STAT.said ? KB_STAT.said + '秒' : 'なし'}`;

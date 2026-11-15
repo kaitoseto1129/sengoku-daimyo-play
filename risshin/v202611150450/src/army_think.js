@@ -1056,7 +1056,7 @@ export const ArmyThink = {
     }
     // 「攻めよ」の号令で、狙いの間合いの外（10〜35m）に敵が居るのに持ち場へ戻って立つ者は、その敵へ歩み寄る（K074 突っ立つ兵）
     if (g.order === 'attack' && !g.isPlayerSquad && !g.marching && !u.fleeing && !u.mounted && u.type !== 'gun' && u.type !== 'bow' && u.type !== 'busho' && !g.keepMoveOrder) {
-      const nx = this.nearestEnemy(u, 35, (o) => !o.isStruct && !o.fleeing && !this.wallBetween(u.pos, -1, o.pos));
+      const nx = this.nearestEnemy(u, Math.min(60, Math.max(35, g.seekRange || 0)), (o) => !o.isStruct && !o.fleeing && !this.wallBetween(u.pos, -1, o.pos));   // 11/15 ナ三 K302：近い敵が33〜38m で号令 attack・seekRange45 なのに立つ兵（稲葉山搦手）。35m 固定を seekRange まで広げた
       // 11/14 クラウドせ K287：厚い四角の備（blockForm）は一人ずつ自分の一番近い敵へ歩くと、上から見て備が点の散らばり（天王寺 60秒で
       //   秋田・真田信吉の備 44人が持ち場から平均22m・幅40m）になった。備の中で一人の敵を分け合い（0.6秒ごと）、横の並びと後ろの列を
       //   保ったまま備ごと敵の前へ寄せる（前の列が敵の 1.2m 手前）。6m 内に敵が来た者は今まで通りその敵へ

@@ -283,6 +283,14 @@ vec3 aApply(APose P, vec3 v, float isN) {
   if (pt == 23.0) { vec3 hp = vec3(0.0, 1.5, 0.72) * pos; q = aRotX(P.nod) * (q - hp) + hp; }
   // K292：遠くの束でも、幟の帯・隊旗（本物の兵で flagScale 2 以上）は竿の根元から大きく立てる（小さな指物に縮めない）
   if ((pt == 10.0 || pt == 11.0) && aInfo2.x > 1.5) { vec3 fp = vec3(0.0, 1.25, -0.17) * pos; q = fp + (q - fp) * (isN < 0.5 ? vec3(1.6, 1.9, 1.0) : vec3(0.625, 0.526, 1.0)); }
+  // K292 11/15 クラウドし：60m より奥の束は、旗（竿と布）だけ距離に応じて竿の根元から大きく立てる（170m で指物1.8倍・幟の帯1.5倍）。
+  //   稲生の引きで野の向こうの柴田・林の備の旗が2画素の白い点になり、家の色が霞に溶けていた。描く数・材質は同じ
+  #ifdef USE_INSTANCING
+    if ((pt == 10.0 || pt == 11.0) && isN < 0.5) {
+      float fdS = smoothstep(60.0, 170.0, distance((modelMatrix * instanceMatrix)[3].xyz, cameraPosition));
+      vec3 fp2 = vec3(0.0, 1.25, -0.17); q = fp2 + (q - fp2) * (1.0 + fdS * (aInfo2.x > 1.5 ? 0.5 : 0.8));
+    }
+  #endif
   q *= P.show;
   if (isN < 0.5) q.y *= P.kneel;
   q = aRotY(P.yaw) * (aRotX(P.fall) * (aRotZ(P.tilt) * q));

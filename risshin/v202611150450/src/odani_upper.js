@@ -227,7 +227,8 @@ export function buildOdaniUpper(rt, ramps) {
     const n = Math.max(1, Math.ceil(len / 0.65), Math.ceil(Math.abs(rise) / 0.3));
     for (let i = 0; i < n; i++) {
       const t = (i + 0.5) / n, z = r.a[1] + (r.b[1] - r.a[1]) * t;
-      box(stone, 0, W.heightAt(0, z) + 0.035, z, r.w * 2 - 0.3, 0.12, len / n + 0.02);
+      // K289 明るい灰（stone）の踏面が月に雪のように白く光った。西木戸の石畳と同じ灰茶の自然石に沈める。
+      box([0x5b5549, 0x625a4c, 0x55524a][i % 3], 0, W.heightAt(0, z) + 0.035, z, r.w * 2 - 0.3, 0.12, len / n + 0.02);
     }
   }
   // 上がりきった所の門。既存の中間の木戸と並び、全て開いて通れる。
