@@ -166,10 +166,45 @@ export const ArmyMove = {
       // 11/14 クラウドか K294：建物・幕・柵の角で真っすぐも縦横の滑りも塞がれた遠い兵は、横へ回り込む（桶狭間の今川勢が (101,38) で20秒以上立ち尽くした）
       u.pos.x = step.x; u.pos.z = step.z;
       u.pos.y = groundAt(this.world, step.x, step.z, u.pos.y);
+    } else if (wanted && this.farUnstick(u, Math.max(speed, 1.2), dt, step)) {
+      // 11/15 クラウドさ K302：押し合いで切岸・急な坂（歩けない所）の上へ出た遠い兵は、どの向きの一歩も「歩けない」で塞がれ、
+      //   稲葉山の搦手で味方の新手・信長の本陣の兵が (8,33)(16,32) に20秒以上立ち尽くした（11回）→ 一番近い歩ける所へ降りる
+      u.pos.x = step.x; u.pos.z = step.z;
+      u.pos.y = groundAt(this.world, step.x, step.z, u.pos.y);
     } else u.mv.x = u.mv.z = u.vel.x = u.vel.z = 0;
     // 置かれた所や押し合いで既に壁・襖の幅の内に立つ遠い兵は、近い兵と同じ押し戻しで外へ出す（線の上を行き来させない）
     if (this.solids?.length && this.solidBlocked(u, u.pos.x, u.pos.z)) this.collide(u, dt);
     u.moving = Math.min(1, Math.hypot(u.mv.x, u.mv.z) / 2.4);
+  },
+
+  // 遠い兵の足もとが歩けない所（切岸・急な坂）か建物の内の時だけ：近い歩ける所（1〜10m・12の向き、行き先に近い物を先に）を探し、そこへ一歩出る。
+  //   壁・置き物は越えない。探しは 0.5 秒に一度まで、見つけた所は着くまで覚える。歩ける所に立っていれば何もしない（false）
+  farUnstick(u, speed, dt, step) {
+    const W = this.world;
+    const inSolid = this.solids?.length && this.solidBlocked(u, u.pos.x, u.pos.z);
+    if (W.walkable(u.pos.x, u.pos.z) && !inSolid) { u._farEsc = null; return false; }
+    let e = u._farEsc;
+    if (!e && !(u._farEscAt > this.time)) {
+      u._farEscAt = this.time + 0.5;
+      const q = u._farWant;
+      for (let r = 1; r <= 10 && !e; r++) {
+        let best = Infinity;
+        for (let i = 0; i < 12; i++) {
+          const a = i * Math.PI / 6, x = u.pos.x + Math.sin(a) * r, z = u.pos.z + Math.cos(a) * r;
+          if (!W.walkable(x, z) || this.solids?.length && this.solidBlocked(u, x, z) || !inSolid && this.wallBetween(u.pos, -1, { x, z })) continue;
+          const d = q ? Math.hypot(q.x - x, q.z - z) : 0;
+          if (d < best) { best = d; e = u._farEsc = { x, z }; }
+        }
+      }
+    }
+    if (!e) return false;
+    const dx = e.x - u.pos.x, dz = e.z - u.pos.z, d = Math.hypot(dx, dz);
+    if (d < 0.1) { u._farEsc = null; return false; }
+    const s = Math.min(d, speed * dt);
+    step.x = u.pos.x + dx / d * s; step.z = u.pos.z + dz / d * s;
+    if (!inSolid && (this.solids?.length && this.solidBlocked(u, step.x, step.z) || this.wallBetween(u.pos, -1, step))) { u._farEsc = null; return false; }
+    u.vel.x = u.mv.x = dx / d * speed; u.vel.z = u.mv.z = dz / d * speed;
+    return true;
   },
 
   // 遠い兵の回り込み：行き先の向き (fx,fz) から左右どちらか一方へ 50°・90°・130° の順に一歩を試す。

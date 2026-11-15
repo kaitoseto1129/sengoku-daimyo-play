@@ -2939,7 +2939,8 @@ const iga = {
       const elapsed = F.bridgeStarted == null ? 0 : rt.t - F.bridgeStarted;
       // 木戸の組が負傷・道詰まりで届かなくても、土橋へ来た丹羽・筒井の兵の
       // 退き道を守れる。本人だけでは数えず、同じ踏み面の味方が実際にそばにいる事を求める。
-      if (!supported && elapsed >= 45) {
+      // 11/15 クラウドわ：木戸の組は本人より遅れて着き、土橋で四十三秒「木戸を破る味方のそばで守れ」のまま待っていた。見切りを四十五→二十秒に。
+      if (!supported && elapsed >= 20) {
         for (const g of F.oda) {
           if (g === F.ram || g.routed) continue;
           for (const u of g.units) if (igaReady(u) && !u.downed &&
@@ -2964,7 +2965,8 @@ const iga = {
       // 木戸の組が崩れた時も、土橋で残る味方の退き道を守れる。
       const guarding = (supported || !F.ram.count) && friends > foes && atBridge;
       if (F.sally.igaSent && guarding) F.bridgeT += dt;
-      if (F.bridgeT >= 20 && !F.bridgeHeld) {
+      // 11/15 クラウドわ：7分超えを詰める。土橋を守る時間は二十→十五秒・下知までの見切りは四十五→三十五秒。
+      if (F.bridgeT >= 15 && !F.bridgeHeld) {
         F.bridgeHeld = true;
         const saved = F.ram.count && !F.bridgeRelief ? '南の土橋で木戸の組を守った' : '南の土橋で味方の退き道を守った';
         rt.award((t) => t.side.push(saved), saved);
@@ -2978,7 +2980,7 @@ const iga = {
           : friends <= foes ? '土橋の味方と敵を押し返せ'
           : F.bridgeHeld ? '土橋を保ち、退く下知を待て' : '土橋で木戸を破る味方を守れ';
         rt.objProgress('main', F.bridgeHeld && nearBridge ? '退き道は保った。土橋を離れるな'
-          : guarding ? `味方を守った時間 ${Math.min(20, Math.floor(F.bridgeT))}／20秒`
+          : guarding ? `味方を守った時間 ${Math.min(15, Math.floor(F.bridgeT))}／15秒`
           : text);
       }
       if (!F.ram.count && !F.ramLost) { F.ramLost = true; rt.say('丹羽の組頭', '木戸の組が崩れた！　その方は土橋を保ち、味方が退く道を空けよ', 4); }
@@ -2988,7 +2990,7 @@ const iga = {
       // 11/13 MB係四：二十秒守った後は、手負いで坂を少し下がって息を継いでいても（土橋から 45m 内）済ませる。
       //   act bot は守り二十秒を果たした後に傷で坂の下 (-4,-10) へ下がり、土橋に居ない間は段が進まず 264→1080 秒で失敗した
       const heldNear = atBridge || F.bridgeHeld && Math.hypot(p.x - F.bridge.x, p.z - F.bridge.z) < 45;
-      if (F.bridgeStarted != null && F.bridgeHeld && heldNear && (elapsed >= 45 ||
+      if (F.bridgeStarted != null && F.bridgeHeld && heldNear && (elapsed >= 35 ||
           elapsed >= 26 && gone(F.sally) && friends > 0)) this.midB(rt);
       // 道に迷っても未到着の土橋を済ませない。折れ目の案内を更新し、実際の到着を待つ。
       else if (F.bridgeStarted == null && rt.t - F.stepT > 210 && !F.bridgeDelayed) {
@@ -3053,6 +3055,11 @@ iga.history = '信長公記巻十四は、天正九年九月三日、信雄ら�
 // 開幕の段に渡す場所
 const IG_OPEN_CTX = { castle: FORT, mouth: () => ({ x: 0, z: 24 }) };
 function igaOpenCtx() { return IG_OPEN_CTX; }
+// 11/15 クラウドわ：矢を避ける横跳び（playbot の cover）が山道の踏み面の外へ三歩出て、隣の折り返しへ落ちたり上の段へ乗ったりしていた。
+//   折れ目 (31,-29) の上の段で道順を失い九十五秒立ち、土橋の段が二百三十秒を越えた。避け足も山道の踏み面と同じ高さの中だけにする。
+//   また登りの間（土橋へ・麓へ退く道）は矢のたびに横へ跳び、十七〜三十三秒続けて足が止まり息も切れた。山道の上では避けずに走って登り降りする（人も同じ）。
+iga.botCoverBlocked = (rt, from, to) => (rt.flags.step === 2 || rt.flags.step === 2.5) && from.z < 14 && from.z > -44 ||
+  Math.abs(rt.world.heightAt(to.x, to.z) - from.y) > 1.2 || !igaRetreatPathAllowed(rt, to);
 iga.botBrain = (b, inp, { goTo, patientStrike }) => {
   const p = b.player, u = p.u, F = b.flags;
   inp.quickCmd = null; inp.k.delete('KeyW'); inp.k.delete('KeyE');
@@ -3932,7 +3939,8 @@ function igaB(rt) {
       battleEvent(rt, EVENT_MESSENGER, CAMP, null, 0, true, '蒲生・堀・筒井の手が山の麓を囲んだ');
       for (const c of rt.flags.lines) c.push('A', 0.25);
     } }),
-    igaHold({ at: CAMP, dur: 70, r: 16, title: '包囲の夜', sub: '城から出た伊賀衆が、麓の陣へ切り込む', label: '陣の口', obj: '麓の陣の口で、城から出る伊賀衆を防ぐ',
+    // 11/15 クラウドわ：7分超えを詰める。包囲の夜は七十→五十秒（波は8秒・20秒のまま）。
+    igaHold({ at: CAMP, dur: 50, r: 16, title: '包囲の夜', sub: '城から出た伊賀衆が、麓の陣へ切り込む', label: '陣の口', obj: '麓の陣の口で、城から出る伊賀衆を防ぐ',
       say: [['蒲生忠三郎', '包囲を続け、また夜になった。陣の口で敵を防げ。追うな', 4]],
       waves: [
         { t: 8, group: rt.flags.waveB[0], say: ['足軽', '長岡山の筒井様の陣にも松明じゃ！　こっちにも来よる！'] },

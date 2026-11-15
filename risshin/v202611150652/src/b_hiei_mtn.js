@@ -4303,6 +4303,7 @@ const hiei_mtn = {
     rt.marker('west', P.saito, () => rallyGuideLabel(rt, P.saito, 12, '釈迦堂の前', '釈迦堂の前へ・道なり'), { h: 2, guidePriority: 250, guideAlways: true, routeDistance: () => hieiGuideDistance(rt) });
     F.jodoinShown = false;
     walk(F.akechi, pts('saito', 4), 2.3, (q) => attackFrom(q, 24));
+    hieiAddLater(rt, '西塔へ続く織田の新手', pts('saito', 4));
     walk(F.teppo, pts('saito', 4, 7), 2.1);
     rt.after(16, () => { if (!F.ending && F.step === 5) rt.bark(rallyProgress(rt, P.saito, 12, '釈迦堂の前', '印に沿って釈迦堂へ進め')); });
   },
@@ -4319,6 +4320,7 @@ const hiei_mtn = {
       '合図：法螺貝と陣太鼓＝北の尾根道を進め', '法螺貝と陣太鼓を聞け。北の尾根道を前の列に続け。逃げる者は後の手に任せよ。横川で後の隊へ引き継ぐ');
     rt.marker('yokawa', P.yokawa, () => rallyGuideLabel(rt, P.yokawa, 12, '横川中堂の前', '横川中堂の前へ・道なり'), { h: 2, guidePriority: 250, guideAlways: true, routeDistance: () => hieiGuideDistance(rt) });
     walk(F.akechi, pts('yokawa'), 2.2, (q) => attackFrom(q, 24));
+    hieiAddLater(rt, '横川へ続く織田の新手', pts('yokawa'));
   },
 
   // 開いた道へ既存の味方が進む時だけ、本人と配下の働きを記録する。
@@ -4524,6 +4526,13 @@ const hiei_mtn = {
     }
     // 退く下知と戸口の案内を、到着判定や次の進軍で上書きしない。
     // 今の人数を先に数え、半数を割ったコマで勝利へ進むのも防ぐ。
+    // 11/14 owner-3：段が替わるごとに、その時に立っている者（新手も）から数え直す。act bot で文殊楼・横川の前に、前の段の討死で負けていた。
+    if (F.lossReady && F._lossStep !== F.step) {
+      F._lossStep = F.step;
+      const extra = F.oda.flatMap((g) => g.units || []);
+      F.lossUnits = [...new Set([...F.lossUnits, ...extra])].filter((q) => q.alive && !q.woundOut && !q.fleeing && !q.gone);
+      F.lossInitial = F.lossUnits.length;
+    }
     let alive = 0;
     for (const mate of F.lossUnits) if (mate.alive && !mate.woundOut && !mate.fleeing && !mate.gone) alive++;
     F.lossAlive = alive;
@@ -5061,3 +5070,17 @@ installBattleJinkei(hiei_mtn, [
 ]);
 
 export { hiei_mtn };
+
+// 11/14 owner-3（K109「味方が少ない」・act bot で横川の前に明智の手が37→6人で負けた）：
+//   西塔・横川へ入る時、本人の後ろから織田の新手を一手ずつ足し、負けの人数にも加える。
+function hieiAddLater(rt, name, road) {
+  const F = rt.flags, u = rt.player.u;
+  const g = allyGroup(rt, { faction: 'oda', fixed: true, noRout: true, name, anchor: { x: u.pos.x + 6, z: u.pos.z + 6 }, facing: Math.atan2(-u.pos.x, -u.pos.z), width: 4, aggro: 12, formation: 'column', colW: 2, order: 'hold', seekRange: 14 },
+    dress([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 12 }], ODA));
+  g.defMult = 2; g.dmgMult = 1; g.historicalOrders = true; F.oda.push(g);
+  if (F.lossUnits) for (const q of g.units) if (q.alive) F.lossUnits.push(q);
+  // 新しい山道の段は、その時に立っている者から数え直す（前の段の討死で次の段の始めから負けに近づけない）。
+  if (F.lossUnits) { F.lossUnits = F.lossUnits.filter((q) => q.alive && !q.woundOut && !q.fleeing && !q.gone); F.lossInitial = F.lossUnits.length; }
+  walk(g, road, 2.3, (q) => attackFrom(q, 24));
+  return g;
+}

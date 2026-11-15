@@ -2911,6 +2911,8 @@ const tedorigawa = {
     F.honjin = camp(rt, { x: 34, z: 104, facing: Math.PI, team: 0, faction: 'oda', mon: 'takigawa', noUma: true, tate: false, general: { name: '滝川一益' }, guard: 8, reserve: 0, runTo: { x: SOUTH.x, z: SOUTH.z + 10 } });
     F.ehon = camp(rt, { x: 64, z: -206, facing: 0, team: 1, faction: 'uesugi', mon: 'uesugi', noUma: true, tate: false, armor: 0x2a2a2a, guard: 8, reserve: 0, runTo: { x: 0, z: -150 } });
     F.ehon.guard.name = '上杉謙信の旗本';
+    // 11/15 bot（クラウドせ）：滝川の座の組（供回りを足すと九人）が150秒ごろ「敵が来た」で attack になり、届かない敵を指して幕の前 (27〜41,99) を行き来し重なった（★★）。座は持ち場のまま。
+    { const hg = F.honjin.general?.group; if (hg) { hg.stay = true; hg.order = 'hold'; } }
     // 11/6 kaito 十二4：謙信は馬上で、自ら先頭に立って追い討ちに来る（陣幕の床几に座らせない）。
     //   馬廻の騎馬を連れ、陣幕の前で待つ。討てない（伝わる討死は無い）。謙信が先頭で川岸まで追ったかは軍記と伝承の筋で、書状写は追い討ちを伝えるだけ。
     // 11/6 BT：陣幕（北東の奥）から駆けて来るのでは殿の火へ着くまで二分かかった。上杉の先手のすぐ後ろ（闇の中）で待たせる。

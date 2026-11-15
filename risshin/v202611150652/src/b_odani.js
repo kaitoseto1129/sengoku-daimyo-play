@@ -1587,6 +1587,7 @@ const HORI = ODANI_PLAN.hori.map((h) => {
     return dip(x, z) * Math.min(1, (ax - 2.6) / 1.5, (OHORIKIRI.len / 2 - ax) / 1.5);
   };
 });
+const HORI_KYO_KOMA = HORI.filter((f, i) => ODANI_PLAN.hori[i].kind === 'horikiri' && ODANI_PLAN.hori[i].pts[0][1] === GATE_KYO_KOMA.z);
 const baseWithHori = (x, z) => HORI.reduce((a, f) => a + f(x, z), baseTerrain(x, z));
 // 坂の両端を直線で切らず、端の外だけ元の斜面へ戻す。
 // 区間内の勾配と幅は保ち、重なる坂の端に縦の裂け目を作らない。
@@ -1625,6 +1626,17 @@ function height(x, z) {
     if (dip < 0) {
       const t = (HON.z0 - z) / (HON.z0 - NAKAMARU.z1);
       h = Math.min(h, HON.level + (NAKAMARU.level - HON.level) * t + dip);
+    }
+  }
+  // 11/15 クラウドし K289②：京極丸と小丸の間の堀切は、両側の曲輪の切岸が5mの隙間で重なって底が平らに埋まり、
+  //   曲輪の中の四角い穴に見えた。両側の縁を結ぶ高さに薬研の窪みを置き直し、両端も丸く落とす（土橋は下の坂と当たりで残す）。
+  if (Math.abs(z - GATE_KYO_KOMA.z) < 2.2 && x < -2.75 && x > -16) {   // 東は斜面へ開いた堀なので元のまま（新手が東の縁で止まった）
+    let dip = 0;
+    for (const f of HORI_KYO_KOMA) dip = Math.min(dip, f(x, z));
+    if (dip < 0) {
+      const t = (z - KOM.z1) / (KYO.z0 - KOM.z1);
+      const rim = KOM.level + (KYOGOKU2.level - KOM.level) * Math.max(0, Math.min(1, t));
+      if (h > rim - 4.4) h = rim + dip;   // 尾根の外の斜面（縁より低い所）はそのまま
     }
   }
   // 中央の土橋と小丸の脇道は、今までの歩ける坂を最後に重ねる。
@@ -3091,6 +3103,16 @@ const odani = {
   // 11/13 K285 MB係三：本物だけの流しで、清水谷の登り（段2）に新手が重なり act bot が三百秒で倒れた（待つ備なしでは段4まで進む・本人が倒れない流しでは落城まで）。
   //   新手の打ち込みを弱め、立てるのは谷を登り切る頃から
   reserveDmgMult: 0.45, reserveSize: 20,
+  // 11/15 クラウドす（K112・act bot）：cut の段で味方の新手が本人の前45m の切岸の下（-9,-114）に立ち、行き先 (-27,-100) へ登れず二十秒止まった（29回）。
+  //   新手は本人と同じ高さ（差4m 内）の所にだけ立てる。敵の新手は frontFill の既定どおり「行き先の印より遠く」へは置かない
+  reserveOk: (rt, p, foe) => {
+    const me = rt.player?.u?.pos;
+    if (me && Math.abs(rt.world.heightAt(p.x, p.z) - me.y) > 4) return false;
+    if (!foe || !me) return true;
+    let bd = 1e9, q = null;
+    for (const m of rt.markers || []) { const c = typeof m.pos === 'function' ? m.pos() : m.pos; if (!c || !Number.isFinite(c.x)) continue; const d = Math.hypot(c.x - me.x, c.z - me.z); if (d < bd) { bd = d; q = c; } }
+    return !q || Math.hypot(p.x - q.x, p.z - q.z) <= Math.max(65, bd + 10);
+  },
   reserveFrom: 420, reserveDist: 40,   // 160 秒からでも西木戸の手前で bot が倒れた（二度）。京極丸を取る頃から   // 陣の厚み（11/13 クラウドF・depth_reserve.js）：浅井の新手を 50 秒から、本人の 40m 先の曲輪の道に待たせる
   lethal: { max: 4, firstAt: 90, gap: 60, soft: true },   // 命懸けの戦場（docs/lethal_howto.md。先取りの列 豊臣A 11/9）。11/10 関所係：act bot が南木戸と西木戸で倒れ続けるので倒れすぎない強さに
   resumeSteps: [[1, 'climb'], [2, 'assault']],   // 戦の途中の保存（battle_checkpoint.js）：段の始まりを、段の関数を順に流して作り直す

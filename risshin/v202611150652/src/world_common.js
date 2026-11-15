@@ -72,9 +72,13 @@ function fireFillObject(o) {
   if (Array.isArray(o.material)) { for (const mat of o.material) fireFillMaterial(mat); }
   else fireFillMaterial(o.material);
 }
+// 頁の住所（?norender）は頁の間は変わらないので一度だけ調べる（毎コマ兵ごとに正規表現を回していた。K314）
+let qNoRender = null;
 export function isNoRender() {
-  return typeof window !== 'undefined' && (window.__norender === true ||
-    typeof location !== 'undefined' && /[?&]norender\b/.test(location.search));
+  if (typeof window === 'undefined') return false;
+  if (window.__norender === true) return true;
+  if (qNoRender === null) qNoRender = typeof location !== 'undefined' && /[?&]norender\b/.test(location.search);
+  return qNoRender;
 }
 
 // 山道の全区間を兵ごとにたどらず、足もとの十二メートルの升だけを見る。

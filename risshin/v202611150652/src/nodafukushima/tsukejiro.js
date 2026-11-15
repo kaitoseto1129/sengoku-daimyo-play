@@ -109,7 +109,7 @@ export function build(rt) {
 // 11/15 K113：付城の一斉射の白煙は、兵の煙（army.smokes・上限140）と別の小さな束（上限56・描く回数一回）で描く。
 //   引きの絵でも柵の前に煙の壁が立つよう一粒を大きく長く。本物の撃ち手の煙の枠を一つも使わない。
 const PUFF_CAP = 56;
-function puffBatch(rt) {
+export function puffBatch(rt) {
   const A = rt.army;
   A.prepareSmokeTexture?.();
   const base = new THREE.PlaneGeometry(1, 1), g = new THREE.InstancedBufferGeometry();
@@ -154,7 +154,7 @@ void main(){ vec4 t = texture2D(map, vUv); gl_FragColor = vec4(tint * t.rgb, t.a
   return { mesh, puffs, mat, dispose() { rt.scene.remove(mesh); g.dispose(); base.dispose(); mat.dispose(); } };
 }
 // 一つ吹く。枠が尽きたら一番古い粒を使い回す
-function puffOut(T, x, y, z, fx, fz, big) {
+export function puffOut(T, x, y, z, fx, fz, big) {
   let p = T.puffs.find((o) => !o.on);
   if (!p) { p = T.puffs[0]; for (const o of T.puffs) if (o.t / o.life > p.t / p.life) p = o; }
   const burst = 2.5 + Math.random() * 3.5, calm = 1 + 0.6 * Math.max(0, Math.min(1, 1.15 - (WIND_STATE.gust ?? 1)));
@@ -166,7 +166,7 @@ function puffOut(T, x, y, z, fx, fz, big) {
   T.puff.mesh.visible = true;
 }
 // 毎コマ粒を流す：前へ吹き出してすぐ勢いを失い、風に流されて広がり薄れる
-function flowPuffs(rt, T, dt) {
+export function flowPuffs(rt, T, dt) {
   const W = rt.world, wx = WIND_STATE.dirX * 0.9 * (WIND_STATE.gust ?? 1), wz = WIND_STATE.dirZ * 0.9 * (WIND_STATE.gust ?? 1);
   const fc = W.scene?.fog?.color, amb = fc ? Math.max(0.3, Math.min(1, (fc.r * 0.3 + fc.g * 0.59 + fc.b * 0.11) * 1.75)) : 1;
   T.puff.mat.uniforms.tint.value.set(W.timeKey === 'dusk' ? 0xc4b4a2 : W.timeKey === 'storm' ? 0x90948f : 0xf4f2ee).multiplyScalar(amb);

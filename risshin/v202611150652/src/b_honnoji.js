@@ -5067,6 +5067,10 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
     for (const b of Object.values(F.blazes || {})) b.stop();
     for (const g of [F.nbG, F.kosho, F.uma, F.frontGuard, F.kinju, F.umayaOda, ...(F.templeCourtiers || []), ...(F.posts || []), ...F.foes]) if (g) for (const u of g.units) if (u.alive) rt.army.despawn(u);
     F.foes.length = 0;
+    // 11/15 クラウドせ：寺の段の新手（depth_reserve の「新手」「味方の新手」）も消す。残すと寺の西の外れ (-172,11) で
+    //   二十秒斬り合いのまま立ち尽くし（act bot 682秒 defend・★★6回）、二条の段まで本物の兵の数と重さを食っていた
+    for (const g of rt.army.groups || []) if (g && (g.isReserve || g.name === '新手' || g.name === '味方の新手')) for (const u of g.units) if (u.alive) rt.army.despawn(u);
+    if (F._dr) { F._dr.E.length = 0; F._dr.A.length = 0; if (F._dr.F) F._dr.F.length = 0; }
     teleport(rt, NIJO_GATE.x + 5, NIJO_GATE.z + 2);
     rt.after(1.2, () => { rt.scene.visible = true; });
     rt.banner('二条御所の西の門を守れ', '信忠様は妙覚寺から二条御所へ移り、明智を迎え撃つ');   // 時が飛ぶので、真ん中に次の目標を出す（kaito AT7）
@@ -5217,6 +5221,8 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
       g.anchor = { x: c.x, z: c.z };
       for (const u of g.units) { u.target = null; u.moveTo = null; }
     }
+    // 11/15 クラウドせ：御所に残った信忠の手は御所で討死した（史実）。木戸まで落ちた後も門の前 (44,-59) に十五人が重なって残っていた（act bot 683秒 end）
+    for (const g of [F.tada, F.nGuard, F.ngun]) if (g) for (const u of g.units) if (u.alive) rt.army.despawn(u);
     F.shisha = allyGroup(rt, { fixed: true, name: '使者', anchor: { ...SHISHA_DOOR }, facing: Math.PI / 2, width: 1, aggro: 0, noRout: true, order: 'hold' },
       [{ type: 'porter', n: 1, o: { name: '使者', kosode: 1, kosodeCol: 0x544a3e, obi: 0x30251c, flag: null, horse: false, invuln: true } }]);
     F.shishaU = F.shisha.units[0];
