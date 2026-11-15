@@ -1091,6 +1091,7 @@ export class Army {
     // 戦が noboriBand（N）を決めた時は、N 人に一人を幟にし、指物の大きさを決めた隊でも幟を立てる（K292 図鑑の「旗の帯」）
     if (this.world.def.blockForm && !g.isPlayerSquad) { if (!g.blocky) g._mix = null; g.blocky = true; }   // 11/14 K292：備を厚い四角の塊に（units_group.js layout）
     const band = !this.world.def.noboriFactions || this.world.def.noboriFactions.includes(g.faction) ? this.world.def.noboriBand || 0 : 0, bigEvery = band || 6;   // noboriFactions：幟の帯をその家だけに（本能寺は寄せる明智だけ。寺の内の上様の小姓は幟を負わない）
+    // noboriSam：名の無い徒の侍も幟の帯に入れる（11/15 K292 クラウドさ：天王寺の徳川の先手は侍・鉄砲が多く、後ろからの引きで家の旗が少なかった）
     let bigFlags = total >= 6 && !g.isPlayerSquad ? Math.floor(total / bigEvery) : 0, bigStep = 0;
     // 組の番号：同じ側・同じ家の徒歩の隊に、出た順に一番〜三番（騎馬の隊・小さな隊には付けない）
     if (!g.kumiNo && !g.cav && total >= 6) {
@@ -1123,7 +1124,7 @@ export class Army {
         const liteSam = spec.type === 'samurai' && total >= 10 && !g.isPlayerSquad && !(chiefSpec && g.lordHere) && !spec.o?.name && !spec.o?.keep && !spec.o?.horse && !spec.o?.armor && samN++ % 3 !== 0;
         // 大きめの部隊には隊旗を持つ旗持ちを一人（鉄砲の隊は、小旗の中に大きな隊旗が一本）
         const bo = banner && (spec.type === 'ashigaru' || (g.isGun && spec.type === 'gun')) && !(spec.o && spec.o.flag === null) ? { flagScale: 2.1 } : {};
-        const big = !bo.flagScale && bigFlags > 0 && (spec.type === 'ashigaru' || (band && spec.type === 'gun')) && !spec.o?.name && spec.o?.flag !== null && (spec.o?.flagScale == null || (band && spec.o.flagScale < 1.8)) && bigStep++ % bigEvery === (band ? band >> 1 : 3) ? { flagScale: band ? (this.world.def.noboriScale || 2.8) : 1.9 } : {};   // noboriScale：引きで家の旗の色が読めるよう、戦ごとに幟の帯の大きさを決める（K292 設楽原 iMac七）。11/15 iMac三十 K324：既定を 2.4→2.8（稲生3・設楽原3.1 と戦ごとに上げていた。引きで細い線に溶けない）
+        const big = !bo.flagScale && bigFlags > 0 && (spec.type === 'ashigaru' || (band && spec.type === 'gun') || (band && this.world.def.noboriSam && spec.type === 'samurai' && !spec.o?.horse)) && !spec.o?.name && spec.o?.flag !== null && (spec.o?.flagScale == null || (band && spec.o.flagScale < 1.8)) && bigStep++ % bigEvery === (band ? band >> 1 : 3) ? { flagScale: band ? (this.world.def.noboriScale || 2.8) : 1.9 } : {};   // noboriScale：引きで家の旗の色が読めるよう、戦ごとに幟の帯の大きさを決める（K292 設楽原 iMac七）。11/15 iMac三十 K324：既定を 2.4→2.8（稲生3・設楽原3.1 と戦ごとに上げていた。引きで細い線に溶けない）
         if (big.flagScale) bigFlags--;
         const so = standard && spec.type === 'ashigaru' && !spec.o?.name && !spec.o?.sohei && !spec.o?.kosode && !spec.o?.keep && !spec.o?.horse && spec.o?.flag !== null
           ? { standard: chiefGear?.flag || chiefSpec.o.flag || GENERALS[chiefSpec.o.name.replace(/^.* /, '')]?.flag || FACTION[g.faction]?.flag || 'oda', flag: null, weapon: 'none', dmg: 0 } : {};

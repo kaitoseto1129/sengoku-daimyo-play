@@ -5456,6 +5456,14 @@ kizugawa.lethal = true;
 kizugawa.fearKind = { kind: '囲まれた船', note: '六百余艘に囲まれ、甲板に火と乗り込みが来る', w: { iso: 1.2 }, line: '船べりから上がって来るぞ！' };
 kizugawa.sides = { a: { name: '織田水軍（九鬼）', mon: 'kuki' }, b: { name: '毛利水軍', mon: 'mori' } };
 // 敵の大将船の主は史料で特定されない。名のある将を自船へ乗り込ませない。
+// 軍議の図（K327）：九鬼の二手と滝川の白船、毛利の四手を、JIN の位置のまま駒で置く。敵の将の名は史料に無いので名は付けない
+kizugawa.introFujin = [
+  { team: 0, name: '九鬼嘉隆', x: 1, z: 4, men: 120 }, { team: 0, x: 38, z: -42, men: 120 }, { team: 0, x: 76, z: -84, men: 120 },
+  { team: 0, x: -40, z: 56, men: 120 }, { team: 0, x: -2, z: 98, men: 120 }, { team: 0, x: 36, z: 140, men: 120 },
+  { team: 0, name: '滝川一益', x: 84, z: 46, men: 100 },
+  { team: 1, x: -130, z: 65, men: 1200 }, { team: 1, x: -226, z: 35, men: 1200 },
+  { team: 1, x: -70, z: 149, men: 1200 }, { team: 1, x: -226, z: 149, men: 1200 },
+];
 kizugawa.famous = [];
 kizugawa.date = () => '天正六年十一月六日　冬・辰から午';
 kizugawa.canSkip = (rt) => (rt.phase === 'brief' && rt.t > 3 ? '戦いを始める' : '');

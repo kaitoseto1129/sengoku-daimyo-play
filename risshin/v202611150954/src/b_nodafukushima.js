@@ -3737,6 +3737,10 @@ const nodafukushima = {
       dress([{ type: 'busho', n: 1, o: { name: '岩成友通', horse: false, invuln: true, allyOk: true, flagScale: 2.2 } }, { type: 'samurai', n: 3 }, { type: 'ashigaru', n: 12 }], MIYOSHI));
     // 出撃の下知までは門内を守る。共通の救援・前進で持ち場を替えると、閉じた塀へ寄って止まる。
     F.sally.order = 'hold'; F.sally.stay = true;
+    // 11/15 クラウドさ（K281 陣の厚み）：その後ろ、門内の塀の陰に二の手の新手が控える（打って出た列が崩れたら同じ門から出る）。
+    F.sally2 = enemyGroup(rt, { faction: 'miyoshi', name: '門内に控える三好の新手', anchor: { x: 0, z: -49.5 }, facing: 0, width: 14, aggro: 5, seekRange: 12, morale: 90, noRout: true, fleeDir: { x: 0, z: -1 }, formation: 'yari' },
+      dress([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 24 }], MIYOSHI));
+    if (F.sally2) { F.sally2.order = 'hold'; F.sally2.stay = true; }
     // 開戦25秒の小競り合い（10/30）：竹束を据える間、浅瀬の中ほどで佐々の先手と三好の物見が槍を合わせる（持ち場の前10〜15m）。
     // 兵は足さない（佐々の足軽12→2・砦の前の三好勢の足軽14→4 の十人ずつを回す。10/30 夜：竹束の三つの置き場のどれへ向かっても写るよう、中と西の束の前へ横に広げた）。小競り合いなので双方の打ちは弱く、崩れない。
     // 10/31 kaito「小隊対小隊はチープ」：二か所の小競り合いをやめ、三好の物見十五人を一つの塊にして浅瀬の向こう（持ち場の前二十歩）に置く。
@@ -3928,6 +3932,30 @@ const nodafukushima = {
     });
   },
 
+  // 二の手：門内の三好の新手が、先の列と同じ門・土橋・浅瀬の道で岸へ寄せる（K281 陣の厚み）
+  sallySecond(rt) {
+    const F = rt.flags;
+    if (F.sally2Out || F.step !== 2) return;
+    F.sally2Out = true;
+    // 控えが枠で減っていたら、遠い兵を退かせて足す（門内の奥から出る）。
+    let g = F.sally2;
+    if (!g || g.count < 12) {
+      makeRoom(rt, 26);
+      g = F.sally2 = enemyGroup(rt, { faction: 'miyoshi', name: '三好の新手', anchor: { x: 0, z: -62 }, facing: 0, width: 8, aggro: 5, seekRange: 12, morale: 90, noRout: true, fleeDir: { x: 0, z: -1 }, formation: 'yari' },
+        dress([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 24 }], MIYOSHI));
+    }
+    if (!g?.units?.length) return;
+    g.name = '三好の新手'; g.stay = false;
+    F.nodaGate?.sally(); F.sallyGateOpen = true;
+    g.formation = 'column'; g.colW = 2; g.roadColumn = true; g.followColumnRoad = true;
+    g.order = 'path'; g.dest = null; g.speed = 2.6;
+    g.path = [[0, -80], [0, -56], [NODA_GATE.x, NODA_GATE.z], [0, -38], [0, -30], [1, LEVEE_Z - 12]];
+    g.pathIdx = 1;
+    g.onArrive = (q) => { if (q.order === 'attack') return; q.order = 'attack'; q.path = null; q.roadColumn = false; q.formation = 'yari'; q.yariRanks = 3; q.seekRange = 70; q.aggro = 14; };
+    rt.after(30, () => { if (F.sally2) F.sally2.noRout = false; });
+    rt.say('前田利家', '門からまた出るぞ！　三好の新手じゃ、列を崩すな！', 3);
+  },
+
   // 退き口を保ったら、敵を追わず囲みを解く
   midB(rt) {
     if (rt.flags.step !== 3) return;
@@ -3953,7 +3981,7 @@ const nodafukushima = {
     dayCut(rt, 12, 'night', '九月十二日夜半・本願寺の早鐘', '大坂の寺内の鐘を合図に、門徒が織田の陣の後ろへ寄せる');
     // 11/6（kaito 九2）：本物の兵の枠（cappedList の 225）が昼の兵で埋まり、門徒の五組が一人も出ていなかった。
     //   暗転の間に、砦へ退いた三好の槍の列・物見・遠い野田砦の旗本・砦の奥の本陣を退かせ、門徒の枠を空ける（夜は堤から見えない所）。
-    for (const g of [F.sally, F.namedGuards?.[2], F.campB?.guard]) for (const u of g?.units || []) {
+    for (const g of [F.sally, F.sally2, F.namedGuards?.[2], F.campB?.guard]) for (const u of g?.units || []) {
       if (u.alive && !u.isPlayer && Math.hypot(u.pos.x - rt.player.u.pos.x, u.pos.z - rt.player.u.pos.z) > 25) rt.army.despawn(u);
     }
     // 寺の早鐘は低く響く梵鐘の乱れ打ち。陣鉦の高い金物音と区別する。
@@ -4331,7 +4359,7 @@ const nodafukushima = {
     }
     if ((F.step === 2 || F.step === 3) && !F.retreating && rt.t >= (F.pressureAt || 0)) {
       // 夜の門徒の狙いは waveFocus で近い味方へ分ける。共通の寄せで全組を本人へ向け直さない。
-      pressureTick(rt, F.step, F.step === 2 ? [F.sally] : NO_GROUPS, [F.maeda, F.sassa], '');
+      pressureTick(rt, F.step, F.step === 2 ? (F.sally2Out ? [F.sally, F.sally2] : [F.sally]) : NO_GROUPS, [F.maeda, F.sassa], '');
       // 持ち場は任務札に残す。三十秒おきの同じ下知は出さない。
       F.pressureSayAt = Infinity;
     }
@@ -4523,6 +4551,14 @@ const nodafukushima = {
           F.sally.units.some(u => canJoin(u) && Math.abs(u.pos.y - p.u.pos.y) < 3 &&
             Math.hypot(u.pos.x - p.u.pos.x, u.pos.z - p.u.pos.z) < 8 &&
             !rt.army.wallBetween(p.u.pos, -1, u.pos) && !rt.army.terrainBlocks(p.u.pos, u.pos))) F.sallyMetAt = rt.t;
+      // 11/15 クラウドさ（K281 陣の厚み・200秒に30〜60mの敵16）：打って出た列が半ばを割るか五十五秒で、
+      //   門内に控えた三好の新手二十六人が二の手として同じ土橋から出る（一つの列を潰して終わりにしない）。
+      if (!F.sally2Out && !F.sallyTimedOut && !F.nightAt && !F.sally.stay && F.sally.order !== 'retreat' &&
+          (gone(F.sally) || F.sally.count * 2 < 16 || rt.t - F.stepT >= 55)) this.sallySecond(rt);
+      const s2 = F.sally2;
+      if (s2 && F.sally2Out && s2.order === 'path' && s2.onArrive && s2.units.some(u => canJoin(u) && u.pos.z > LEVEE_Z - 18)) {
+        const charge = s2.onArrive; s2.onArrive = null; charge(s2);
+      }
       // 先頭が浅瀬の南岸へ届けば斬り合いへ。後列の整列待ちは省くが、門内では寄せを続ける。
       if (F.sally.order === 'path' && F.sally.onArrive &&
           F.sally.units.some(u => canJoin(u) && u.pos.z > LEVEE_Z - 18)) {
@@ -4537,7 +4573,7 @@ const nodafukushima = {
         F.sallyGateOpen = true;
       }
       // 敗走中の兵も帰着を待つ。canJoin は敗走兵を除くので、門の判定には使わない。
-      if (F.sallyGateOpen && F.sally.units.every(u => !u.alive || u.gone ||
+      if (F.sallyGateOpen && F.sally.units.concat(F.sally2Out && F.sally2?.units || []).every(u => !u.alive || u.gone ||
           (F.sallyReturning ? u.pos.z < NODA_GATE.z - 3 : !canJoin(u) || u.pos.z > NODA_GATE.z + 3))) {
         F.sallyGateOpen = false;
         if (!F.nodaGate.breached) F.nodaGate.close();
@@ -4569,7 +4605,7 @@ const nodafukushima = {
       // 11/6 作り直し：押し返したら浅瀬を渡って砦の口へ詰めない（城の中へ突撃する戦ではない）。岸で列を整え、その夜の早鐘へ。
       // 味方の鉄砲だけで退けても、本人が井楼に残ったまま防戦済みにはしない。
       // 先に敵が退いた場合も、浅瀬の岸へ加われば次へ進める。
-      if ((gone(F.sally) || F.sallyTimedOut) && !F.nightAt && p.u.alive && !F.onSeirou &&
+      if ((gone(F.sally) && (!F.sally2Out || gone(F.sally2)) || F.sallyTimedOut) && !F.nightAt && p.u.alive && !F.onSeirou &&
           Math.hypot(p.u.pos.x, p.u.pos.z + 21) < 12) {
         F.nightAt = rt.t + 8; F.sallyDone = true;
         // 接敵せずに時間の上限で退いた敵を、本人の撃退の戦功にしない。
@@ -4586,6 +4622,7 @@ const nodafukushima = {
         F.sally.onArrive = null; F.sally.focus = null; F.sally.order = 'retreat'; F.sally.noRout = false;
         // 出撃時の南岸の行き先を残すと、退却の下知でも岸に居残ってしまう。
         F.sally.dest = { x: 0, z: -56 };
+        if (F.sally2) { F.sally2.onArrive = null; F.sally2.focus = null; F.sally2.order = 'retreat'; F.sally2.noRout = false; F.sally2.dest = { x: 0, z: -56 }; }
         // 退く上限と本人の任務達成を分ける。井楼に残ったまま次の夜へ飛ばさない。
         F.sallyTimedOut = true;
         rt.say('前田利家', '三好が塀の内へ退くぞ。追うな、浅瀬の岸で列を整えよ！', 3);

@@ -2457,8 +2457,9 @@ const saika = {
   // 自動の備も岸ごとの持ち場に置く。川中や対岸に味方を作ると、杭越しの追撃で止まる。
   // 11/15 クラウドす（K324・act bot 196秒「新手12人が重なり17組で止まる」(-58,21)）：西岸の家並み（-66,±27・半径14）の中には置かない。
   //   家の間に置かれた新手は、柵の内の空きへ出る道を家に塞がれ、一点に重なったまま動けなかった。
+  // 11/15 クラウドい：家並み（x=-48.5・|z|44〜134）の東側 x>-56 の新手は家の間（隙1.5m）で足を塞がれ (-44,48) で20秒止まった。|z|>=40 では家の西 x<=-56 だけに置く。
   reserveOk: (rt, p, foe) => !rt.flags.bankCeasefire && rt.flags.step < 6 &&
-    Math.abs(p.z) < 100 && (foe ? p.x <= -54 && Math.hypot(p.x + 66, Math.abs(p.z) - 27) > 24 : p.x >= 16),   // 新手は幅18の横の列。端の兵も家に掛からない間を取る
+    Math.abs(p.z) < 100 && (foe ? p.x <= -54 && (Math.abs(p.z) < 40 || p.x <= -56) && Math.hypot(p.x + 66, Math.abs(p.z) - 27) > 24 : p.x >= 16),   // 新手は幅18の横の列。端の兵も家に掛からない間を取る
   reserveRelease: () => false, // 渡河と寄せは筋書きの組が担い、二線は岸を守る。
   reserveFold: (rt) => !!rt.flags.bankCeasefire || rt.flags.step >= 6,
   footRunners: true, // 杭と竹束が並ぶ浅瀬では使番も徒歩。馬で作業兵の間へ割り込まない。
@@ -3725,6 +3726,17 @@ const saika = {
     });
   },
   update(rt, dt) {
+    // 11/15 クラウドわ（K324・act bot 316〜396秒「東岸の織田鉄砲衆12人 号令 move・縦隊・(8,0) で重なり21組」）：
+    //   竹束（x 7・z ±4）のすぐ東 (10,0) へ縦隊で寄せると、列の後ろの持ち場が竹束の西へ伸び、兵が束に当たって着かない。
+    //   要が持ち場に着いたら縦隊を解き、竹束の東で西を向く二列の横隊に構えさせる。
+    const TP = rt.flags.teppo;
+    if (TP && !TP.routed && TP.order === 'move' && TP.dest && Math.abs(TP.dest.x - 10) < 0.5 && Math.abs(TP.dest.z) < 0.5 &&
+        Math.hypot(TP.anchor.x - TP.dest.x, TP.anchor.z - TP.dest.z) < 0.5) {
+      const f = TP.onArrive; TP.onArrive = null;
+      TP.anchor.x = 10.5; TP.anchor.z = 0; TP.dest = null;
+      if (f) f(TP);
+      TP.order = 'hold'; TP.facing = WEST; TP.formation = 'line'; TP.width = 6;
+    }
     // 共通の新手が近敵を追って杭や高岸へ向かわないよう、岸の守りへ引き継ぐ。
     // 待ちの解除もここで済ませ、共通の接敵処理が再び攻撃の下知へ替えないようにする。
     for (const g of rt.army.groups) if ((g.isReserve || g._rsv) && !g.saikaBankReserve && !g.routed) {
@@ -3755,6 +3767,21 @@ const saika = {
         const c = g.center();
         if (c && throughSaikaVillage(c, g.anchor)) { g.anchor.x = A.x; g.anchor.z = A.z; }
         else { A.x = g.anchor.x; A.z = g.anchor.z; }
+      }
+      // 11/15 クラウドわ（K324・act bot 185秒「新手の足軽が attack・行き先(-33,29)(-24,18)・(-44,48) で20秒」）：
+      //   西岸の柵（x=BANK・川上から川下まで切れ目なし）の内の新手が東岸の敵へ打って出ると、柵に当たって止まる。
+      //   柵の内の新手は柵越しに追わず、柵の内で構える（二線は岸を守る。kaito K122「敵が柵から降りてくる」）。
+      for (const g of rt.army.groups) {
+        if (!g.saikaBankReserve || g.team !== 1 || g.routed || !g.count) continue;
+        const c = g.center();
+        if (!c || c.x > BANK + 1) continue;
+        g.guardSight = Math.min(g.guardSight || 30, 12); g.seekRange = Math.min(g.seekRange || 18, 6);
+        if (g.order === 'attack' || g.order === 'move' && g.dest && g.dest.x > BANK) {
+          g.order = 'hold'; g.focus = null; g.dest = null; g.path = null;
+          if (g.anchor.x > BANK - 4) g.anchor.x = BANK - 4;
+          g.facing = EAST;
+        }
+        for (const u of g.units) if (u.alive && u.target && u.target.pos && u.target.pos.x > BANK + 0.5) u.target = null;
       }
     }
     huntPlayer(rt, dt);

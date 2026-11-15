@@ -1485,10 +1485,9 @@ function nfSanadaStage(rt) {
 //   本人から五百m離れた夜明けのうちに持ち場ごと移す。向きは柵の端の外（東南）
 function k334Flank(rt) {
   const F = rt.flags;
-  (F.lineGuns || []).filter((q) => q.anchor.z > 400).forEach((q, i) => {
-    const x = SB.x0 - 3 - i * 4, z = SB.z1 - 3 - i * 5, dx = x - q.anchor.x, dz = z - q.anchor.z;
-    for (const u of q.units) if (u.alive) { u.pos.x += dx; u.pos.z += dz; if (u.pos.y != null && rt.world?.heightAt) u.pos.y = rt.world.heightAt(u.pos.x, u.pos.z); }
-    q.anchor.x = x; q.anchor.z = z; q.facing = Math.PI / 3; q.aggro = 64; q.fireArc = Math.PI * 150 / 180; q.fire = true; q.holdFire = false;
+  // 据え場へは初めから置く（11/15 クラウドわ：一息に飛ばさない）。ここでは向きと撃つ構えだけ替える
+  (F.lineGuns || []).filter((q) => q.anchor.z > 400).forEach((q) => {
+    q.facing = Math.PI / 3; q.aggro = 64; q.fireArc = Math.PI * 150 / 180; q.fire = true; q.holdFire = false;
   });
 }
 function nfSend(rt, g, gateZ) {
@@ -3325,7 +3324,9 @@ const shitaragahara = {
     //   K285 で絵の鉄砲列が無くなり空だった。帯ごとに本物の小さな鉄砲組を三つの柵へ順に置く（口の斉射の番には入れず、寄った敵を撃つ）
     F.lineGuns = [];
     [-470, -425, -215, -165, 100, 150, 200, 250, 425, 470].forEach((z, i) => {
-      const q = allyGroup(rt, { faction: z < odaZ ? 'oda' : 'tokugawa', name: '柵の鉄砲衆', noRetinue: true, fixed: true, fullStrength: true, noGuard: true, anchor: { x: SB.x0 - 2.4 - (i % 3) * SB.gap, z }, facing: Math.PI / 2, width: 8, spacing: 1.6, ranks: 1, aggro: 44, fire: true, holdFire: false, dmgMult: 0.8 }, [{ type: 'gun', n: 2 }]);   // 11/15 iMac三十四（K210）：口から遠い帯は二挺（十帯で三十→二十）   // 11/14 K119 iMac二十五：パソコンも三挺（本物の兵が316人で上限290を超えていた）
+      // 11/15 クラウドわ：南の端の二組は初めから柵の端（k334Flank の据え場）に置く（62秒で七十m一息に飛んでいた）
+      const fl = z > 400 ? (z > 450 ? 1 : 0) : -1;
+      const q = allyGroup(rt, { faction: z < odaZ ? 'oda' : 'tokugawa', name: '柵の鉄砲衆', noRetinue: true, fixed: true, fullStrength: true, noGuard: true, anchor: fl >= 0 ? { x: SB.x0 - 3 - fl * 4, z: SB.z1 - 3 - fl * 5 } : { x: SB.x0 - 2.4 - (i % 3) * SB.gap, z }, facing: Math.PI / 2, width: 8, spacing: 1.6, ranks: 1, aggro: 44, fire: true, holdFire: false, dmgMult: 0.8 }, [{ type: 'gun', n: 2 }]);   // 11/15 iMac三十四（K210）：口から遠い帯は二挺（十帯で三十→二十）   // 11/14 K119 iMac二十五：パソコンも三挺（本物の兵が316人で上限290を超えていた）
       if (z > 400) q.directOrders = true;   // K334：南の端の二組は大久保が自ら下知する（k334Flank で柵の端へ据え直す）
       F.lineGuns.push(q);
     });

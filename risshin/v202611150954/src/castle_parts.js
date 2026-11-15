@@ -687,6 +687,13 @@ export const jinmakuBox = (rt, x, z, w, d, o) => honjin(rt, x, z, w, d, o);
 // 井楼（組上げの物見）：monomi の 'seiro'（屋根なし・段ごとに横木）。o.kind で 'ro'（屋根と板囲い）にもできる
 export const seiro = (rt, x, z, o = {}) => monomi(rt, x, z, { kind: 'seiro', ...o });
 
+// 戸口の両脇の篝：火だけを地面の上 0.9m に置くと台の無い火の玉が宙に浮いて見えた（11/15 クラウドか・高遠の主殿）。
+// 三本脚の鉄籠（二つで描く数二つ）を立て、火は籠の上（1.35m）に灯す。
+function doorKagaribi(rt, pts) {
+  const W = rt.world; if (!W) return;
+  if (rt.scene) rt.scene.add(kagaribiBatch(W, pts));
+  if (W.addFire) for (const [fx, fz] of pts) W.addFire(fx, fz, { torch: true, h: rt.scene ? 1.35 : 0.9 });
+}
 // 篝火台：三本脚の鉄籠を並べる。points=[[x,z],…]。o.lit で一つずつ火を灯す（照りは三つを使い回す。nightOnly 既定 true）
 // 灯さない並びは InstancedMesh 二つで描く
 export function kagaribiRow(rt, points, o = {}) {
@@ -1584,7 +1591,7 @@ export function goten(rt, x, z, o = {}) {
     // 戸口の両脇に篝（灯り二つ）：外からでも入口が分かる（B088）
     // 本堂の広い石段でも篝を踏板の外へ置く。段幅は共通処理と同じ戸幅＋三十センチ。
     const fireSide = inabaEntry ? Math.max(1.3, (entryW + .3) / 2 + .5) : 1.3;
-    if (o.doorFire !== false) for (const sd of [-1, 1]) { const [fx, fz] = P(doorX + sd * fireSide, ds * (d / 2 + 1.5)); rt.world.addFire(fx, fz, { torch: true, h: 0.9 }); }
+    if (o.doorFire !== false) doorKagaribi(rt, [-1, 1].map((sd) => P(doorX + sd * fireSide, ds * (d / 2 + 1.5))));
   } else {
     decks.push(addDeck({ x0: -w / 2 - 0.1, x1: w / 2 + 0.1, z0: d / 2 - 0.1, z1: d / 2 + 1.3, rot, cx: x, cz: z, y: y + 0.42, name: `${name}の縁側` }));
     decks.push(addDeck({ x0: -w / 2 - 0.1, x1: w / 2 + 0.1, z0: -d / 2 - 0.1, z1: d / 2 + 0.1, rot, cx: x, cz: z, y: y + 0.55, name }));
@@ -2265,7 +2272,7 @@ function villageGoten(rt, x, z, o = {}) {
     // 戸口の両脇に篝（灯り二つ）：外からでも入口が分かる（B088）
     // 本堂の広い石段でも篝を踏板の外へ置く。段幅は共通処理と同じ戸幅＋三十センチ。
     const fireSide = 1.3;
-    if (o.doorFire !== false) for (const sd of [-1, 1]) { const [fx, fz] = P(doorX + sd * fireSide, ds * (d / 2 + 1.5)); rt.world.addFire(fx, fz, { torch: true, h: 0.9 }); }
+    if (o.doorFire !== false) doorKagaribi(rt, [-1, 1].map((sd) => P(doorX + sd * fireSide, ds * (d / 2 + 1.5))));
   } else {
     decks.push(addDeck({ x0: -w / 2 - 0.1, x1: w / 2 + 0.1, z0: d / 2 - 0.1, z1: d / 2 + 1.3, rot, cx: x, cz: z, y: y + 0.42, name: `${name}の縁側` }));
     decks.push(addDeck({ x0: -w / 2 - 0.1, x1: w / 2 + 0.1, z0: -d / 2 - 0.1, z1: d / 2 + 0.1, rot, cx: x, cz: z, y: y + 0.55, name }));

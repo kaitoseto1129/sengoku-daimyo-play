@@ -266,6 +266,7 @@ const k15_tennoji_okayama = {
   botStat(rt) { const F = rt.flags; const H = hataTaore.STAT; return `K325 本陣の危うさ最大${HR.STAT.max}・隙間へ${HR.STAT.gapN}回・組み直し${HR.STAT.rgN}回・食い止め${HR.STAT.held ? '済' : '—'}・本陣の慌て段${HP.STAT.lv}（${Object.entries(HP.STAT.at).map(([k, v]) => k + '=' + v + '秒').join(' ')}）・馬廻${HP.STAT.uma}騎・陣幕${HP.STAT.folded ? '畳んだ' : '—'}・使番の足×${HP.STAT.cs}・旗本の一斉射撃${F.volN || 0}回・落とした騎馬${F.volKill || 0}騎・倒れた徳川の旗${H.fell}本（列へ一番近づいた敵${H.minD ?? '—'}m）`; },
   moveLim: 260,   // 11/15 クラウドわ（K315）：本物の兵を出す所の枠（battle_army_kit・battle.js は def の方を読む）も world.moveLim と同じに
   world: {
+    noboriSam: true,   // 11/15 K292 クラウドさ：名の無い徒の侍も幟を負う（徳川の先手の上に家の旗の林。units.js）
     noboriBand: 2, blockForm: true,   // 11/14 K292 クラウドせ 14:10：司令塔「塊ごとに同じ幟を10本以上・備を厚い四角に」で四人に一人→二人に一人・blockForm（units_group.js layout）。元：K292 クラウドせ：無名の足軽・鉄砲の四人に一人を高さのそろった幟に。備ごとに頭の上の旗の帯を作る（図鑑の天王寺の絵）
     seed: 1615507,
     drawLow: true,   // 携帯の描く解像度を .7/.6 に（実機 46→34ms。K073）
@@ -1266,7 +1267,13 @@ html:root body #hud:has(#h-prog[data-battle="k15_tennoji_okayama"]) #center-call
   //   → 届く高さの敵がいれば狙いを付けて斬り合いへ。いなければ行き先の脇（横へ 5m）へ回らせる
   unstick(rt, dt) {
     const F = rt.flags; F._usT = (F._usT || 0) + dt; if (F._usT < 1) return; const st = F._usT; F._usT = 0;
+    // 11/15 クラウドす：本人の 3.5m 内に居る攻めの敵が、狙いを持たず六秒立ち尽くした（act bot 618秒・毛利の新手の足軽）→ 二秒で本人を狙わせる
+    const PU = rt.player.u, pOk = PU && PU.alive && !PU.noTarget && (!PU.invuln || PU.allyOk);
     for (const u of rt.army.units) {
+      if (pOk && u.alive && u.team !== PU.team && !u.isPlayer && !u.fleeing && !u.target && !u.atk && !u.noTarget && !u.isStruct && !u.civ && u.group && u.group.order !== 'hold'
+        && Math.hypot(u.pos.x - PU.pos.x, u.pos.z - PU.pos.z) < 3.5 && Math.abs(u.pos.y - PU.pos.y) < 3) {
+        if ((u._bsT = (u._bsT || 0) + st) >= 2) { u._bsT = 0; u.target = PU; continue; }
+      } else u._bsT = 0;
       if (!u.alive || u.isPlayer || u.fleeing || u.target || u.atk || u.isStruct || u.name || u.isTaisho) { u._usT = 0; continue; }
       const far = u.farSim || u.qualityAbstract, g = u.group, m = far ? u._farWant : u.moveTo;   // 遠くの軽い兵は持ち場（_farWant）へ歩く（act bot 2回目：徳川の新手が (-95,110) で二十秒・本人から遠い）
       if (!g || !m || g.order === 'hold' || g.order === 'flee' || Math.hypot(m.x - u.pos.x, m.z - u.pos.z) < 1.6) { u._usT = 0; continue; }

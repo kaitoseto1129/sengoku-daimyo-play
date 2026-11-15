@@ -115,6 +115,13 @@ const stage = {
     let k = 0;
     for (const u of O.hon?.units || []) if (u.alive && u !== O.hide && k < 4) { u.moraleFleeDir = { x: 0.2, z: 1 }; u.fleeing = true; u.fleeT = rt.army.time; u.target = null; k++; }
     rt.say('徳川秀忠', '退くな！　旗本が背を見せて何とする！', 3.2);
+    // 11/15 クラウドす：主人公が脇に着かないと、浮き足立った旗本は旗から30m外へ逃げて立ち直らず、遠くの (32〜34,101〜114) で5〜6人が一点に重なって止まった（act bot）→ 25秒で旗のもとへ戻る
+    rt.after(25, () => this.unwaver(rt));
+  },
+  unwaver(rt) {
+    const O = rt.flags.oka;
+    if (!O?.hon) return;
+    for (const u of O.hon.units) if (u.alive && u.fleeing && u !== O.hide) { u.fleeing = false; u.moraleFleeDir = null; u.fright = 0; u.backUntil = 0; u.squadRallyTo = null; u.moveTo = null; u.aiT = 0; }
   },
   // 主人公が脇で踏み止まった：本陣が立て直る（手柄の場面）
   rally(rt) {
@@ -155,7 +162,7 @@ const stage = {
     flee([O.ono, O.onoB]);
     O.clash?.push?.('A', 1);
     O.clash?.rout?.('B', { from: 0, hideAfter: 20 });
-    if (alive(O.hon)) hold(O.hon, OKA_HON.x, OKA_HON.z - 4);
+    if (alive(O.hon)) { this.unwaver(rt); hold(O.hon, OKA_HON.x, OKA_HON.z - 4); }
     if (O.hide) O.hide.invuln = true;   // 岡山口が収まった後は、秀忠の身は危うくない（天王寺口の戦の間に逃げる兵に討たれて負けにしない）
     const mine = !!O.rallied;
     if (mine) rt.award((t) => t.side.push('岡山口で将軍の本陣の脇を固めた'), '将軍の本陣の脇を固めた');

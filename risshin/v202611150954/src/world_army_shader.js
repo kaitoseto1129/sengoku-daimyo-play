@@ -540,7 +540,9 @@ function armyCloth(sh, U) {
 const ARMY_FOGK = '0.55', ARMY_FLAG_FOGK = '0.3';
 function armyFog() {
   const c = THREE.ShaderChunk.fog_fragment, k = 'vec3 fogC = fogColor;';
-  return c.includes(k) ? c.replace(k, `fogFactor *= mix(abs(vAFT - 1.0) > 1e-4 ? ${ARMY_FLAG_FOGK} : ${ARMY_FOGK}, 1.0, smoothstep(fogVis * 0.72, fogVis, fogD));\n  ${k}`) : '#include <fog_fragment>';
+  // K292 クラウドし 11/15：白地の旗（柴田・徳川など）は霞の灰に溶けて家の色が消えていた。白く淡い旗の布だけ霞を四割ほど薄くし、灰より明るく浮かせる（描く数・材質は同じ）
+  return c.includes(k) ? c.replace(k, `float aPale = abs(vAFT - 1.0) > 1e-4 ? smoothstep(0.5, 0.8, min(gl_FragColor.r, min(gl_FragColor.g, gl_FragColor.b))) : 0.0;
+  fogFactor *= mix(abs(vAFT - 1.0) > 1e-4 ? ${ARMY_FLAG_FOGK} : ${ARMY_FOGK}, 1.0, smoothstep(fogVis * 0.72, fogVis, fogD)) * (1.0 - 0.4 * aPale);\n  ${k}`) : '#include <fog_fragment>';
 }
 // 11/14 K292 iMac二：軽い束の旗の布も、日を背にした面は布を透けて明るむ（近い指物・置き幟と同じ）。
 //   引きでは遠い備の幟が日の当たらない裏ばかりになり、家の色の林でなく黒い竿と板の列に見えていた。描く数・材質は同じ
@@ -562,7 +564,7 @@ function armyShader(mat, U) {
     Object.assign(sh.uniforms, U, { uYose: U.uYose || { value: 0 }, uUnavailable: U.uUnavailable || { value: 0 }, uMoveLim: U.uMoveLim || { value: 176 }, uArmyNear: U.uNear || ARMY_NEAR, uArmyP: ARMY_P, uArmyRealP: ARMY_REAL_P, uArmyRealR: U.uRealNear || ARMY_REAL_R, uArmySplitR: U.uSplitR || ARMY_SPLIT_R, uHostIn: U.uHostIn || HOST_IN_ONE, uShim: SHIMMER, uAMotion: ARMY_MOTION, uWindDir: WIND_DIR, uRealPts: REAL_PTS, uFakeNear: U.uFakeNear || DIST_FAKE_NEAR });
     sh.fragmentShader = 'varying float vAHz;\n' + sh.fragmentShader.replace('#include <fog_fragment>', armyFog() + `
       #ifdef USE_FOG
-        gl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor, vAHz * (abs(vAFT - 1.0) > 1e-4 ? 0.25 : 0.5));
+        gl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor, vAHz * (abs(vAFT - 1.0) > 1e-4 ? 0.25 * (1.0 - 0.5 * smoothstep(0.55, 0.85, min(gl_FragColor.r, min(gl_FragColor.g, gl_FragColor.b)))) : 0.5));
       #endif`);
     sh.vertexShader = 'uniform float uArmyNear, uUnavailable, uMoveLim, uArmyRealR, uHostIn, uFakeNear; uniform vec2 uArmyP, uArmyRealP; uniform vec4 uRealPts[16];\n' + ARMY_GLSL + sh.vertexShader
       .replace('#include <beginnormal_vertex>', `#include <beginnormal_vertex>

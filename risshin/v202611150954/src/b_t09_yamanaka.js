@@ -1329,10 +1329,11 @@ html:root body #hud:has(#h-prog[data-battle="t09_yamanaka"]) #center-call .cc { 
       //   四分で旗本が打って出る扱いにし、六分で寄せ手が康長を討ち、討たれて四十秒で居所に関わらず落城
       // 11/15 クラウドか：act bot 二回とも本人が康長の五〜九十七m まで寄りながら旗本に阻まれ、六分の台本の討死で締まった（本丸の段だけで六分・一戦862〜1007秒）。
       //   本人が康長の二十五m 内に合わせて二十秒いたら、康長が手負いで旗本の前へ出て本人に挑む（とどめは本人）。台本の討死は四分半に早める
+      // 11/15 クラウドか（二度目）：act bot で本丸の段が四分半（466→736秒）・一戦756秒。本丸へ掛かるのを二分・台本の討死を三分四十秒に
       if (F.honOn && F.honU?.alive && !F.honWeak && Math.hypot(p.x - F.honU.pos.x, p.z - F.honU.pos.z) < 25) F.honNearT = (F.honNearT || 0) + dt;
       if (F.honOn && F.honU?.alive && !F.honWeak && F.honNearT > 20) { F.honWeak = true; const u = F.honU; u.invuln = false; u.mustLive = false; u.maxHp = Math.min(u.maxHp, 60); u.hp = Math.min(u.hp, 25); u.fixed = false; g.fixed = false; g.order = 'attack'; g.aggro = 60; g.seekRange = 80; u.target = rt.player.u; rt.say('松田康長', '小癪な。この康長が相手じゃ！', 3); }
-      if (!F.honOn && T > 150) { F.honOn = true; g.fixed = false; g.aggro = 40; g.order = 'attack'; g.seekRange = 60; }
-      if (F.honOn && T > 270 && F.honU?.alive) { const u = F.honU; u.invuln = false; u.mustLive = false; u.hp = 0; rt.army.kill(u, null); }
+      if (!F.honOn && T > 120) { F.honOn = true; g.fixed = false; g.aggro = 40; g.order = 'attack'; g.seekRange = 60; }
+      if (F.honOn && T > 220 && F.honU?.alive) { const u = F.honU; u.invuln = false; u.mustLive = false; u.hp = 0; rt.army.kill(u, null); }
       if (F.honOn && slain(F.honU) && F.honSlainT === undefined) F.honSlainT = rt.t;
       if (F.honOn && slain(F.honU) && F.honSlainT !== undefined && rt.t - F.honSlainT > 25) this.win(rt);
       if (F.honOn && slain(F.honU) && ((p.z < -87 && Math.hypot(p.x - KURUWA.hon.x, p.z - KURUWA.hon.z) < 20) ||
@@ -1405,6 +1406,9 @@ t09_yamanaka.botBrain = (b, inp, { goTo, patientStrike }) => {
         b.botRestEnd = b.botWp - 2;
       }
       // 本丸への退きも虎口と土橋を逆順に通る。回復後は退いた点から登り直す。
+      // 11/15 クラウドか：段の替わり目（大手の土橋の上・10,51）で道の番号がまだ無いまま深手になり、十四m 南へ下がって土橋から堀の底（11,60）へ落ち、
+      //   新手と矢に倒れた（act 590秒）。番号が無い時もここで近い折れを決め、門の内へ退く
+      if (F.step === 4 && b.botUp === undefined) { let bi = 0, bd = Infinity; UP_ROUTE.forEach(([x, z], i) => { const d = Math.hypot(u.pos.x - x, u.pos.z - z); if (d < bd) { bd = d; bi = i; } }); b.botUp = bi; }
       if (F.step === 4 && b.botUp !== undefined) {
         b.botRestUp = Math.max(0, b.botUp - 1);
         b.botRestEnd = Math.max(0, b.botUp - 2);

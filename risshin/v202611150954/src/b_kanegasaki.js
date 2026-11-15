@@ -52,6 +52,23 @@ const RETREAT_ROAD = [...ROAD.slice(0, 4), [8, 22], ...ROAD.slice(4)];
 // 疋田方面から湿地の南を通り、川の北で一の備へ合流する。退き道・城山の大きさは変えない。
 const HIKIDA_ROAD = [[90, -14], [74, -18], [46, -26], [28, -38], [8, -50]];
 const HIKIDA_FROM = { x: 88, z: -15 };
+// 11/15 クラウドせ（K294・act bot 13:57/14:05）：疋田の道は (9,−47) から (50,−24) へ斜めに上がる急な帯で、帯と峠道の間（x12〜48）は歩けない山。
+//   帯の上の兵が帯の外（峠道・川の側）の持ち場へ真っすぐ向かうと山に当たり、森可成が (26,−37)・(20,−41) で20秒止まった。帯の上では帯を北西へ下ってから行く（moveWay）。
+const HIKIDA_STRIP = [[50, -24], [44, -27], [34, -33], [24, -39], [16, -44], [9, -47]];
+const kgOnStrip = (x, z) => x > 11 && x < 56 && Math.abs(z - (-47 + 0.56 * (x - 9))) < 4;
+function kgHikidaWay(army, u, want) {
+  if (!want || u.isPlayer) return want;
+  const p = u.pos;
+  if (kgOnStrip(p.x, p.z) && !kgOnStrip(want.x, want.z) && want.x < p.x) {
+    const w = HIKIDA_STRIP.find(q => q[0] < p.x - 2);
+    if (w) { const o = u._kgWay || (u._kgWay = { x: 0, z: 0 }); o.x = w[0]; o.z = w[1]; return o; }
+  }
+  // 帯の下の端（x9〜13・z−50〜−42）から南へ向かう者は、東の山の角を避けて先に峠道（x8）へ寄る（act bot 14:11 で朝倉の侍大将が (10,−46) で止まる5回）。
+  if (p.x > 8.6 && p.x < 13 && p.z > -50 && p.z < -41 && want.z > p.z + 2 && want.x < 14) {
+    const o = u._kgWay || (u._kgWay = { x: 0, z: 0 }); o.x = 8; o.z = Math.min(want.z, -39); return o;
+  }
+  return want;
+}
 const HIKIDA_FACING = Math.atan2(8 - HIKIDA_FROM.x, -34 - HIKIDA_FROM.z);
 // 敦賀市の城跡案内では湿地は天筒山の東南。城間を直した後も西麓へ残っていた位置を直す。
 // 実際の湿地はこの局地戦の外。兵が戦う西麓へ代わりの沼を置かない。
@@ -2995,6 +3012,7 @@ const kanegasaki = {
   // 11/1 merge_1101d：共通の一太刀五割・六割（kaito 11/1 C）はそのまま、この戦だけ刃の一太刀を0.6倍に（刃の後の間は meleeGrace。bot が一太刀・続けての太刀で倒れて負けた）
   cutFloor: 0.6,
   world: {
+    moveWay: kgHikidaWay,
     noboriBand: 2, blockForm: true,   // 11/14 K292・K297（司令塔：本の見開きの「厚い塊＋家の色の旗の林」）：無名の足軽・鉄砲の二人に一人を幟に・備を厚い四角の塊に（長島・設楽原と同じ共通の手。クラウドD）
     noFake: true,   // 11/13 K285（kaito「本物の兵しか映したらいけない」）：絵だけの兵（addDistantArmy・addClash・陣立ての軽い備）を作らない。映る兵は全員 戦の中の本物
     noHaori: true, // 本の足軽姿に合わせ、武将にも陣羽織を重ねない。

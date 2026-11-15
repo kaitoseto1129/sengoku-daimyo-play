@@ -69,7 +69,10 @@ export function start(rt, ctx, done) {
       if (!at) return;
       // 11/15 クラウドせ（K294 金ヶ崎・act bot で森の手が20秒止まる）：持ち場は前の段の目標に残っていて、道の一歩目 (8, c.z) へ
       //   持ち場が後ろへ歩き戻り、兵が坂を行き来した。持ち場を今の兵の真ん中から歩かせる（兵の位置は飛ばさない）。
-      g.anchor = { x: c.x, z: c.z };
+      // 11/15 クラウドせ（NORENDER の probe）：峠道の東 (16,−53) に固まった手の持ち場を兵の真ん中に置くと、西の道へ折れる縦隊の後ろが
+      //   東の山の塊（x 12〜26・z −46〜−29 は歩けない）へ伸び、兵が (26,−38)・(28,−37) の山の中で行き先を失って四十秒止まった。
+      //   持ち場は同じ高さの峠道（x 8）に置き、縦隊の後ろを道の上へ伸ばす。
+      g.anchor = { x: Math.abs(c.x - 8) > 3 ? 8 : c.x, z: c.z };
       g.path = [[8, c.z], [8, at.z], [at.x, at.z]];
       g.pathIdx = 0; g.dest = { x: at.x, z: at.z };
       g.order = 'path'; g.formation = 'column'; g.colW = 2; g.roadColumn = true; g._fitAt = 0;
@@ -93,7 +96,15 @@ export function start(rt, ctx, done) {
       //   （act bot で森可成が (2,−62)）。柵の北にいる時は先に木戸の前へ寄り、木戸を抜けてから退く。
       const ac = a.center();
       a.anchor = { x: ac.x, z: ac.z };
-      a.path = [...(ac.z < -55 ? [[8, Math.min(ac.z, -62)], [8, -52]] : []), [8, 12], [-10, 60], [-26, 104], [-54, 150], [-66, 170]];
+      // 11/15 クラウドせ（act bot 11:54）：柵の南でも峠道の東 (16,−43)・(20,−40) にいた手は、(8,12) へ真っすぐ向かって崖の帯 (16〜24,−36〜−38) に当たり20秒止まった（9回）。
+      //   道の外にいる時は、先に同じ高さで峠道（x 8）へ寄ってから道を下る。
+      // 11/15 クラウドせ（act bot 13:57・145秒）：疋田の道の急な帯（(8,−47) から (50,−24) へ斜めに上がる・その外の東は歩けない）にいた手は、
+      //   同じ高さの (8,−37) へ真西に向かって帯の西の山に当たり、森可成が (26,−37) で20秒止まった（5回）。帯の上では、帯を北西へ下って峠道へ入る。
+      const HIKIDA_STRIP = [[44, -27], [34, -33], [24, -39], [16, -44], [9, -47]];
+      const onStrip = ac.x > 11 && ac.z > -50 && ac.z < -20;
+      const offRoad = onStrip ? HIKIDA_STRIP.filter(p => p[0] < ac.x - 2)
+        : ac.z >= -55 && ac.z < 8 && Math.abs(ac.x - 8) > 3 ? [[8, ac.z]] : [];
+      a.path = [...(ac.z < -55 ? [[8, Math.min(ac.z, -62)], [8, -52]] : offRoad), [8, 12], [-10, 60], [-26, 104], [-54, 150], [-66, 170]];
       a.pathIdx = 0; a.dest = { x: -66, z: 170 };
       a.order = 'path'; a.formation = 'column'; a.colW = 2; a.roadColumn = true; a._fitAt = 0;
       a.onArrive = (group) => { group.order = 'hold'; group.path = null; group.onArrive = null; group.facing = 0; group.retreatOnly = false; };
