@@ -2419,7 +2419,7 @@ async function playPersona(game, spec, aud, c) {
   const touch = isTouch && !!pad.real;
   if (!touch && !V.pc) c.add('no-touch', '指の操作に切り替わらなかった（input を捕まえられない）', `isTouch=${isTouch}`, 1, { cat: '落ちた' });
   c.b = b;
-  const cap = spec.kind === 'dojo' ? 120 : (+Q.get('cap') || per.cap || 1260);   // ?cap=秒：15分の戦を確かめる時に延ばす（11/8）
+  const cap = spec.kind === 'dojo' ? 120 : (+Q.get('cap') || per.cap || Math.max(1260, ((b.def && b.def.pacingCap) || 0) + 60));   // ?cap=秒：15分の戦を確かめる時に延ばす（11/8）。11/15 クラウドわ：戦の刻限（def.pacingCap・関ヶ原2400秒）が21分より長い戦は、その刻限まで遊ぶ（前は1260秒で「失敗・切り上げ」になっていた）
   let t = 0, frames = 0, lastPos = { x: 0, z: 0 }, idle = 0, lastMain = '', midShot = false;
   const dt = 0.05;
   const onErr = (ev) => rep.errors.push(`${ev.message}（${(ev.filename || '').split('/').pop()}:${ev.lineno}）`);
