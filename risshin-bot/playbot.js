@@ -574,7 +574,8 @@ export function brain(b, inp) {
     return;
   }
   // 近くに敵がいれば向き直って突く
-  const e = b.army.nearestEnemy(u, b.index === 0 && b.phase !== 'assault' ? 0 : 40, (o) => o.type !== 'dummy' && !o.noTarget);
+  // 逃げる名無しの兵は追わない（人は任務の印へ向かう。11/15 iMac K278：天王寺の終幕で城へ逃げる兵を追い続け、茶臼山の頂へ上らず時間切れ）。名のある武将は逃げても追う
+  const e = b.army.nearestEnemy(u, b.index === 0 && b.phase !== 'assault' ? 0 : 40, (o) => o.type !== 'dummy' && !o.noTarget && !((o.fleeing || o.group?.routed) && !o.name));
   inp.k.delete('KeyW');
   if (e) {
     const d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
