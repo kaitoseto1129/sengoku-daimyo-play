@@ -31,14 +31,14 @@ let device = null;
 // ゴーグルの無い機械（Mac の Chrome など）は IWER の作り物の Quest 3 を入れる
 const native = !!navigator.xr && await navigator.xr.isSessionSupported('immersive-vr').catch(() => false);
 if (Q.has('emu') || !native) {
-  const I = await import('./v202611151358/web_only/xr/iwer.module.min.js');
+  const I = await import('./v202611151459/web_only/xr/iwer.module.min.js');
   device = new I.XRDevice(I.metaQuest3);
   device.stereoEnabled = Q.get('stereo') === '1';
   device.installRuntime({ forceInstall: true });   // Chrome の本物の navigator.xr（ゴーグル無し）を作り物で置き換える
   device.position.set(0, 1.6, 0);
   window.__xrDevice = device;
 }
-const { startXR } = await import('./v202611151358/src/xr_okehazama.js');
+const { startXR } = await import('./v202611151459/src/xr_okehazama.js');
 const { renderer } = startXR({ canvas: document.getElementById('c') });
 const btn = document.getElementById('enter');
 async function enter() {
@@ -52,7 +52,7 @@ btn.hidden = false;
 // 段5：?ble で「刀の柄をつなぐ」を出す（刀の柄・打ち込み台の板を Web Bluetooth でつなぐ。docs/physical/）
 if (Q.has('ble') && navigator.bluetooth) {
   const b2 = btn.cloneNode(); b2.id = 'ble'; b2.textContent = '刀の柄をつなぐ'; b2.hidden = false; b2.style.bottom = '92px';
-  b2.onclick = () => import('./v202611151358/src/ble_sword.js').then((m) => m.openBleSword((t) => { b2.textContent = t; })).catch((e) => console.error(e));
+  b2.onclick = () => import('./v202611151459/src/ble_sword.js').then((m) => m.openBleSword((t) => { b2.textContent = t; })).catch((e) => console.error(e));
   document.body.appendChild(b2);
 }
 
