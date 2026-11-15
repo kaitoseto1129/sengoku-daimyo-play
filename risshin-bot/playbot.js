@@ -1719,7 +1719,11 @@ const HABIT = {
       p.yaw = Math.atan2(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
       inp.k.delete('KeyE');
       const reach = p.weapon === 'sword' ? 1.9 : 2.8;
-      if (d > reach * 0.85) goTo(p, inp, e.pos.x, e.pos.z, reach * 0.85); else inp.k.delete('KeyW');
+      // 柵越しの打ち手は、こちらの穂先が柵を越える所（柵の際）まで詰める。
+      //   敵の槍だけ届く間合いで止まると、本物の当たり（enemiesInArc と同じ判定）で空振りし続けた（11/15 墨俣 w1 の北の柵）
+      const fenced = p.weapon === 'spear' && d <= reach * 0.85 &&
+        b.army.wallBetween(u.pos, u.team, e.pos, true, p.meleeFenceClear(p.meleeReach('thrust')));
+      if (d > reach * 0.85 || fenced) goTo(p, inp, e.pos.x, e.pos.z, fenced ? 0.6 : reach * 0.85); else inp.k.delete('KeyW');
       if (e === busho) c.bushoMin = Math.min(c.bushoMin || 1e9, d);
       patientStrike(p, inp, e, d); c.charge = 0;
     } else if (!(b.flags.dp && b.flags.dp.on) && mateN >= 2 && lag > 10 && !inp.k.has('KeyW')) {
