@@ -1431,7 +1431,7 @@ class TouchPad {
       if (/^Key[EWSCZXN]$/.test(k)) continue;
       if (MAP[k]) {
         const el = MAP[k]();
-        if (this.shown(el)) { this.tap(el, NAME[k]); continue; }
+        if (this.shown(el)) { if (k === 'KeyR') this.rWait = 0; this.tap(el, NAME[k]); continue; }
         if (k === 'Enter') continue;
         const more = btn('more');
         if (el && el.hidden && this.shown(more) && !more.classList.contains('sel')) { this.tap(more, '…（ほか）'); (this.pend = this.pend || []).push(k); continue; }
@@ -1443,6 +1443,9 @@ class TouchPad {
         if (k === 'KeyR' && !p.mounted && !p.canRide && !p.takeO) continue;
         // 馬上で降りる案内の札（hud.js の .dismount-action）が出ている間は、乗り降りの丸を隠してその札で降りる（touch.js guidedDismount）。人と同じく札を押す
         if (k === 'KeyR' && p.mounted) { const dm = q('#hud .battle-action:not([hidden]) .dismount-action'); if (this.shown(dm)) { dm.click(); continue; } }
+        // 11/16 クラウドさ（K340 三方ヶ原 569秒 crash「乗る」★）：馬が寄って乗れるようになったコマは、丸の出し入れ（touchFrame）が次のコマになる。三コマ待ってから数える
+        if (k === 'KeyR' && (this.rWait || 0) < 3) { this.rWait = (this.rWait || 0) + 1; (this.pend = this.pend || []).push(k); continue; }
+        if (k === 'KeyR') this.rWait = 0;
         // 敵が近くにいない時は、狙いの丸を隠すのが正しい。気まぐれな一押しを不具合に数えない。
         this.ctx.noButton(NAME[k]); continue;
       }
