@@ -1426,7 +1426,8 @@ class TouchPad {
     const MAP = { KeyR: () => btn('mount'), KeyV: () => q('#tc-view'), Enter: () => q('#hud #skiphint') };
     const NAME = { KeyR: '乗る', KeyV: '視点', Enter: '飛ばす' };
     // 「…」に畳まれた丸は、前のコマで「…」を開いてから押す（人もそうする）
-    const keys = [...(this.pend || []), ...inp.e]; this.pend = null;
+    const keys = [...new Set([...(this.pend || []), ...inp.e])]; this.pend = null;   // 11/16 クラウドさ：持ち越しと新しい押しの同じ鍵は一つに（R の三コマ待ちが一コマで尽きていた）
+    if (!keys.includes('KeyR')) this.rWait = 0;
     for (const k of keys) {
       if (/^Key[EWSCZXN]$/.test(k)) continue;
       if (MAP[k]) {
@@ -1441,12 +1442,16 @@ class TouchPad {
         if (p.mounted && k === 'KeyF') continue;
         // 11/16 クラウドさ（K340 三方ヶ原 act bot「乗る」の丸が出ない★）：乗れる身分でなく手綱を取れる空馬も無い時は、乗り降りの丸を隠すのが決まり（touch.js hide(btn.mount)）。連打の気まぐれな R を数えない。
         if (k === 'KeyR' && !p.mounted && !p.canRide && !p.takeO) continue;
+        // 11/16 クラウドさ（K340 三方ヶ原「乗る」の丸★の本当の訳）：戦の画面の丸は攻撃と守りだけ（touch.js・kaito 10/23 Simple）。乗り降りは馬へ寄れば乗る（autoMountAt）・降りる札で。丸が無いのが決まりなので数えない
+        if (k === 'KeyR' && !this.ctx.b?.def?.town && !this.ctx.b?.def?.dojo) continue;
         // 馬上で降りる案内の札（hud.js の .dismount-action）が出ている間は、乗り降りの丸を隠してその札で降りる（touch.js guidedDismount）。人と同じく札を押す
         if (k === 'KeyR' && p.mounted) { const dm = q('#hud .battle-action:not([hidden]) .dismount-action'); if (this.shown(dm)) { dm.click(); continue; } }
         // 11/16 クラウドさ（K340 三方ヶ原 569秒 crash「乗る」★）：馬が寄って乗れるようになったコマは、丸の出し入れ（touchFrame）が次のコマになる。三コマ待ってから数える
         if (k === 'KeyR' && (this.rWait || 0) < 3) { this.rWait = (this.rWait || 0) + 1; (this.pend = this.pend || []).push(k); continue; }
         if (k === 'KeyR') this.rWait = 0;
         // 敵が近くにいない時は、狙いの丸を隠すのが正しい。気まぐれな一押しを不具合に数えない。
+        // 11/16 クラウドさ：乗り降りの丸が無い時は、その時の馬の様子も記録に書く（直す手がかり）
+        if (k === 'KeyR') { const ac = this.ctx.b?.hud?.actionLabel; this.ctx.noButton(NAME[k], `馬上${p.mounted ? '○' : '×'}・乗れる${p.canRide ? '○' : '×'}・手綱${p.takeO ? '○' : '×'}・馬${p.loose?.mode || 'なし'}・降りる札${ac && !ac.hidden && ac.querySelector('.dismount-action') ? (this.shown(ac) ? '見える' : '隠れ') : 'なし'}・丸${btn('mount')?.hidden ? '隠れ' : '有'}`); continue; }
         this.ctx.noButton(NAME[k]); continue;
       }
       const dg = k.match(/^Digit(\d)$/);
@@ -1523,7 +1528,7 @@ function makeCtx(per, aud) {
       ctx.add(`tap-small:${label}`, `「${label}」が指には小さい（44pt 未満）`, `${Math.round(r.width)}×${Math.round(r.height)}（${pathOf(el)}）`, per.key === 'chu' ? 2 : 1, { fix: '押せる所を 44pt 以上に（見た目は小さくても、押せる枠を広げる）' });
     },
     noStick() { if (openingWait(ctx.b?.player?.rt?.game)) return; ctx.add('stick-none', '親指で歩こうとしても、置く所がふさがっている', '歩く範囲の四か所とも、戦場の上に札がある', 3, { shot: true, fix: '歩く範囲から札を離す／読むだけの札に指を通す' }); },
-    noButton(name) { if (openingWait(ctx.b?.player?.rt?.game)) return; ctx.add(`btn-none:${name}`, `「${name}」をしたいのに、押す丸が出ていない`, `欲しかった時：${ctx.where}`, 1, { fix: 'その時に使える釦は出す（touchFrame の出し入れ）' }); },
+    noButton(name, why) { if (openingWait(ctx.b?.player?.rt?.game)) return; ctx.add(`btn-none:${name}`, `「${name}」をしたいのに、押す丸が出ていない`, `欲しかった時：${ctx.where}${why ? '・' + why : ''}`, 1, { fix: 'その時に使える釦は出す（touchFrame の出し入れ）' }); },
     // 開戦の札・布陣の見渡しの間は、まだ指の釦が出ていないので数えない（noButton・noStick と同じ・11/13 act bot で 5秒 brief の Digit3 が17回）
     noTouch(k) { if (openingWait(ctx.b?.player?.rt?.game) || ctx.b?.phase === 'brief') return; const KN = { Digit3: '火縄銃に持ち替え（鍵盤の 3）', Digit4: '弓に持ち替え（鍵盤の 4）', KeyG: '号令先の切り替え（G）', KeyT: '肩の切り替え（T）' }; ctx.add(`touch-none:${k}`, `指の端末では「${KN[k] || k}」ができない（押す丸が無い）`, `bot の頭が ${k} を押したがった（${ctx.where}）`, 2, { fix: 'touch.js に釦を足すか、戦の方で要らなくする' }); },
     noTouchCmd(id) { ctx.add(`cmd-none:${id}`, `号令「${{ form: '陣形', fire: '射撃／停止', move: '前進', yari: '槍衾', charge: '突撃' }[id] || id}」が、指の号令の輪から出せない`, `号令の輪（RADIAL）に無い、または身分が足りず選べない（${ctx.where}）`, per.key === 'sen' ? 3 : 1, { fix: '号令の輪に足すか、短く押した時の指揮の札（数字の号令）を指で押せるようにする' }); },
