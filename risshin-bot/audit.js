@@ -92,6 +92,9 @@ export class Auditor {
     // 画面係は戦をまたいで同じ物なので、元の関数を一度だけ覚えて包み直す
     const wrap = (obj, name, kind, pick) => { const f = obj['__o_' + name] || (obj['__o_' + name] = obj[name].bind(obj)); obj[name] = (...a) => { log(kind, pick(a)); return f(...a); }; };
     { const f = hud.__o_say || (hud.__o_say = hud.say.bind(hud)); hud.say = (...a) => { log('台詞', a[1], a[0]); return f(...a); }; }
+    // 11/17 iMac n-nagashino：字幕を出さない戦（battleDialogueMuted）では台詞が声（warSpeech.line）だけで届き、hud.say を通らない。
+    //   bot は声の台詞を聞いていない事になり「印に着いて6秒何も起きない」と数えていた（長島の南の堤など）。声で届いた台詞も台詞に数える
+    { const ws = b.warSpeech; if (ws?.line && !ws.__auditWrapped) { const f = ws.line.bind(ws); ws.line = (sp, text, ...a) => { log('台詞', text, sp); return f(sp, text, ...a); }; ws.__auditWrapped = true; } }
     // 間引いて画面へ出さなかった声は、遊び手が聞いた知らせに数えない。
     { const f = hud.__o_bark || (hud.__o_bark = hud.bark.bind(hud)); hud.bark = (...a) => { if (hud.barkOk(...a)) log('報せ', a[0]); return f(...a); }; }
     wrap(hud, 'flash', '字幕', (a) => a[0]);
@@ -279,7 +282,10 @@ export class Auditor {
     }
     // 門・柵を破れと言うのに、90秒だれも傷つけていない（「破らせるな」等の守る任務は誤検知なので外す）
     // 建物に続く動詞を見る。「柵の一手で、打って出た城兵を止めよ」は門破りではない。
-    const breakObj = live.find((o) => !o.state && /(門|柵|塀)(?:[（(][^）)]*[）)])?(?:を|に|へ)(?:打ち|突き)?(?:破|壊|崩|打)/.test(o.text) && !/(せるな|すな|れるな)/.test(o.text));
+    // 11/16 iMac：段の目標（sub）が出ている間は段の目標だけを見る。戦全体の一行（main）が「大門を破り、…大塔まで攻め入る」のように最初から門を言う戦（根来寺）で、
+    //   門の段の前から九十秒ごとに数えていた（act bot 9回）
+    const openObj = live.filter((o) => !o.state), objPool = openObj.length > 1 && openObj.some((o) => o.id === 'main') ? openObj.filter((o) => o.id !== 'main') : openObj;   // 段の目標（dp 等）は種類も main のことがあるので名（id）で分ける
+    const breakObj = objPool.find((o) => !o.state && /(門|柵|塀)(?:[（(][^）)]*[）)])?(?:を|に|へ)(?:打ち|突き)?(?:破|壊|崩|打)/.test(o.text) && !/(せるな|すな|れるな)/.test(o.text));
     const foeStructs = structs.filter((s) => s.alive && s.team !== P.team);
     if (breakObj && foeStructs.length) {
       const lastHit = Math.max(...foeStructs.map((s) => (this.structHp.get(s) || { t: 0 }).t));

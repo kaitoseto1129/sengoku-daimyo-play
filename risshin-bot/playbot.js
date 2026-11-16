@@ -9,6 +9,7 @@ import { touchFrame, touchInput, isTouch } from './touch.js';
 import { S } from './settings.js';
 import { RADIAL } from './player.js';
 import { cmdAllowed } from './command_rank.js';
+import { simpleControls } from './simple_controls.js';
 import { GENERALS, WOUND_FLOOR, DEATH_END } from './units.js';
 import { lordGame, lordList } from './lord.js';
 import { depthBot } from './b_depth.js';
@@ -1489,6 +1490,8 @@ class TouchPad {
     if (b.over || b.ended || !tc || tc.hidden) { this.real.quickCmd = id; return; }
     // 陣形・射撃は号令の輪を開くと出る丸から（組頭から）
     if ((id === 'form' || id === 'fire') && b.G.rank >= 2) { if (!this.sub) this.sub = { id, n: 0 }; return; }
+    // 初めの三戦（missionStyle）は足軽の基本操作だけを出す決まり（simple_controls.js）。号令の輪が無いのは不具合でない（11/17 iMac・森部で数え違い）
+    if (simpleControls(b)) { this.real.quickCmd = id; return; }
     // 号令の輪に無い号令（陣形・射撃など）は、指では出せない
     this.ctx.noTouchCmd(id);
     this.real.quickCmd = id;
