@@ -78,6 +78,8 @@ function survive(b, inp) {
   b.botSurviving = false;
   // 落ちのびる下知の間は、居残る味方へ戻らず、戦ごとの退き口をたどる。
   if (b.def.botEvacuating?.(b)) { b.botSurviveUntil = 0; return false; }
+  // 名乗って来た将との一騎討ち（設楽原 saigo.js）の間は、深手になるまで退かずに受けて立つ（退いて時切れの討死になっていた）
+  if (b.def.botDuel?.(b) && u.hp > u.maxHp * 0.35) { b.botSurviveUntil = 0; return false; }
   // 砦の道順は戦専用の頭に任せる。深手の時は共通の退避を優先する。
   if (b.def.botDefendsFort && u.hp > u.maxHp * 0.3) { b.botSurviveUntil = 0; return false; }
   let foe = null, fd = 10, attacker = null, ad = 10, impact = Infinity, mate = null, md = 64, close = 0, support = 0, ex = 0, ez = 0;
@@ -1597,7 +1599,7 @@ const HABIT = {
         Math.hypot(u.pos.x - post.x, u.pos.z - post.z) < 7 &&
         Math.hypot(p.takeO.h.position.x - post.x, p.takeO.h.position.z - post.z) < 7;
       const outside = b.flags.pursuit && b.flags.fenceRoute && u.pos.x >= b.flags.fenceRoute.frontX - 0.5;
-      if (p.catching || (!p.mounted && p.mountT <= 0 && (atPost || outside) && !b.army.nearestEnemy(u, 6))) {
+      if (p.catching || (!p.mounted && p.mountT <= 0 && (atPost || outside) && !b.army.nearestEnemy(u, 6) && b.def.botMountAllowed?.(b) !== false)) {
         if (p.catching || (p.takeO && t - (c.mountT || -9) > 4)) {
           if (!p.catching) { inp.e.add('KeyR'); c.mountT = t; c.mountTry = (c.mountTry || 0) + 1; }
           inp.k.delete('KeyW'); inp.k.delete('KeyS'); inp.k.delete('KeyA'); inp.k.delete('KeyD'); inp.k.delete('KeyE');
@@ -1656,7 +1658,7 @@ const HABIT = {
     }
     if (ordered) { c.charge = 0; inp.chargeHold = false; return; }
     // 六回乗れなかったら、あきらめて徒歩で行き先へ（乗れない馬の横で立ち尽くして刻限が尽きた。八尾・若江 11/2）
-    if (!p.mounted && !p.catching && p.mountT <= 0 && (ownHorse || p.takeO) && (c.mountTry || 0) < 6 && t - (c.mountT || -9) > 4) {
+    if (!p.mounted && !p.catching && p.mountT <= 0 && (ownHorse || p.takeO) && (c.mountTry || 0) < 6 && t - (c.mountT || -9) > 4 && b.def.botMountAllowed?.(b) !== false) {
       inp.e.add('KeyR'); c.mountT = t;
       // 口笛は馬を呼ぶ操作。近くで手綱を取る時だけ乗馬を試したと数える。
       if (p.takeO || Math.hypot(p.loose.x - u.pos.x, p.loose.z - u.pos.z) < 3.2) {
@@ -1816,7 +1818,7 @@ function variantHabit(b, inp, c) {
   if (V.habit === 'ren') {
     // 連打：敵がいてもいなくても突く。時々ほかの丸も押す
     if (Math.random() < 0.45) inp.leftPressed = true;
-    if (Math.random() < 0.015) inp.e.add(pick(['KeyF', 'KeyR']));
+    if (Math.random() < 0.015) inp.e.add(pick(b.def.botMountAllowed?.(b) === false ? ['KeyF'] : ['KeyF', 'KeyR']));   // 乗れない作りの段では「乗る」を押さない
   } else if (V.habit === 'hashiri') {
     inp.runHeld = true;
   } else if (V.habit === 'mayoi') {

@@ -107,6 +107,15 @@ export async function ensureServer(port = PORT) {
         throw new Error(`ポート ${port} のサーバーは別の置き場を見ています（${f} が違う）。RISSHIN_PORT で別のポートを使ってください`);
       }
     }
+    // world.js・main.js が同じ別の worktree のサーバーも通ってしまう（11/16 iMac 二回：別の枝の作りで bot と動画を撮った）。
+    //   自分の置き場に置いた印の札（.cdp_stamp・git 外）がそのサーバーから同じ中身で返るかで、置き場が同じかを確かめる
+    const stampF = join(root, '.cdp_stamp');
+    const token = String(Date.now()) + Math.random();
+    try { writeFileSync(stampF, token); } catch (e) { /* 書けない置き場（公開先）は比べない */ }
+    if (existsSync(stampF)) {
+      const got = await fetch(`http://localhost:${port}/.cdp_stamp?r=${token}`).then((r) => r.ok ? r.text() : null).catch(() => null);
+      if (got !== token) throw new Error(`ポート ${port} のサーバーは別の置き場を見ています（印の札が違う）。RISSHIN_PORT で別のポートを使ってください`);
+    }
     return null;
   }
   const p = spawn('python3', [join(HERE, '..', 'serve.py'), String(port)], { stdio: 'ignore', detached: true });
