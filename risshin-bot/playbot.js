@@ -1439,6 +1439,10 @@ class TouchPad {
         const tc = q('#tc');
         if (!this.shown(tc) || !this.shown(btn('atk'))) continue;
         if (p.mounted && k === 'KeyF') continue;
+        // 11/16 クラウドさ（K340 三方ヶ原 act bot「乗る」の丸が出ない★）：乗れる身分でなく手綱を取れる空馬も無い時は、乗り降りの丸を隠すのが決まり（touch.js hide(btn.mount)）。連打の気まぐれな R を数えない。
+        if (k === 'KeyR' && !p.mounted && !p.canRide && !p.takeO) continue;
+        // 馬上で降りる案内の札（hud.js の .dismount-action）が出ている間は、乗り降りの丸を隠してその札で降りる（touch.js guidedDismount）。人と同じく札を押す
+        if (k === 'KeyR' && p.mounted) { const dm = q('#hud .battle-action:not([hidden]) .dismount-action'); if (this.shown(dm)) { dm.click(); continue; } }
         // 敵が近くにいない時は、狙いの丸を隠すのが正しい。気まぐれな一押しを不具合に数えない。
         this.ctx.noButton(NAME[k]); continue;
       }
