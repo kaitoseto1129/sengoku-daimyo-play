@@ -2369,7 +2369,7 @@ async function playPersona(game, spec, aud, c) {
       const n = (foeHits.get(t) || 0) + 1; foeHits.set(t, n);
       if (!t.alive) { rep.finishedHits = (rep.finishedHits || 0) + n; rep.finishedFoes = (rep.finishedFoes || 0) + 1; }
       if (game.hitstop > 0 || game.slowmo > 0) c.feel = (c.feel || 0) + 1;
-      if (t.invuln && !t.woundOut && !t.onWound && (t.type === 'busho' || t.name)) c.invulnHit = t.name || '武将';
+      if (t.invuln && !t.woundOut && !t.onWound && !(t.hp < hp) && !(t.woundOut || t.noTarget) && (t.type === 'busho' || t.name)) c.invulnHit = t.name || '武将';
     }
     return r;
   };
