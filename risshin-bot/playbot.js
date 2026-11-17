@@ -2422,7 +2422,8 @@ async function playPersona(game, spec, aud, c) {
     for (const g of b.army.groups) {
       // 11/14 クラウドわ：戦わない群れ（有岡の逃げる町の者など g.civ）は道の終わりで止まるのが正しいので数えない
       // 11/15 クラウドか K302：本人だけの組（名 player）は本人の立ち止まりで、味方の止まりではない（稲葉山 158・590〜631秒に数えていた）
-      if (g.team !== P.team || g.isPlayerSquad || g.routed || !g.count || g.civ || g.units.every((u) => !u.alive || u.isPlayer)) continue;
+      if (g.team !== P.team || g.isPlayerSquad || g.routed || !g.count || g.civ || g.isRunner || g.name === '使番' || g.units.every((u) => !u.alive || u.isPlayer)) continue;
+      // 11/16 owner-1（桶狭間 act bot の止まり20回のうち14回が使番）：使番は本陣で次の知らせを待つのが役目。戦う隊ではないので数えない
       const c = g.center(), q = AM.pos.get(g);
       // 11/16 クラウドし（K340 三方ヶ原 act bot）：櫓の上・中の守り（perch.js・shironaka.js の interiorHold）は持ち場から降りないのが正しい。「20秒動かない」に数えない（物見櫓の守り一人が200秒の止まりと出ていた）
       if (q) { const d = Math.hypot(c.x - q.x, c.z - q.z); AM.move += d; q.still = d < 1 ? q.still + 5 : 0; AM.samp++; if (q.still >= 20 && !g.qualityCombat && !g.units.some((u) => u.alive && (u.target || u.atk)) && !g.interiorHold && !g.units.every((u) => !u.alive || u.perch) && b.army.nearestEnemy({ pos: c, team: P.team }, (g.order === 'hold' || g.order === 'yari') ? 25 : 60, (o) => !o.fleeing)) { AM.idle++; q.still = 0; const far = g.units.filter((u) => u.alive && (u.farSim || u.qualityAbstract)).length * 2 > g.count; if (far) AM.idleFar = (AM.idleFar || 0) + 1; (rep.idleDiag ||= []).length < 14 && rep.idleDiag.push(`${Math.round(b.t)}s ${g.id ?? ''}${g.name ? ':' + g.name : ''} ord=${g.order} form=${g.formation} n=${g.count} mv=${!!g.marching} foc=${!!g.focus} keep=${!!g.keepMoveOrder} anch=${(g.anchorSpeed ?? 0).toFixed?.(2)} at(${Math.round(c.x)},${Math.round(c.z)}) tm=${g.units.filter((u) => u.alive)[0]?.moveTo ? 'mt' : '-'}${far ? ' 遠くの本物' : ''}`); } q.x = c.x; q.z = c.z; }
