@@ -199,7 +199,7 @@ export class Auditor {
       const mt = (u.qualityAbstract || u.farSim) ? u._farWant : u.moveTo;
       const arrived = mt && Math.hypot(mt.x - u.pos.x, mt.z - u.pos.z) < ((u.jammed || u.jamT > 0) ? 2.6 : (g && g.guard) ? 3 : 1.2);   // 11/17 クラウドヤ三（岩村）：守りの組は持ち場の隊形の枠（2〜3m）に着けば立って待つ   // 持ち場の 2.6m 内で味方に塞がれて待つ者は着いた扱い（army_think の jammed と同じ幅）
       // 床几に据えた総大将（u.perch・army_alive の still と同じ）は動かないのが決まり（11/16 iMac n-mikata：野田福島の三好長逸）
-      const mayIdle = IDLE_OK_TYPES.has(u.type) || u.noTarget || u.fleeing || u.perch || !g || IDLE_OK_ORDERS.has(g.order) || g.holdFire || g.stay || /櫓の守り/.test(g.name || '') || u.target || u.atk || (g.leader === u && g.order === 'hold') || leaderStill || arrived;
+      const mayIdle = IDLE_OK_TYPES.has(u.type) || u.noTarget || u.fleeing || u.perch || !g || IDLE_OK_ORDERS.has(g.order) || g.holdFire || g.stay || /櫓の守り/.test(g.name || '') || u.target || u.atk || (g.leader === u && g.order === 'hold') || (g.fixed && g.anchor && Math.hypot(u.pos.x - g.anchor.x, u.pos.z - g.anchor.z) < 12) || leaderStill || arrived;
       const moved = Math.hypot(u.vel.x, u.vel.z) > 0.15;
       const hasDestination = mt && Math.hypot(mt.x - u.pos.x, mt.z - u.pos.z) > 1.6;
       // （120m 内に敵のいない兵が立って待つのは、困り事に数えない）

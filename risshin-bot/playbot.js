@@ -1352,13 +1352,18 @@ class TouchPad {
       r.a = a; r.pid = ++this.id;
       this.pe('pointerdown', a.el, a.x, a.y, r.pid);
       this.ctx.taps++;
+      // 押した丸が受けたか（受ければ .on が付く）。受けなかった時の手がかりを残す
+      const g = window.__game, b = g && g.battle;
+      r.why = a.el.classList && a.el.classList.contains('on') ? '' : `押した丸が受けず（当てた札 ${a.ok ? '指図' : (a.el.id || a.el.className || a.el.tagName)}・止め${g && g.paused ? 'はい' : 'いいえ'}・前置き${g && g.hud && g.hud.introWaiting ? 'はい' : 'いいえ'}・決着${b && b.over ? 'はい' : 'いいえ'}・采配${b && b._rts && b._rts.on ? 'はい' : 'いいえ'}・写真${g && g.photo ? 'はい' : 'いいえ'}）`;
     } else if (r.n <= 9) {
       const ang = r.i * Math.PI / 4, k = Math.min(1, (r.n - 1) / 3) * 60;
       this.pe('pointermove', r.a.el, r.a.x + Math.sin(ang) * k, r.a.y - Math.cos(ang) * k, r.pid);
     } else {
       const ang = r.i * Math.PI / 4;
       // 放した瞬間に号令が届くので、応答より先に今回の操作を記録する。
-      this.ctx.radialDone(r.id);
+      // 放す直前に丸がまだ押されているか（作り直された・押しが外れた、を見分ける）
+      if (!r.why && r.a.el.classList) r.why = !r.a.el.isConnected ? '放す前に丸が作り直された' : !r.a.el.classList.contains('on') ? `放す前に丸の押しが外れた（${r.n}手目）` : '';
+      this.ctx.radialDone(r.id, r.why);
       this.pe('pointerup', r.a.el, r.a.x + Math.sin(ang) * 60, r.a.y - Math.cos(ang) * 60, r.pid);
       this.radial = null;
     }
@@ -1567,7 +1572,7 @@ function makeCtx(per, aud) {
     // 開戦の札・布陣の見渡しの間は、まだ指の釦が出ていないので数えない（noButton・noStick と同じ・11/13 act bot で 5秒 brief の Digit3 が17回）
     noTouch(k) { if (openingWait(ctx.b?.player?.rt?.game) || ctx.b?.phase === 'brief') return; const KN = { Digit3: '火縄銃に持ち替え（鍵盤の 3）', Digit4: '弓に持ち替え（鍵盤の 4）', KeyG: '号令先の切り替え（G）', KeyT: '肩の切り替え（T）' }; ctx.add(`touch-none:${k}`, `指の端末では「${KN[k] || k}」ができない（押す丸が無い）`, `bot の頭が ${k} を押したがった（${ctx.where}）`, 2, { fix: 'touch.js に釦を足すか、戦の方で要らなくする' }); },
     noTouchCmd(id, why = '') { ctx.add(`cmd-none:${id}`, `号令「${{ form: '陣形', fire: '射撃／停止', move: '前進', yari: '槍衾', charge: '突撃' }[id] || id}」が、指の号令の輪から出せない`, `号令の輪（RADIAL）に無い、または身分が足りず選べない（${ctx.where}${why ? '・' + why : ''}）`, per.key === 'sen' ? 3 : 1, { fix: '号令の輪に足すか、短く押した時の指揮の札（数字の号令）を指で押せるようにする' }); },
-    radialDone(id) { ctx.radialHandled = null; ctx.radialWant = { id, t: ctx.b ? ctx.b.t : 0 }; },
+    radialDone(id, why) { ctx.radialHandled = null; ctx.radialWant = { id, t: ctx.b ? ctx.b.t : 0, why: why || '' }; },
   };
   return ctx;
 }
@@ -1870,13 +1875,20 @@ function variantHabit(b, inp, c) {
 }
 
 // 人ごとの目（毎コマ。重い所は1秒ごと）
+// 号令の輪が効かなかった時の手がかり（touch.js が残す touchRadialTrace）。指の向き・決まった号令・位で拒まれたか・取り消されたか（11/18 クラウドす：真田丸 209秒の再現の手がかり）
+function radialTraceNote(b) {
+  const tr = b && b.player && b.player.touchRadialTrace;
+  if (!tr) return '・輪の記録なし（放した時に号令の丸の手が通らなかった）';
+  const r = (v) => (Number.isFinite(v) ? Math.round(v) : '—');
+  return `・輪の記録：向き(${r(tr.x)},${r(tr.y)}) 選んだ${tr.selected ?? '—'} 決まった${tr.command || '—'} 位で拒む${tr.rankBlocked ? 'はい' : 'いいえ'} 受けた${tr.accepted ? 'はい' : 'いいえ'} 取り消し${tr.cancelled ? 'はい' : 'いいえ'} 時${r(tr.t)}`;
+}
 function watchStep(b, dt, c) {
   if (!b.player) return; // 勝った後の短い終幕で、同じコマのうちに戦が片付いた時
   const per = c.per, p = b.player, u = p.u, t = b.t;
   c.acc = (c.acc || 0) + dt;
   const sec = c.acc >= 1; if (sec) c.acc = 0;
   // 号令の輪で選んだのに、号令が出ない
-  if (c.radialWant && t - c.radialWant.t > 1) { if (!c.radialHandled || c.radialHandled.id !== c.radialWant.id || c.radialHandled.t < c.radialWant.t) c.add(`radial-fail:${c.radialWant.id}`, '号令の輪で選んだのに、号令が出なかった', `「${c.radialWant.id}」を選んで放した（${c.where}）`, 3, { shot: true, fix: 'touch.js の号令の丸の滑らせ方と player.js の radialSel を見直す' }); c.radialWant = null; }
+  if (c.radialWant && t - c.radialWant.t > 1) { if (!c.radialHandled || c.radialHandled.id !== c.radialWant.id || c.radialHandled.t < c.radialWant.t) c.add(`radial-fail:${c.radialWant.id}`, '号令の輪で選んだのに、号令が出なかった', `「${c.radialWant.id}」を選んで放した（${c.where}）${radialTraceNote(c.b)}${c.radialWant.why ? '・' + c.radialWant.why : ''}`, 3, { shot: true, fix: 'touch.js の号令の丸の滑らせ方と player.js の radialSel を見直す' }); c.radialWant = null; }
   // 号令の効き目（出してから3秒で、組の何割が動き出したか）
   //   遠い組へは使番が走る（battle.js orderDelay）ので、号令が着いてから3秒で見る。
   //   動かなくてよい号令（待て・向き直れ・陣形・放て）と、もう持ち場にいる者は「動かない」に数えない
@@ -1904,6 +1916,7 @@ function watchStep(b, dt, c) {
     };
     const moving = live.filter((s) => c.cmdSeen.response.get(s).acted || atGoal(s)).length;
     if (live.length >= 3 && !['hold', 'face', 'form', 'fire'].includes(c.cmdSeen.id) && !(b.def.id === 'sunomata' && c.cmdSeen.id === 'attack') && moving < live.length * 0.3) c.add(`cmd-slow:${c.cmdSeen.id}`, `号令「${c.cmdSeen.label}」から3秒たっても、組の7割が動かない`, `${live.length}人のうち動いたのは${moving}人（${c.where}）${live[0] ? `［先頭の兵：号令 ${live[0].group?.order}・行き先 ${live[0].group?.dest ? Math.round(live[0].group.dest.x) + ',' + Math.round(live[0].group.dest.z) : '無'}・足の行き先 ${live[0].moveTo ? Math.round(live[0].moveTo.x) + ',' + Math.round(live[0].moveTo.z) : '無'}・的 ${live[0].target ? '有' : '無'}・使番待ち ${live[0].group?.pending ? '有' : '無'}・本人から ${Math.round(Math.hypot(live[0].pos.x - u.pos.x, live[0].pos.z - u.pos.z))}m・足もと ${b.world.walkable(live[0].pos.x, live[0].pos.z) ? '歩ける' : '歩けない'}］` : ''}`, per.key === 'sen' ? 2 : 1, { cat: '辻褄', shot: per.key === 'sen', fix: '号令を受けた兵がすぐ向きを変えて動き出すようにする（行き先・狙いの付け直し）' });
+    if (live.length >= 3 && !['hold', 'face', 'form', 'fire'].includes(c.cmdSeen.id) && !(b.def.id === 'sunomata' && c.cmdSeen.id === 'attack') && moving < live.length * 0.3) c.add(`cmd-slow:${c.cmdSeen.id}`, `号令「${c.cmdSeen.label}」から3秒たっても、組の7割が動かない`, `${live.length}人のうち動いたのは${moving}人（${c.where}）${live.filter((s) => !c.cmdSeen.response.get(s).acted).slice(0, 3).map((s) => `［(${s.pos.x.toFixed(0)},${s.pos.z.toFixed(0)}) 水${(b.world.waterDepthAt?.(s.pos.x, s.pos.z) ?? 0).toFixed(1)} 号令${s.group?.order || '―'}${s.group?.pending ? '・使番待ち' : ''} 狙い${s.target ? '有' : '無'}］`).join('')}`, per.key === 'sen' ? 2 : 1, { cat: '辻褄', shot: per.key === 'sen', fix: '号令を受けた兵がすぐ向きを変えて動き出すようにする（行き先・狙いの付け直し）' });
     if (!c.cmdSeen.fb && per.key === 'sen') c.add('cmd-nofb', '号令が届いたのか、画面で分からない', `号令のあと1秒、字幕も知らせも出なかった（${c.where}）`, 1, { fix: '号令を出したら、短い字幕か組の頭上の印で「届いた」を見せる' });
   }
   if (!sec) return;
@@ -1933,7 +1946,7 @@ function watchStep(b, dt, c) {
       if (d <= 10) { PF.done = true; P.reached++; }
       else if (t - PF.t > 180) { PF.done = true; P.bad.push(`${Math.round(PF.t)}秒 ${mkLab}（180秒で最も近づけたのは${Math.round(PF.best)}m）`); }
     }
-    if (near && mkKey && !A.seen.has(mkKey)) {
+    if (near && mkKey && !A.seen.has(mkKey) && b.phase !== 'brief') {   // 戦の前の説明（brief）の間は着いても何も起きない作りなので数えない（11/17）
       A.seen.add(mkKey); A.n++;
       A.pend = { t, key: mkKey, label: mkLab, objKey, phase: b.phase || '', say: c.lastSayT || 0, foe: !!b.army.nearestEnemy(u, 20) };
     }
@@ -1965,7 +1978,7 @@ function watchStep(b, dt, c) {
       c.facDone = true;
       // 稽古相手（藁人形・古参の八助のような、狙えない相手だけの隊）は敵の家に数えない。寝返った者（小山田信茂）の calm な隊も味方の家に数えない
       const keiko = (g) => g.units.every((u) => u.type === 'dummy' || u.noTarget);
-      const f0 = new Set(b.army.groups.filter((g) => g.team === 0 && g.count && !keiko(g)).map((g) => g.faction));
+      const f0 = new Set(b.army.groups.filter((g) => g.team === 0 && g.count && !keiko(g) && g.name).map((g) => g.faction));
       const f1 = new Set(b.army.groups.filter((g) => g.team === 1 && g.count && !keiko(g)).map((g) => g.faction));
       for (const f of f1) if (f0.has(f) && f) c.add(`samefac:${c.bid}:${f}`, '敵と味方が同じ家の装束・旗で出てくる', `${c.battle}：両方に「${f}」の隊がいる（味方側：${b.army.groups.filter((g) => g.team === 0 && g.count && !keiko(g) && g.faction === f).map((g) => g.name + g.count).join('・')}）`, 2, { cat: '辻褄', fix: '敵の隊の faction を、その戦の相手の家にする' });
       const dateS = b.def.date ? String(b.def.date(b)) : '';
@@ -2583,7 +2596,7 @@ async function playPersona(game, spec, aud, c) {
       if (!paused1 && t > 25) {
         paused1 = true;
         const bt = document.getElementById('tc-pause');
-        if (pad.tap(bt, '止める')) { await wait(500); aud.scanDom(`${name}・一時停止`); const rs = [...document.querySelectorAll('#pause button')].find((x) => /再開|戻る|続け/.test(x.textContent)); if (rs) pad.tap(rs, '再開'); else { game.paused = false; document.getElementById('pause').hidden = true; c.add('pause-noresume', '一時停止の札に「再開」の釦が見つからない', '#pause の中', 2); } await wait(300); game.paused = false; document.getElementById('pause').hidden = true; }
+        if (pad.tap(bt, '止める')) { await wait(500); aud.scanDom(`${name}・一時停止`); const fr = () => [...document.querySelectorAll('#pause button')].find((x) => /再開|戻る|続け/.test(x.textContent)); let rs = fr(); for (let k = 0; !rs && k < 6; k++) { await wait(400); rs = fr(); } if (rs) pad.tap(rs, '再開'); else { game.paused = false; document.getElementById('pause').hidden = true; c.add('pause-noresume', '一時停止の札に「再開」の釦が見つからない', '#pause の中：' + (document.getElementById('pause').textContent || '空').replace(/\s+/g, ' ').slice(0, 80) + '｜釦' + document.querySelectorAll('#pause button').length, 2); } await wait(300); game.paused = false; document.getElementById('pause').hidden = true; }
       }
       allyTick();
       idleWatch(b, rep);
