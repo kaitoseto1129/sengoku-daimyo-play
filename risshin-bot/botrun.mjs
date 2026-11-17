@@ -216,6 +216,8 @@ async function playOnce() {
     await c.goto(`http://localhost:${PORT}/?bot&persona=${PERSONA}&shots=${!RENDER || loadavg()[0] > 110 ? 0 : 1}&maxshots=${MAXSHOTS}&budget=${budget}${NBAT ? '&n=' + NBAT : ''}${ONLY ? '&only=' + ONLY : ''}${RENDER ? '' : '&norender' + (SPEED > 1 ? '&speed=' + SPEED : '')}${VQ ? '&' + VQ : ''}&r=${Date.now()}`, OUT ? 6000 : 3000);
     await c.ev('Storage.prototype.setItem = function () {}; return 1;');
     if (process.env.DENLOG) await c.ev(`window.__den = []; const S = await import('/src/stages.js'); setInterval(() => { const b = window.__game && window.__game.battle; if (!b) return; try { const s = S.stageNow(b); if (!s) return; window.__den.push(Math.round(b.t) + ' 段' + s.i + ' ' + s.goals.map((g) => (g.count ? g.count.join('/') : '-')).join(',') + ' 札' + (s.count ? s.count.join('/') : '-') + (b.flags && b.flags.dp && b.flags.dp.cur ? ' dp' + (b.flags.dp.i ?? '') + ':' + (b.flags.dp.cur.s && b.flags.dp.cur.s.kind) + ' 組' + (b.flags.dp.cur.groups || []).map((g) => g.count + (g.routed ? 'r' : '')).join(',') + ' 後' + ((b.flags.dp.cur.later || []).length) : '') + ' 札の数' + [...document.querySelectorAll('#battle-goal-list li')].map((l) => l.getAttribute('aria-label') || '').filter((x) => /\\d+人／|分の/.test(x)).join('|')); } catch (e) {} }, 1000); return 1;`);
+    // POSLOG=<ファイル>：五秒ごとに本人の位置・段・任務の札を記録する（どこで止まるかの切り分け・11/18 クラウド02）
+    if (process.env.POSLOG) await c.ev(`window.__pos = []; setInterval(() => { const b = window.__game && window.__game.battle; const u = b && b.player && b.player.u; if (!u) return; const o = document.querySelector('#h-prog .pg-goals li.now span'); window.__pos.push(Math.round(b.t) + ' ' + Math.round(u.pos.x) + ',' + Math.round(u.pos.z) + ' hp' + Math.round(u.hp) + ' ' + (b.phase || '') + ' ' + (o ? o.textContent.slice(0, 24) : '')); }, 5000); return 1;`);
     let last = '', lastT = 0, keep = null, keepT = 0, slow = 0, frozeAt = '';
     while (!data) {
       if (Date.now() > deadline) { cut = `${LIMIT_MIN}分で打ち切った`; break; }
@@ -237,7 +239,7 @@ async function playOnce() {
       slow = 0;
       if (st0.part) { keep = st0.part; keepT = Date.now(); }
       data = st0.data;
-      if (st0.log !== last && Date.now() - lastT > 30e3) { console.log(`  ${Math.round((Date.now() - t0) / 1000)}秒：${st0.log}`); lastT = Date.now(); }
+      if (st0.log !== last && Date.now() - lastT > 30e3) { console.log(`  ${Math.round((Date.now() - t0) / 1000)}秒：${st0.log}`); lastT = Date.now(); if (process.env.BOT_PROBE) console.log('  probe ' + await ev(process.env.BOT_PROBE).catch((e) => String(e).slice(0, 120))); }
       last = st0.log;
       const want = st0.want;
       if (want && !shots[want.id]) {
@@ -266,6 +268,7 @@ async function playOnce() {
       }
     }
     if (process.env.SUNOLOG) { const sl = await ev('return (window.__sunoLog || []).slice(-60)').catch(() => []); writeFileSync(process.env.SUNOLOG, JSON.stringify(sl).replace(/},{/g, '},\n{')); }   // 墨俣の最後の段の条件（b_sunomata.js の __sunoLog）
+    if (process.env.POSLOG) { const pos = await ev('return window.__pos || []').catch(() => []); writeFileSync(process.env.POSLOG, pos.join('\n')); }
     if (process.env.DENLOG) { const den = await ev('return window.__den || []').catch(() => []); writeFileSync(process.env.DENLOG, den.join('\n')); console.log(`  分母の記録 ${den.length}行 → ${process.env.DENLOG}`); }
     if (!data) data = await ev('if (window.__botFlush) window.__botFlush(); return window.__botPartial || null;').catch(() => null);
     // ページが固まって答えない時は、最後に聞けた途中の記録を使い、「固まった」ことも問題として残す

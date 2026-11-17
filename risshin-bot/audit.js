@@ -288,7 +288,8 @@ export class Auditor {
     const breakObj = objPool.find((o) => !o.state && /(門|柵|塀)(?:[（(][^）)]*[）)])?(?:を|に|へ)(?:打ち|突き)?(?:破|壊|崩|打)/.test(o.text) && !/(せるな|すな|れるな)/.test(o.text));
     const foeStructs = structs.filter((s) => s.alive && s.team !== P.team);
     if (breakObj && foeStructs.length) {
-      const lastHit = Math.max(...foeStructs.map((s) => (this.structHp.get(s) || { t: 0 }).t));
+      // 11/18 クラウド：破った門（alive=false）も最後に打たれた時に数える。門が破れた直後、段の札が残る間に残りの柵の古い時刻で九十秒と出ていた（千石堀 act bot 3回）
+      const lastHit = Math.max(...structs.filter((s) => s.team !== P.team).map((s) => (this.structHp.get(s) || { t: 0 }).t));
       if (t - lastHit > 90 && t - this.objT > 30) {
         const o = breakObj;
         this.add('辻褄', 'gateIdle:' + (o ? o.text.slice(0, 16) : ''), '門・柵を破れと言うのに、90秒だれも傷つけていない', `「${o ? o.text : ''}」（${b.phase}）`, '門を打つ組（g.assault）が門まで行けているか、遊び手が E で打てる所に印があるかを見る');
