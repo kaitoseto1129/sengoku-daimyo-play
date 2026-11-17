@@ -258,6 +258,7 @@ function followMen(rt) {
 }
 
 const t03_komaki = {
+  quietArmyCalls: true,   // 11/17 K358 iMac n-k15：中央の「味方が総崩れ」「敵が横から回り込む」「味方が追撃に移った」を出さない（場面が変わって味方の数が落ちた時に崩れと出た・字の札は出さない決まり）
   flagEra: { sakakibara: '榊原の日輪無' }, // 東博の康政像の日輪と無（当日の使用は復元）
   spawn: { x: RAKUDA.x - 4, z: RK.z1 + 8, heading: 0 },   // 楽田城の大手門の前（秀吉の本陣の下知を受けて出る）
   minutes: 15,

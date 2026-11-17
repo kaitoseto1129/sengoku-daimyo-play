@@ -1290,6 +1290,8 @@ function retreatNotices(rt) {
       padding:8px 12px 9px 10px; background:rgba(14,12,10,.7); border-radius:6px; box-shadow:0 2px 10px rgba(0,0,0,.35);
       color:#e6dfd2; text-shadow:0 1px 2px rgba(0,0,0,.8); max-width:min(400px, calc(100vw - 140px)); }
     html:root body #hud:has(#kg-goals:not([hidden])) #center-call .cc.blue { display:none !important; }
+    /* K358（写真 844×390）：この戦は両軍の札が上の真ん中にあり、共通の知らせ（上の左〜62vw）が「朝倉の騎馬武者を討った」で札に重なった。札の下・釦の右へ下ろす */
+    html:root body #hud#hud.kg-retreat #center-call { top:calc(96px + env(safe-area-inset-top,0px)) !important; left:calc(160px + env(safe-area-inset-left,0px)) !important; right:38vw !important; }
     #kg-goals[hidden], #hud.photo #kg-goals, #hud.ending #kg-goals, body:has(#pause:not([hidden])) #kg-goals, #hud:has(#bigmap:not([hidden])) #kg-goals { display:none !important; }
     #kg-goals ol { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:4px; }
     #kg-goals li { font-size:15px; line-height:1.35; display:flex; gap:8px; align-items:baseline; }
@@ -3180,7 +3182,8 @@ const kanegasaki = {
     treeDensity: (x, z) => (Math.hypot(x - NAKAIKEMI.x, z - NAKAIKEMI.z) < NAKAIKEMI.r + 6 ? 0.08 : Math.hypot(x - KUTSUKI.x, z - KUTSUKI.z) < 24 ? 0.03 : Math.abs(x) < 60 && z > -90 && z < 90 && (z > -40 || height(x, z) < 6) ? 0.2 :
       0.55 + 0.45 * Math.sin(x * 0.055 + z * 0.028) * Math.sin(z * 0.073 - x * 0.021)),
     // 城山の南の斜面の若葉の雑木（麓から山と城を見上げた時に坊主山にしない。10/28）
-    groves: [{ x: -34, z: -76, r: 12, n: 16 }, { x: 28, z: -78, r: 12, n: 16 }, { x: -4, z: -96, r: 14, n: 18 }, { x: -48, z: -108, r: 12, n: 14 }, { x: 40, z: -112, r: 12, n: 14 }, { x: -40, z: -20, r: 12, n: 18 }, { x: 50, z: 50, r: 12, n: 16 }, { x: -50, z: 70, r: 10, n: 14 }, { x: -52, z: 98, r: 10, n: 22 }, { x: 10, z: 112, r: 10, n: 20 },
+    // K358（写真）：峠道の斬り合い（kosen の柵 (4,-64)・東の衝突 (26,-70)）の上に林 (28,-78) があり、本人が幹に当たってカメラが葉の中に入った。林を斬り合いの外 (36,-92) へ
+    groves: [{ x: -34, z: -76, r: 12, n: 16 }, { x: 36, z: -92, r: 10, n: 16 }, { x: -4, z: -96, r: 14, n: 18 }, { x: -48, z: -108, r: 12, n: 14 }, { x: 40, z: -112, r: 12, n: 14 }, { x: -40, z: -20, r: 12, n: 18 }, { x: 50, z: 50, r: 12, n: 16 }, { x: -50, z: 70, r: 10, n: 14 }, { x: -52, z: 98, r: 10, n: 22 }, { x: 10, z: 112, r: 10, n: 20 },
       // 一の備の左右の若葉の雑木（持ち場の手前と脇に見える。槍の組の場は空ける）
       { x: -20, z: -46, r: 6, n: 7, kind: 'sugi' }, { x: -16, z: -27, r: 3, n: 3, kind: 'sugi' }, { x: 24, z: -60, r: 5, n: 6, kind: 'sugi' },
       // 持ち場の正面：手前の若葉のナラ・クヌギと、天筒山の麓の斜面の雑木（最初の画面に山を坊主にしない。10/28）
@@ -4068,6 +4071,22 @@ const kanegasaki = {
       for (const g of rt.squadGroups || []) if (g.count) g.order = 'follow';
       if (F.akeU?.alive) rt.say('明智光秀', '鉄砲で追手の足を止める。遅れた組は今のうちに退き口へ', 3);
     }
+    // K358（act bot 3回中1回：本人が退き口に着いても三将の組が道で止まり、240秒待って「合流が間に合わず」で負けた・1076秒）。
+    //   本人が退き口で百五十秒待っても揃わない時は、使番の退けが届いた事にして、暗転の間に道に残る組を退き口の奥（若狭の側）へ置く。
+    //   三将が討たれていれば置かない（負けの筋はそのまま）
+    if (!F.kgPulled && F.fleeing && d < KUTSUKI.r && rt.t - F.fleeing >= 150 && kgGenerals(rt).every(e => e.u?.alive && !e.u.gone)) {
+      F.kgPulled = true; F.exitProgressAt = rt.t;
+      rt.cutT = rt.t; rt.scene.visible = false; rt.after(0.6, () => { rt.scene.visible = true; }, true);
+      let k = 0;
+      for (const g of [...F.tono, ...(rt.squadGroups || [])]) if (g) for (const u of g.units) {
+        if (!kgActive(u) || Math.hypot(u.pos.x - KUTSUKI.x, u.pos.z - KUTSUKI.z) < 26) continue;
+        const x = KUTSUKI.x + ((k % 6) - 2.5) * 1.6, z = KUTSUKI.z + 6 + Math.floor(k++ / 6) * 1.6;
+        u.target = null; u.watch = null; u.atk = null; u.swing = null; u.bind = null; u.charging = false; u.moveTo = null;
+        u.pos.set(x, rt.world.heightAt(x, z), z); if (u.vel) u.vel.x = u.vel.y = u.vel.z = 0; if (u.mesh) u.mesh.position.copy(u.pos);
+      }
+      for (const g of F.tono) if (g) { g.anchor = { x: KUTSUKI.x, z: KUTSUKI.z + 8 }; g.order = 'hold'; g.dest = null; }
+      rt.say('木下藤吉郎', '皆、抜けたか！　ようも退いた。若狭へ急げ！', 3);
+    }
     // 合流を時間だけで成功にしない。旗の下で一分待ち、四十五秒進まなければ敗北の決着へ。
     if (!F.exitReady && F.exitWaitStart !== undefined && rt.t - F.exitWaitStart >= 60 && rt.t - F.exitProgressAt >= 45) {
       this.lose(rt, '残る味方が退き口へ届かず、殿をまとめて退けなかった');
@@ -4146,6 +4165,17 @@ const kanegasaki = {
     if ((F.edgeT = (F.edgeT || 0) - dt) <= 0) {
       F.edgeT = 1;
       kgAllyReserveHold(rt);
+      // K358（写真）：退き口（若狭への道）に着くと「織田信長」の旗本が立っていた。信長は殿を残して先に朽木越えで京へ抜けている。
+      //   殿の段（川の砦）に入ったら、本人から六十 m より遠い信長の旗本を道の先へ去らせる（信長で遊ぶ時は除く）
+      if (!rt.G?.lord && F.k15Shingari && !F.nobuGone) {
+        const me = rt.player?.u, L = rt.army.units.find((u) => u.name === '織田信長' && u.alive && !u.gone);
+        const g = L?.group;
+        if (!L) F.nobuGone = true;
+        else if (me && Math.hypot(L.pos.x - me.pos.x, L.pos.z - me.pos.z) > 60) {
+          F.nobuGone = true;
+          for (const u of (g ? g.units : [L])) if (u.alive && !u.gone && !u.isPlayer && Math.hypot(u.pos.x - me.pos.x, u.pos.z - me.pos.z) > 60) { try { rt.army.despawn(u); } catch (e) { /* 消せなければそのまま */ } }
+        }
+      }
       kgFrontPull(rt);
       kgReserveRoad(rt);
       for (const g of rt.army.groups) {

@@ -12,8 +12,9 @@ export function qualityTier(previous, distance) {
   if (previous === 2) return distance <= 24 ? 1 : 2;
   return 1;
 }
+const OLD_HERO = typeof location !== 'undefined' && location.search.includes('oldhero');   // 前後の比べ用
 function special(u) {
-  return qualityHero(u) || u.isStandard || u.stdHeld || u.isStruct || u.type === 'dummy' ||
+  return (OLD_HERO ? qualityHero(u) : u.isPlayer || u.name || u.type === 'busho') || u.isStandard || u.stdHeld || u.isStruct || u.type === 'dummy' ||
     u.type === 'porter' || u.invuln || u.mustLive || u.onWound || u.noTarget || u.climb || u.perch ||
     u.naka || u.dragging || u.downed || u.woundOut || u.rearWound || u.escort || u.jinchu || u.loopWall;
 }
@@ -28,7 +29,9 @@ function qualityContact(bu, contact) {
   contact.best = gap; contact.a = au; contact.b = bu;
 }
 // 写真で40と16を同じ場面に並べるため、ページの window.__nearSkin で一時的に替えられる（何もしなければ16）
-const nearSkin = () => (typeof window !== 'undefined' && window.__nearSkin) || 16;
+// 11/17 n-atsumi（K365 測り）：?nearskin=N でも替えられる（前後の比べ用。遊ぶ人の画面では使わない）
+const NEAR_Q = typeof location !== 'undefined' ? +(location.search.match(/[?&]nearskin=(\d+)/)?.[1] || 0) : 0;
+const nearSkin = () => (typeof window !== 'undefined' && window.__nearSkin) || NEAR_Q || 16;
 export function prepareQuality(army, focus, cam, frustum, dt) {
   for (const g of army.groups) { g.qualityFar = MEM_TIGHT; if (!MEM_TIGHT) g.qualityCombat = false; }
   for (const u of army.units) {
@@ -38,7 +41,9 @@ export function prepareQuality(army, focus, cam, frustum, dt) {
     u.qualityDistance = distance;
     u.qualityWasOffscreen = u.offscreen;
     // 11/14 K073・K287：携帯は 名のある将でも 本人から 70m より先は 細かい骨入り（段0）にしない（布陣図の将の名を付けた備が 四十人ほど増え 三角形 128万・描画 641 に跳ねた）。本人・近くの将は段0のまま
-    u.qualityTier = MEM_TIGHT ? (qualityHero(u) ? (u.isPlayer || distance < 70 ? 0 : 1) : qualityTier(u.qualityTier, distance)) : null;
+    // 11/17 n-atsumi（K365 携帯の重さ・手取川で骨入りの人が 名のある将40＋自分の組30 で枠16を大きく越え、骨入りの描く数90・影88）：
+    //   名のある将の細かい姿は本人から 40m 内（前は 70m）。より先はほかの兵と同じ距離の決まり。自分の組（isSub）は下の近い順の枠で数える
+    u.qualityTier = MEM_TIGHT ? (OLD_HERO ? (qualityHero(u) ? (u.isPlayer || distance < 70 ? 0 : 1) : qualityTier(u.qualityTier, distance)) : u.isPlayer || (u.name || u.type === 'busho') && distance < 40 ? 0 : qualityTier(u.qualityTier, distance)) : null;
     if (frustum) {
       army.tmpSphere.center.set(u.pos.x, u.pos.y + 1, u.pos.z);
       army.tmpSphere.radius = Math.max(u.mounted ? 6 : 3.4, (u.wpn?.userData.spec?.L || 0) + 1);

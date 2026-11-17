@@ -233,7 +233,7 @@ function honnoLife(rt) {
   }
   box.dispose(); pole.dispose(); hoop.dispose(); water.dispose();
 }
-const NIJO = { x: 54, z: -54, h: 17 };      // 二条御所
+const NIJO = { x: 54, z: -54, h: 26 };      // 二条御所（11/17 kaito K352「本能寺の方が二条御所より大きいのはおかしい」：半幅17m（34m 四方）→26m（52m 四方）。御所の内の御殿・幟・門は中心からの寸法のまま）
 const HONNO_GATE = GATES.main;      // 本能寺の東の門
 const NIJO_GATE = { x: NIJO.x - NIJO.h, z: NIJO.z };          // 二条御所の西の門
 const NIJO_BACK = { x: NIJO.x, z: NIJO.z - NIJO.h };          // 二条御所の北の口（落ちる口）

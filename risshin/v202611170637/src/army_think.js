@@ -859,7 +859,7 @@ export const ArmyThink = {
       if (row >= 1 && !frontlineMelee(this, u) && !g._apCharge) engage = Math.min(engage, row === 1 ? 6 : 3);
     }
     // 「敵を狙え」の指定目標
-    if (g.focus && g.focus.alive && !g.focus.noTarget && !g.focus.opened && g.focus.team !== u.team && g.order !== 'retreat') {
+    if (g.focus && g.focus.alive && !g.focus.gone && !g.focus.noTarget && !g.focus.opened && g.focus.team !== u.team && g.order !== 'retreat') {   // 11/17 K358 iMac n-kiba：場から去った（gone）的は狙わない
       const fp = this.targetPoint(g.focus, u, u._focusPoint || (u._focusPoint = { x: 0, z: 0 }));
       const d = this.distTo(u, g.focus);
       // 指定した敵が柵の向こうでも、手前で迫る敵には先に応戦する。
@@ -881,7 +881,7 @@ export const ArmyThink = {
         u.moveTo = q;
         return;
       }
-    } else if (g.focus && (!g.focus.alive || g.focus.opened || g.focus.noTarget || g.focus.team === u.team)) {
+    } else if (g.focus && (!g.focus.alive || g.focus.gone || g.focus.opened || g.focus.noTarget || g.focus.team === u.team)) {
       g.focus = null;
       if (g.isPlayerSquad && this.hooks.onFocusDone) this.hooks.onFocusDone(g);
     }

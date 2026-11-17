@@ -60,7 +60,7 @@ export function start(rt, ctx) {
     if (S.done || rt.over || !rt.player.u.alive) return;
     const p = rt.player.u.pos;
     const way = CAMP_ROUTE[S.route];
-    if (way && Math.hypot(p.x - way.x, p.z - way.z) < 3) S.route++;
+    if (way && Math.hypot(p.x - way.x, p.z - way.z) < 6) S.route++;   // 11/17 K358 iMac n-kiba：印は 6m 内で『着いた』と見るのに、3m まで次の角へ進まず、その間に立つと何も起きなかった
     // 自分で陣の外を回った人も、北の経由点へ引き返させない。
     if (p.z >= 68) S.route = CAMP_ROUTE.length;
     if (!S.k && (p.z > DEST.z - 60 || rt.t - S.t0 > 45)) ambush();
@@ -103,9 +103,18 @@ export function start(rt, ctx) {
       // 殿だけが払った待ち伏せを、まだ接敵していない本人の戦功にしない。
       if (S.contestedAt != null) rt.award((t) => t.side.push('江口で待ち伏せの門徒を払った'), '江口の待ち伏せを払った');
     }
-    if (S.k && clear && Math.hypot(p.x - DEST.x, p.z - DEST.z) < 12) finish();
+    // 11/17 K358 iMac n-kiba（act bot：渡しのそばで待ち伏せが動かず6秒何も起きない、が3回に1回残った）：渡しの15m 内に本人がいて、
+    //   まだ払えていない待ち伏せがあれば、毎回本人へ掛からせる（着いた一度だけでなく）
+    if (S.k && !clear && S.g && !S.g.routed && S.g.count && Math.hypot(p.x - DEST.x, p.z - DEST.z) < 15 && S.g.focus !== rt.player.u) {
+      S.g.order = 'attack'; S.g.dest = { x: p.x, z: p.z }; S.g.focus = rt.player.u;   // 殿の味方へ掛かっていても、渡しの本人を的にする S.g.seekRange = Math.max(S.g.seekRange || 0, 60); S.g.aggro = Math.max(S.g.aggro || 0, 20);
+    }
+    if ((S.k && clear || !S.k && S.arrivedAt != null && rt.t - S.arrivedAt > 8) && Math.hypot(p.x - DEST.x, p.z - DEST.z) < 12) finish();   // 兵の枠が空かず待ち伏せが出ないままでも、着いて八秒で渡しへ抜ける
     // 11/16 iMac n-mikata（K113・act bot「江口の渡しに着いても6秒なにも起きない」）：渡しに着いても待ち伏せが残る時は、右上の一行の進みで払う相手を示す
-    else if (!S.arrived && !CAMP_ROUTE[S.route] && Math.hypot(p.x - DEST.x, p.z - DEST.z) < 10.5) { S.arrived = true; if (!S.k) ambush(); rt.objProgress('main', '舟を隠した門徒を払い、渡しを開けよ'); }
+    else if (!S.arrived && !CAMP_ROUTE[S.route] && Math.hypot(p.x - DEST.x, p.z - DEST.z) < 10.5) {
+      S.arrived = true; S.arrivedAt = rt.t; if (!S.k) ambush(); rt.objProgress('main', '舟を隠した門徒を払い、渡しを開けよ');
+      // 11/17 K358 iMac n-kiba（act bot：渡しに着いても待ち伏せの門徒が 40m 先で動かず、6秒何も起きない）：着いたら待ち伏せが本人へ掛かる
+      if (S.g && !S.g.routed && S.g.count) { S.g.order = 'attack'; S.g.dest = { x: p.x, z: p.z }; S.g.seekRange = Math.max(S.g.seekRange || 0, 60); S.g.aggro = Math.max(S.g.aggro || 0, 20); }
+    }
   };
   function finish() {
     if (S.done) return;

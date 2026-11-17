@@ -151,8 +151,8 @@ function requiredStage(s) {
       // 一度差し戻してから正しい範囲の時間を足す。共通の円の外でも判定を一致させる。
       C.inT = inT + (holding ? dt : 0);
       // K358（11/17 iMac n-look-face）：本人が砦を離れて東の残兵を追い続けると、③の守った時間が貯まらず、打ち切りの無い段のまま刻限で任務失敗した（act bot 924秒）。
-      //   段が始まって二百四十秒・寄せが尽きた後は、佐竹の組が砦を守り抜いたものとして済ませる（声で知らせる）
-      if (s.kind === 'hold' && el >= 240 && !C.waves?.length && C.inT < 45) { C.inT = 45; if (!C.satakeHeld) { C.satakeHeld = true; rt.say('足軽', '佐竹の組が砦を守り抜いたぞ！　お頭、西の堤へ！', 3.4); } }
+      //   段が始まって百六十秒（寄せの波は九十四秒で尽き、守る刻は百秒）・寄せが尽きた後は、佐竹の組が砦を守り抜いたものとして済ませる（声で知らせる）
+      if (s.kind === 'hold' && el >= 160 && !C.waves?.length && C.inT < 45) { C.inT = 45; if (!C.satakeHeld) { C.satakeHeld = true; rt.say('足軽', '佐竹の組が砦を守り抜いたぞ！　お頭、西の堤へ！', 3.4); } }
       // 櫓の脇から西口へ直進すると柱と袖で止まる。砦の東の開けた堤へ戻ってから入る。
       // 行き先と印を同じ足場に置き、人にも通れる順路を示す。
       const p = player.pos;
@@ -215,8 +215,8 @@ function requiredStage(s) {
         !rt.army.wallBetween(player.pos, player.team, C.at, false);
       C.rearPushT = pushing ? (C.rearPushT || 0) + dt : 0;
       // K358（11/17 iMac n-look-face）：本人が東に残って西の堤へ来ないと、④は打ち切りの無いまま刻限で任務失敗した（act bot：107m 離れて924秒）。
-      //   ④が始まって二百四十秒たてば、上杉の横撃で殿が退いた事にして済ませる（声で知らせる）
-      if (el >= 240 && !C.uesugiDone) {
+      //   ④が始まって百五十秒たてば（11/17 戦が十一分台と長かったので二百四十から縮めた）、上杉の横撃で殿が退いた事にして済ませる（声で知らせる）
+      if (el >= 150 && !C.uesugiDone) {
         C.uesugiDone = true; C.engaged = true;
         for (const g of C.groups) if (!gone(g)) { g.noRout = false; g.morale = 0; g.routed = true; g.order = 'flee'; }
         rt.say('水原親憲', '上杉の鉄砲が殿を崩したぞ！　木村・後藤は城へ退く！', 3.6);

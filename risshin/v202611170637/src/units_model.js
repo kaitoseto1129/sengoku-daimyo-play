@@ -674,7 +674,10 @@ MAT.onBeforeCompile = (sh) => {
           float lipP = smoothstep(0.78, 0.97, txA.g), cavP = 1.0 - smoothstep(0.3, 0.68, txA.g);
           material.specularShininess = mix(70.0, 12.0, wornP);
           material.specularColor = vec3(0.16, 0.155, 0.15) * (0.55 + 1.6 * lipP) * (1.0 - cavP * 0.85) * (1.0 - wornP * 0.75) * (1.0 + uWet * 0.8);
-          material.diffuseColor *= mix(0.42, 1.1, smoothstep(0.4, 0.92, txA.g)) * vec3(1.06, 1.0, 0.9);
+          // 11/17 K341④（長篠の高い引きで遠い兵の束が黒い塊）：板の段の陰の濃さは近く（40m 内）だけ。遠いほど漆の地を少し持ち上げ（空気の明るさ）、形と色を読ませる
+          float farL = ${typeof location !== 'undefined' && /[?&]farlift=0/.test(location.search) ? '0.0' : 'smoothstep(40.0, 130.0, length(vViewPosition))'};   // ?farlift=0 で前
+          material.diffuseColor *= mix(mix(0.42, 1.1, smoothstep(0.4, 0.92, txA.g)) * vec3(1.06, 1.0, 0.9), vec3(1.0), farL);
+          material.diffuseColor = mix(material.diffuseColor, material.diffuseColor * 1.5 + vec3(0.03, 0.028, 0.025), farL);
           lacDimP = (1.0 - wornP * 0.6) * (1.0 - smoothstep(15.0, 30.0, length(vViewPosition)));   // 遠い兵は黒い塊にしない（K328）
           // 黒漆の映り込みは縁（面が傾く所）に強く、正面は黒いまま。擦れ・谷は映さない（下の lights_fragment_end）
           lacRefP = (1.0 - wornP) * (0.4 + 0.6 * lipP) * (1.0 - cavP * 0.8) * mix(1.0, 0.2, smoothstep(0.2, 0.8, upP));   // 上を向いた面（陣笠の上・肩）は空を丸ごと映して灰に浮くので削る
@@ -682,7 +685,7 @@ MAT.onBeforeCompile = (sh) => {
         } else if (mkP == 3) {
           // 鉄：漆より鈍く、照りは鉄の色に寄せる
           material.specularShininess = 32.0;
-          material.specularColor = mix(vec3(0.22), material.diffuseColor * 1.6, 0.5) * (1.0 - dd * 0.8 - dustP * 0.5);
+          material.specularColor = mix(vec3(0.22), material.diffuseColor * 1.6, 0.5) * max(1.0 - dd * 0.8 - dustP * 0.5, 0.0);   // 11/17 K348：倒れた兵（上を向く面）は埃と汚れで負になり、色の崩れ（紫の斑）が出た
         } else if (mkP == 2) {
           // 11/17 K358（桶狭間の中ほどの兵の顔が白い点に浮く）：遠い肌は照りを消し、日焼けの色へ少し沈める（顔の形と目鼻は顔の係のまま）
           float farS = smoothstep(14.0, 40.0, length(vViewPosition));

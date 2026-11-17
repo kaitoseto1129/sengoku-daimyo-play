@@ -4394,8 +4394,9 @@ function shIdleFill(rt) {
       else if (!on && u.mesh && !u.mesh.parent && u._shParent) { u._shParent.add(u.mesh); u._shParent = null; }
       // 休む兵は兵の並び（army.units）からも外し、毎コマ全員をたどる所（距離の並べ替え・押し合い・戦の数え）に入れない。遠景の束は army.parked から描く
       const A = rt.army, park = A.parked || (A.parked = []);
-      // 11/17：兵の並びから外すと（parked）、設楽原の act bot が柳田前と追い討ちの段で止まり二回とも時切れになった（外さない時は達成・問題0）。訳を見つけるまで外さない（?shpark=1 で試す）
-      if (!(typeof location !== 'undefined' && /[?&]shpark=1\b/.test(location.search))) continue;
+      // 11/17：兵の並びから外すと（parked）、初めの二回は act bot が時切れになった。のちに描かずの通し（勝ち 516秒）と act bot 二回（達成・問題0）で
+      //   止まりが出ず、初めの二回は機械の混みによる揺れと見て戻す。?shpark=0 で外さずに試せる
+      if (typeof location !== 'undefined' && /[?&]shpark=0\b/.test(location.search)) continue;
       if (on) { const ix = A.units.indexOf(u); if (ix >= 0) { A.units.splice(ix, 1); park.push(u); } }
       else { const ix = park.indexOf(u); if (ix >= 0) { park.splice(ix, 1); A.units.push(u); } }
     }

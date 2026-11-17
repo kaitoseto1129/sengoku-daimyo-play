@@ -508,12 +508,13 @@ const k08_osaka_kizu = {
     // ---- 豊臣方：明石の砦の兵（全登は留守。一族の全延が指図する） ----
     F.front = foe(rt, '入り江の岸の鉄砲組', SHORE, [sq(TOYO, 'samurai', 2), sq(TOYO, 'gun', 26), sq(TOYO, 'ashigaru', 4)], { aggro: 16, width: 30, formation: 'line' });   // 鉄砲組は岸に一列に並んで撃つ（11/7 kaito「鉄砲組が四人ほど。隊と言える数で、並んで撃つ」）
     F.wallG = foe(rt, '大手門の守り', { x: 0, z: GATE.z - 6 }, [sq(TOYO, 'samurai', 1), sq(TOYO, 'bow', 2), sq(TOYO, 'gun', 2), sq(TOYO, 'ashigaru', 2)], { aggro: 14 });
-    F.garrison = foe(rt, '明石の守兵', { x: 0, z: -40 }, [sq(TOYO, 'samurai', 3), sq(TOYO, 'ashigaru', 5), sq(TOYO, 'gun', 2), sq(TOYO, 'bow', 1)], { aggro: 3, width: 10 });   // 門が破れるまでは砦の奥に控える
+    // K358（11/17 iMac n-look-face）：砦に入ると近くに敵が数人しか見えず薄かった（写真 kizu_200s）。守兵と奥の新手の槍を足して砦の中を厚く（明石の手は約八百）
+    F.garrison = foe(rt, '明石の守兵', { x: 0, z: -40 }, [sq(TOYO, 'samurai', 3), sq(TOYO, 'ashigaru', 14), sq(TOYO, 'gun', 2), sq(TOYO, 'bow', 1)], { aggro: 3, width: 10 });   // 門が破れるまでは砦の奥に控える
     // 砦の内の組は逃げ場が無く、門が破れる前に崩れない（崩れると③が一瞬で済んでしまう）
     for (const g of [F.wallG, F.garrison]) { g.noFrontline = true; g.noRout = true; }
     F.garrison.noAI = true;   // 門が破れるまで動かない（stage3 で放つ）
     // 砦の奥の小屋に控える明石の新手（③で守兵が半ばまで減ると打って出る。③が一息で済まない。11/5 crit：戦が三分で終わった）
-    F.oku = foe(rt, '明石の奥の新手', { x: -8, z: -48 }, [sq(TOYO, 'samurai', 2), sq(TOYO, 'ashigaru', 6), sq(TOYO, 'gun', 2)], { aggro: 3, width: 8 });
+    F.oku = foe(rt, '明石の奥の新手', { x: -8, z: -48 }, [sq(TOYO, 'samurai', 2), sq(TOYO, 'ashigaru', 12), sq(TOYO, 'gun', 2)], { aggro: 3, width: 8 });
     F.oku.noFrontline = true; F.oku.noRout = true; F.oku.noAI = true;
     // 門の内の弓と鉄砲（門の奥の土の台に並ぶ。門が破れて寄せ手が入った途端に一斉に射ちかける。11/7 kaito「入った瞬間に鉄砲と弓が雨のように来る怖さに」）
     F.inner = foe(rt, '門の内の弓鉄砲', { x: 0, z: GATE.z - 16 }, [sq(TOYO, 'bow', 10), sq(TOYO, 'gun', 8)], { aggro: 0, width: 18, formation: 'line' });

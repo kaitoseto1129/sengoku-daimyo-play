@@ -640,9 +640,10 @@ const k11_sanadamaru = {
     }
     // K362：武者走り（狭間の衆の踏み台）と二段の台。一人ずつの板の台を一つの形にまとめて描く（当たりは要らない：兵は台の上に据えてある）
     { const parts = [];
-      for (const [list, h, w] of [[F.mushaSpots, MUSHA_H, 1.3], [F.mushaSpots2 || [], MUSHA_H2, 1.2]]) for (const q of list) {
+      // 11/17：明るい大きな箱の柱に見えた（寄りの写真）→細く低い板の色に（幅0.9・奥行0.8・焦げ茶）
+      for (const [list, h, w] of [[F.mushaSpots, MUSHA_H, 0.9], [F.mushaSpots2 || [], MUSHA_H2, 0.85]]) for (const q of list) {
         const a = Math.atan2(q.x - C.x, q.z - C.z), y0 = W.heightAt(q.x, q.z);
-        const b = new THREE.BoxGeometry(w, h + 0.3, 1.0); b.rotateY(a); b.translate(q.x, y0 + (h - 0.3) / 2, q.z); parts.push(paint(b, h > 1.2 ? 0x4e3828 : 0x5a4030));
+        const b = new THREE.BoxGeometry(w, h + 0.3, 0.8); b.rotateY(a); b.translate(q.x, y0 + (h - 0.3) / 2, q.z); parts.push(paint(b, h > 2 ? 0x2e2118 : 0x382819));
       }
       if (parts.length) rt.scene.add(mesh(parts, false)); }
     // 丸の内の槍衆：左右の口の内に構えて、打って出る時を待つ（丸の中にこそ大勢。11/6 BV）
@@ -655,10 +656,13 @@ const k11_sanadamaru = {
     // K362（kaito「中に誰もいない、スカスカ」）：丸の内の平場（信繁の本陣と塀の間）に、打って出を待つ予備の侍と槍衆を二組（十二人ずつ）。
     //   持ち場を守り外へは出ない（stay）。上から・柵越しに見て、丸の中に兵が詰まって見えるように
     F.maruRes = [];
-    for (const sd of [-1, 1]) {
-      const q = { x: C.x + sd * 9, z: C.z + 6 };
-      const g = enemyGroup(rt, { faction: 'toyotomi', name: '丸の内の真田の予備', anchor: q, fixed: true, order: 'hold', facing: 0, width: 6, spacing: 1.2, aggro: 4, noRout: true, formation: 'yari' },
-        dress([uS(2), uA(10)], SANADA));
+    // 11/17：上から見て平場がまだ空いて見えたので、本陣の後ろの左右にも二組（計四組・四十八人）
+    //   左右に寄せると左の組は主殿の屋根の陰に隠れ、平場の真ん中が空いて見えた→平場の真ん中寄り（左右六歩・前後二列）
+    for (const [sd, dz] of [[-1, 12], [1, 12], [-1, -2], [1, -2]]) {
+      const q = { x: C.x + sd * 6, z: C.z + dz };
+      // 11/17：十二人の塊四つでは平場（六十×四十歩）が空いて見えた（寄りの写真）→二十人に・横に広げる
+      const g = enemyGroup(rt, { faction: 'toyotomi', name: '丸の内の真田の予備', anchor: q, fixed: true, order: 'hold', facing: 0, width: 9, spacing: 1.4, aggro: 4, noRout: true, formation: 'yari' },
+        dress([uS(2), uA(18)], SANADA));
       g.stay = true; F.maruRes.push(g);
     }
     // 篠山の鉄砲：丘の上で南へ構え、寄せが登り始めると丸の東の口へ引き揚げる（史実：篠山はもぬけの殻）

@@ -3808,7 +3808,8 @@ const odani = {
     endStyle.textContent = `
 #vignette[data-odani-down]{background:rgba(6,8,12,.42)!important;animation:none!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;mask-image:none!important;-webkit-mask-image:none!important;box-shadow:inset 0 0 90px rgba(6,8,12,.45)!important}
 /* 左半分に重なる半透明の板は、指で歩く範囲の飾り。入力の範囲は残して絵だけ消す。 */
-html body:has(#hud[data-odani]) #tc .mzone { display:none !important; }
+/* 11/17 n-nagashino：display:none だと範囲の大きさが 0×0 になり、指の bot が棒を置けず一戦じゅう歩けなかった（自動歩きだけで進み、倒れ・十分超え）。見えなくするだけにする */
+html body:has(#hud[data-odani]) #tc .mzone { opacity:0 !important; background:none !important; box-shadow:none !important; border:0 !important; }
 /* マウスで遊ぶ画面には指の丸と歩く案内を出さない。携帯の操作は保つ。 */
 @media (hover:hover) and (pointer:fine) {
  html body:has(#hud[data-odani]) #tc :is(.stick,.move-hint,.look-hint) { display:none !important; }
@@ -5017,7 +5018,7 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
       roadPoint(ROUTE_O, c, ROUTE_FROM, rt.army, g.units.find((u) => u.alive));
       g.odaniPlayerPause = false; g.anchor = { x: c.x, z: c.z }; g.order = 'path'; g.path = ROUTE_O;
       g.pathIdx = Number.isFinite(ROUTE_FROM.d) ? Math.ceil(ROUTE_FROM.s) : 0;
-      g.formation = 'column'; g.aggro = 6; g.speed = 4.2;
+      g.formation = 'column'; g.aggro = 6; g.speed = 5;   // 11/17：4.2 では本人が40m先へ出て一人で屋敷に着いた
       g.onArrive = (gg) => { gg.order = 'attack'; gg.seekRange = 34; gg.formation = 'yari'; };
     }
     F.kyoGate.order = 'hold'; F.kyoGate.seekRange = 12;
@@ -5071,7 +5072,7 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
       roadPoint(g.path, u.pos, ROUTE_FROM, rt.army, u);
       g.pathIdx = Number.isFinite(ROUTE_FROM.d) ? Math.ceil(ROUTE_FROM.s) : nearWay(rt, g.path, u.pos, u.pos.y);
       // 西木戸の道は本人が先に着いて一人で矢を受けた（11/11 act 310 秒）。味方の組は走って先に寄せ、傷を分ける。
-      g.aggro = 4; g.speed = 5.6; g.formation = 'column';
+      g.aggro = 4; g.speed = 5.6; g.odaniWalk = 0; g.formation = 'column';
       g.onArrive = (gg) => { gg.order = 'attack'; gg.seekRange = 40; gg.formation = 'yari'; gg.anchor = { x: KC.x, z: KC.z }; };
     }
     rt.marker('kyo', centerOf(F.kyoGate), () => '西の口の門兵', { red: true, group: F.kyoGate });
@@ -5272,7 +5273,7 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
       this.march(g, path, Math.PI);
       const c = g.center();
       if (!F.C.kuruwa.kyogoku.test(c.x, c.z) && !F.C.kuruwa.koma.test(c.x, c.z)) this.reinforcementMarch(rt, g);
-      g.speed = 4;
+      g.speed = 5; g.odaniWalk = 0;   // 11/17 n-nagashino K358：4 では本人だけ先に小丸へ着き、山王丸の控えに一人で斬られた
     }
     const northRoad = ROAD_RIDGE.filter((q) => q[1] <= KOM.cz && q[1] >= SANNO.z1 - 5).reverse();
     this.march(F.sanno, [[0, SANNO.z1 - 5], ...northRoad, [0, KOM.cz - 3]], 0);
@@ -5798,10 +5799,25 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
     const F = rt.flags;
     if (rt.t < (F.supportAt || 0)) return;
     F.supportAt = rt.t + 0.5;
+    // 11/17 n-nagashino K358：本人が道を駆け、羽柴の組が30m後ろで屋敷・西木戸に一人で着いて倒れた。
+    //   道を行く組は、本人から16m より離れたら駆け足で追いつく（敵は弱めない。味方の厚みで勝つ）
+    if (F.step >= 2 && F.step <= 3 && !F.retreatOn) {
+      const pp = rt.player.u.pos;
+      for (const g of F.oda) {
+        if (gone(g) || g.order !== 'path') continue;
+        const c = g.center(), far = Math.hypot(c.x - pp.x, c.z - pp.z) > 16;
+        if (far && g.speed < 6.6) { g.odaniWalk = g.speed; g.speed = 6.6; }
+        else if (!far && g.odaniWalk) { g.speed = g.odaniWalk; g.odaniWalk = 0; }
+      }
+    }
     if (F.step !== 2 || F.onoDone || F.reliefOn) return;
     const count = F.oda.reduce((n, g) => n + g.count, 0);
     // 庭を取ったのに、隠れた四人の出撃時刻だけを待つ状態にしない。
-    if (!gone(F.ono) && (rt.t - F.stepT < 12 || rt.t < 145 && count > F.odaInitial * 0.75)) return;
+    // 11/17 n-nagashino K358：小隊は羽柴の組が屋敷の下へ着いてから出る。本人だけが先に着いた時に出ると、
+    //   一人で小隊と庭の守りに挟まれ183秒で倒れた（組は40m後ろ）。組が来なくても50秒で出る（待ち続けない）
+    const door = F.onoHouse.doorOut;
+    const odaNear = F.oda.some((g) => !gone(g) && (() => { const c = g.center(); return Math.hypot(c.x - door.x, c.z - door.z) < 30; })());
+    if (!gone(F.ono) && (rt.t - F.stepT < 12 || !odaNear && rt.t - F.stepT < 50 || rt.t < 145 && count > F.odaInitial * 0.75)) return;
     F.reliefOn = true;
     const g = F.relief, start = F.onoHouse.doorOut;
     let released = 0;
@@ -5828,13 +5844,16 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
         : '屋敷から新手じゃ！　南木戸から庭へ進め', 4);
     rt.marker('relief', centerOf(g), '味方を押す敵の小隊', { red: true, group: g });
     // 11/17 iMac n-nagashino K358（長：手加減でなく味方の厚みで勝てる形に）：屋敷から小隊が出た時、本人が南木戸の前で一人で受けて
-    //   矢と小隊に削られ296秒で倒れた。浅井新八の手と佐久間の手が屋敷の戸口の前へ加勢に来て、小隊を挟んで押し返す（敵の強さは変えない）
-    for (const h of [F.niwa, F.saku]) {
+    //   矢と小隊に削られ296秒で倒れた。近くの羽柴の組が道を行くのを止めて小隊へ掛かり、本人と挟んで押し返す（敵の強さは変えない）。
+    //   11/17 直し：以前は居ない組（F.niwa・F.saku）を呼んでいて加勢が来なかった。道の上の組は aggro 6 で小隊の横を素通りしていた
+    const pp = rt.player.u.pos;
+    for (const h of F.oda) {
       if (!h || gone(h)) continue;
-      this.march(h, [[start.x + 2, start.z + 6]], 0);
-      h.onArrive = (q) => { q.order = 'attack'; q.focus = null; q.seekRange = 16; };
+      const c = h.center();
+      if (Math.hypot(c.x - pp.x, c.z - pp.z) > 55) continue;
+      h.aggro = 18; h.odaniPlayerPause = false;   // 道は行き続け、出会った小隊に掛かる（その場で止めると加勢に届かなかった）
     }
-    rt.after(2.5, () => { if (!F.ending && !rt.over && F.step === 2) rt.say('浅井新八', '小隊が出たぞ！　加勢する、屋敷の戸口で挟め！', 3); });
+    rt.after(2.5, () => { if (!F.ending && !rt.over && F.step === 2) rt.say('先手組頭', '小隊が出たぞ！　組で掛かれ、挟んで押し返せ！', 3); });
   },
 
   reinforcementMarch(rt, g) {
@@ -6209,7 +6228,7 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
             const q = path[i], d = Math.hypot(q[0] - c.x, q[1] - c.z) + Math.abs(rt.world.heightAt(q[0], q[1]) - v.pos.y) * 3;
             if (d < bd) { bd = d; best = i; }
           }
-          g.order = 'path'; g.path = path; g.pathIdx = best; g.speed = 5.6; g.formation = 'column'; g.colW = 1; g.aggro = 5;
+          g.order = 'path'; g.path = path; g.pathIdx = best; g.speed = 5.6; g.odaniWalk = 0; g.formation = 'column'; g.colW = 1; g.aggro = 5;
           g.odaniPlayerPause = false;
           g.onArrive = (gg) => { gg.order = 'attack'; gg.seekRange = 30; gg.formation = 'yari'; gg.anchor = { x: KC.x, z: KC.z }; gg.speed = 3; };
         }
@@ -7110,3 +7129,4 @@ Object.defineProperty(odani, 'botDefendsFort', { configurable: true, get() {
   if (!b || b.def !== odani || !u?.alive || b.flags.ending) return false;
   return (b.flags.step === 2 || b.flags.step === 3) && !b.flags.retreatOn;
 } });
+

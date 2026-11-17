@@ -1375,6 +1375,13 @@ export class WorldVegetation {
         parts.push(g);
       }
       const fernMat = sway(liteMat({ map: leafTex('fern'), vertexColors: true, alphaTest: 0.45, side: THREE.DoubleSide, roughness: 1, envMapIntensity: 0.1 }), 0.05, 0.4, { after: MEM_TIGHT ? keepAlpha : softBush });
+      // K358（11/17 金ヶ崎 874×402：峠の山腹で羊歯の葉が目の前に平たい板で大きく写った）：カメラから一歩半〜四歩の株は縮めて消す（草と同じ。株の数と描く回数は同じ）
+      { const before = fernMat.onBeforeCompile, key = fernMat.customProgramCacheKey?.() || '';
+        fernMat.customProgramCacheKey = () => key + '|fernNear';
+        fernMat.onBeforeCompile = (sh, r) => { before?.(sh, r); sh.vertexShader = sh.vertexShader.replace('#include <project_vertex>', `#ifdef USE_INSTANCING
+          transformed *= smoothstep(1.5, 4.0, distance(cameraPosition, (modelMatrix * instanceMatrix[3]).xyz));
+        #endif
+        #include <project_vertex>`); }; }
       const ferns = new THREE.InstancedMesh(mergeVegetationParts(parts), fernMat, N);
       const col = new THREE.Color();
       let m = 0;

@@ -1740,6 +1740,7 @@ const mikatagahara = {
   frontFillWhen: (rt) => rt.phase !== 'retreat' && rt.phase !== 'end',
   world: {
     snow: 0.3,   // 11/17 kaito（K354）「漫画に描写があるから怖さがわかる」：センゴク10巻 VOL.90〜93 の雪の夕方（元亀三年十二月二十二日・小雪がちらつく台地）。雨と同じ粒を白く短く降らせる（world_rain.js updateSnow）
+    drawLow: true,   // 11/17 K365（kaito「携帯でも軽く」）：天王寺・岡山と同じく、携帯の描く解像度を下げ影を省く（iPhone の真似で一コマ中央87ms）
     noboriSam: true,   // 11/16 K338：名の無い徒の侍も幟を負う（赤備え・徳川の旗本の上に家の旗の林。天王寺と同じ）
     groundHalf: 300, moveLim: 220,   // K338：地面を 180→300 に広げ、台地の外の野まで続ける（天王寺と同じ。道・陣の置き場は変えない）
     overheadViewFar: 900,   // K338：真上の布陣の写真で地面の端が白く切れないよう、真上の時だけ遠くまで描く
@@ -2249,7 +2250,8 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
     // 徳川の本陣（鶴翼の後ろ）：徳川家康と旗本。鶴翼が破れると浜松城へ退く
     F.campA = camp(rt, { x: 0, z: IE_HQ_Z, facing: Math.PI, team: 0, faction: 'tokugawa', mon: 'tokugawa', armor: AR.tokugawa, compact: true, tate: false, general: { name: '徳川家康', hat: 'kabuto_m', haori: 0xe4ddcb }, guard: 15, reserve: 0, runTo: { x: -40, z: LINE_Z - 4 } });
     // 家康の本陣の後ろに「厭離穢土欣求浄土」の旗（永禄三年の大樹寺以来の徳川の本陣の旗。11/5 時代考証）
-    for (const x of [-6, 6]) rt.scene.add(nobori(W, x, IE_HQ_Z + 8, 'onri', 7));
+    // 11/17 K358（初めての目の写真：本陣の段で大きな白い布がカメラの前を塞いだ）：厭離穢土の幟はカメラのすぐ前に来たら薄くする（camNear）
+    for (const x of [-6, 6]) { const nb = nobori(W, x, IE_HQ_Z + 8, 'onri', 7); nb.traverse((o) => { if (o.isMesh) o.userData.camNear = true; }); rt.scene.add(nb); }
     // 11/15 iMac四十二（K125）：総大将の家康は退く下知まで本陣を離れない。手傷で馬を返して下がらず、共通の「ちと退く」も言わせない。
     if (F.campA.general) F.campA.general.onWound = () => {};
     { const back = rt.army.hooks.onGeneralBack; rt.army.hooks.onGeneralBack = (u) => { if (u === F.campA?.general) return; back?.(u); }; }
