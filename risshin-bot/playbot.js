@@ -197,6 +197,9 @@ function survive(b, inp) {
     const guardLead = Math.cos(turnToStrike) < 0.5 ? 1.3 : 0.9;
     inp.guardHold = !!attacker && impact <= guardLead;
     inp.runHeld = false;
+    // 11/17 K360⑦（長の許し・n-map）：退く間も三歩の内で自分を打っている敵には打ち返す。手加減を外した後、孤立の退きのまま
+    //   打ち返さず追手に打たれ続けて倒れた（金ヶ崎の始まりの段で三度）。刃が届く直前は構え（guardHold）を先にし、その合間だけ突く。人が遊ぶ時の手本
+    if (attacker && ad <= 3 && !inp.guardHold && !(p.cd > 0)) inp.leftPressed = true;
     if (retreating && foe && (fd < 8 || md > 6)) {
       // 退避中も実際の打ち手を受ける。近いだけの敵へ向くと、横からの一撃が構えを抜ける。
       const face = attacker || pursuer || foe;
@@ -1568,7 +1571,11 @@ const HABIT = {
   },
   act(b, inp, c) {
     const p = b.player, u = p.u, t = b.t;
-    if (!b.botSurviving && (u.hp < u.maxHp * 0.6 || u.mobbed) && survive(b, inp)) {
+    // 11/17 K360⑦（敵の手加減を外した後、山崎・賤ヶ岳で囲まれて倒れた）：命が多くても、四歩半の内に打てる敵が三人、命が八割五分を切って二人いれば、
+    //   一人ずつ当たれるよう退いて味方の列へ寄り、刃は構えで受ける（survive）。人が遊ぶ時の手本の動き
+    let ring = 0;
+    if (!b.botSurviving && u.hp >= u.maxHp * 0.6 && !u.mobbed) b.army.forNear(u.pos.x, u.pos.z, 4.5, (o) => { if (o.alive && o.team !== u.team && !o.fleeing && !o.isStruct && !o.noTarget && !o.civ && o.type !== 'gun' && o.type !== 'bow') ring++; });
+    if (!b.botSurviving && (u.hp < u.maxHp * 0.6 || u.mobbed || ring >= 3 || ring >= 2 && u.hp < u.maxHp * 0.85) && survive(b, inp)) {
       if (b.def.botCoverRetreat) cover(b, inp);
       c.charge = 0; return;
     }
