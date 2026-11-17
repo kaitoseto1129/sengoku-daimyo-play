@@ -8,7 +8,7 @@ import { Auditor } from './audit.js';
 import { touchFrame, touchInput, isTouch } from './touch.js';
 import { S } from './settings.js';
 import { RADIAL } from './player.js';
-import { cmdAllowed } from './command_rank.js';
+import { cmdAllowed, cmdTier } from './command_rank.js';
 import { simpleControls } from './simple_controls.js';
 import { GENERALS, WOUND_FLOOR, DEATH_END } from './units.js';
 import { lordGame, lordList } from './lord.js';
@@ -1491,12 +1491,16 @@ class TouchPad {
     // 指の丸がまだ・もう出ていない時（開戦の札・戦の終わり・一時停止）は、人も押せないので問題に数えない
     const tc = document.getElementById('tc');
     if (b.over || b.ended || !tc || tc.hidden) { this.real.quickCmd = id; return; }
+    // 11/18 クラウド k365-cloud-07（森部・諏訪原の見回り。陣形・射撃の輪もこの丸から開く）：指図の丸そのものが出ていない戦・身分（森部の足軽の段など）では、人も輪を開けないので問題に数えない
+    if (!this.shown(document.querySelector('#tc [data-b="cmd"]'))) { this.real.quickCmd = id; return; }
     // 陣形・射撃は号令の輪を開くと出る丸から（組頭から）
-    if ((id === 'form' || id === 'fire') && b.G.rank >= 2) { if (!this.sub) this.sub = { id, n: 0 }; return; }
+    // 組頭の段（cmdTier 1）は長押しでも輪を開かない作り（touch.js）。陣形・射撃は指では出せないのが仕様なので数えない（11/18 諏訪原の見回り）
+    if ((id === 'form' || id === 'fire') && cmdTier(b) === 1) { this.real.quickCmd = id; return; }
+    // 組（b.squad）が一人も残っていない時は、号令の輪そのものが開かない作り（touch.js の hasSq）。人も出せないので数えない（11/18 諏訪原・組— の足軽）
+    if ((id === 'form' || id === 'fire') && !b.squad?.some((o) => o.alive)) { this.real.quickCmd = id; return; }
+    if ((id === 'form' || id === 'fire') && (b.G.rank >= 2 || b.G.lord)) { if (!this.sub) this.sub = { id, n: 0 }; return; }
     // 初めの三戦（missionStyle）は足軽の基本操作だけを出す決まり（simple_controls.js）。号令の輪が無いのは不具合でない（11/17 iMac・森部で数え違い）
     if (simpleControls(b)) { this.real.quickCmd = id; return; }
-    // 11/18 クラウド k365-cloud-07（森部の見回り）：指図の丸そのものが出ていない戦・身分（森部の足軽の段など）では、人も輪を開けないので問題に数えない
-    if (!this.shown(document.querySelector('#tc [data-b="cmd"]'))) { this.real.quickCmd = id; return; }
     // 号令の輪に無い号令（陣形・射撃など）は、指では出せない
     this.ctx.noTouchCmd(id);
     this.real.quickCmd = id;
