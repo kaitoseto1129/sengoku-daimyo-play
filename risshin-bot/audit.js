@@ -16,7 +16,7 @@ const IDLE_OK_TYPES = new Set(['dummy', 'porter', 'player']);
 // 画面の部品で、重なっていてよい物（全面の飾り・浮かぶ字・印）
 const OVERLAP_OK = new Set(['vignette', 'overlay', 'floats', 'killmark', 'combo', 'banner', 'hurt', 'dirhit', 'target', 'wipe', 'staring', 'bigmap', 'radial', 'photoui', 'crosshair', 'reticle', 'compass-marks', 'dmgdir', 'prompt', 'mission-target-lines', 'follow-guide', 'leader-guide', 'brinkfx']);   // 後の二つは画面全体の透明な svg に端の矢印だけ（11/9：k02・k04・志賀で「札が 100% を覆う」と誤って数えた）
 // 遊び手を責める言い回し
-const BLAME = /(何をしておる|何をしている|愚か|たわけ|馬鹿|役立たず|だめだ|ダメだ|下手|失格|情けない|しっかりせい)/;
+const BLAME = /(何をしておる|何をしている|愚か|たわけ|馬鹿|役立たず|だめだ|ダメだ|(?<![のにへ])下手(?![でにへのを])|失格|情けない|しっかりせい)/;
 // 断るだけで、どうすればいいかを言わない言い回し
 const REFUSE = /(できない|できぬ|使えない|足りない|届かない)$/;
 
@@ -197,16 +197,16 @@ export class Auditor {
       // 遠くの行き先へ向かう途中で詰まった者は、これまでどおり調べる。
       // 遠景の軽い兵（qualityAbstract・farSim）は考えを止め、行き先は _farWant（持ち場）で歩く。古い moveTo で「動かない」と数えない（11/13 クラウドか K127：関ヶ原の福島隊 aiT −120秒）
       const mt = (u.qualityAbstract || u.farSim) ? u._farWant : u.moveTo;
-      const arrived = mt && Math.hypot(mt.x - u.pos.x, mt.z - u.pos.z) < ((u.jammed || u.jamT > 0) ? 2.6 : 1.2);   // 持ち場の 2.6m 内で味方に塞がれて待つ者は着いた扱い（army_think の jammed と同じ幅）
+      const arrived = mt && Math.hypot(mt.x - u.pos.x, mt.z - u.pos.z) < ((u.jammed || u.jamT > 0) ? 2.6 : (g && g.guard) ? 3 : 1.2);   // 11/17 クラウドヤ三（岩村）：守りの組は持ち場の隊形の枠（2〜3m）に着けば立って待つ   // 持ち場の 2.6m 内で味方に塞がれて待つ者は着いた扱い（army_think の jammed と同じ幅）
       // 床几に据えた総大将（u.perch・army_alive の still と同じ）は動かないのが決まり（11/16 iMac n-mikata：野田福島の三好長逸）
       const mayIdle = IDLE_OK_TYPES.has(u.type) || u.noTarget || u.fleeing || u.perch || !g || IDLE_OK_ORDERS.has(g.order) || g.holdFire || g.stay || /櫓の守り/.test(g.name || '') || u.target || u.atk || (g.leader === u && g.order === 'hold') || leaderStill || arrived;
       const moved = Math.hypot(u.vel.x, u.vel.z) > 0.15;
       const hasDestination = mt && Math.hypot(mt.x - u.pos.x, mt.z - u.pos.z) > 1.6;
       // （120m 内に敵のいない兵が立って待つのは、困り事に数えない）
-      if (!mayIdle && hasDestination && !moved && b.t > 20 && !b.paused && b.army.nearestEnemy(u, 120, (o) => !o.fleeing) && !b.army.nearestEnemy(u, Math.max(4, (u.range || 0) + 2), (o) => !o.fleeing)) {   // 敵が4m内なら斬り合いの最中で、立っていて当然（11/14 クラウドち：天王寺 (-82,-11) 近い敵2〜3m の誤検出）
+      if (!mayIdle && hasDestination && !moved && b.t > 20 && !b.paused && b.army.nearestEnemy(u, 120, (o) => !o.fleeing) && !b.army.nearestEnemy(u, Math.max((u.jammed || u.jamT > 0) ? 10 : 4, (u.range || 0) + 2), (o) => !o.fleeing)) {   // 11/17 クラウドハ三（姉川）：押し合いで詰まった後ろの列は、敵が10m 内なら前の列の後ろで順を待っている   // 敵が4m内なら斬り合いの最中で、立っていて当然（11/14 クラウドち：天王寺 (-82,-11) 近い敵2〜3m の誤検出）
         const n = (this.idle.get(u) || 0) + step;
         this.idle.set(u, n);
-        if (n > 20) { this.add('辻褄', 'stuck:' + (g.name || g.label || u.type), '行き先があるのに20秒動かない兵', `${who(u)}（号令：${g.order}・${g.name || '名なし'}・頭：${g._ai ? (g._ai.ctl || '無') + '/' + (g._ai.mode || '―') : '無'}${g.guard ? '・守り' : ''}${g.focus ? '・的あり' : ''}・近い敵${(() => { const e = b.army.nearestEnemy(u, 200); return e ? Math.round(Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z)) + 'm' + (e.fleeing ? '逃' : '') : 'なし'; })()}${u.type === 'gun' || u.type === 'bow' ? `・射手[撃${g.fire === false ? '止' : '可'}・込${u.reload ? Math.round(u.cd) : '-'}・弾${u.gunAmmo ?? '-'}・射程${Math.round(u.range || 0)}・遠${u.farSim ? '1' : u.qualityAbstract ? 'q' : '0'}・先${mt ? Math.round(Math.hypot(mt.x - u.pos.x, mt.z - u.pos.z)) : '-'}m]` : ''}${mt ? `・行き先(${Math.round(mt.x)},${Math.round(mt.z)})` : ''}）at (${Math.round(u.pos.x)},${Math.round(u.pos.z)})`, '道が塞がれていないか、行き先に着いたと見なせているかを見る', who(u)); this.idle.set(u, -60); }
+        if (n > 20) { this.add('辻褄', 'stuck:' + (g.name || g.label || u.type), '行き先があるのに20秒動かない兵', `${who(u)}（号令：${g.order}・${g.name || '名なし'}・頭：${g._ai ? (g._ai.ctl || '無') + '/' + (g._ai.mode || '―') : '無'}${g.guard ? '・守り' : ''}${g.focus ? '・的あり' : ''}・近い敵${(() => { const e = b.army.nearestEnemy(u, 200); return e ? Math.round(Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z)) + 'm' + (e.fleeing ? '逃' : '') : 'なし'; })()}${u.type === 'gun' || u.type === 'bow' ? `・射手[撃${g.fire === false ? '止' : '可'}・込${u.reload ? Math.round(u.cd) : '-'}・弾${u.gunAmmo ?? '-'}・射程${Math.round(u.range || 0)}・遠${u.farSim ? '1' : u.qualityAbstract ? 'q' : '0'}・先${mt ? Math.round(Math.hypot(mt.x - u.pos.x, mt.z - u.pos.z)) : '-'}m]` : ''}${mt ? `・行き先(${Math.round(mt.x)},${Math.round(mt.z)})・塀${mt && b.army.wallBetween && b.army.wallBetween(u.pos, -1, mt) ? 'あり' : 'なし'}・詰${u.jammed || u.jamT > 0 ? '1' : '0'}・馬${u.mounted ? '1' : '0'}・近い味方${(() => { let m = 1e9; for (const o of b.army.units) if (o !== u && o.alive && o.team === u.team) { const d = Math.hypot(o.pos.x - u.pos.x, o.pos.z - u.pos.z); if (d < m) m = d; } return m < 1e9 ? m.toFixed(1) : '-'; })()}m` : ''}）at (${Math.round(u.pos.x)},${Math.round(u.pos.z)})`, '道が塞がれていないか、行き先に着いたと見なせているかを見る', who(u)); this.idle.set(u, -60); }
       } else this.idle.set(u, 0);
       // 自分のすぐそばで何もしない敵（持ち場の者・敗走中は除く）。
       // 勝敗後など、敵の狙いに入らない本人は nearestEnemy と同じ条件で除く。

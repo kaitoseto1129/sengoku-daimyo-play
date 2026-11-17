@@ -142,6 +142,7 @@ export async function openChrome({ width = 1600, height = 900, port = 9400 + Mat
       // Mac は GPU（metal）で描く。swiftshader は CPU で描くので、裏の Chrome が並ぶと機械がとても重くなる（CHROME_GL=swiftshader で元に戻せる）
       ...(linux || process.env.CHROME_GL === 'swiftshader' ? ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] : ['--use-angle=metal', '--enable-gpu']), '--ignore-gpu-blocklist',
       ...(linux ? ['--no-sandbox', '--disable-dev-shm-usage', '--no-first-run', '--no-default-browser-check'] : []),
+      ...(process.env.CHROME_JSFLAGS ? ['--js-flags=' + process.env.CHROME_JSFLAGS] : []),   // 測り用（例 CHROME_JSFLAGS=--allow-natives-syntax）
       '--hide-scrollbars', '--mute-audio', 'about:blank',
     ], { stdio: 'ignore' });
     // node が止められた時に Chrome だけが置き去りにならないように（置き去りが十数個たまって機械が重くなった。10/6）

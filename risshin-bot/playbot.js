@@ -523,6 +523,13 @@ export function brain(b, inp) {
       b._botHeadUntil = b.t + 0.4;   // 性格の癖（突進・連打）が次の一押しまでの間に足を出して長押しを切らない
       return;
     }
+    // K360（志賀の段5：二の丸の木戸の外で、体力を保った bot が 1312 秒立ち止まった）：自分の側の閉まった木戸の前で四秒動けず、
+    //   近くに敵がいない時は「門を開ける」を押す（人は札を見て押せる。ゲームの決まりと敵の強さは変えない）
+    if (hi && hi.id.startsWith('gateuse') && hi.label === '門を開ける') {
+      const st = b._gateStuck || (b._gateStuck = { x: u.pos.x, z: u.pos.z, t: b.t });
+      if (Math.hypot(u.pos.x - st.x, u.pos.z - st.z) > 1.5) { st.x = u.pos.x; st.z = u.pos.z; st.t = b.t; }
+      else if (b.t - st.t > 4 && !b.army.nearestEnemy(u, 6, (o) => !o.fleeing && !o.noTarget && !o.isStruct)) { inp.e.add('KeyE'); st.t = b.t; }
+    }
   }
   // 首取り（K071）続き：倒し終えた亡骸が 12m 内にあり、6m 内に敵がいない時は、倒れ終わった所へ歩いて戻る
   if (b.index !== 0 && !p.mounted && !p.catching && (b.meritBagCount || 0) < 2 && b.meritKills && !b.def.noHead && !b.def.uchisute &&
@@ -1421,12 +1428,28 @@ class TouchPad {
     for (const [k, id] of [['KeyC', 'attack'], ['KeyZ', 'follow'], ['KeyX', 'hold'], ['KeyN', 'retreat']]) if (inp.e.has(k)) this.cmd(id, b);
     if (inp.quickCmd) this.cmd(inp.quickCmd, b);
     this.stepRadial();
-    // 陣形・射撃：号令の丸を短く押して輪を開き（組頭から）、出てきた「陣形」「射撃」の丸を押す
+    // 陣形・射撃：人と同じく、号令の丸を短く押して指揮の札（#cmdpanel）を開き、札の陣形・射撃を押す。
+    // 戦の画面の丸は攻撃と守るだけ（touch.js「10/25 kaito 持ち替えいらない」）なので、輪の陣形・射撃の丸はどの戦でも出ない（11/18 諏訪原・信長で出陣の見回り）
     if (this.sub) {
       const sb = this.sub; sb.n++;
-      if (sb.n === 1) this.tap(btn('cmd'), '号令（短く押す）');
-      else if (this.shown(btn(sb.id))) { this.tap(btn(sb.id), sb.id === 'form' ? '陣形' : '射撃'); this.sub = null; }
-      else if (sb.n > 6) { this.sub = null; this.ctx.noTouchCmd(sb.id); this.real.quickCmd = sb.id; const c = btn('cmd'); if (c && c.classList.contains('sel')) this.tap(c, '号令（閉じる）'); }
+      const cp = q('#cmdpanel'), pl = this.ctx.b?.player;
+      const pick = () => {
+        if (!this.shown(cp)) return null;
+        const all = [...cp.querySelectorAll('[data-cmd]')].filter((e) => this.shown(e));
+        return sb.id === 'form' ? all.find((e) => e.dataset.cmd.startsWith('form_') && e.getAttribute('aria-pressed') !== 'true') || null : all.find((e) => e.dataset.cmd === sb.id) || null;
+      };
+      if (sb.n === 1) sb.t0 = performance.now();
+      const el = pick();
+      if (el) { this.tap(el, sb.id === 'form' ? '陣形（札）' : '射撃（札）'); this.sub = null; if (pl?.cmdOpen && this.shown(cp)) this.tap(btn('cmd'), '号令（閉じる）'); }
+      else if (!sb.tapped && this.shown(btn('cmd'))) { this.tap(btn('cmd'), '号令（短く押す）'); sb.tapped = performance.now(); }
+      else if (sb.tapped && !pl?.cmdOpen && performance.now() - sb.tapped > 1500) { sb.tapped = 0; }   // 札が開かなかった（ほかの指で閉じた）時は押し直す
+      else if (performance.now() - sb.t0 > 4000) {   // 札は次の描きのコマで出る。手番の数でなく時間で待つ（速回しは1コマ0.5秒）
+        // 札が開いて指の丸も出ている（一時停止・判断の札・上空視点でない）のに、陣形・射撃が無い時だけ不具合として数える
+        this.sub = null;
+        if (pl?.cmdOpen && this.shown(cp) && this.shown(btn('atk'))) this.ctx.noTouchCmd(sb.id, `指揮の札に無い・段${this.ctx.b?.G.rank}・組${this.ctx.b?.squad?.filter((o) => o.alive).length}`);
+        this.real.quickCmd = sb.id;
+        if (pl?.cmdOpen) this.tap(btn('cmd'), '号令（閉じる）');
+      }
     }
     // そのほかの釦
     const MAP = { KeyR: () => btn('mount'), KeyV: () => q('#tc-view'), Enter: () => q('#hud #skiphint') };
@@ -1496,13 +1519,11 @@ class TouchPad {
     // 陣形・射撃は号令の輪を開くと出る丸から（組頭から）
     // 組頭の段（cmdTier 1）は長押しでも輪を開かない作り（touch.js）。陣形・射撃は指では出せないのが仕様なので数えない（11/18 諏訪原の見回り）
     if ((id === 'form' || id === 'fire') && cmdTier(b) === 1) { this.real.quickCmd = id; return; }
-    // 組（b.squad）が一人も残っていない時は、号令の輪そのものが開かない作り（touch.js の hasSq）。人も出せないので数えない（11/18 諏訪原・組— の足軽）
-    if ((id === 'form' || id === 'fire') && !b.squad?.some((o) => o.alive)) { this.real.quickCmd = id; return; }
     if ((id === 'form' || id === 'fire') && (b.G.rank >= 2 || b.G.lord)) { if (!this.sub) this.sub = { id, n: 0 }; return; }
     // 初めの三戦（missionStyle）は足軽の基本操作だけを出す決まり（simple_controls.js）。号令の輪が無いのは不具合でない（11/17 iMac・森部で数え違い）
     if (simpleControls(b)) { this.real.quickCmd = id; return; }
     // 号令の輪に無い号令（陣形・射撃など）は、指では出せない
-    this.ctx.noTouchCmd(id);
+    this.ctx.noTouchCmd(id, `終わり・段${b.G.rank}・殿${b.G.lord ? 1 : 0}`);
     this.real.quickCmd = id;
   }
   releaseAll() {
@@ -1545,7 +1566,7 @@ function makeCtx(per, aud) {
     noButton(name, why) { if (openingWait(ctx.b?.player?.rt?.game)) return; ctx.add(`btn-none:${name}`, `「${name}」をしたいのに、押す丸が出ていない`, `欲しかった時：${ctx.where}${why ? '・' + why : ''}`, 1, { fix: 'その時に使える釦は出す（touchFrame の出し入れ）' }); },
     // 開戦の札・布陣の見渡しの間は、まだ指の釦が出ていないので数えない（noButton・noStick と同じ・11/13 act bot で 5秒 brief の Digit3 が17回）
     noTouch(k) { if (openingWait(ctx.b?.player?.rt?.game) || ctx.b?.phase === 'brief') return; const KN = { Digit3: '火縄銃に持ち替え（鍵盤の 3）', Digit4: '弓に持ち替え（鍵盤の 4）', KeyG: '号令先の切り替え（G）', KeyT: '肩の切り替え（T）' }; ctx.add(`touch-none:${k}`, `指の端末では「${KN[k] || k}」ができない（押す丸が無い）`, `bot の頭が ${k} を押したがった（${ctx.where}）`, 2, { fix: 'touch.js に釦を足すか、戦の方で要らなくする' }); },
-    noTouchCmd(id) { ctx.add(`cmd-none:${id}`, `号令「${{ form: '陣形', fire: '射撃／停止', move: '前進', yari: '槍衾', charge: '突撃' }[id] || id}」が、指の号令の輪から出せない`, `号令の輪（RADIAL）に無い、または身分が足りず選べない（${ctx.where}）`, per.key === 'sen' ? 3 : 1, { fix: '号令の輪に足すか、短く押した時の指揮の札（数字の号令）を指で押せるようにする' }); },
+    noTouchCmd(id, why = '') { ctx.add(`cmd-none:${id}`, `号令「${{ form: '陣形', fire: '射撃／停止', move: '前進', yari: '槍衾', charge: '突撃' }[id] || id}」が、指の号令の輪から出せない`, `号令の輪（RADIAL）に無い、または身分が足りず選べない（${ctx.where}${why ? '・' + why : ''}）`, per.key === 'sen' ? 3 : 1, { fix: '号令の輪に足すか、短く押した時の指揮の札（数字の号令）を指で押せるようにする' }); },
     radialDone(id) { ctx.radialHandled = null; ctx.radialWant = { id, t: ctx.b ? ctx.b.t : 0 }; },
   };
   return ctx;
@@ -1942,11 +1963,11 @@ function watchStep(b, dt, c) {
   if (per.key === 'reki') {
     if (!c.facDone) {
       c.facDone = true;
-      // 稽古相手（藁人形・古参の八助のような、狙えない相手だけの隊）は敵の家に数えない
+      // 稽古相手（藁人形・古参の八助のような、狙えない相手だけの隊）は敵の家に数えない。寝返った者（小山田信茂）の calm な隊も味方の家に数えない
       const keiko = (g) => g.units.every((u) => u.type === 'dummy' || u.noTarget);
-      const f0 = new Set(b.army.groups.filter((g) => g.team === 0 && g.count).map((g) => g.faction));
+      const f0 = new Set(b.army.groups.filter((g) => g.team === 0 && g.count && !keiko(g)).map((g) => g.faction));
       const f1 = new Set(b.army.groups.filter((g) => g.team === 1 && g.count && !keiko(g)).map((g) => g.faction));
-      for (const f of f1) if (f0.has(f) && f) c.add(`samefac:${c.bid}:${f}`, '敵と味方が同じ家の装束・旗で出てくる', `${c.battle}：両方に「${f}」の隊がいる`, 2, { cat: '辻褄', fix: '敵の隊の faction を、その戦の相手の家にする' });
+      for (const f of f1) if (f0.has(f) && f) c.add(`samefac:${c.bid}:${f}`, '敵と味方が同じ家の装束・旗で出てくる', `${c.battle}：両方に「${f}」の隊がいる（味方側：${b.army.groups.filter((g) => g.team === 0 && g.count && !keiko(g) && g.faction === f).map((g) => g.name + g.count).join('・')}）`, 2, { cat: '辻褄', fix: '敵の隊の faction を、その戦の相手の家にする' });
       const dateS = b.def.date ? String(b.def.date(b)) : '';
       const bt = b.def.mapCastle ? null : BATTLES[b.index];
       const era = (s) => (String(s).match(/(永禄|元亀|天正|慶長|元和|文禄)[一二三四五六七八九十元]+年/) || [])[0];
