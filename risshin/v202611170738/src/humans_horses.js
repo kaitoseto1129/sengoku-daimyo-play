@@ -287,7 +287,10 @@ function detachReal(h) {
 const horsesOn = new Set();
 const horseCandidates = [];
 const horseWanted = new Map();
-const HORSE_TIGHT = { near: 36, far: 40, max: 16, must: 28, mustMax: 28 };
+// 11/17 n-atsumi（K365 携帯の重さ・天王寺岡山で骨入りの描く数 121＝騎馬の将の馬が 60m 内で先に骨入りになり 28 頭まで）：
+//   携帯の上限は 16 頭で止める（すぐそばの 28m 内でも足さない）。?oldhorse で前と比べる
+const OLD_HORSE = typeof location !== 'undefined' && /[?&]oldhorse\b/.test(location.search);
+const HORSE_TIGHT = OLD_HORSE ? { near: 36, far: 40, max: 16, must: 28, mustMax: 28 } : { near: 36, far: 40, max: 16, must: 28, mustMax: 16 };
 let madeHorses = 0;
 // 戦に馬がいるか。def.noHorse は「自分と軍勢は徒歩」の意味で、馬上の将・飾りの馬は置かれる。
 // それを馬の描き方まで止めていたので、小川・手取川・田野では馬がつるつるの作り物（橙・灰色）に見えた（11/6 共通 馬・乗り手）
@@ -335,7 +338,7 @@ function updateHorses(rt) {
       const named = u.look && (u.look.officer || typeof u.look.face === 'string' && u.look.face.startsWith('g:') || u.type === 'busho');
       // 名のある武将の馬は本人の馬と同じ：60m までは必ず骨の入った馬に
       // 11/8 critic60 田野 21：60m より先の将の馬が木の作りの脚・板の鞍のまま見えた。見通しの利く 90m まで骨の入った馬に
-      const near60 = named && Math.hypot(u.pos.x - cx, u.pos.z - cz) < (MEM_TIGHT ? 60 : 90);   // 低（携帯）は 20m まで
+      const near60 = named && Math.hypot(u.pos.x - cx, u.pos.z - cz) < (MEM_TIGHT ? (OLD_HORSE ? 60 : 40) : 90);   // 11/17 携帯は 40m（名のある将の細かい姿と同じ）   // 低（携帯）は 20m まで
       add(u.horse, u, u.pos.x, u.pos.z, u.isPlayer ? -2 : near60 ? -1 : named ? 0.6 : 1);
     }
     if (P && P.horse && !P.mounted && P.horse.parent) add(P.horse, null, P.horse.position.x, P.horse.position.z, -2);

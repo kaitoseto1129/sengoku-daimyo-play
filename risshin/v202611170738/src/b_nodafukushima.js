@@ -4311,6 +4311,18 @@ const nodafukushima = {
     const F = rt.flags;
     const p = rt.player;
     nodaSeirouFade(rt);
+    // 11/17 K358・K360⑦ iMac n-kiba（act bot：退く段で足軽・侍に囲まれ 598 秒で倒れた）：敵は強いまま。本人が三人より多く囲まれたら、
+    //   四十五歩の内の動ける味方の組（二つまで・砦や持ち場に据えた組は除く）が駆け寄って囲みを割る（山崎 b_t01_yamazaki.js と同じ手・味方の厚み）
+    if (!F.ending && !rt.over && p?.u?.alive && (F.nfSurT = (F.nfSurT || 0) - dt) <= 0) {
+      F.nfSurT = 0.5;
+      const P = p.u.pos; let n = 0;
+      for (const u of rt.army.units) if (u.alive && u.team !== p.u.team && !u.fleeing && Math.abs(u.pos.x - P.x) < 5 && Math.abs(u.pos.z - P.z) < 5 && Math.hypot(u.pos.x - P.x, u.pos.z - P.z) < 4.5) n++;
+      if (n >= 3) {
+        const near = rt.army.groups.filter((g) => g.team === p.u.team && !g.isPlayerSquad && !g.routed && !g.civ && !g.fixed && !g.stay && g.count >= 4)
+          .map((g) => { const c = g.center(); return { g, d: c ? Math.hypot(c.x - P.x, c.z - P.z) : 1e9 }; }).filter((e) => e.d < 45).sort((a, c) => a.d - c.d).slice(0, 2);
+        for (const { g } of near) if (!(g._nfRescueT > rt.t)) { g._nfRescueT = rt.t + 6; g.order = 'move'; g.dest = { x: P.x, z: P.z }; g.path = null; g.onArrive = (q) => { q.onArrive = null; q.order = 'attack'; }; }
+      }
+    }
     // 11/14 K306（漫画くらい濃く）：前夜の場面。信長は天満森に陣を取り、根来・雑賀の鉄砲衆も着いた（元亀元年八月末）。
     //   夜明け前の陣中の篝火と声から始め、十六秒で朝へ移ろう。兵も札も足さない
     if (!F.zenyaSet && !F.ending) {

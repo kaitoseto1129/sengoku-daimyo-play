@@ -276,6 +276,7 @@ function honjinGuard(rt, team, at, facing, name, lead, flag, n, horse = false) {
 }
 
 const t01_yamazaki = {
+  quietArmyCalls: true,   // 11/17 K358 iMac n-k15：中央の「味方が総崩れ」「敵が横から回り込む」「味方が追撃に移った」を出さない（場面が変わって味方の数が落ちた時に崩れと出た・字の札は出さない決まり）
   spawn: { x: START.x, z: START.z, heading: Math.PI },
   prelude: 4,
   compactIntro: true,
@@ -770,7 +771,7 @@ const t01_yamazaki = {
       for (const u of rt.army.units) if (u.alive && !u.gone && u.team === 1 && (u.fleeing || u.group?.routed) && !u.group?.honjin && dist(u.pos, P) > 60) rt.army.despawn(u);
     }
     // 11/17 K358 iMac n-k15（長：味方の厚みで囲みを割る）：敵は強いまま（K360⑦）。本人が三人より多く囲まれたら、四十五歩の内の味方の組（二つまで）が本人の所へ駆け寄って囲みを割る
-    if (F.stage >= 2 && (F.surT = (F.surT || 0) - dt) <= 0) {
+    if (F.stage >= 1 && (F.surT = (F.surT || 0) - dt) <= 0) {   // ①の先陣へ駆けつける道でも斥候に囲まれて倒れた（iPhone 横の通し 11/17）
       F.surT = 0.5;
       let n = 0; for (const u of rt.army.units) if (u.alive && u.team === 1 && !u.fleeing && Math.abs(u.pos.x - P.x) < 5 && Math.abs(u.pos.z - P.z) < 5 && dist(u.pos, P) < 4.5) n++;
       if (n >= 3) {

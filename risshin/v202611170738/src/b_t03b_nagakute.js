@@ -125,6 +125,7 @@ const goalR = (n) => (n === 0.5 || n === 5.5 ? 14 : GOAL_R[n]);
 const PIN = { x: 0, z: 0, r: 8, hide: 6, always: true, silent: true, enemy: false, unit: null, follow: false, fire: false, gate: false, defend: false, waiting: false, arrived: false, area: false, route: false };
 
 const t03b_nagakute = {
+  quietArmyCalls: true,   // 11/17 K358 iMac n-k15：中央の「味方が総崩れ」「敵が横から回り込む」「味方が追撃に移った」を出さない（場面が変わって味方の数が落ちた時に崩れと出た・字の札は出さない決まり）
   flagEra: { sakakibara: '榊原の日輪無' }, // 東博の康政像の日輪と無（当日の使用は復元）
   spawn: { x: 0, z: -12, heading: E },   // 中入りの列の中（西の道）。白山林の陣へ追い付き、番所へ
   minutes: 15,
@@ -486,8 +487,8 @@ html:root body #hud:has(#h-prog[data-battle="t03b_nagakute"]) #center-call .cc {
         rt.say('物見', '御旗山の麓にも榊原の「無」の旗！　池田様の横へ回っておりまする！', 3.2);
       });
       rt.after(76, () => { if (!stopped(rt) && F.stage === 5) rt.say('森長可', 'まだじゃ……まだ鬼武蔵は倒れぬぞ！', 2.8); });
-      rt.after(100, () => { if (!stopped(rt) && F.stage === 5) rt.say('池田元助', '武蔵守殿の旗が揺らいだ！　支えよ、支えよ！', 2.8); });
-      rt.after(140, moriEnd);
+      rt.after(88, () => { if (!stopped(rt) && F.stage === 5) rt.say('池田元助', '武蔵守殿の旗が揺らいだ！　支えよ、支えよ！', 2.8); });
+      rt.after(100, moriEnd);   // 11/17 K358 iMac n-k15：140→100秒（⑤が176秒・戦が11〜12分）
     } else if (n === 6) {
       // 大きな札は共通の「〇〇が討たれた」に任せる（重ねると共通の札が出られず毎コマ出し直す）。退く下知は台詞で
       rt.say('使番', '勝入様・之助様・武蔵守様、お討死！　西の細ヶ根の堀様の旗まで退かれよ！', 3.4);

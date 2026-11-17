@@ -3,6 +3,7 @@ import { autoReserve, engageNear } from './depth_reserve.js';
 import { sceneBeats } from './scene_beats.js';
 import { fujinTick } from './fujin_place.js';
 import { depthRealTick } from './depth_real.js';
+import { idleParkTick } from './idle_park.js';
 import { fujinLook } from './fujin_read.js';
 import { withBushou } from './bushou_roster.js';
 import { unmirror } from './units_look.js';
@@ -2806,7 +2807,7 @@ export class Battle {
     this.goalsDoneTick(dt);
     this.dangerTick(dt);
     if (!this.over && !this.pacingExpired) runScriptOrders(this, this.def.update, dt);
-    if (!this.over && !this.pacingExpired) { try { fujinTick(this, enemyGroup, allyGroup); depthRealTick(this, enemyGroup, allyGroup); autoReserve(this, enemyGroup, allyGroup); engageNear(this); } catch (e) { /* 待つ備が作れなくても戦は進む */ }
+    if (!this.over && !this.pacingExpired) { try { fujinTick(this, enemyGroup, allyGroup); depthRealTick(this, enemyGroup, allyGroup); idleParkTick(this); autoReserve(this, enemyGroup, allyGroup); engageNear(this); } catch (e) { /* 待つ備が作れなくても戦は進む */ }
       try { sceneBeats(this, enemyGroup, allyGroup); } catch (e) { /* 場面が作れなくても戦は進む（K306） */ } }
     battlePacingTick(this);
     timeLimitTick(this, tdt);

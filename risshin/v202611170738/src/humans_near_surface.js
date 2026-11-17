@@ -79,6 +79,8 @@ export function nearSurfaceMaterial(base, kind = 'unit') {
           nearBlood = smoothstep(0.77, 0.88, stain.g) * smoothstep(0.45, 0.85, vNearP.y) * age * 0.65 * uNearBlood;
           nearWater = smoothstep(0.55, 0.85, stain.b) * max(uNearWet, uNearGrime * 0.22) * nearAmount;
           diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.075, 0.052, 0.032), nearMud * 0.65);
+          // 11/17 K348（戸次川の倒れた兵に紫の斑）：紺の糸に血の赤を半ば混ぜると紫になる。血の染みた所は先に布の色みを抜き、黒褐の赤へ
+          ${typeof location !== 'undefined' && /[?&]armortex=0/.test(location.search) ? '' : 'diffuseColor.rgb = mix(diffuseColor.rgb, vec3(dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11))) * vec3(1.0, 0.8, 0.7), min(nearBlood * 3.0, 1.0));'}
           diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.12, 0.012, 0.008), nearBlood);
           diffuseColor.rgb *= 1.0 - nearWater * 0.07;
         }`);

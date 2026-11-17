@@ -239,7 +239,8 @@ export class HudArmy {
     tb.querySelector('s').style.left = share.toFixed(1) + '%';
     tb.querySelector('.na').hidden = tb.querySelector('.nb').hidden = separateForces;
     // 史料に総勢がない戦では、遊びの仮置きを史実の確定人数として見せない。
-    const prefix = f.provisional ? '仮' : '';
+    // K360（11/17 検品：三木・雑賀・越前大滝寺で人数に「仮」の字）：字は出さない（kaito 10/23「字は人数と名前だけ」）。仮の数は f.provisional で持つだけ
+    const prefix = '';
     tb.querySelector('.na').textContent = separateForces ? '' : prefix + Math.max(0, Math.round(f.a)).toLocaleString('ja-JP');
     tb.querySelector('.nb').textContent = separateForces ? '' : prefix + Math.max(0, Math.round(f.b)).toLocaleString('ja-JP');
   }
@@ -320,7 +321,7 @@ export class HudArmy {
     setText($('ab-a'), sqTxt); setText($('ab-b'), '');
     $('ab-a').setAttribute('aria-label', sqN ? `自分の組 生き残り${sqA}人（${sqAll}人のうち）` : '');
     // 両軍の今の兵の数を数で（九3・十二1「三万対八千が読めない」11/6 共通の係）。史料に総勢の無い戦は「仮」を頭に
-    const num = (n) => (f?.provisional ? '仮' : '') + Math.max(0, Math.round(n)).toLocaleString('ja-JP');
+    const num = (n) => Math.max(0, Math.round(n)).toLocaleString('ja-JP');   // K360：「仮」の字は出さない
     setText(ab.querySelector('.side.a .n'), f ? `味方 ${num(f.a)}人` : ''); setText(ab.querySelector('.side.b .n'), f ? `敵 ${num(f.b)}人` : '');
     const countLabel = f?.provisional ? '仮の兵数' : '残り';
     $('ab-a').parentElement.setAttribute('aria-label', f ? `${sides.a.name} ${countLabel}${fmt(f.a)}` : sides.a.name);

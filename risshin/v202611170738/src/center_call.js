@@ -122,10 +122,12 @@ onEvent((rt, key, o) => {
   else if ((key === 'pursuit' || key === 'armyBroken' || key === 'flankOpen') && rt.def.quietArmyCalls) return;
   else if (key === 'pursuit') {
     // 追撃は複数の備が同じ時に動く。中央へ三行重ねず、二十秒に一度だけ短く出す（11/10 森部・墨俣：「柴田勝家の先手、追撃」が三行並んだ）
+    // K360（11/17 検品：攻めの段や退く段に「味方が追撃に移った」が出て、その段の動きと食い違った・15戦ほど）：味方の追撃は字で知らせない（遠くの備の追撃も拾っていた）。敵が追って来る知らせは残す
+    if (mine) return;
     const now = rt.t ?? 0;
     if (PURSUIT_AT != null && now >= PURSUIT_AT && now - PURSUIT_AT < 20) return;
     PURSUIT_AT = now;
-    text = mine ? '味方が追撃に移った' : '敵が追ってくる';
+    text = '敵が追ってくる';
   }
   else if (key === 'taishoDown') {
     // 八王子では曲輪の将の討死を、城全体の大将を自分で討った知らせと混同させない。
@@ -138,9 +140,10 @@ onEvent((rt, key, o) => {
   }
   // 真田丸では、退きの下知前も寄せ手の崩れを全軍の壊滅と取り違えない。
   else if (key === 'armyBroken') text = mine && (rt.def.key === 'k11_sanadamaru' || rt.def.key === 'sanadamaru') ? (rt.flags?.retreatOrder ? '寄せ手が撤収する' : '寄せ手が崩れた') : mine ? '味方が総崩れ' : '敵が総崩れ';
-  else if (key === 'flankOpen') text = mine ? '' : '敵が横から回り込む';
+  // K360（11/17 長の判断「字の知らせは出さない」・n-allgate の連絡）：横からの回り込みと備の突撃は字で出さない（敵の動きと旗・▼の絵で分かる）
+  else if (key === 'flankOpen') return;
   else if (key === 'zoneFall') text = '持ち場が落ちた';
   else if (key === 'lineRestored') text = nm ? `${nm}、立て直した` : '';
-  else if (key === 'order' && (o.v === 'charge' || o.v === 'assault' || o.v === 'attack')) text = nm ? `${nm}、突撃` : '';
+  else if (key === 'order' && (o.v === 'charge' || o.v === 'assault' || o.v === 'attack')) return;
   if (text) centerCall(rt, text);
 });

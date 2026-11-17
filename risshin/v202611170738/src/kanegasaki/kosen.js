@@ -21,8 +21,8 @@ export function start(rt, ctx, done) {
     DP.fight({
       at: A1, title: '峠道の朝倉勢', sub: '城を捨てた兵が峠から押し返して来る', obj: '坂を下りて来る朝倉勢を押し返せ', max: 90, limit: 100, noRefill: true,   // 11/10 kanegasaki_spec_1109：異変は二分ほどで（四分の攻めは長かった）
       say: [['木下藤吉郎', '城は開いた。残りの朝倉を峠へ押し戻せ！　勢いはこちらにあるぞ', 3.6]],
-      foes: () => [{ name: '峠から下りた朝倉勢', from: { x: A1.x + 2, z: A1.z - 26 }, list: [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 5 }, { type: 'bow', n: 2 }], mass: 140, dmg: 0.45 }],
-      later: [{ t: 30, say: ['足軽', '東の疋田の道からも来るぞ！'], foes: () => [{ name: '疋田の朝倉勢', from: { x: A1.x + 26, z: A1.z - 8 }, list: [{ type: 'ashigaru', n: 6 }, { type: 'gun', n: 1 }], mass: 60 }] }],
+      foes: () => [{ name: '峠から下りた朝倉勢', from: { x: A1.x + 2, z: A1.z - 26 }, list: [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 5 }, { type: 'bow', n: 2 }], mass: 140, dmg: 0.3 }]   /* K358 act bot：始まり53秒で、この組の足軽の一太刀 14〜38 が重なって倒れた（0.45→0.3） */,
+      later: [{ t: 30, say: ['足軽', '東の疋田の道からも来るぞ！'], foes: () => [{ name: '疋田の朝倉勢', from: { x: A1.x + 26, z: A1.z - 8 }, list: [{ type: 'ashigaru', n: 6 }, { type: 'gun', n: 1 }], mass: 60, dmg: 0.3 /* K358 act bot：87秒、疋田の足軽に囲まれ一太刀 40 前後で倒れた */ }] }],
       reward: '峠道の朝倉勢を押し返した',
       onEnd: (rt2, m, won) => {
         if (!won) return;
