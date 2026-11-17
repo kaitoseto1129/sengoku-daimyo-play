@@ -2010,9 +2010,6 @@ export class Army {
           const point = u._farWant || (u._farWant = { x: 0, z: 0 });
           point.x = Math.max(-lim, Math.min(lim, q.x)); point.z = Math.max(-lim, Math.min(lim, q.z));
         }
-        // 11/17 K358 iMac n-kiba（野田福島の act bot：遠くて考えを間引かれた兵が、討たれて去った敵を三秒より長く狙ったまま）：
-        //   近い兵の act と同じく、死んだ・去った相手の狙いはここでも外す（army_think.js act の 1389 行と同じ決め）
-        if (u.target && (!u.target.alive || u.target.gone) && !u.target.isStruct) { u.target = null; u.aiT = 0; }
         this.advanceFar(u, dt, signalWait(this, u.group, u));
         if (this.leaveField(u)) continue;
         // 遠い兵も近い兵と同じ端を守る。間引きの待ち時間にも押された位置を残さない。

@@ -297,7 +297,10 @@ function shizuBoard(rt) {
       // 十三段の順序を保ち、今の段と次の行いを五つまで並べる。
       // 終盤は最後の五つを残し、達成済みの四件だけで次の行いを隠さない。
       const windowAt = String(Math.min(stageIx(rt.flags.phase), STAGE_TEXT.length - 5));
-      if (hud.root.getAttribute('data-shizu-window') !== windowAt) hud.root.setAttribute('data-shizu-window', windowAt);
+      // 11/17 K358 iMac n-k15：共通の任務札が今の段の一行だけを作るようになり、窓の CSS がその一行まで隠して任務が出なかった（iPhone 横の通し）。行が一つの時は窓を当てない
+      const rows = hud.root.querySelectorAll('#h-prog .pg-goals li').length;
+      if (rows <= 1) { if (hud.root.hasAttribute('data-shizu-window')) hud.root.removeAttribute('data-shizu-window'); }
+      else if (hud.root.getAttribute('data-shizu-window') !== windowAt) hud.root.setAttribute('data-shizu-window', windowAt);
       // 一行の任務札の作り（missionSingleLine）は残し、目標の札を描く時だけ外す
       const def = rt.def, one = def.missionSingleLine;
       def.missionSingleLine = false;
@@ -381,6 +384,7 @@ function fortWay(u, q, C, R, ga) {
 }
 
 const t02_shizugatake = {
+  quietArmyCalls: true,   // 11/17 K358 iMac n-k15：中央の「味方が総崩れ」「敵が横から回り込む」「味方が追撃に移った」を出さない（場面が変わって味方の数が落ちた時に崩れと出た・字の札は出さない決まり）
   // 十三の段を、実際の入口から順に作り直す（続きから始める時。前の段は声と時の約束を出さずに流す）
   checkpointStep: (rt) => rt.flags.phase,
   resumeSteps: [

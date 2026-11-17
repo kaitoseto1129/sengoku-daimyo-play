@@ -406,6 +406,9 @@ function dustTick(rt, V, dt) {
       const a = Math.atan2(s.hx - s.from.x, s.hz - s.from.z), fx = Math.sin(a), fz = Math.cos(a);
       const x = s.x - fx * ph * 12 + Math.sin(sp.userData.ph * 9) * 4, z = s.z - fz * ph * 12 + Math.cos(sp.userData.ph * 7) * 4;
       sp.position.set(x, rt.world.heightAt(x, z) + 1.5 + ph * 4, z);
+      // K360（11/17 検品：佐和山・根白坂・岩石城で画面の真ん中に茶色のぼやけた丸い塊）：遠くの援軍を知らせる土煙が、カメラの二十五歩の内に来ると目の前を覆った。近くでは出さない
+      const cp = rt.camera?.position;
+      if (cp && Math.hypot(x - cp.x, z - cp.z) < 25) { sp.visible = false; continue; }
       sp.scale.set(8 + ph * 10, 5 + ph * 6, 1);
       sp.material.opacity = 1;   // 共用の材質。薄さは絵の側で決めてある
     }

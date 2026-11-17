@@ -45,7 +45,7 @@ export function rankupHtml(before, G, r, W, flagHtml = '') {
       ? `此度の働き、見事。${G.name}、${['', '一', '二', '三', '四', '五', '六', '七', '八', '九', '十'][RANKS[b].squad]}人の者を預ける。`   // 11/8 戦間の仕様：最初の組頭の召し出し
       : `${G.name}、今日より${RANKS[b].name}を命じる。組を頼むぞ。`;
   const audience = afterHonnoji ? '京を離れた後' : realm ? '主君の前で' : '上役の前で';
-  const portrait = afterHonnoji ? '<div aria-hidden="true"></div>'
+  const portrait = afterHonnoji ? ''   // K360：空の箱を置くと二列の一列目を取り、字が 48px の列へ押し込まれる
     : `<canvas id="pc-audience" width="480" height="288" role="img" aria-label="${esc(G.name)}が本陣で新しい役目を受ける。幕の前に座る${esc(lord)}の背"></canvas>`;
   const retainer = (G.kerai || []).find((k) => k.alive && k.name);
   const soldier = (G.roster || []).find((k) => k.alive !== false && k.name);
@@ -53,6 +53,10 @@ export function rankupHtml(before, G, r, W, flagHtml = '') {
   return `<style>
     html #screen .promo-cine .pc-rank{display:none}
     #screen .promo-cine .pc-audience{display:grid;grid-template-columns:96px minmax(0,1fr) 48px;gap:12px;align-items:center;text-align:left;max-width:720px;width:100%}
+    /* K360（kaito の目の検品：比叡山・姉川）：主君の絵（#pc-audience）は 11/8 から描かず hidden にしている。三列の一列目 96px が空いたまま
+       「新しい役目／新しくできる事」が 96px の列へ押し込まれ、二字幅の縦の列に崩れた。絵が無い時は二列（字・旗）にする */
+    #screen .promo-cine .pc-audience:has(>canvas[hidden]),#screen .promo-cine .pc-audience:not(:has(>canvas)){grid-template-columns:minmax(0,1fr) 48px}
+    .pc-audience>canvas[hidden]{display:none}
     .pc-audience>canvas{width:96px;height:58px;animation:pcBow .7s ease-out both}
     .pc-audience small{display:block;font-size:12px;color:var(--washi-dim);margin-bottom:4px}
     .pc-audience b{font-size:16px;color:var(--kin)}

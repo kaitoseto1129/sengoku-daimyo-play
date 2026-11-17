@@ -138,7 +138,8 @@ function bodyMaterial(look, dm = false, nh = 0) {
         }`);
     if (S.simpleMaterials) {
       // 骨・衣の動きと、一人称で隠す部位は従来どおり。染め色と淡い明暗を残す。
-      sh.fragmentShader = (nh ? 'uniform vec3 uFaE[2], uFaD[2];\nuniform vec2 uFaOn;\nuniform vec4 uFpCut;\n' : '') + 'uniform vec3 cTorso, cArm, cHand, cLeg, cFoot, cNeck;\nuniform float uWet${CLOTH_TEX ? ", uDirt, uGrime" : ""};\nvarying float vPart;\nvarying vec3 vBind;\n' + (CLOTH_TEX ? SIMPLE_NOISE : '') + sh.fragmentShader
+      // 11/17 K358（信貴山ほか「体が消えて槍だけ」・クラウド a8633389b9 の直し）：この一文が ' で書かれ ${…} が埋め込まれず GLSL へ入り、体が描けず飛ばされていた。` で書く。
+      sh.fragmentShader = (nh ? 'uniform vec3 uFaE[2], uFaD[2];\nuniform vec2 uFaOn;\nuniform vec4 uFpCut;\n' : '') + `uniform vec3 cTorso, cArm, cHand, cLeg, cFoot, cNeck;\nuniform float uWet${CLOTH_TEX ? ", uDirt, uGrime" : ""};\nvarying float vPart;\nvarying vec3 vBind;\n` + (CLOTH_TEX ? SIMPLE_NOISE : '') + sh.fragmentShader
         .replace('#include <map_fragment>', `
           ${nh ? 'if (uFpCut.w > 0.0 && (vPart < 0.5 || vPart > 4.5)) discard;' : ''}
           ${nh ? 'if (vPart > 0.5 && vPart < 1.5 && ((uFaOn.x > 0.5 && dot(vBind - uFaE[0], uFaD[0]) > 0.02) || (uFaOn.y > 0.5 && dot(vBind - uFaE[1], uFaD[1]) > 0.02))) discard;' : ''}

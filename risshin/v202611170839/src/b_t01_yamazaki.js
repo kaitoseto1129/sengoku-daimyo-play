@@ -276,6 +276,7 @@ function honjinGuard(rt, team, at, facing, name, lead, flag, n, horse = false) {
 }
 
 const t01_yamazaki = {
+  quietArmyCalls: true,   // 11/17 K358 iMac n-k15：中央の「味方が総崩れ」「敵が横から回り込む」「味方が追撃に移った」を出さない（場面が変わって味方の数が落ちた時に崩れと出た・字の札は出さない決まり）
   spawn: { x: START.x, z: START.z, heading: Math.PI },
   prelude: 4,
   compactIntro: true,
@@ -770,7 +771,7 @@ const t01_yamazaki = {
       for (const u of rt.army.units) if (u.alive && !u.gone && u.team === 1 && (u.fleeing || u.group?.routed) && !u.group?.honjin && dist(u.pos, P) > 60) rt.army.despawn(u);
     }
     // 11/17 K358 iMac n-k15（長：味方の厚みで囲みを割る）：敵は強いまま（K360⑦）。本人が三人より多く囲まれたら、四十五歩の内の味方の組（二つまで）が本人の所へ駆け寄って囲みを割る
-    if (F.stage >= 2 && (F.surT = (F.surT || 0) - dt) <= 0) {
+    if (F.stage >= 1 && (F.surT = (F.surT || 0) - dt) <= 0) {   // ①の先陣へ駆けつける道でも斥候に囲まれて倒れた（iPhone 横の通し 11/17）
       F.surT = 0.5;
       let n = 0; for (const u of rt.army.units) if (u.alive && u.team === 1 && !u.fleeing && Math.abs(u.pos.x - P.x) < 5 && Math.abs(u.pos.z - P.z) < 5 && dist(u.pos, P) < 4.5) n++;
       if (n >= 3) {
@@ -790,8 +791,9 @@ const t01_yamazaki = {
       // 持ち場で受けた時だけ数える。散った残兵で止まる時は三分半支えて寄せを退ける。
       // 寄り道・討死・再開の札の間に経過した時刻だけでは達成させない。
       if (F.fieldAt === 2) F.frontHoldT = (F.frontHoldT || 0) + dt;
-      if (F.fieldAt === 2 && rt.t - F.st0 > 170 &&
-          (n <= (F.w1N + allN(F.iseW) + allN(F.namikawa)) * 0.3 || F.frontHoldT >= 210)) {
+      // 11/17 K358 iMac n-k15：戦が15分を越えるので、最短 170→110秒・持ちこたえの保険 210→150秒（七割を討つ条件はそのまま）
+      if (F.fieldAt === 2 && rt.t - F.st0 > 110 &&
+          (n <= (F.w1N + allN(F.iseW) + allN(F.namikawa)) * 0.3 || F.frontHoldT >= 150)) {
         // 次の段の知らせより先に実際の退却を命じ、健在の兵を討った扱いにしない。
         for (const g of [...F.w1, F.iseW, F.namikawa]) if (live(g)) { g.routed = true; g.order = 'flee'; }
         this.stage(rt, 3);

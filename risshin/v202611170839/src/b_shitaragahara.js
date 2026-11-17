@@ -2698,6 +2698,18 @@ const shitaragahara = {
 
   setup(rt) {
     SH_PURSUIT = false;   // K356②：戦の始めは柵の守り（all_out を止める）
+    // 11/17 K341 長より（n-look-armor の拡大写真）：右の野の黒い点々は、高い引きで見た遠くの木の茂みが灰黒に潰れた物だった。
+    //   遠くの木は一枚の葉の板（world_vegetation.js の遠景の葉・色 b4bea6）に替わり、奥ほど色を抜いて沈める（farTreeLit）ので、晴れた設楽原の野では黒い塊になる。
+    //   この戦の遠景の葉の板だけ、空の光を受けた緑へ持ち上げる（材質は戦ごとに作られる＝ほかの戦に響かない。近くの木の葉・幹は変えない）
+    { const all = [];
+      for (const m of rt.world.treeMeshes || []) { all.push(m); if (m.userData?.farFoliage) all.push(m.userData.farFoliage); }
+      for (const m of all) {
+        const mt = m.material;
+        if (!mt?.color || Array.isArray(mt) || mt.userData.shLift || mt.color.getHex() !== 0xb4bea6) continue;
+        mt.userData.shLift = true;
+        // 上から見ると葉の板に日が当たらず、色を三倍にしても暗いままだった。空の光の分を葉の絵の形のまま自ら光らせて足す（emissive。形・描く回数は変えない）
+        if (mt.emissive) { mt.emissive.setRGB(0.2, 0.26, 0.16); mt.emissiveMap = mt.map; mt.needsUpdate = true; }
+      } }
     { const P = rt.player, td = P.takeDamage, k = rt.def.cutFloor; P.takeDamage = function (a, s) { const m = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow'; const d = td.call(this, a, s); return s && !s.isStruct && !m && d > 0 ? d * k : d; }; }   // 11/1：刃の一太刀を def.cutFloor 倍に（共通の一太刀五割・六割は変えず、この戦だけ）
     rt.player.startGun = true;   // 火縄銃を持って始める（player.js が最初のコマで持ち替える）
     const W = rt.world;

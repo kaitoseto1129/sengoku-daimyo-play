@@ -74,6 +74,10 @@ export function start(rt, ctx) {
       rt.objProgress('main', S.g ? '野田砦の槍を、竹束の前で防げ' : '野田砦から槍が来る。鉄砲衆の前に出よ');
       if (!S.g) rt.after(2, () => sally());
     }
+    // 11/17 K358 iMac n-kiba（act bot：竹束の列に着いても6秒何も起きない、が2回とも）：兵の枠が空かず槍が出ないままだった。
+    //   着いた後は出るまで毎回出し直し（sally の中で五秒おき）、出た槍は砦から歩かず本人へ駆けて掛かる
+    if (S.arrived && !S.g) sally();
+    if (S.arrived && S.g && !S.gRush && !S.g.routed && S.g.count) { S.gRush = true; S.g.onArrive = null; S.g.order = 'attack'; S.g.dest = { x: p.x, z: p.z }; S.g.speed = Math.max(S.g.speed || 0, 3.4); S.g.seekRange = Math.max(S.g.seekRange || 0, 60); }
     // 一度寄った記録だけで、持ち場を離れた本人まで防戦済みにしない。
     if (atPost && !S.timedOut && S.contestedAt == null && S.g?.units.some(u => fighting(u) &&
         Math.hypot(u.pos.x - POST.x, u.pos.z - POST.z) < 18 &&

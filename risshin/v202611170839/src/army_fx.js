@@ -715,6 +715,8 @@ export const ArmyFx = {
       shader.vertexShader = 'attribute float fxSpark; varying float vFxSpark;\n' + shader.vertexShader;
       // 11/2 夕 kaito「斬った時に血しぶきをちゃんと出す」：血の粒（印 2）は三倍の大きさ（6cm の点では iPad で見えなかった）
       shader.vertexShader = shader.vertexShader.replace('gl_PointSize = size;', 'float fxB = step(1.5, fxSpark); vFxSpark = fxSpark * (1.0 - fxB); gl_PointSize = size * mix(mix(1.0, 0.8333333, vFxSpark), 1.0 + 1.7 * fract(fxSpark), fxB);');
+      // K360（11/17 検品：佐和山・根白坂・岩石城で画面の真ん中に茶色のぼやけた丸い塊）：粒は近いほど大きく描くので、カメラのすぐ前の土ぼこり・血の粒が画面いっぱいの丸になった。粒の大きさは二十八点まで
+      shader.vertexShader = shader.vertexShader.replace('#include <logdepthbuf_vertex>', 'gl_PointSize = min(gl_PointSize, 28.0);\n#include <logdepthbuf_vertex>');
       shader.fragmentShader = 'varying float vFxSpark; uniform float fxLight;\n' + shader.fragmentShader;
       shader.fragmentShader = shader.fragmentShader.replace('#include <premultiplied_alpha_fragment>',
         '#include <premultiplied_alpha_fragment>\ngl_FragColor.rgb *= gl_FragColor.a * mix(fxLight, 0.95 / 0.9, vFxSpark); gl_FragColor.a *= 1.0 - vFxSpark;');

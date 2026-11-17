@@ -270,10 +270,12 @@ function fitGoalLine(box, G) {
   const w = sp.clientWidth;
   if (w < 60 || (G.fitDone === sp && G.fitW === w)) { if (G.fitDone === sp && G.fitFs) sp.style.setProperty('font-size', G.fitFs, 'important'); return; }
   let fs = parseFloat(getComputedStyle(sp).fontSize) || 17;
-  for (let n = 0; n < 12 && sp.scrollWidth > sp.clientWidth + 1 && fs > 13; n++) { fs -= 1; sp.style.setProperty('font-size', fs + 'px', 'important'); }
+  // K360（11/17 任務の字が二行でも「…」で切れる・10戦ほど）：二行まで折るようにしたので、三行目へはみ出す時（縦）も字を一つずつ小さくする（十三点まで）
+  const over = () => sp.scrollWidth > sp.clientWidth + 1 || sp.scrollHeight > sp.clientHeight + 1;
+  for (let n = 0; n < 12 && over() && fs > 13; n++) { fs -= 1; sp.style.setProperty('font-size', fs + 'px', 'important'); }
   // 13px でも溢れる時は、数を括弧なしの「0/31」に詰める（「分の」の二字で動詞が「…」に切れた・11/16 長篠 874×402）
   const em = sp.querySelector('em[data-short]');
-  if (em && sp.scrollWidth > sp.clientWidth + 1 && em.textContent !== em.dataset.short) em.textContent = em.dataset.short;
+  if (em && over() && em.textContent !== em.dataset.short) em.textContent = em.dataset.short;
   G.fitDone = sp; G.fitW = sp.clientWidth; G.fitFs = sp.style.getPropertyValue('font-size');
 }
 

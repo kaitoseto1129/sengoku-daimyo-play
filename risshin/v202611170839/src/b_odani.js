@@ -951,6 +951,16 @@ function botBackToRoad(b, p, inp, u, goTo, path, idx) {
   roadPoint(path, u.pos, BOT_ROAD, b.army, u, Math.max(1, idx - 2), idx);
   if (!Number.isFinite(BOT_ROAD.d) || BOT_ROAD.d <= 5) return false;
   const q = BOT_ROAD;   // 道の真上の点へまっすぐ（尾根用の迂回は使わない）
+  // 11/17 n-nagashino K358：指の操作で本当に歩くようになると、谷道の番兵を追って屋敷への枝道（-50,-73）へ出た所から
+  //   切岸の下の道へ直進しようとして九百秒立った。六秒で一メートルも近づけない時は、二十秒だけ直進をやめ、人と同じ足元の印（足跡で戻る案内）に任せる
+  const w = b.odBack || (b.odBack = { t: 0, d: 0, off: 0 });
+  if (b.t < w.off) return false;
+  const d = Math.hypot(q.x - u.pos.x, q.z - u.pos.z);
+  if (b.t - w.t > 6 || d < w.d - 1) {
+    const stuck = b.t - w.t <= 6.5 && d >= w.d - 1 && w.t > 0;
+    w.t = b.t; w.d = d;
+    if (stuck) { w.off = b.t + 20; return false; }
+  }
   goTo(p, inp, q.x, q.z, .5, true);
   return true;
 }
@@ -3150,7 +3160,9 @@ const odani = {
     for (const m of rt.markers || []) { const c = typeof m.pos === 'function' ? m.pos() : m.pos; if (!c || !Number.isFinite(c.x)) continue; const d = Math.hypot(c.x - me.x, c.z - me.z); if (d < bd) { bd = d; q = c; } }
     return !q || Math.hypot(p.x - q.x, p.z - q.z) <= Math.max(65, bd + 10);
   },
-  reserveFrom: 420, reserveDist: 40,   // 160 秒からでも西木戸の手前で bot が倒れた（二度）。京極丸を取る頃から   // 陣の厚み（11/13 クラウドF・depth_reserve.js）：浅井の新手を 50 秒から、本人の 40m 先の曲輪の道に待たせる
+  // 11/17 n-nagashino K358：敵の新手は reserveNoEnemy で止めてあり、ここで出るのは味方の新手だけ。本物の指の操作では、西木戸の頃（250〜320秒）に先手3人・後続5人まで減り、
+  //   本人が一人で木戸を打って塀の上から撃たれ倒れた。味方の新手を屋敷を攻める頃（180秒）から出し、木戸の前を厚くする（敵は弱めない）
+  reserveFrom: 180, reserveDist: 40,   // （元 420）160 秒からでも西木戸の手前で bot が倒れた（二度）。京極丸を取る頃から   // 陣の厚み（11/13 クラウドF・depth_reserve.js）：浅井の新手を 50 秒から、本人の 40m 先の曲輪の道に待たせる
   lethal: { max: 4, firstAt: 90, gap: 60, soft: true },   // 命懸けの戦場（docs/lethal_howto.md。先取りの列 豊臣A 11/9）。11/10 関所係：act bot が南木戸と西木戸で倒れ続けるので倒れすぎない強さに
   resumeSteps: [[1, 'climb'], [2, 'assault']],   // 戦の途中の保存（battle_checkpoint.js）：段の始まりを、段の関数を順に流して作り直す
   // 名の無い役の札と、本丸へ向かう前の長政の札を隠す。共通の名札は討てない将も候補にする。
@@ -3808,7 +3820,8 @@ const odani = {
     endStyle.textContent = `
 #vignette[data-odani-down]{background:rgba(6,8,12,.42)!important;animation:none!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;mask-image:none!important;-webkit-mask-image:none!important;box-shadow:inset 0 0 90px rgba(6,8,12,.45)!important}
 /* 左半分に重なる半透明の板は、指で歩く範囲の飾り。入力の範囲は残して絵だけ消す。 */
-html body:has(#hud[data-odani]) #tc .mzone { display:none !important; }
+/* 11/17 n-nagashino：display:none だと範囲の大きさが 0×0 になり、指の bot が棒を置けず一戦じゅう歩けなかった（自動歩きだけで進み、倒れ・十分超え）。見えなくするだけにする */
+html body:has(#hud[data-odani]) #tc .mzone { opacity:0 !important; background:none !important; box-shadow:none !important; border:0 !important; }
 /* マウスで遊ぶ画面には指の丸と歩く案内を出さない。携帯の操作は保つ。 */
 @media (hover:hover) and (pointer:fine) {
  html body:has(#hud[data-odani]) #tc :is(.stick,.move-hint,.look-hint) { display:none !important; }
@@ -5272,7 +5285,7 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
       this.march(g, path, Math.PI);
       const c = g.center();
       if (!F.C.kuruwa.kyogoku.test(c.x, c.z) && !F.C.kuruwa.koma.test(c.x, c.z)) this.reinforcementMarch(rt, g);
-      g.speed = 4;
+      g.speed = 5; g.odaniWalk = 0;   // 11/17 n-nagashino K358：4 では本人だけ先に小丸へ着き、山王丸の控えに一人で斬られた
     }
     const northRoad = ROAD_RIDGE.filter((q) => q[1] <= KOM.cz && q[1] >= SANNO.z1 - 5).reverse();
     this.march(F.sanno, [[0, SANNO.z1 - 5], ...northRoad, [0, KOM.cz - 3]], 0);
@@ -5799,12 +5812,12 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
     if (rt.t < (F.supportAt || 0)) return;
     F.supportAt = rt.t + 0.5;
     // 11/17 n-nagashino K358：本人が道を駆け、羽柴の組が30m後ろで屋敷・西木戸に一人で着いて倒れた。
-    //   道を行く組は、本人から24m より離れたら駆け足で追いつく（敵は弱めない。味方の厚みで勝つ）
+    //   道を行く組は、本人から16m より離れたら駆け足で追いつく（敵は弱めない。味方の厚みで勝つ）
     if (F.step >= 2 && F.step <= 3 && !F.retreatOn) {
       const pp = rt.player.u.pos;
       for (const g of F.oda) {
         if (gone(g) || g.order !== 'path') continue;
-        const c = g.center(), far = Math.hypot(c.x - pp.x, c.z - pp.z) > 24;
+        const c = g.center(), far = Math.hypot(c.x - pp.x, c.z - pp.z) > 16;
         if (far && g.speed < 6.6) { g.odaniWalk = g.speed; g.speed = 6.6; }
         else if (!far && g.odaniWalk) { g.speed = g.odaniWalk; g.odaniWalk = 0; }
       }
@@ -6822,6 +6835,15 @@ odani.botBrain = (b, inp, { goTo: goTo0, patientStrike, strikeTarget }) => {
   if (F.guideReturning) {
     inp.leftPressed = false; inp.chargeHold = false; inp.guardHold = false;
     // 実際に歩けた足跡をたどる。別の本道へ投影すると、同じ坂で登っては戻る。
+    // 11/17 n-nagashino K358：指の操作で本当に歩くと、中丸の東の斜面（7,-40）へ降りた所で足跡が切岸の上を指し、九百秒立った。
+    //   十秒動けない時は、歩ける向きへ抜け出してから案内をたどり直す（足跡の案内は六メートル離れると今の場所から引き直す）
+    const r = b.odRet || (b.odRet = { x: u.pos.x, z: u.pos.z, t: b.t });
+    if (Math.hypot(u.pos.x - r.x, u.pos.z - r.z) > 2.5) { r.x = u.pos.x; r.z = u.pos.z; r.t = b.t; }   // 角で一mほど揺れるだけの時も止まりと見る
+    if (b.t - r.t > 10) {
+      const st = b.odaniStuck || (b.odaniStuck = { x: u.pos.x, z: u.pos.z, t: b.t, esc: null, escT: 0 });
+      if (!(st.esc && b.t < st.escT) && b.t - st.t <= 5) st.t = b.t - 6;
+      if (odaniBotEscape(b, p, inp, u, goTo)) return;
+    }
     goTo(p, inp, F.trailPoint.x, F.trailPoint.z, .1, true);
     return;
   }
@@ -6865,6 +6887,8 @@ odani.botBrain = (b, inp, { goTo: goTo0, patientStrike, strikeTarget }) => {
   // 京極丸の中では、外へ退いた敵を追って持ち場を離れない。
   if ((F.step === 2 && F.onoDone && !entering || F.step === 3 && !F.komaAttack) && !F.honAttack &&
       e && !F.C.kuruwa.kyogoku.test(e.pos.x, e.pos.z)) e = null;
+  // 11/17 n-nagashino K358：小丸へ攻める間も、南の中丸から来る組を追って京極丸の外へ出ない（中丸との門の柱の角 (-8,-49) で九百秒立った）
+  if (F.step === 3 && F.komaAttack && !F.honAttack && e && !F.C.kuruwa.kyogoku.test(e.pos.x, e.pos.z) && !F.C.kuruwa.koma.test(e.pos.x, e.pos.z)) e = null;
   // 11/11 クラウドし（関所）：小丸攻め（K3）で京極丸の南 (-1,-62) から二・七m 先の敵へ寄ろうとして、間合いの手前で足が止まったまま
   //   七百秒立った（act bot。京極丸の真ん中 (0,-69) でも、入れ替わる敵の群れへ寄れず立った）。
   //   敵へ寄る間に八秒で半m も進めない時は、二十秒だけ寄りに行かず、道順と詰まりの処理へ戻す。
@@ -7128,3 +7152,4 @@ Object.defineProperty(odani, 'botDefendsFort', { configurable: true, get() {
   if (!b || b.def !== odani || !u?.alive || b.flags.ending) return false;
   return (b.flags.step === 2 || b.flags.step === 3) && !b.flags.retreatOn;
 } });
+

@@ -685,7 +685,7 @@ MAT.onBeforeCompile = (sh) => {
         } else if (mkP == 3) {
           // 鉄：漆より鈍く、照りは鉄の色に寄せる
           material.specularShininess = 32.0;
-          material.specularColor = mix(vec3(0.22), material.diffuseColor * 1.6, 0.5) * (1.0 - dd * 0.8 - dustP * 0.5);
+          material.specularColor = mix(vec3(0.22), material.diffuseColor * 1.6, 0.5) * max(1.0 - dd * 0.8 - dustP * 0.5, 0.0);   // 11/17 K348：倒れた兵（上を向く面）は埃と汚れで負になり、色の崩れ（紫の斑）が出た
         } else if (mkP == 2) {
           // 11/17 K358（桶狭間の中ほどの兵の顔が白い点に浮く）：遠い肌は照りを消し、日焼けの色へ少し沈める（顔の形と目鼻は顔の係のまま）
           float farS = smoothstep(14.0, 40.0, length(vViewPosition));
@@ -981,20 +981,27 @@ export class LruMap extends Map {
     if (v.isBufferGeometry) { let n = 0; for (const k in v.attributes) n += v.attributes[k].array ? v.attributes[k].array.byteLength : 0; if (v.index && v.index.array) n += v.index.array.byteLength; return n; }
     return 0;
   }
-  get(k) { if (!super.has(k)) return undefined; const v = super.get(k); super.delete(k); super.set(k, v); return v; }
+  // 11/17 K365：上限で表から外した形も、まだ兵が使っていれば弱い参照で拾い直す（同じ形を作り直して二つ持たない。天王寺で作った形の六割が作り直しだった）。?nogcweak で前のまま
+  get(k) {
+    if (!super.has(k)) { const r = this.weak && this.weak.get(k), v = r && r.deref(); if (!v) { if (r) this.weak.delete(k); return undefined; } this.weak.delete(k); this.reused = (this.reused || 0) + 1; this.set(k, v); return v; }
+    const v = super.get(k); super.delete(k); super.set(k, v); return v;
+  }
+  has(k) { if (super.has(k)) return true; const r = this.weak && this.weak.get(k); return !!(r && r.deref()); }
   set(k, v) {
     if (super.has(k)) this.delete(k);
     super.set(k, v);
     if (this.refs && v && v.isBufferGeometry) this.refs.set(v, (this.refs.get(v) || 0) + 1);
     if (v && v.isBufferGeometry && v.userData) v.userData.ck = k;   // 作り直す時に表から外す鍵（dropLazyGeo）
     if (this.sizes) { const b = LruMap.bytesOf(v); this.sizes.set(k, b); this.bytes += b; }
-    while (this.size > this.maxN || (this.maxBytes && this.bytes > this.maxBytes && this.size > 1)) { const old = this.keys().next().value; this.delete(old); }
+    while (this.size > this.maxN || (this.maxBytes && this.bytes > this.maxBytes && this.size > 1)) { const old = this.keys().next().value; if (this.weak) { const ov = super.get(old); if (ov && typeof ov === 'object') this.weak.set(old, new WeakRef(ov)); } this.delete(old); }
     return this;
   }
   delete(k) { if (this.refs) { const v = super.get(k); if (v && v.isBufferGeometry) { const n = this.refs.get(v) - 1; if (n) this.refs.set(v, n); else this.refs.delete(v); } } if (this.sizes && this.sizes.has(k)) { this.bytes -= this.sizes.get(k); this.sizes.delete(k); } return super.delete(k); }
-  clear() { super.clear(); if (this.refs) this.refs = new WeakMap(); if (this.sizes) this.sizes.clear(); this.bytes = 0; }
+  clear() { super.clear(); if (this.weak) this.weak.clear(); if (this.refs) this.refs = new WeakMap(); if (this.sizes) this.sizes.clear(); this.bytes = 0; }
 }
 const geoCache = new LruMap(2400, 48, true);
+if (typeof WeakRef === 'function' && !(typeof location !== 'undefined' && /[?&]nogcweak\b/.test(location.search))) geoCache.weak = new Map();
+if (typeof window !== 'undefined') window.__geoCache = geoCache;   // 重さの測り（K365・thickness.mjs の gc）：形の置き場の数・大きさ・拾い直しの数
 { const clear0 = geoCache.clear.bind(geoCache); geoCache.clear = () => { unitShapes.clear(); clear0(); }; }
 // 兵の細かい形（体・頭）は、近くで描く時しか要らないのに全員分の CPU の配列を戦の間ずっと持っていた（森部 858 個・98MB。10/20）。
 //   iPhone では、しばらく描かれない形の配列を手放し、要る時に同じ鍵で作り直す（lazyGeo で作り方を覚えておく。見た目は同じ）
