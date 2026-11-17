@@ -203,16 +203,16 @@ export class Auditor {
       const moved = Math.hypot(u.vel.x, u.vel.z) > 0.15;
       const hasDestination = mt && Math.hypot(mt.x - u.pos.x, mt.z - u.pos.z) > 1.6;
       // （120m 内に敵のいない兵が立って待つのは、困り事に数えない）
-      if (!mayIdle && hasDestination && !moved && b.t > 20 && !b.paused && b.army.nearestEnemy(u, 120, (o) => !o.fleeing) && !b.army.nearestEnemy(u, Math.max((u.jammed || u.jamT > 0) ? 10 : 4, (u.range || 0) + 2), (o) => !o.fleeing)) {   // 11/17 クラウドハ三（姉川）：押し合いで詰まった後ろの列は、敵が10m 内なら前の列の後ろで順を待っている   // 敵が4m内なら斬り合いの最中で、立っていて当然（11/14 クラウドち：天王寺 (-82,-11) 近い敵2〜3m の誤検出）
+      if (!mayIdle && hasDestination && !moved && b.t > 20 && !b.paused && b.army.nearestEnemy(u, 120, (o) => !o.fleeing) && !b.army.nearestEnemy(u, Math.max((u.jammed || u.jamT > 0) ? 10 : 6, (u.range || 0) + 2), (o) => !o.fleeing)) {   // 11/17 クラウドハ三（姉川）：押し合いで詰まった後ろの列は、敵が10m 内なら前の列の後ろで順を待っている   // 敵が4m内なら斬り合いの最中で、立っていて当然（11/14 クラウドち：天王寺 (-82,-11) 近い敵2〜3m の誤検出）
         const n = (this.idle.get(u) || 0) + step;
         this.idle.set(u, n);
         if (n > 20) { this.add('辻褄', 'stuck:' + (g.name || g.label || u.type), '行き先があるのに20秒動かない兵', `${who(u)}（号令：${g.order}・${g.name || '名なし'}・頭：${g._ai ? (g._ai.ctl || '無') + '/' + (g._ai.mode || '―') : '無'}${g.guard ? '・守り' : ''}${g.focus ? '・的あり' : ''}・近い敵${(() => { const e = b.army.nearestEnemy(u, 200); return e ? Math.round(Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z)) + 'm' + (e.fleeing ? '逃' : '') : 'なし'; })()}${u.type === 'gun' || u.type === 'bow' ? `・射手[撃${g.fire === false ? '止' : '可'}・込${u.reload ? Math.round(u.cd) : '-'}・弾${u.gunAmmo ?? '-'}・射程${Math.round(u.range || 0)}・遠${u.farSim ? '1' : u.qualityAbstract ? 'q' : '0'}・先${mt ? Math.round(Math.hypot(mt.x - u.pos.x, mt.z - u.pos.z)) : '-'}m]` : ''}${mt ? `・行き先(${Math.round(mt.x)},${Math.round(mt.z)})・塀${mt && b.army.wallBetween && b.army.wallBetween(u.pos, -1, mt) ? 'あり' : 'なし'}・詰${u.jammed || u.jamT > 0 ? '1' : '0'}・馬${u.mounted ? '1' : '0'}・近い味方${(() => { let m = 1e9; for (const o of b.army.units) if (o !== u && o.alive && o.team === u.team) { const d = Math.hypot(o.pos.x - u.pos.x, o.pos.z - u.pos.z); if (d < m) m = d; } return m < 1e9 ? m.toFixed(1) : '-'; })()}m` : ''}）at (${Math.round(u.pos.x)},${Math.round(u.pos.z)})`, '道が塞がれていないか、行き先に着いたと見なせているかを見る', who(u)); this.idle.set(u, -60); }
       } else this.idle.set(u, 0);
       // 自分のすぐそばで何もしない敵（持ち場の者・敗走中は除く）。
       // 勝敗後など、敵の狙いに入らない本人は nearestEnemy と同じ条件で除く。
-      if (P.alive && !P.noTarget && (!P.invuln || P.allyOk) && u.team !== P.team && !u.fleeing && !IDLE_OK_TYPES.has(u.type) && !u.noTarget && Math.hypot(u.pos.x - P.pos.x, u.pos.z - P.pos.z) < 3.5 && !u.target && !u.atk && !(g && g.order === 'hold')) {
+      if (P.alive && !P.noTarget && (!P.invuln || P.allyOk) && u.team !== P.team && !u.fleeing && !IDLE_OK_TYPES.has(u.type) && !u.noTarget && Math.hypot(u.pos.x - P.pos.x, u.pos.z - P.pos.z) < 3.5 && !u.target && !u.atk && !u.reload && !(g && g.order === 'hold')) {   // 11/17 クラウドル三：弾込め中の射手は何かしている（賤ヶ岳315秒の鉄砲）
         u.__besideT = (u.__besideT || 0) + step;
-        if (u.__besideT > 6) { this.add('辻褄', 'passive:' + u.type, '自分のすぐそばの敵が6秒以上なにもしない', `${who(u)}（${g?.name || '名なし'}・号令：${g?.order}${g?.stay ? '・待つ' : ''}${g?.guard ? '・守り' : ''}）`, '近くの敵（遊び手）を狙いに入れる', who(u)); u.__besideT = -60; }
+        if (u.__besideT > 6) { this.add('辻褄', 'passive:' + u.type, '自分のすぐそばの敵が6秒以上なにもしない', `${who(u)}（${g?.name || '名なし'}・号令：${g?.order}${g?.stay ? '・待つ' : ''}${g?.guard ? '・守り' : ''}${u.type === 'gun' || u.type === 'bow' ? `・射手[撃${g?.fire === false ? '止' : '可'}・弾${u.gunAmmo ?? u.arrowAmmo ?? '-'}・脇差${u.sidearm ? '1' : '0'}・馬${u.mounted ? '1' : '0'}・距離${Math.round(Math.hypot(u.pos.x - P.pos.x, u.pos.z - P.pos.z) * 10) / 10}m]` : ''}）`, '近くの敵（遊び手）を狙いに入れる', who(u)); u.__besideT = -60; }
       } else u.__besideT = 0;
     }
     // 部隊

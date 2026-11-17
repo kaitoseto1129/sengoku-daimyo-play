@@ -1903,7 +1903,7 @@ function watchStep(b, dt, c) {
       return Math.hypot(sp.x - s.pos.x, sp.z - s.pos.z) < 2.5;
     };
     const moving = live.filter((s) => c.cmdSeen.response.get(s).acted || atGoal(s)).length;
-    if (live.length >= 3 && !['hold', 'face', 'form', 'fire'].includes(c.cmdSeen.id) && !(b.def.id === 'sunomata' && c.cmdSeen.id === 'attack') && moving < live.length * 0.3) c.add(`cmd-slow:${c.cmdSeen.id}`, `号令「${c.cmdSeen.label}」から3秒たっても、組の7割が動かない`, `${live.length}人のうち動いたのは${moving}人（${c.where}）`, per.key === 'sen' ? 2 : 1, { cat: '辻褄', shot: per.key === 'sen', fix: '号令を受けた兵がすぐ向きを変えて動き出すようにする（行き先・狙いの付け直し）' });
+    if (live.length >= 3 && !['hold', 'face', 'form', 'fire'].includes(c.cmdSeen.id) && !(b.def.id === 'sunomata' && c.cmdSeen.id === 'attack') && moving < live.length * 0.3) c.add(`cmd-slow:${c.cmdSeen.id}`, `号令「${c.cmdSeen.label}」から3秒たっても、組の7割が動かない`, `${live.length}人のうち動いたのは${moving}人（${c.where}）${live[0] ? `［先頭の兵：号令 ${live[0].group?.order}・行き先 ${live[0].group?.dest ? Math.round(live[0].group.dest.x) + ',' + Math.round(live[0].group.dest.z) : '無'}・足の行き先 ${live[0].moveTo ? Math.round(live[0].moveTo.x) + ',' + Math.round(live[0].moveTo.z) : '無'}・的 ${live[0].target ? '有' : '無'}・使番待ち ${live[0].group?.pending ? '有' : '無'}・本人から ${Math.round(Math.hypot(live[0].pos.x - u.pos.x, live[0].pos.z - u.pos.z))}m・足もと ${b.world.walkable(live[0].pos.x, live[0].pos.z) ? '歩ける' : '歩けない'}］` : ''}`, per.key === 'sen' ? 2 : 1, { cat: '辻褄', shot: per.key === 'sen', fix: '号令を受けた兵がすぐ向きを変えて動き出すようにする（行き先・狙いの付け直し）' });
     if (!c.cmdSeen.fb && per.key === 'sen') c.add('cmd-nofb', '号令が届いたのか、画面で分からない', `号令のあと1秒、字幕も知らせも出なかった（${c.where}）`, 1, { fix: '号令を出したら、短い字幕か組の頭上の印で「届いた」を見せる' });
   }
   if (!sec) return;
