@@ -357,7 +357,9 @@ export class Auditor {
       } else if (G.lord && !(b.def && (b.def.lordIf || b.def.dojo || b.def.mapCastle))) this.add('辻褄', 'lordAtNone:' + this.label, '信長で遊ぶ戦に、信長の居場所の目安（lordAt）が無い', `${this.label}：始まりは (${Math.round(P.pos.x)}, ${Math.round(P.pos.z)})`, '戦の定義に lordAt { x, z, r, why } を書く。信長がいなかった戦なら lord.js の LORD_FIX に if（史実で率いた者）を書いて「もしも」の札にする');
     }
     const me = String(P.name || G.name || '');
-    const fac = G.lordFaction || (P.group && P.group.faction) || '';
+    // 11/17 K358（IF 淀の野）：本人が徳川と戦う「自分の軍」でも、道の家（徳川）で数えて秀忠を「味方の家の武将が敵に」と誤って数えた。戦の自分の側の紋（sides.a・本人が敵方の席なら b）を先に見る
+    const sideMon = (P.team === 1 ? b.def?.sides?.b : b.def?.sides?.a)?.mon;
+    const fac = sideMon || G.lordFaction || (P.group && P.group.faction) || '';
     for (const u of b.army.units) {
       if (!u.alive || u.isPlayer || !u.name) continue;
       const base = u.name.replace(/^.* /, '');
