@@ -1355,7 +1355,8 @@ class TouchPad {
       if (document.documentElement.classList.contains('tc-cmd')) { r.wait = (r.wait || 0) + 1; if (r.wait > 40) this.radial = null; return; }
       const a = this.aim(r.el, '号令');
       if (!a || !a.el) { this.radial = null; return; }
-      r.a = a; r.pid = ++this.id;
+      r.a = a; r.pid = ++this.id; r.t0 = window.__game?.battle?.t;
+      { const pl = window.__game?.battle?.player; if (pl) { pl.touchCmdBlocked = null; pl.touchRadialTrace = null; } }
       this.pe('pointerdown', a.el, a.x, a.y, r.pid);
       this.ctx.taps++;
       // 押した丸が受けたか（受ければ .on が付く）。受けなかった時の手がかりを残す
@@ -1369,7 +1370,7 @@ class TouchPad {
       // 放した瞬間に号令が届くので、応答より先に今回の操作を記録する。
       // 放す直前に丸がまだ押されているか（作り直された・押しが外れた、を見分ける）
       if (!r.why && r.a.el.classList) r.why = !r.a.el.isConnected ? '放す前に丸が作り直された' : !r.a.el.classList.contains('on') ? `放す前に丸の押しが外れた（${r.n}手目）` : '';
-      this.ctx.radialDone(r.id, r.why);
+      this.ctx.radialDone(r.id, r.why, r.t0);
       this.pe('pointerup', r.a.el, r.a.x + Math.sin(ang) * 60, r.a.y - Math.cos(ang) * 60, r.pid);
       this.radial = null;
     }
@@ -1578,7 +1579,7 @@ function makeCtx(per, aud) {
     // 開戦の札・布陣の見渡しの間は、まだ指の釦が出ていないので数えない（noButton・noStick と同じ・11/13 act bot で 5秒 brief の Digit3 が17回）
     noTouch(k) { if (openingWait(ctx.b?.player?.rt?.game) || ctx.b?.phase === 'brief') return; const KN = { Digit3: '火縄銃に持ち替え（鍵盤の 3）', Digit4: '弓に持ち替え（鍵盤の 4）', KeyG: '号令先の切り替え（G）', KeyT: '肩の切り替え（T）' }; ctx.add(`touch-none:${k}`, `指の端末では「${KN[k] || k}」ができない（押す丸が無い）`, `bot の頭が ${k} を押したがった（${ctx.where}）`, 2, { fix: 'touch.js に釦を足すか、戦の方で要らなくする' }); },
     noTouchCmd(id, why = '') { ctx.add(`cmd-none:${id}`, `号令「${{ form: '陣形', fire: '射撃／停止', move: '前進', yari: '槍衾', charge: '突撃' }[id] || id}」が、指の号令の輪から出せない`, `号令の輪（RADIAL）に無い、または身分が足りず選べない（${ctx.where}${why ? '・' + why : ''}）`, per.key === 'sen' ? 3 : 1, { fix: '号令の輪に足すか、短く押した時の指揮の札（数字の号令）を指で押せるようにする' }); },
-    radialDone(id, why) { ctx.radialHandled = null; { const pl = ctx.b && ctx.b.player; if (pl) pl.touchRadialTrace = null; } /* 前の号令の記録を消す：放しても touch.js が通らなかった時に古い記録を「決まった」と読み違えない（11/18 比自山城 660秒） */ ctx.radialWant = { id, t: ctx.b ? ctx.b.t : 0, why: why || '' }; },
+    radialDone(id, why, t0) { /* 11/18 クラウド：なぞっている間（押した t0 から）に同じ号令がもう出ていれば、それを消さない（諏訪原 86秒：輪の記録は「決まった follow・受けた」なのに出なかったと数えた） */ if (!(t0 != null && ctx.radialHandled && ctx.radialHandled.id === id && ctx.radialHandled.t >= t0)) ctx.radialHandled = null; /* 11/18 クラウド：輪の記録はここでなく号令の丸を押す時（stepRadial の n=0）に消す。ここで消すと、なぞる間に外れた訳（resetWhy）まで消え、記録が空のまま残った（諏訪原 66秒） */ /* 前の号令の記録を消す：放しても touch.js が通らなかった時に古い記録を「決まった」と読み違えない（11/18 比自山城 660秒） */ ctx.radialWant = { id, t: t0 ?? (ctx.b ? ctx.b.t : 0), why: why || '' }; },
   };
   return ctx;
 }
@@ -1911,7 +1912,7 @@ function radialTraceNote(b) {
   const tr = b && b.player && b.player.touchRadialTrace;
   if (!tr) return '・輪の記録なし（放した時に号令の丸の手が通らなかった）';
   const r = (v) => (Number.isFinite(v) ? Math.round(v) : '—');
-  return `・輪の記録：向き(${r(tr.x)},${r(tr.y)}) 選んだ${tr.selected ?? '—'} 決まった${tr.command || '—'} 位で拒む${tr.rankBlocked ? 'はい' : 'いいえ'} 受けた${tr.accepted ? 'はい' : 'いいえ'} 取り消し${tr.cancelled ? 'はい' : 'いいえ'} 時${r(tr.t)}${tr.resetWhy ? ` 放させた訳${tr.resetWhy}（${r(tr.resetT)}秒）` : ''}`;
+  return `・輪の記録：向き(${r(tr.x)},${r(tr.y)}) 選んだ${tr.selected ?? '—'} 決まった${tr.command || '—'} 位で拒む${tr.rankBlocked ? 'はい' : 'いいえ'} 受けた${tr.accepted ? 'はい' : 'いいえ'} 取り消し${tr.cancelled ? 'はい' : 'いいえ'} 時${r(tr.t)}${tr.resetWhy ? ` 放させた訳${tr.resetWhy}（${r(tr.resetT)}秒）` : ''}${b.player.touchCmdBlocked ? ` 押しを受けぬ訳${b.player.touchCmdBlocked}` : ''}`;
 }
 function watchStep(b, dt, c) {
   if (!b.player) return; // 勝った後の短い終幕で、同じコマのうちに戦が片付いた時
