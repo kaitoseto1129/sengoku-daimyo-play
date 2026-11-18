@@ -1572,7 +1572,7 @@ function makeCtx(per, aud) {
     // 開戦の札・布陣の見渡しの間は、まだ指の釦が出ていないので数えない（noButton・noStick と同じ・11/13 act bot で 5秒 brief の Digit3 が17回）
     noTouch(k) { if (openingWait(ctx.b?.player?.rt?.game) || ctx.b?.phase === 'brief') return; const KN = { Digit3: '火縄銃に持ち替え（鍵盤の 3）', Digit4: '弓に持ち替え（鍵盤の 4）', KeyG: '号令先の切り替え（G）', KeyT: '肩の切り替え（T）' }; ctx.add(`touch-none:${k}`, `指の端末では「${KN[k] || k}」ができない（押す丸が無い）`, `bot の頭が ${k} を押したがった（${ctx.where}）`, 2, { fix: 'touch.js に釦を足すか、戦の方で要らなくする' }); },
     noTouchCmd(id, why = '') { ctx.add(`cmd-none:${id}`, `号令「${{ form: '陣形', fire: '射撃／停止', move: '前進', yari: '槍衾', charge: '突撃' }[id] || id}」が、指の号令の輪から出せない`, `号令の輪（RADIAL）に無い、または身分が足りず選べない（${ctx.where}${why ? '・' + why : ''}）`, per.key === 'sen' ? 3 : 1, { fix: '号令の輪に足すか、短く押した時の指揮の札（数字の号令）を指で押せるようにする' }); },
-    radialDone(id, why) { ctx.radialHandled = null; ctx.radialWant = { id, t: ctx.b ? ctx.b.t : 0, why: why || '' }; },
+    radialDone(id, why) { ctx.radialHandled = null; { const pl = ctx.b && ctx.b.player; if (pl) pl.touchRadialTrace = null; } /* 前の号令の記録を消す：放しても touch.js が通らなかった時に古い記録を「決まった」と読み違えない（11/18 比自山城 660秒） */ ctx.radialWant = { id, t: ctx.b ? ctx.b.t : 0, why: why || '' }; },
   };
   return ctx;
 }
@@ -1880,7 +1880,7 @@ function radialTraceNote(b) {
   const tr = b && b.player && b.player.touchRadialTrace;
   if (!tr) return '・輪の記録なし（放した時に号令の丸の手が通らなかった）';
   const r = (v) => (Number.isFinite(v) ? Math.round(v) : '—');
-  return `・輪の記録：向き(${r(tr.x)},${r(tr.y)}) 選んだ${tr.selected ?? '—'} 決まった${tr.command || '—'} 位で拒む${tr.rankBlocked ? 'はい' : 'いいえ'} 受けた${tr.accepted ? 'はい' : 'いいえ'} 取り消し${tr.cancelled ? 'はい' : 'いいえ'} 時${r(tr.t)}`;
+  return `・輪の記録：向き(${r(tr.x)},${r(tr.y)}) 選んだ${tr.selected ?? '—'} 決まった${tr.command || '—'} 位で拒む${tr.rankBlocked ? 'はい' : 'いいえ'} 受けた${tr.accepted ? 'はい' : 'いいえ'} 取り消し${tr.cancelled ? 'はい' : 'いいえ'} 時${r(tr.t)}${tr.resetWhy ? ` 放させた訳${tr.resetWhy}（${r(tr.resetT)}秒）` : ''}`;
 }
 function watchStep(b, dt, c) {
   if (!b.player) return; // 勝った後の短い終幕で、同じコマのうちに戦が片付いた時
@@ -1902,7 +1902,7 @@ function watchStep(b, dt, c) {
   if (c.cmdSeen && !c.cmdSeen.checked && t > c.cmdSeen.due) {
     c.cmdSeen.checked = true;
     const remaining = b.squad.filter((s) => s.alive && !s.gone && c.cmdSeen.response.has(s));
-    const live = remaining.filter((s) => !s.fleeing && !s.woundOut && !s.rearWound);
+    const live = remaining.filter((s) => !s.fleeing && !s.woundOut && !s.rearWound && !s.group?.pending);   // 使番がまだ着かない遠い組は「動かない」に数えない（墨俣 634秒 本人から49m）
     const unavailable = remaining.length - live.length;
     // 逃亡・負傷は号令の遅れとは分けて報告する。戦列が崩れた事実を消さない。
     if (unavailable > 0 && unavailable >= remaining.length * 0.7 && !['hold', 'face', 'form', 'fire'].includes(c.cmdSeen.id)) c.add(`cmd-unfit:${c.cmdSeen.id}`, `号令「${c.cmdSeen.label}」を出したが、組の多くが戦列を離れている`, `${remaining.length}人のうち逃亡・負傷で動けない兵は${unavailable}人（${c.where}）`, 1, { cat: '辻褄', fix: '組が崩れた理由を確かめ、旗のそばで退避と立て直しを行う' });
@@ -2596,7 +2596,7 @@ async function playPersona(game, spec, aud, c) {
       if (!paused1 && t > 25) {
         paused1 = true;
         const bt = document.getElementById('tc-pause');
-        if (pad.tap(bt, '止める')) { await wait(500); aud.scanDom(`${name}・一時停止`); const fr = () => [...document.querySelectorAll('#pause button')].find((x) => /再開|戻る|続け/.test(x.textContent)); let rs = fr(); for (let k = 0; !rs && k < 6; k++) { await wait(400); rs = fr(); } if (rs) pad.tap(rs, '再開'); else { game.paused = false; document.getElementById('pause').hidden = true; c.add('pause-noresume', '一時停止の札に「再開」の釦が見つからない', '#pause の中：' + (document.getElementById('pause').textContent || '空').replace(/\s+/g, ' ').slice(0, 80) + '｜釦' + document.querySelectorAll('#pause button').length, 2); } await wait(300); game.paused = false; document.getElementById('pause').hidden = true; }
+        if (pad.tap(bt, '止める')) { await wait(500); aud.scanDom(`${name}・一時停止`); const fr = () => [...document.querySelectorAll('#pause button')].find((x) => /再開|戻る|続け/.test(x.textContent)); let rs = fr(); for (let k = 0; !rs && k < 6; k++) { await wait(400); rs = fr(); } if (rs) pad.tap(rs, '再開'); else if (!game.paused) { /* 戦の始まりの三秒の守りで止めが無視された（押しが効かなかっただけで、空の札が出たのではない） */ } else { game.paused = false; document.getElementById('pause').hidden = true; c.add('pause-noresume', '一時停止の札に「再開」の釦が見つからない', '#pause の中：' + (document.getElementById('pause').textContent || '空').replace(/\s+/g, ' ').slice(0, 80) + '｜釦' + document.querySelectorAll('#pause button').length, 2); } await wait(300); game.paused = false; document.getElementById('pause').hidden = true; }
       }
       allyTick();
       idleWatch(b, rep);
