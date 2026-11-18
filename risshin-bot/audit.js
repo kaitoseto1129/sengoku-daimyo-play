@@ -63,7 +63,7 @@ export class Auditor {
     addEventListener('error', (e) => me().add('落ちた', `err:${e.message}`, `例外：${e.message}`, `${(e.filename || '').split('/').pop()}:${e.lineno}`, 'この行の前提（値が無い・死んだ兵など）を確かめる'));
     addEventListener('unhandledrejection', (e) => me().add('落ちた', `rej:${e.reason}`, `待ちの失敗：${String(e.reason).slice(0, 80)}`, String(e.reason && e.reason.stack || '').split('\n')[1] || '', '失敗したときの受け手を置く'));
     const ce = console.error.bind(console);
-    console.error = (...a) => { me().add('落ちた', `console:${String(a[0]).slice(0, 60)}`, `console.error：${String(a[0]).slice(0, 80)}`, '', '出どころを突き止める'); ce(...a); };
+    console.error = (...a) => { me().add('落ちた', `console:${String(a[0]).slice(0, 60)}`, `console.error：${String(a[0]).slice(0, 80)}`, String(new Error().stack || '').split('\n').slice(2, 8).map((l) => l.trim().replace(/\(?https?:[^)]*\//, '(')).join(' < ').slice(0, 300), '出どころを突き止める'); ce(...a); };
   }
 
   // ---------------- 戦に付ける ----------------

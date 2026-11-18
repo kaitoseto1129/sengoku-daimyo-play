@@ -2010,7 +2010,7 @@ function watchStep(b, dt, c) {
       const near = b.army.units.filter((o) => o.alive && !o.isPlayer && o.type !== 'dummy' && o.type !== 'porter' && dist(o.pos, u.pos) < 35);
       const hot = near.filter((o) => b.army.nearestEnemy(o, 30));
       const idle = hot.filter((o) => Math.hypot(o.vel.x, o.vel.z) < 0.1 && !o.target && !o.atk && !o.fleeing && !(o.group && /hold|guard|yari/.test(o.group.order)));
-      if (hot.length >= 6 && idle.length >= hot.length * 0.4) c.add(`bou:${c.bid}:${b.phase || ''}`, '敵が近いのに、まわりの兵の多くが棒立ち', `${Math.round(t)}秒：まわり35mの${hot.length}人のうち${idle.length}人が止まったまま（段 ${b.phase || '―'}）`, 2, { cat: '辻褄', shot: true, fix: '敵が30m内に入ったら、構える・にじり寄る・槍を揃えるなど体を動かす' });
+      if (hot.length >= 6 && idle.length >= hot.length * 0.4) c.add(`bou:${c.bid}:${b.phase || ''}`, '敵が近いのに、まわりの兵の多くが棒立ち', `${Math.round(t)}秒：まわり35mの${hot.length}人のうち${idle.length}人が止まったまま（段 ${b.phase || '―'}）｜止まった隊：${(() => { const m = {}; for (const o of idle) { const k = `${o.group?.name || '無名'}[${o.group?.order || '-'}]`; m[k] = (m[k] || 0) + 1; } return Object.entries(m).sort((a, z) => z[1] - a[1]).slice(0, 3).map(([k, n]) => `${k}${n}`).join('・'); })()}`, 2, { cat: '辻褄', shot: true, fix: '敵が30m内に入ったら、構える・にじり寄る・槍を揃えるなど体を動かす' });
       for (const o of near) {
         if (o.type !== 'busho' || !o.name) continue;
         const base = o.name.replace(/^.* /, '');
