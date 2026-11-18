@@ -1603,7 +1603,10 @@ const HABIT = {
     if (c.wander && t > c.wander.until) c.wander = null;
     if (c.wander) { p.yaw = c.wander.yaw; inp.k.delete('KeyE'); if (c.wander.walk) inp.k.add('KeyW'); else inp.k.delete('KeyW'); }
     // 連打：敵がいなくても突く
-    if (Math.random() < 0.3) inp.leftPressed = true;
+    // 11/18 19:50 UTC クラウド（持ち主 k02）：河田で中学生 bot が段2から1260秒時切れ。足跡は全部「退」（b_depth の手当て退き）で気力3〜29＝
+    //   空振りの連打で気力が二割二分を切り、五割五分へ戻る前にまた空振るので、手当ての退きが一戦じゅう解けず柵の口へ行けなかった。
+    //   人は息が切れれば空振りをやめる。気力が四割を切ったら、六歩内に敵がいる時だけ連打する（敵の前の連打は残す）
+    if (Math.random() < 0.3 && (p.sta > p.maxSta * 0.4 || b.army.nearestEnemy(u, 6))) inp.leftPressed = true;
     // 台詞は飛ばす
     if (document.querySelector('#hud #skiphint:not([hidden])')) inp.e.add('Enter');
   },
@@ -2434,11 +2437,13 @@ async function playPersona(game, spec, aud, c) {
   const cmd0 = b.player.command.bind(b.player);
   const LBL = Object.fromEntries(RADIAL.map((r) => [r.id, r.label]));
   b.player.command = (id, ...a) => {
+    // 号令の中で別の号令へ置き換えた時（鉄砲の組だけへの「かかれ」＝構え・放て）は、外の号令の応答のまま数える（11/18 鳶ヶ巣山 act bot で「号令が出なかった」11回の誤り）
+    if (c.cmdDepth) return cmd0(id, ...a);
     // 取り消しや、組が尽きた知らせも操作への応答。兵が動いた記録とは分ける。
     c.radialHandled = { id, t: b.t };
     const groups = b.player.selectedGroups().slice(), previous = b.player.lastCmd;
     c.cmdSeen = { id, label: LBL[id] || id, t: b.t, groups, response: new Map() };
-    const result = cmd0(id, ...a);
+    c.cmdDepth = 1; let result; try { result = cmd0(id, ...a); } finally { c.cmdDepth = 0; }
     // 拒まれた号令・同じ号令を押して取り消した時は、兵への下知として測らない。
     if (b.player.lastCmd === previous || !b.player.lastCmd) { c.cmdSeen = null; return result; }
     for (const g of groups) for (const s of g.units) if (s.alive) c.cmdSeen.response.set(s, { x: s.pos.x, z: s.pos.z, started: !g.pending, acted: false });
@@ -2648,7 +2653,7 @@ async function playPersona(game, spec, aud, c) {
       const up = P.pos;
       // 札に指を遮られた時は操作の問題として記録済み。地形に阻まれた歩みと取り違えない。
       if (!openingWait(game) && !game.paused && (!touch || pad.move) && dist(up, lastPos) < 0.02 && inp.k.has('KeyW')) idle += dt; else idle = 0;
-      if (idle > 8) { rep.stuck.push(`${Math.round(t)}秒：前へ進めない（${Math.round(up.x)}, ${Math.round(up.z)}・段 ${b.phase || '―'}）`); c.add(`stuck:${spec.id}:${Math.round(up.x / 10)},${Math.round(up.z / 10)}`, '前へ進もうとしても進めない所があった', `(${Math.round(up.x)}, ${Math.round(up.z)})・段 ${b.phase || '―'}`, 2, { cat: '辻褄', shot: true, fix: '当たり（柵・建物・地形）と道のつながりを見直す' }); idle = -30; }
+      if (idle > 8) { const gg = b.player._gtGoal, gy = b.player._botGoToT > b.t - 1; rep.stuck.push(`${Math.round(t)}秒：前へ進めない（${Math.round(up.x)}, ${Math.round(up.z)}・段 ${b.phase || '―'}${gg && gy ? `・行き先 (${Math.round(gg.x)}, ${Math.round(gg.z)})` : ''}）`); c.add(`stuck:${spec.id}:${Math.round(up.x / 10)},${Math.round(up.z / 10)}`, '前へ進もうとしても進めない所があった', `(${Math.round(up.x)}, ${Math.round(up.z)})・段 ${b.phase || '―'}${gg && gy ? `・行き先 (${Math.round(gg.x)}, ${Math.round(gg.z)})` : ''}`, 2, { cat: '辻褄', shot: true, fix: '当たり（柵・建物・地形）と道のつながりを見直す' }); idle = -30; }
       lastPos = { x: up.x, z: up.z };
       // 200コマごとではなく、0.3秒ごとに息をつく（始めの数十コマは顔や家紋の絵を作るので一コマが重く、外からの問い合わせに答えられなくなる）
       if (frames % 200 === 0 || performance.now() - lastYield > 300) { rep.time = Math.round(b.t); rep.merit = b.tracker.total(); rep.down = !P.alive; await wait(0); lastYield = performance.now(); }
