@@ -59,7 +59,9 @@ async function toPhone(c) {
   await c.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
   await c.send('Emulation.setUserAgentOverride', { userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1', platform: 'iPhone' });
 }
-if (PERSONA) { await playOnce(); await sleep(1200); if (OUT) process.exit(0); try { (await import('node:child_process')).execFileSync(process.execPath, [new URL('./mkadmin.mjs', import.meta.url).pathname], { stdio: 'ignore' }); } catch (e) { /* 管理画面の書き出しに失敗しても感想はそのまま */ } process.exit(0); }
+// 11/18 夜50-47：管理画面の中身（追跡している src/admin_data.js）は mini の毎時の mkadmin が作る。bot が流すたびに書き換えると、
+//   同じ置き場の係が「作業ツリーに直しが残る」で止まったので、bot からは MKADMIN=1 の時だけ作る
+if (PERSONA) { await playOnce(); await sleep(1200); if (OUT) process.exit(0); try { if (process.env.MKADMIN) (await import('node:child_process')).execFileSync(process.execPath, [new URL('./mkadmin.mjs', import.meta.url).pathname], { stdio: 'ignore' }); } catch (e) { /* 管理画面の書き出しに失敗しても感想はそのまま */ } process.exit(0); }
 
 const runs = [];
 for (let i = 0; i < N; i++) {
@@ -179,7 +181,7 @@ writeFileSync(out, lines.join('\n'));
 console.log('報告：' + out);
 await sleep(1200);  // Chrome の後片付けを待つ
 // 管理画面のデータも新しくする
-try { (await import('node:child_process')).execFileSync(process.execPath, [new URL('./mkadmin.mjs', import.meta.url).pathname], { stdio: 'ignore' }); } catch (e) { /* 管理画面の書き出しに失敗しても bot の報告はそのまま */ }
+try { if (process.env.MKADMIN) (await import('node:child_process')).execFileSync(process.execPath, [new URL('./mkadmin.mjs', import.meta.url).pathname], { stdio: 'ignore' }); } catch (e) { /* 管理画面の書き出しに失敗しても bot の報告はそのまま */ }
 process.exit(0);
 
 // ======================================================================
