@@ -200,6 +200,11 @@ export async function openChrome({ width = 1600, height = 900, port = 9400 + Mat
       });
     }
     await send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: false });
+    // TOUCH=1：iPad の真似（指の当たり・iPad の UA）。画面の決まりを iPad の大きさで照らす時だけ（11/18 クラウド11・K374）
+    if (process.env.TOUCH === '1') {
+      await send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
+      await send('Emulation.setUserAgentOverride', { userAgent: 'Mozilla/5.0 (iPad; CPU OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1', platform: 'iPad' });
+    }
     return {
       send,
       on(f) { evs.add(f); return () => evs.delete(f); },
