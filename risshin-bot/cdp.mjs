@@ -175,6 +175,8 @@ export async function openChrome({ width = 1600, height = 900, port = 9400 + Mat
     });
     // THREE_LOCAL=<three の npm 展開先（package/）>：外へ出られない箱で、jsdelivr の three を手元の物で返す
     if (process.env.THREE_LOCAL) {
+      // 11/18 クラウド（岐阜の持ち主）：THREE_LOCAL=1 のように置き場でない値だと three が読めず、bot が何も出さず二十分固まった。先に言って止める
+      if (!existsSync(join(process.env.THREE_LOCAL, 'build', 'three.module.js'))) throw new Error(`THREE_LOCAL=${process.env.THREE_LOCAL} に build/three.module.js が無い（npm pack three@0.160.0 を展開した package/ を指す）`);
       const base = 'https://cdn.jsdelivr.net/npm/three@0.160.0/';
       evs.add(async (d) => {
         if (d.method !== 'Fetch.requestPaused') return;

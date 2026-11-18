@@ -1,0 +1,244 @@
+// ======================================================================
+// 雑賀攻め・小雑賀川　対陣の中の段「川下の堤の鉄砲陣」（約10〜12分。b_saika.js の hold の後、parley の前に入れる）
+// 史実：川を挟む対陣は半月に及び、雑賀衆は夜ごとに小勢で渡っては鉄砲を撃ち掛けた（信長公記巻十の対陣の記事を、遊びの局地に縮めた補完）。
+// 遊び：川上・川下の寄せを払った後、川下の堤の陰に雑賀の鉄砲衆が入り込み、竹束の列の横から撃ち掛ける。
+//   堀の先手と堤へ寄せ、鉄砲陣を取る。取ると堤の小屋に火を掛けて潰す。本人が堤へ寄り、取り返しも払ってから和議（parley）へ。
+// 字は出さない：堤の上の硝煙・赤い印・燃える小屋で分からせる。
+// ======================================================================
+import { enemyGroup } from '../bhelp.js';
+import { sfx } from '../audio.js';
+
+// 本筋の残兵判定とそろえ、倒れた者・後送された者・敗走した組を追わせない。
+const ready = (u) => u.alive && !u.gone && !u.dying && !u.fleeing && !u.woundOut && !u.rearWound && !u.downed && !u.group?.routed;
+
+const DIKE = { x: -4, z: 58 };   // 川下の堤の陰（東岸）
+
+export function install(rt, ctx) {
+  const F = rt.flags;
+  const { dress, SAIKA, moveGroup, next, missionText } = ctx;
+  let done = false, tick = 0, fire = null, R = null, takenT = 0, raidAt = 0;
+  const startedAt = rt.t;
+  rt.setPhase('tsutsumi');
+  // 画面外へずらす時も堤の側に収める。杭列の西や高岸の上からは堤へ直進できない。
+  const G = enemyGroup(rt, { faction: 'saika', fixed: true,
+    spawnPointOK: (x, z) => x >= -10 && x <= 2 && z >= 44 && z <= 76,
+    name: '川下の堤の雑賀鉄砲衆', anchor: { x: DIKE.x, z: DIKE.z },   // 11/18 クラウド 雑賀の持ち主：DIKE をそのまま渡すと、退く時（withdraw の anchor 書き換え）に堤の点ごと川の向こう（-32,111）へ動き、本人が堤に着けず段が終わらなかった（act bot 1080秒で失敗）
+    facing: 0, width: 10, order: 'hold', guard: true, guardLeash: 6, aggro: 22, seekRange: 40, morale: 85, fleeDir: { x: -1, z: 0.3 } },
+    dress([{ type: 'samurai', n: 1, o: { hat: 'jingasa' } }, { type: 'gun', n: 5 }, { type: 'ashigaru', n: 4 }], SAIKA));
+  G.fixed = false;
+  // 11/18 夜50-30（act bot：本人が堤へ着いた六秒の内に八人が一度に逃げ散り、④の本人の討ち取り0〜2）：守り手は士気の崩れで背を向けず、
+  //   八割を失うか三分経った時の「浅瀬へ退く」（withdraw）まで堤で斬り合う（兵は足さない）
+  G.noRout = true;
+  F.tsutsumiG = G;
+  F.tsutsumiAt = DIKE;
+  const live = () => { let n = 0; if (!G.tsRouted) for (const u of G.units) if (ready(u)) n++; return n; };
+  // 抜いていない杭を横切らず、川下の浅瀬から西岸へ退く。
+  const withdraw = (g) => {
+    const c = g.center();
+    g.tsRouted = true; g.noRout = true; g.focus = null; g.retreatOnly = true;
+    g.pending = null; g._gather = false;
+    g.noAI = true; g.guard = false; g.guardOn = false;
+    g.holdFire = true; g.fire = false; g.fixed = false;
+    g.order = 'path'; g.formation = 'column'; g.colW = 2;
+    // 先頭だけ浅瀬を回すと後列が杭へ斜めに戻る。出発点から全列を道へ沿わせる。
+    g.anchor.x = c.x; g.anchor.z = c.z;
+    g.roadColumn = true; g.followColumnRoad = true;
+    // 高岸の急斜面へ登り直さず、杭列の西の法尻を川下へ抜ける。
+    // 渡り始める前に退く組は西側のまま川下へ。東岸経由へ戻すと、
+    // 川中から東岸への斜めの道が、まだ残る杭列を横切ってしまう。
+    g.path = c.x < -19 ?
+      [[c.x, c.z], [-28, 78], [-32, DIKE.z + 36]] :
+      [[c.x, c.z], [-8, 78], [-28, 78], [-32, DIKE.z + 36]];
+    g.pathIdx = 0;
+    g.onArrive = (q) => { q.order = 'hold'; q.facing = Math.PI / 2; };
+  };
+  sfx('volley', 0.9);
+  rt.army.play?.('volley', DIKE, 1.1);
+  rt.say('見張り', '川下の堤の陰から撃って来る！　竹束の横を狙われておるぞ！', 4);
+  rt.after(5, () => rt.say('堀秀政', '堤の鉄砲陣を取れ！　横から回って、玉込めの間に寄せよ！', 4));
+  rt.obj('main', missionText, 'main', true);
+  rt.objProgress('main', '');
+  rt.marker('tsutsumi', () => (live() ? G.center() : DIKE), '堤の鉄砲陣', { red: true, group: G });
+  let sent = 0;
+  const assaultOrders = [];
+  // 11/18 15:55 UTC クラウド雑賀の持ち主（描かずの数え：堤の段の六十秒、堀の先手が退きの道（path）の続きのまま東岸を x 12 で
+  //   這うように進み、本人だけが堤へ着いた）：もう東岸へ戻った組は退きの道を捨て、普通の進み（本人が先へ出れば駆け足で追う）で堤へ寄せる
+  const toDike = (g, to, facing) => {
+    if (g.order === 'path' && g.center().x > -6) { g.path = null; g.pathIdx = 0; g.retreatOnly = false; g.roadColumn = false; g.followColumnRoad = false; g.order = 'hold'; }
+    moveGroup(g, to, facing);
+  };
+  // 11/18 15:40 UTC クラウド雑賀の持ち主（描かずの数え：堤の段の始めに堀の先手六人が崩れたまま東の x 69 で逃げ続け、
+  //   堤へ寄せる組が無く、本人が一人で堤へ向かう道中の三十歩内の味方 3〜8）：崩れた先手は法螺で呼び戻して堤へ寄せる（兵は足さない）
+  //   東岸の鉄砲衆も、竹束の段で崩れて堤の向こうへ逃げ抜ける回があったので同じく呼び戻す
+  for (const g of new Set([F.hori, ...(F.escorts || []), F.teppo])) {
+    if (!g || !g.count || !(g.routed || g.order === 'flee')) continue;
+    let back = 0;
+    for (const u of g.units) {
+      if (!u.alive || u.gone || u.dying || u.woundOut || u.rearWound || u.downed) continue;
+      u.fleeing = false; u.moraleFleeDir = null; u.fright = 0; u.backUntil = 0; u.routIn = undefined;
+      u.target = null; u.atk = null; u.confused = 0; u.fleePathIdx = 0; u.moveTo = null; u.aiT = 0.3 + Math.random(); back++;
+      if (!u.wpn || !u.wpn.parent) rt.army.drawSidearm?.(u);   // 逃げる間に槍を捨てた者は脇差を抜いて戻る
+    }
+    if (back < 3) continue;
+    g.routed = false; g.wavered = false; g.rallied = true; g.noRout = true;
+    g.morale = Math.max(g.morale || 0, 65);
+    g.focus = null; g.path = null; g.marching = false;
+    if (g.order === 'flee') g.order = 'hold';
+  }
+  if (F.hori?.rallied) sfx('horagai', 0.5);
+  for (const g of new Set([F.hori, ...(F.escorts || [])])) if (g && !g.routed && g.count) {
+    // 二組を一点へ重ねず、堤の東側から間を空けて寄せる。
+    // 堤を取る下知の間は、射手の盾になる判断で竹束の前へ戻らせない。
+    // 兵ごとの移動と応戦は続け、堤を守り終えたら元の判断へ戻す。
+    assaultOrders.push({ g, noAI: g.noAI, guard: g.guard });
+    g.noAI = true; g.guard = false; g.guardOn = false;
+    toDike(g, { x: DIKE.x + 8 + sent * 6, z: DIKE.z - 10 - sent * 8 }, Math.PI);
+    g.onArrive = (q) => { q.order = 'attack'; q.retreatOnly = false; q.guard = false; q.formation = 'yari'; q.aggro = 26; q.seekRange = 30; };
+    // 11/18 23:40 JST クラウド雑賀の持ち主（描かずの数え：堤の段 370〜420秒に本人の三十歩内の味方13人＝野がまばら）：
+    //   竹束で前へ出た後陣の槍（escorts の三つ目）も三列目として寄せる（兵は足さない）
+    if (++sent >= 3) break;
+  }
+  // 同じく：東岸の鉄砲衆は竹束の陰に残らず、堤の北二十歩で堤へ向けて構える。本人が堤へ寄るまでは放たない（守り手を先に討ち切らない）
+  const teppo = F.teppo;
+  if (teppo && !teppo.routed && teppo.count) {
+    teppo.holdFire = true; teppo.guard = false; teppo.guardOn = false;
+    toDike(teppo, { x: DIKE.x + 16, z: DIKE.z - 22 }, Math.atan2(-16, 22));
+    teppo.onArrive = (q) => { q.order = 'hold'; q.facing = Math.atan2(-16, 22); q.formation = 'line'; };
+  }
+
+  return {
+    update(dt) {
+      if (done || F.ending || rt.over) return;
+      if ((tick -= dt) > 0) return;
+      tick = 0.5;
+      if (teppo && teppo.holdFire && !F.bankCeasefire) {
+        const me = rt.player.u.pos;
+        if (Math.hypot(me.x - DIKE.x, me.z - DIKE.z) <= 24 || rt.t - startedAt >= 90) teppo.holdFire = false;
+      }
+      // 後尾一人が持ち場へ届かなくても、着いた主力まで移動のまま待たせない。
+      // 道の最後まで要が進んだ時だけ引き継ぎ、川の退き道や竹束の迂回は省かない。
+      for (const { g } of assaultOrders) {
+        if (g.routed || !g.count || !g.onArrive) continue;
+        const end = g.order === 'path' && g.pathIdx >= g.path.length - 1 ? g.path[g.path.length - 1] : null;
+        const at = g.order === 'move' ? g.dest : null;
+        if (!end && !at) continue;
+        const x = end ? end[0] : at.x, z = end ? end[1] : at.z;
+        if (Math.hypot(g.anchor.x - x, g.anchor.z - z) >= 1) continue;
+        const c = g.center();
+        // 11/18 夜50-30（act bot の討ち取りの時刻：④の 240〜290秒は本人の15歩内に敵0、堤に着くと守り手は味方に討たれ済み）：
+        //   先手は寄せの持ち場で本人を待ち、本人が堤から二十四歩に入ってから一緒に打ちかかる（九十秒で待ちをやめる・兵は足さない）
+        const me = rt.player.u.pos;
+        if (!G.tsRouted && live() && Math.hypot(me.x - DIKE.x, me.z - DIKE.z) > 24 && rt.t - startedAt < 90) continue;
+        if (Math.hypot(c.x - x, c.z - z) < 8) {
+          const arrive = g.onArrive; g.onArrive = null; arrive(g);
+        }
+      }
+      // 八割を失った守り手や、三分攻め続けた隊は退く。残る一人の全滅待ちにしない。
+      const defenders = live();
+      if (!G.tsRouted && defenders && (defenders <= Math.floor(G.units.length * .2) || rt.t - startedAt >= 180)) {
+        withdraw(G);
+        rt.say('見張り', '堤の鉄砲衆が引くぞ。堤へ寄せて守りを固めよ！', 4);
+      }
+      // 堤を取った後、雑賀が川下の浅瀬から取り返しに来る。取り返しを払えば済む
+      // 味方だけで敵を払っても、本人が堤へ着くまでは占拠・放火を進めない。
+      // 守り手が退いたら敵隊の印を外し、本人が着くまで堤そのものを案内する。
+      if (!live() && !F.tsutsumiPlaceMarked) {
+        F.tsutsumiPlaceMarked = true;
+        rt.marker('tsutsumi', DIKE, '川下の堤', { h: 3 });
+        // 守り手が射程の外へ退くと、攻め手は手前の集合地点で止まってしまう。
+        // 堤の東へ列を進め、杭列を越えずに川下からの取り返しを迎える。
+        for (let i = 0; i < assaultOrders.length; i++) {
+          const g = assaultOrders[i].g;
+          if (g.routed || !g.count) continue;
+          toDike(g, { x: DIKE.x + 8 + i * 6, z: DIKE.z }, 0);
+          g.onArrive = (q) => {
+            q.order = 'hold'; q.retreatOnly = false; q.facing = 0;
+            q.formation = 'yari'; q.aggro = 18;
+          };
+        }
+      }
+      if (!live() && !takenT && Math.hypot(rt.player.u.pos.x - DIKE.x, rt.player.u.pos.z - DIKE.z) < 12) {
+        takenT = rt.t;
+        // 敵が尽きても堤の行き先を残す。取り返しを払った後もここへ戻れる。
+        rt.marker('tsutsumi', DIKE, '川下の堤', { h: 3 });
+        fire = rt.world.addFire?.(DIKE.x - 3, DIKE.z + 2, { size: 1.6, blackSmoke: true });
+        rt.say('堀秀政', '堤の陣は取った！　小屋を焼け。川から取り返しに来るぞ、構えよ！', 4);
+        rt.after(18, () => {
+          if (done || F.ending || rt.over) return;
+          // 川下の川床から浅瀬へ寄せる。隠すために西の急岸や杭の反対側へ移さない。
+          // 道順は守り、堤へ着いて攻めに移った後は本筋の本人への寄せも使う。
+          // 除外すると味方の先手とだけ戦い、堤を守る本人に打ちかからない。
+          R = enemyGroup(rt, { faction: 'saika', noAI: true, noFrontline: true,
+            spawnPointOK: (x, z) => x >= -32 && x <= -27 && z >= DIKE.z + 8 && z <= 110,
+            name: '堤を取り返す雑賀衆', anchor: { x: -32, z: DIKE.z + 8 }, facing: 0, formation: 'column', colW: 2, width: 2, order: 'hold', aggro: 26, seekRange: 34, morale: 85, fleeDir: { x: -1, z: 0 } },
+            dress([{ type: 'samurai', n: 1, o: { hat: 'jingasa' } }, { type: 'ashigaru', n: 7 }, { type: 'gun', n: 2 }], SAIKA));   // 11/18 クラウド雑賀の持ち主（act bot「8分で7人」・④の110秒で本人の討ち取り2）：六人→十人
+          raidAt = rt.t;
+          // 堤の正面には抜いていない杭列が七十歩まで続く。端を回って東岸へ寄せる。
+          const c = R.center();
+          R.fixed = false; R.order = 'path'; R.formation = 'column'; R.colW = 2;
+          R.anchor.x = c.x; R.anchor.z = c.z;
+          R.roadColumn = true; R.followColumnRoad = true;
+          R.path = [[c.x, c.z], [-28, 76], [-8, 76], [DIKE.x, DIKE.z]]; R.pathIdx = 0;
+          // 堤へ着いたら、堤に立つ本人へ打ちかかる（前は味方の先手とだけ斬り合い、本人の前に敵が来なかった）
+          R.onArrive = (q) => {
+            q.order = 'attack'; q.aggro = 30; q.formation = 'yari';
+            const me = rt.player.u;
+            if (me.alive && Math.hypot(me.pos.x - DIKE.x, me.pos.z - DIKE.z) < 30) q.focus = me;
+          };
+          rt.army.play?.('eshout', { x: -30, z: DIKE.z + 8 }, 1.3);
+          rt.say('見張り', '川を渡って堤を取り返しに来る！', 3.5);
+          rt.marker('tsutsumiR', () => (R && R.units.some((u) => ready(u)) ? R.center() : null), '取り返しに来る雑賀衆', { red: true, group: R });
+        });
+      }
+      // 堤へ届いた主力は攻めに移る。川の中の後尾一人の到着を待たない。
+      if (R && !R.routed && !R.tsRouted && R.order === 'path' && R.pathIdx >= 3 && R.onArrive) {
+        const c = R.center();
+        if (Math.hypot(c.x - DIKE.x, c.z - DIKE.z) < 12) {
+          const arrive = R.onArrive; R.onArrive = null; arrive(R);
+        }
+      }
+      let rl = 0;
+      if (R) for (const u of R.units) if (ready(u)) rl++;
+      // 取り返しの手は半ばを失うか三分経てば浅瀬へ退く。川の中の鉄砲一人を待ち続けない。
+      if (R && !R.tsRouted && rl && (rl <= Math.ceil(R.units.length / 2) || rt.t - raidAt >= 180)) {
+        // 残兵を数から外すだけでは退かない。来た浅瀬へ戻し、残る杭列を横切らせない。
+        withdraw(R);
+        rt.say('見張り', '取り返しの手が引くぞ！　川下の浅瀬へ退いていく！', 3);
+      }
+      // 渡河中の取り返しも数える。遠いだけで「払った」とせず、討つか退くまで続ける。
+      // 半数を失って退く下知が出た組は、川の中の残兵を追わせない。
+      const n = live() + (R?.tsRouted ? 0 : rl);
+      // 払った組の印を残して、川の中や退く残兵へ追わせない。
+      if (R && !R.tsMarkerCleared && (R.tsRouted || !rl)) {
+        R.tsMarkerCleared = true; rt.unmark('tsutsumiR');
+      }
+      rt.objProgress('main', `堤の雑賀衆 ${G.units.length + (R?.units.length || 0)}人中 残り${n}人`);
+      const p = rt.player.u.pos;
+      if (R && !n && Math.hypot(p.x - DIKE.x, p.z - DIKE.z) < 12) {
+        done = true; F.tsutsumiDone = true;
+        for (const order of assaultOrders) { order.g.noAI = order.noAI; order.g.guard = order.guard; }
+        rt.unmark('tsutsumi'); rt.unmark('tsutsumiR');
+        // 11/18 夜50-30（戦略家 bot：堤で組頭が討たれた自分の組が崩れたまま和議まで逃げ続け、号令が効かなかった）：
+        //   堤を取った法螺で、自分の組の逃げた者を呼び戻して本人に付ける（傷で下がった者・討たれた者は戻さない）
+        for (const g of rt.squadGroups || []) if (g.count) {
+          if (g.routed) { g.routed = false; g.rallied = true; }
+          for (const u of g.units) {
+            if (!u.alive || u.gone || u.dying || u.isPlayer || !u.fleeing || u.woundOut || u.rearWound) continue;
+            u.fleeing = false; u.moraleFleeDir = null; u.fright = 0; u.backUntil = 0; u.routIn = undefined;
+            u.target = null; u.moveTo = null; u.aiT = 0;
+          }
+          g.morale = Math.max(g.morale || 0, 60);
+          if (g.order === 'flee') g.order = 'follow';
+        }
+        sfx('horagai', 0.6);
+        rt.award((t) => t.side.push('川下の堤の雑賀の鉄砲陣を取り、取り返しも払った'), '堤の鉄砲陣を取った');
+        rt.say('堀秀政', '堤は守った。……だが、川の向こうはまだ抜けぬ', 4);
+        // 雑賀が退き、川が静まる間（和議の前の二十秒余り）
+        rt.after(6, () => { if (!F.ending) { F.bankCeasefire = true; for (const g of rt.army.groups) { g.fire = false; g.holdFire = true; for (const u of g.units) u.cd = 1e9; } sfx('kane', 0.4); rt.say('見張り', '向こう岸の鉄砲が止んだ……。こちらも撃つな', 4); } });
+        rt.after(13, () => { if (!F.ending) rt.say('堀秀政', '撃ち返すな。何か言うて来るつもりじゃ', 3.5); });
+        rt.after(20, () => { if (!F.ending && !rt.over) next(); });
+      }
+    },
+    fire: () => fire,
+  };
+}
