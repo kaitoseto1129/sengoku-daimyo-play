@@ -195,7 +195,8 @@ function survive(b, inp) {
     // 長い溜めの間は歩いて息を戻し、指と体の向き直りを見込んで刃を受ける。
     const turnToStrike = attacker ? Math.atan2(attacker.pos.x - u.pos.x, attacker.pos.z - u.pos.z) - u.heading : 0;
     const guardLead = Math.cos(turnToStrike) < 0.5 ? 1.3 : 0.9;
-    inp.guardHold = !!attacker && impact <= guardLead;
+    // 11/17 owner-2（司令塔の決め：床は外さず bot が構え・退きを使う）：囲まれている間（mobbed・三人以上）は、打ち手が四歩内にいれば構えたまま退く（金ヶ崎で四方から一撃29を四太刀）
+    inp.guardHold = !!attacker && (impact <= guardLead || ((u.mobbed || close >= 3) && ad <= 4));
     inp.runHeld = false;
     // 11/17 K360⑦（長の許し・n-map）：退く間も三歩の内で自分を打っている敵には打ち返す。手加減を外した後、孤立の退きのまま
     //   打ち返さず追手に打たれ続けて倒れた（金ヶ崎の始まりの段で三度）。刃が届く直前は構え（guardHold）を先にし、その合間だけ突く。人が遊ぶ時の手本
@@ -921,7 +922,7 @@ async function playOne(game, i, G, aud, o = {}) {
       if (key !== lastObj) { if (t - lastObjT > 120) rep.waits.push(`${Math.round(lastObjT)}〜${Math.round(t)}秒：任務が変わらない（段 ${lastObjPh || '―'}）`); lastObj = key; lastObjT = t; lastObjPh = b.phase; }
       // 任務の流れ（主な任務の文が変わった時だけ記す）
       // 戦略家の操作は専用の試験で扱う。この通常試験には人物別の操作係がいない。
-      const mo = b.objectives.filter((q) => q.kind === 'main').map((q) => q.text + (q.state ? `〔${q.state === 'done' ? '済' : '失'}〕` : '')).join('／');
+      const mo = (b.objectives.some((q) => q.kind === 'main') ? b.objectives.filter((q) => q.kind === 'main') : b.objectives.filter((q) => q.kind === 'order' && !q.state)).map(   /* 11/17 owner-1：主の任務が無い間に出ている下知（行き先のピン付き）も任務として数える（墨俣の持ち場の下知が「任務なし」と出ていた） */(q) => q.text + (q.state ? `〔${q.state === 'done' ? '済' : '失'}〕` : '')).join('／');
       if (mo !== lastMain) { lastMain = mo; if (rep.flow.length < 14) rep.flow.push(`${Math.round(b.t)}s ${mo || '（任務なし）'}`); }
       // 動けなくなった所
       const u = b.player.u.pos;
@@ -1784,6 +1785,10 @@ const HABIT = {
         b.army.wallBetween(u.pos, u.team, e.pos, true, p.meleeFenceClear(p.meleeReach('thrust')));
       // 11/18 クラウドキ四：信貴山 honmaru で 3m の足軽へ詰められず（柵・段差）、1043〜1080秒 同じ所で突きの構えのまま失敗した。
       //   届かない相手へ 8秒 詰めて 0.7m も動けなければ、その相手を 30秒 狙いから外す。
+      // 同じ相手へ 20秒 構えて命が一つも減らない（階の違う中の兵・立ち上がり続ける兵）時も、30秒 狙いから外す（信貴山 interior 1084秒 失敗：0mの足軽へ構えたまま）。
+      { const sh = c.strikeHp;
+        if (!sh || sh.e !== e || e.hp < sh.hp - 0.5) c.strikeHp = { e, hp: e.hp, t: b.t };
+        else if (b.t - sh.t > 20) { e._botSkip = b.t + 30; c.strikeHp = null; } }
       if (d > reach * 0.85 || fenced) {
         const st = c.strikeStuck;
         if (!st || st.e !== e || Math.hypot(st.x - u.pos.x, st.z - u.pos.z) > 0.7) c.strikeStuck = { e, x: u.pos.x, z: u.pos.z, t: b.t };
@@ -1913,9 +1918,9 @@ function watchStep(b, dt, c) {
     c.cmdSeen.checked = true;
     const remaining = b.squad.filter((s) => s.alive && !s.gone && c.cmdSeen.response.has(s));
     const live = remaining.filter((s) => !s.fleeing && !s.woundOut && !s.rearWound && !s.group?.pending);   // 使番がまだ着かない遠い組は「動かない」に数えない（墨俣 634秒 本人から49m）
-    const unavailable = remaining.length - live.length;
+    const unavailable = remaining.filter((s) => s.fleeing || s.woundOut || s.rearWound).length;   // 使番が着かない組は逃亡・負傷に数えない（越前 201秒 11人中8人は使番待ちだった恐れ）
     // 逃亡・負傷は号令の遅れとは分けて報告する。戦列が崩れた事実を消さない。
-    if (unavailable > 0 && unavailable >= remaining.length * 0.7 && !['hold', 'face', 'form', 'fire'].includes(c.cmdSeen.id)) c.add(`cmd-unfit:${c.cmdSeen.id}`, `号令「${c.cmdSeen.label}」を出したが、組の多くが戦列を離れている`, `${remaining.length}人のうち逃亡・負傷で動けない兵は${unavailable}人（${c.where}）`, 1, { cat: '辻褄', fix: '組が崩れた理由を確かめ、旗のそばで退避と立て直しを行う' });
+    if (unavailable > 0 && unavailable >= remaining.length * 0.7 && !['hold', 'face', 'form', 'fire'].includes(c.cmdSeen.id)) c.add(`cmd-unfit:${c.cmdSeen.id}`, `号令「${c.cmdSeen.label}」を出したが、組の多くが戦列を離れている`, `${remaining.length}人のうち逃亡・負傷で動けない兵は${unavailable}人（逃${remaining.filter((s) => s.fleeing).length}・傷${remaining.filter((s) => s.woundOut).length}・後傷${remaining.filter((s) => s.rearWound).length}・組${[...new Set(remaining.map((s) => `t${s.team}:${s.group?.order}:${s.group?.routed ? 'R' : ''}:${s.group?.label || s.group?.id}`))].join('/')}）（${c.where}）`, 1, { cat: '辻褄', fix: '組が崩れた理由を確かめ、旗のそばで退避と立て直しを行う' });
     const atGoal = (s) => {
       const g = s.group;
       if (!g || !g.slotPos) return false;
@@ -1950,13 +1955,18 @@ function watchStep(b, dt, c) {
       let ok = true; try { ok = b.world.walkable(mp.x, mp.z) !== false; } catch (e) { ok = true; }
       if (!ok) P.bad.push(`${Math.round(t)}秒 ${mkLab}（歩けない地面）`);
     }
+    // 11/18 クラウドす：数えは一秒ごと。走れば一秒に五歩進み、着いた所でピンが消える（真田丸の退き：13m で見て次の秒にはもう着いて消えていた）。
+    //   前の秒に16m内だったピンが消えたら、着いたと数える
+    if (P.last && P.last.key !== mkKey) { const L = P.first.get(P.last.key); if (L && !L.done && P.last.d <= 16) { L.done = true; P.reached++; } }
+    P.last = mkKey && mp ? { key: mkKey, d: dist(mp, u.pos) } : null;
     const PF = mkKey && P.first.get(mkKey);
     if (PF && !PF.done) {
       const d = dist(mp, u.pos); PF.best = Math.min(PF.best, d);
       if (d <= 10) { PF.done = true; P.reached++; }
       else if (t - PF.t > 180) { PF.done = true; P.bad.push(`${Math.round(PF.t)}秒 ${mkLab}（180秒で最も近づけたのは${Math.round(PF.best)}m）`); }
     }
-    if (near && mkKey && !A.seen.has(mkKey) && b.phase !== 'brief') {   // 戦の前の説明（brief）の間は着いても何も起きない作りなので数えない（11/17）
+    if (near && mkKey && !A.seen.has(mkKey) && b.phase !== 'brief' && !(mk && (mk.waitAction || mk.waitGuide))) {   // 「ここで待て」の印は着いて待つのが仕様なので数えない（11/18 姉川の森の槍列）
+      //   // 戦の前の説明（brief）の間は着いても何も起きない作りなので数えない（11/17）
       A.seen.add(mkKey); A.n++;
       A.pend = { t, key: mkKey, label: mkLab, objKey, phase: b.phase || '', say: c.lastSayT || 0, foe: !!b.army.nearestEnemy(u, 20) };
     }
@@ -2611,7 +2621,7 @@ async function playPersona(game, spec, aud, c) {
       allyTick();
       idleWatch(b, rep);
       stackWatch(b, rep, (m) => c.add(`stack:${spec.id}`, '隊が一点に重なって動かない', m, 2, { cat: '辻褄', shot: true, fix: '兵の行き先が同じ一点になっていないか・押し合いが効いているかを見る（bot_stack.js）' }));
-      const mo = b.objectives.filter((q) => q.kind === 'main').map((q) => q.text + (q.state ? `〔${q.state === 'done' ? '済' : '失'}〕` : '')).join('／');
+      const mo = (b.objectives.some((q) => q.kind === 'main') ? b.objectives.filter((q) => q.kind === 'main') : b.objectives.filter((q) => q.kind === 'order' && !q.state)).map(   /* 11/17 owner-1：主の任務が無い間に出ている下知（行き先のピン付き）も任務として数える（墨俣の持ち場の下知が「任務なし」と出ていた） */(q) => q.text + (q.state ? `〔${q.state === 'done' ? '済' : '失'}〕` : '')).join('／');
       if (mo !== lastMain) { lastMain = mo; if (rep.flow.length < 14) rep.flow.push(`${Math.round(b.t)}s ${mo || '（任務なし）'}`); }
       { const sg = stageNow(b); const sk = sg ? `${sg.i + 1}/${sg.n}` : ''; if (sk && sk !== rep.stgLast) { rep.stgLast = sk; (rep.stg ||= []).push(`${Math.round(b.t)}s 段${sk}`); } }
       const up = P.pos;
