@@ -310,10 +310,12 @@ async function playOnce() {
     (b.errors || []).forEach((e) => L.push(`  - 不具合：${e}`));
     (b.shots || []).forEach((s) => L.push(`  - ${s.label}：![${s.label}](${s.file})`));
   }
-  const out = join(PD, `${st}_${short}.md`);
+  // 同じ分に何本も流すと同じ名で上書きしていた（11/18 関ヶ原の持ち主）→ 名が空くまで -2・-3 を付ける
+  let st2 = st; for (let k = 2; existsSync(join(PD, `${st2}_${short}.md`)); k++) st2 = `${st}-${k}`;
+  const out = join(PD, `${st2}_${short}.md`);
   writeFileSync(out, L.join('\n') + '\n');
   // ---- 積み重ね（まとめの元） ----
-  const rec = { at: d.toISOString(), file: `${st}_${short}.md`, id: PID ? +PID : null, v: VQ || '', label: VL, size: PC ? `${SIZE[0]}x${SIZE[1]}` : `${PHONE.width}x${PHONE.height}`, ver: process.env.RISSHIN_VER || '', persona: PERSONA, name: pname, battles: bats.map((b) => b.battle.replace(/（途中で打ち切り）$/, '')), won: bats.filter((b) => b.main === true).length, down: bats.filter((b) => b.down).length, feel: data.feel || '', cut, issues: probs.map((p) => ({ key: p.key, cat: p.cat, title: p.title, what: p.what, where: p.where, sev: p.sev, count: p.count, battles: p.battles, fix: p.fix, shot: p.shot })) };
+  const rec = { at: d.toISOString(), file: `${st2}_${short}.md`, id: PID ? +PID : null, v: VQ || '', label: VL, size: PC ? `${SIZE[0]}x${SIZE[1]}` : `${PHONE.width}x${PHONE.height}`, ver: process.env.RISSHIN_VER || '', persona: PERSONA, name: pname, battles: bats.map((b) => b.battle.replace(/（途中で打ち切り）$/, '')), won: bats.filter((b) => b.main === true).length, down: bats.filter((b) => b.down).length, feel: data.feel || '', cut, issues: probs.map((p) => ({ key: p.key, cat: p.cat, title: p.title, what: p.what, where: p.where, sev: p.sev, count: p.count, battles: p.battles, fix: p.fix, shot: p.shot })) };
   appendFileSync(join(PD, 'history.jsonl'), JSON.stringify(rec) + '\n');
   if (!OUT) writeSummary(PD);
   console.log(`感想：${out}（問題 ${probs.length}件）`);
