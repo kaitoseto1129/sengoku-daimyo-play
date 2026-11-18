@@ -577,7 +577,9 @@ export function brain(b, inp) {
   // 戦を濃くする段（b_depth.js）の間は、その段の的へ
   if (b.flags.dp && b.flags.dp.on && !b.def.botBrainDepth) { depthBot(b, inp, goTo); cover(b, inp); return; }
   // 戦ごとの遊び方があればそれを使う（b_*.js の def.botBrain）
-  if (b.def.botBrain && b.def.botBrain(b, inp, { goTo, patientStrike, strikeTarget, canStrike }) !== false) { cover(b, inp); return; }   // false を返した戦の頭は、ここから先の既定の動きへ譲る（信貴山の門前）
+  // 11/18 夜50-30（雑賀③の退きで 60〜600秒さまよう）：戦の頭の後の鉄砲の避け足が、口へ戻る本人を南西へ横歩きさせ、西岸の柵の前へ押し戻していた。
+  //   戦の頭が「今は避けない」と言う段（def.botNoCover）だけ、後の避け足を足さない。
+  if (b.def.botBrain && b.def.botBrain(b, inp, { goTo, patientStrike, strikeTarget, canStrike }) !== false) { if (!b.def.botNoCover?.(b)) cover(b, inp); return; }   // false を返した戦の頭は、ここから先の既定の動きへ譲る（信貴山の門前）
   // 柵を使う別の戦にも、設楽原の動きを押し付けない。
   if (b.flags.fence) return shitaraBrain(b, inp);
   // 深手なら下がって手当て（墨俣の普請小屋）
@@ -2488,7 +2490,7 @@ async function playPersona(game, spec, aud, c) {
       const c = g.center(), q = AM.pos.get(g);
       // 11/18 K365 cloud-06：一斉射ちの合図を待つ鉄砲組（g.holdFire・長篠の柵の内の野々村・竹広の鉄砲組）は狙いと弾込めを続けており棒立ちでない。兵ごとの数え（audit.js の mayIdle）と同じく数えない
       // 11/16 クラウドし（K340 三方ヶ原 act bot）：櫓の上・中の守り（perch.js・shironaka.js の interiorHold）は持ち場から降りないのが正しい。「20秒動かない」に数えない（物見櫓の守り一人が200秒の止まりと出ていた）
-      if (q) { const d = Math.hypot(c.x - q.x, c.z - q.z); AM.move += d; q.still = d < 1 ? q.still + 5 : 0; AM.samp++; if (q.still >= 20 && !g.qualityCombat && !g.holdFire && !g.units.some((u) => u.alive && (u.target || u.atk)) && !g.interiorHold && !g.units.every((u) => !u.alive || u.perch) && b.army.nearestEnemy({ pos: c, team: P.team }, (g.order === 'hold' || g.order === 'yari') ? 25 : 60, (o) => !o.fleeing)) { q.still = 0; const far = g.units.filter((u) => u.alive && (u.farSim || u.qualityAbstract)).length * 2 > g.count; if (far) AM.idleFar = (AM.idleFar || 0) + 1; else AM.idle++; /* 11/17 owner-1：遠くで考えを間引いた隊は止まりの数に入れない（別に数える） */ (rep.idleDiag ||= []).length < 14 && rep.idleDiag.push(`${Math.round(b.t)}s ${g.id ?? ''}${g.name ? ':' + g.name : ''} ord=${g.order} form=${g.formation} n=${g.count} mv=${!!g.marching} foc=${!!g.focus} keep=${!!g.keepMoveOrder} anch=${(g.anchorSpeed ?? 0).toFixed?.(2)} at(${Math.round(c.x)},${Math.round(c.z)}) tm=${g.units.filter((u) => u.alive)[0]?.moveTo ? 'mt' : '-'}${far ? ' 遠くの本物' : ''}`); } q.x = c.x; q.z = c.z; }
+      if (q) { const d = Math.hypot(c.x - q.x, c.z - q.z); AM.move += d; q.still = d < 1 ? q.still + 5 : 0; AM.samp++; if (q.still >= 20 && !g.qualityCombat && !g.holdFire && !g.units.some((u) => u.alive && (u.target || u.atk)) && !g.interiorHold && !g.units.every((u) => !u.alive || u.perch) && !g.units.every((u) => !u.alive || u.downed) /* 11/18 クラウドか：倒れて救いを待つ者だけの組は止まりに数えない（renraku 真田丸の頼み） */ && b.army.nearestEnemy({ pos: c, team: P.team }, (g.order === 'hold' || g.order === 'yari') ? 25 : 60, (o) => !o.fleeing)) { q.still = 0; const far = g.units.filter((u) => u.alive && (u.farSim || u.qualityAbstract)).length * 2 > g.count; if (far) AM.idleFar = (AM.idleFar || 0) + 1; else AM.idle++; /* 11/17 owner-1：遠くで考えを間引いた隊は止まりの数に入れない（別に数える） */ (rep.idleDiag ||= []).length < 14 && rep.idleDiag.push(`${Math.round(b.t)}s ${g.id ?? ''}${g.name ? ':' + g.name : ''} ord=${g.order} form=${g.formation} n=${g.count} mv=${!!g.marching} foc=${!!g.focus} keep=${!!g.keepMoveOrder} anch=${(g.anchorSpeed ?? 0).toFixed?.(2)} at(${Math.round(c.x)},${Math.round(c.z)}) tm=${g.units.filter((u) => u.alive)[0]?.moveTo ? 'mt' : '-'}${far ? ' 遠くの本物' : ''}${g.name ? '' : ' u=' + ((u0) => u0 ? `${u0.type}${u0.name ? ':' + u0.name : ''}${u0.mounted ? ':馬' : ''}${u0.isOfficer || u0.officer ? ':将' : ''}` : '-')(g.units.find((u) => u.alive))}`); } q.x = c.x; q.z = c.z; }
       else AM.pos.set(g, { x: c.x, z: c.z, still: 0 });
     }
     rep.ally = `隊${AM.pos.size}・動いた計${Math.round(AM.move)}m・味方の討ち取り${rep.allyKills || 0}・名のある将 本人${rep.namedKill?.me || 0}/味方${rep.namedKill?.ally || 0}/他${rep.namedKill?.other || 0}${rep.namedKill?.list.length ? '（' + rep.namedKill.list.join(' ') + '）' : ''}・敵を前に20秒止まった${AM.idle}回（うち遠くで考えを間引いた本物の隊 ${AM.idleFar || 0}）・見せかけの兵（本物でない絵の兵）最多${AM.fakeMax ?? '—'}人（${AM.fakeN || 0}回数えた）・本物の味方5人未満${AM.low * 5}秒${rep.idleDiag ? "｜止まり: " + rep.idleDiag.join(" ／ ") : ""}`;
@@ -2623,7 +2625,7 @@ async function playPersona(game, spec, aud, c) {
       stackWatch(b, rep, (m) => c.add(`stack:${spec.id}`, '隊が一点に重なって動かない', m, 2, { cat: '辻褄', shot: true, fix: '兵の行き先が同じ一点になっていないか・押し合いが効いているかを見る（bot_stack.js）' }));
       const mo = (b.objectives.some((q) => q.kind === 'main') ? b.objectives.filter((q) => q.kind === 'main') : b.objectives.filter((q) => q.kind === 'order' && !q.state)).map(   /* 11/17 owner-1：主の任務が無い間に出ている下知（行き先のピン付き）も任務として数える（墨俣の持ち場の下知が「任務なし」と出ていた） */(q) => q.text + (q.state ? `〔${q.state === 'done' ? '済' : '失'}〕` : '')).join('／');
       if (mo !== lastMain) { lastMain = mo; if (rep.flow.length < 14) rep.flow.push(`${Math.round(b.t)}s ${mo || '（任務なし）'}`); }
-      { const sg = stageNow(b); const sk = sg ? `${sg.i + 1}/${sg.n}` : ''; if (sk && sk !== rep.stgLast) { rep.stgLast = sk; (rep.stg ||= []).push(`${Math.round(b.t)}s 段${sk}`); } }
+      { const sg = stageNow(b); const sk = sg ? `${sg.i + 1}/${sg.n}` : ''; if (sk && sk !== rep.stgLast) { const dk = rep.kills - (rep.stgK || 0); rep.stgK = rep.kills; (rep.stg ||= []).push(`${Math.round(b.t)}s 段${sk}${rep.stgLast ? `（前の段で討${dk}）` : ''}`); rep.stgLast = sk; } }   // 11/18 クラウド k06：段ごとの本人の討ち取り（「斬り合う相手が少ない」段を探す）
       const up = P.pos;
       // 札に指を遮られた時は操作の問題として記録済み。地形に阻まれた歩みと取り違えない。
       if (!openingWait(game) && !game.paused && (!touch || pad.move) && dist(up, lastPos) < 0.02 && inp.k.has('KeyW')) idle += dt; else idle = 0;
@@ -2653,7 +2655,7 @@ async function playPersona(game, spec, aud, c) {
   rep.afterDecision = Math.max(0, Math.round(b.t) - rep.time);
   rep.merit = b.tracker.total();
   rep.main = b.tracker.main;
-  { const tg = b.tracker.tegara || { zako: 0, named: 0, boss: false }; const sg = stageNow(b); (rep.stg ||= []).push(`終 段${sg ? sg.i + 1 + '/' + sg.n : '—'}・手柄 雑${tg.zako}・名${tg.named}・大将${tg.boss ? 1 : 0}＝${tg.zako + tg.named * 3 + (tg.boss || b.tracker.main === true ? 20 : 0)}点`); }
+  { const tg = b.tracker.tegara || { zako: 0, named: 0, boss: false }; const sg = stageNow(b); (rep.stg ||= []).push(`終 段${sg ? sg.i + 1 + '/' + sg.n : '—'}${rep.stgLast ? `（この段で討${rep.kills - (rep.stgK || 0)}）` : ''}・手柄 雑${tg.zako}・名${tg.named}・大将${tg.boss ? 1 : 0}＝${tg.zako + tg.named * 3 + (tg.boss || b.tracker.main === true ? 20 : 0)}点`); }
   rep.squad = b.squad.length ? `${b.squad.filter((s) => s.alive).length}/${b.squad.length}` : '—';
   rep.down = !!(b.result && b.result.down) || !P.alive;
   rep.hurt = Object.entries(hurt).sort((a, z) => z[1] - a[1]).map(([k, v]) => `${k} ${Math.round(v)}`).join('・');
