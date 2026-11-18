@@ -397,7 +397,7 @@ function strikeTarget(b, radius) {
       Math.abs(previous.pos.y - u.pos.y) < 3 &&
       Math.hypot(previous.pos.x - u.pos.x, previous.pos.z - u.pos.z) < (p.weapon === 'sword' ? 1.9 : 2.8) &&
       !b.army.wallBetween(u.pos, -1, previous.pos, p.weapon === 'spear')) return previous;
-  return b.army.nearestEnemy(u, radius, (o) => o.type !== 'dummy' && !o.noTarget && canStrike(p, o) && !o.fleeing &&
+  return b.army.nearestEnemy(u, radius, (o) => o.type !== 'dummy' && !o.noTarget && !(o._botSkip > b.t) && canStrike(p, o) && !o.fleeing &&
     Math.abs(o.pos.y - u.pos.y) < 3 && !b.army.wallBetween(u.pos, -1, o.pos,
       p.weapon === 'spear' && Math.hypot(o.pos.x - u.pos.x, o.pos.z - u.pos.z) < 2.8));
 }
@@ -1347,6 +1347,9 @@ class TouchPad {
     const r = this.radial;
     if (!r) return;
     if (r.n === 0) {
+      // 輪が開いたまま（長押しで開いて行き先を待つ形）の時に号令の丸を押すと、輪を閉じるだけで号令は出ない（touch.js down の T.sticky）。
+      // 人と同じく輪が閉じるのを待ってから押す（諏訪原 147秒「focus を選んで放したのに出ない」はこれで、輪の記録が前の号令のままだった）
+      if (document.documentElement.classList.contains('tc-cmd')) { r.wait = (r.wait || 0) + 1; if (r.wait > 40) this.radial = null; return; }
       const a = this.aim(r.el, '号令');
       if (!a || !a.el) { this.radial = null; return; }
       r.a = a; r.pid = ++this.id;
@@ -1779,6 +1782,13 @@ const HABIT = {
       //   敵の槍だけ届く間合いで止まると、本物の当たり（enemiesInArc と同じ判定）で空振りし続けた（11/15 墨俣 w1 の北の柵）
       const fenced = p.weapon === 'spear' && d <= reach * 0.85 &&
         b.army.wallBetween(u.pos, u.team, e.pos, true, p.meleeFenceClear(p.meleeReach('thrust')));
+      // 11/18 クラウドキ四：信貴山 honmaru で 3m の足軽へ詰められず（柵・段差）、1043〜1080秒 同じ所で突きの構えのまま失敗した。
+      //   届かない相手へ 8秒 詰めて 0.7m も動けなければ、その相手を 30秒 狙いから外す。
+      if (d > reach * 0.85 || fenced) {
+        const st = c.strikeStuck;
+        if (!st || st.e !== e || Math.hypot(st.x - u.pos.x, st.z - u.pos.z) > 0.7) c.strikeStuck = { e, x: u.pos.x, z: u.pos.z, t: b.t };
+        else if (b.t - st.t > 8) { e._botSkip = b.t + 30; c.strikeStuck = null; }
+      }
       if (d > reach * 0.85 || fenced) goTo(p, inp, e.pos.x, e.pos.z, fenced ? 0.6 : reach * 0.85); else inp.k.delete('KeyW');
       if (e === busho) c.bushoMin = Math.min(c.bushoMin || 1e9, d);
       patientStrike(p, inp, e, d); c.charge = 0;

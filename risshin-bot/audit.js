@@ -191,8 +191,9 @@ export class Auditor {
       } else u.__deadT = 0;
       // 動けなくなった兵（行き先があるのに20秒動かない。持ち場を守る者は除く）
       const g = u.group;
+      // 11/18 クラウドれ（箕作 51秒・gate）：村の兵（chigyo.js・kind tegei）は組頭（遊び手）について回る兵。号令が attack でも、遊び手が木戸の前で止まれば隣で待つ
       // ついて来いの兵は、組頭（遊び手）が止まっている間・すぐそばに着いている間は立って待ってよい
-      const leaderStill = g && g.order === 'follow' && (Math.hypot(P.vel ? P.vel.x : 0, P.vel ? P.vel.z : 0) < 0.3 || Math.hypot(u.pos.x - P.pos.x, u.pos.z - P.pos.z) < 12);
+      const leaderStill = g && (g.order === 'follow' || g.kind === 'tegei') && (Math.hypot(P.vel ? P.vel.x : 0, P.vel ? P.vel.z : 0) < 0.3 || Math.hypot(u.pos.x - P.pos.x, u.pos.z - P.pos.z) < 12);
       // 旗持ち・押し合いの後ろの者も、指定の立ち位置に着けば待ってよい。
       // 遠くの行き先へ向かう途中で詰まった者は、これまでどおり調べる。
       // 遠景の軽い兵（qualityAbstract・farSim）は考えを止め、行き先は _farWant（持ち場）で歩く。古い moveTo で「動かない」と数えない（11/13 クラウドか K127：関ヶ原の福島隊 aiT −120秒）
@@ -201,7 +202,7 @@ export class Auditor {
       // 床几に据えた総大将（u.perch・army_alive の still と同じ）は動かないのが決まり（11/16 iMac n-mikata：野田福島の三好長逸）
       // 11/18 クラウドカ五（金ヶ崎 80秒・brief）：味方に塞がれた騎馬の将が持ち場の 6〜8m で、味方の隊が1m 内に詰まって立つのは、人垣の後ろで順を待つ内（森可成 (10,-46)→(16,-42)）
       const jamWait = u.mounted && (u.jammed || u.jamT > 0) && mt && Math.hypot(mt.x - u.pos.x, mt.z - u.pos.z) < 8 && b.army.units.some((o) => o !== u && o.alive && o.team === u.team && Math.hypot(o.pos.x - u.pos.x, o.pos.z - u.pos.z) < 1.5);
-      const mayIdle = jamWait || IDLE_OK_TYPES.has(u.type) || u.noTarget || u.fleeing || u.perch || !g || IDLE_OK_ORDERS.has(g.order) || g.holdFire || g.stay || /櫓の守り/.test(g.name || '') || u.target || u.atk || (g.leader === u && g.order === 'hold') || (g.fixed && g.anchor && Math.hypot(u.pos.x - g.anchor.x, u.pos.z - g.anchor.z) < 12) || leaderStill || arrived;
+      const mayIdle = jamWait || IDLE_OK_TYPES.has(u.type) || u.noTarget || u.fleeing || u.perch || !g || IDLE_OK_ORDERS.has(g.order) || g.holdFire || g.stay || /櫓の守り/.test(g.name || '') || u.target || u.atk || (g.leader === u && g.order === 'hold') || (g.fixed && g.anchor && Math.hypot(u.pos.x - g.anchor.x, u.pos.z - g.anchor.z) < 12) || leaderStill || arrived || (u.invuln && mt && Math.hypot(mt.x - u.pos.x, mt.z - u.pos.z) < 4);   // 11/18 クラウドよ（小谷）：不死身の先手組頭1人が行き先の4m手前で立つのは持ち場の待ち
       const moved = Math.hypot(u.vel.x, u.vel.z) > 0.15;
       const hasDestination = mt && Math.hypot(mt.x - u.pos.x, mt.z - u.pos.z) > 1.6;
       // （120m 内に敵のいない兵が立って待つのは、困り事に数えない）
@@ -212,7 +213,7 @@ export class Auditor {
       } else this.idle.set(u, 0);
       // 自分のすぐそばで何もしない敵（持ち場の者・敗走中は除く）。
       // 勝敗後など、敵の狙いに入らない本人は nearestEnemy と同じ条件で除く。
-      if (P.alive && !P.noTarget && (!P.invuln || P.allyOk) && u.team !== P.team && !u.fleeing && !IDLE_OK_TYPES.has(u.type) && !u.noTarget && Math.hypot(u.pos.x - P.pos.x, u.pos.z - P.pos.z) < 3.5 && !u.target && !u.atk && !u.reload && !(g && g.order === 'hold')) {   // 11/17 クラウドル三：弾込め中の射手は何かしている（賤ヶ岳315秒の鉄砲）
+      if (P.alive && !P.noTarget && (!P.invuln || P.allyOk) && u.team !== P.team && !u.fleeing && !IDLE_OK_TYPES.has(u.type) && !u.noTarget && Math.hypot(u.pos.x - P.pos.x, u.pos.z - P.pos.z) < 3.5 && !u.target && !u.atk && !u.reload && !(g && g.order === 'hold') && !(P.soloFor && P.soloFor !== u && P.soloFor.alive) && !(u.type === 'gun' && g && g._mvSeen > 0 && b.army.time - g._mvSeen < 1.5)) {   // 11/18 ル三：組の揃え撃ちを待つ鉄砲（最長12秒）は数えない   // 11/18 クラウド kaito2（山中城355秒）：一騎討ち（soloFor）の間は、ほかの敵は本人を狙わない決まり   // 11/17 クラウドル三：弾込め中の射手は何かしている（賤ヶ岳315秒の鉄砲）
         u.__besideT = (u.__besideT || 0) + step;
         if (u.__besideT > 6) { this.add('辻褄', 'passive:' + u.type, '自分のすぐそばの敵が6秒以上なにもしない', `${who(u)}（${g?.name || '名なし'}・号令：${g?.order}${g?.stay ? '・待つ' : ''}${g?.guard ? '・守り' : ''}${u.type === 'gun' || u.type === 'bow' ? `・射手[撃${g?.fire === false ? '止' : '可'}・弾${u.gunAmmo ?? u.arrowAmmo ?? '-'}・脇差${u.sidearm ? '1' : '0'}・馬${u.mounted ? '1' : '0'}・距離${Math.round(Math.hypot(u.pos.x - P.pos.x, u.pos.z - P.pos.z) * 10) / 10}m]` : ''}）`, '近くの敵（遊び手）を狙いに入れる', who(u)); u.__besideT = -60; }
       } else u.__besideT = 0;
