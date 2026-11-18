@@ -202,7 +202,9 @@ export class Auditor {
       // 床几に据えた総大将（u.perch・army_alive の still と同じ）は動かないのが決まり（11/16 iMac n-mikata：野田福島の三好長逸）
       // 11/18 クラウドカ五（金ヶ崎 80秒・brief）：味方に塞がれた騎馬の将が持ち場の 6〜8m で、味方の隊が1m 内に詰まって立つのは、人垣の後ろで順を待つ内（森可成 (10,-46)→(16,-42)）
       const jamWait = u.mounted && (u.jammed || u.jamT > 0) && mt && Math.hypot(mt.x - u.pos.x, mt.z - u.pos.z) < 8 && b.army.units.some((o) => o !== u && o.alive && o.team === u.team && Math.hypot(o.pos.x - u.pos.x, o.pos.z - u.pos.z) < 1.5);
-      const mayIdle = jamWait || IDLE_OK_TYPES.has(u.type) || u.noTarget || u.fleeing || u.perch || !g || IDLE_OK_ORDERS.has(g.order) || g.holdFire || g.stay || /櫓の守り/.test(g.name || '') || u.target || u.atk || (g.leader === u && g.order === 'hold') || (g.fixed && g.anchor && Math.hypot(u.pos.x - g.anchor.x, u.pos.z - g.anchor.z) < 12) || leaderStill || arrived || (u.invuln && mt && Math.hypot(mt.x - u.pos.x, mt.z - u.pos.z) < 4);   // 11/18 クラウドよ（小谷）：不死身の先手組頭1人が行き先の4m手前で立つのは持ち場の待ち
+      // 11/18 クラウドニ三（比叡山 302秒）：隊が動いている（隊速>0.3）のに、細い山道で前の味方が1.5m 内に詰まって順を待つ兵は、渋滞の内
+      const colWait = g && g.anchorSpeed > 0.3 && mt && b.army.units.some((o) => o !== u && o.alive && o.team === u.team && Math.hypot(o.pos.x - u.pos.x, o.pos.z - u.pos.z) < 1.6);
+      const mayIdle = jamWait || colWait || IDLE_OK_TYPES.has(u.type) || u.noTarget || u.fleeing || u.perch || !g || IDLE_OK_ORDERS.has(g.order) || g.holdFire || g.stay || /櫓の守り/.test(g.name || '') || u.target || u.atk || (g.leader === u && g.order === 'hold') || (g.fixed && g.anchor && Math.hypot(u.pos.x - g.anchor.x, u.pos.z - g.anchor.z) < 12) || leaderStill || arrived || (u.invuln && mt && Math.hypot(mt.x - u.pos.x, mt.z - u.pos.z) < 4);   // 11/18 クラウドよ（小谷）：不死身の先手組頭1人が行き先の4m手前で立つのは持ち場の待ち
       const moved = Math.hypot(u.vel.x, u.vel.z) > 0.15;
       const hasDestination = mt && Math.hypot(mt.x - u.pos.x, mt.z - u.pos.z) > 1.6;
       // （120m 内に敵のいない兵が立って待つのは、困り事に数えない）

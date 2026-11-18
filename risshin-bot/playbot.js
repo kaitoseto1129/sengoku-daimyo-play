@@ -1942,7 +1942,11 @@ function watchStep(b, dt, c) {
     // 戦が「今の行き先」を決めている時（guideMarker）はその印を見る。先に立った人の印（本能寺の「信長」）を行き先と取り違えて、
     //   本当の行き先（本堂の口）へ向かう途中で上様の横に並んだだけで「着いて何も起きない」と数えていた（11/15 クラウドわ）
     const gid = b.def.guideMarker?.(b);
-    const mk = (gid && b.markers.find((m) => m.id === gid)) || b.markers.find((m) => !m.red) || b.markers[0];
+    // 11/18 クラウド 三木：戦の決めた印が今は無く、戦が自前のピン（missionPin）で行き先を示している時は、そのピンを行き先と見る。
+    //   飢えの段（蔵へ俵を確かめに行く）で、ずっと立つ道しるべ「浅瀬」を行き先と取り違え、渡るだけで「着いて何も起きない」と数えていた。
+    const gmk = gid && b.markers.find((m) => m.id === gid);
+    const mpin = !gmk && gid && b.def.missionPin?.(b);
+    const mk = gmk || (mpin && Number.isFinite(mpin.x) ? { id: 'pin', label: '行き先', pos: { x: mpin.x, z: mpin.z } } : null) || b.markers.find((m) => !m.red) || b.markers[0];
     const mp = mk ? (typeof mk.pos === 'function' ? mk.pos() : mk.pos) : null;
     const mkLab = mk ? String((typeof mk.label === 'function' ? mk.label() : mk.label) || mk.id || '印') : '';
     const mkKey = mk ? `${mk.id || mkLab}:${mp ? `${Math.round(mp.x / 5)},${Math.round(mp.z / 5)}` : ''}` : '';
@@ -2625,7 +2629,7 @@ async function playPersona(game, spec, aud, c) {
       stackWatch(b, rep, (m) => c.add(`stack:${spec.id}`, '隊が一点に重なって動かない', m, 2, { cat: '辻褄', shot: true, fix: '兵の行き先が同じ一点になっていないか・押し合いが効いているかを見る（bot_stack.js）' }));
       const mo = (b.objectives.some((q) => q.kind === 'main') ? b.objectives.filter((q) => q.kind === 'main') : b.objectives.filter((q) => q.kind === 'order' && !q.state)).map(   /* 11/17 owner-1：主の任務が無い間に出ている下知（行き先のピン付き）も任務として数える（墨俣の持ち場の下知が「任務なし」と出ていた） */(q) => q.text + (q.state ? `〔${q.state === 'done' ? '済' : '失'}〕` : '')).join('／');
       if (mo !== lastMain) { lastMain = mo; if (rep.flow.length < 14) rep.flow.push(`${Math.round(b.t)}s ${mo || '（任務なし）'}`); }
-      { const sg = stageNow(b); const sk = sg ? `${sg.i + 1}/${sg.n}` : ''; if (sk && sk !== rep.stgLast) { const dk = rep.kills - (rep.stgK || 0); rep.stgK = rep.kills; (rep.stg ||= []).push(`${Math.round(b.t)}s 段${sk}${rep.stgLast ? `（前の段で討${dk}）` : ''}`); rep.stgLast = sk; } }   // 11/18 クラウド k06：段ごとの本人の討ち取り（「斬り合う相手が少ない」段を探す）
+      { const sg = stageNow(b); const sk = sg ? `${sg.i + 1}/${sg.n}` : (b.flags && b.flags.dp && b.flags.dp.cur && b.flags.dp.cur.s && b.flags.dp.cur.s.title) || b.phase || '';   /* 11/18 クラウド：段の表が無い戦（b_depth の段・phase）でも段ごとの討ち取りを数える */ if (sk && sk !== rep.stgLast) { const dk = rep.kills - (rep.stgK || 0); rep.stgK = rep.kills; (rep.stg ||= []).push(`${Math.round(b.t)}s 段${sk}${rep.stgLast ? `（前の段で討${dk}）` : ''}`); rep.stgLast = sk; } }   // 11/18 クラウド k06：段ごとの本人の討ち取り（「斬り合う相手が少ない」段を探す）
       const up = P.pos;
       // 札に指を遮られた時は操作の問題として記録済み。地形に阻まれた歩みと取り違えない。
       if (!openingWait(game) && !game.paused && (!touch || pad.move) && dist(up, lastPos) < 0.02 && inp.k.has('KeyW')) idle += dt; else idle = 0;
