@@ -82,7 +82,8 @@ function survive(b, inp) {
   // 名乗って来た将との一騎討ち（設楽原 saigo.js）の間は、深手になるまで退かずに受けて立つ（退いて時切れの討死になっていた）
   if (b.def.botDuel?.(b) && u.hp > u.maxHp * 0.35) { b.botSurviveUntil = 0; return false; }
   // 砦の道順は戦専用の頭に任せる。深手の時は共通の退避を優先する。
-  if (b.def.botDefendsFort && u.hp > u.maxHp * 0.3) { b.botSurviveUntil = 0; return false; }
+  // 堀と囲いの退き道を戦の頭が持つ所（botOwnRetreat）では、三割を切っても任せる（諏訪原の空堀の底で共通の退きがさまよった）
+  if (b.def.botDefendsFort && (u.hp > u.maxHp * 0.3 || b.def.botOwnRetreat?.(b))) { b.botSurviveUntil = 0; return false; }
   let foe = null, fd = 10, attacker = null, ad = 10, impact = Infinity, mate = null, md = 64, close = 0, support = 0, ex = 0, ez = 0;
   let firstStrikeAngle = null, leftStrikeAngle = 0, rightStrikeAngle = 0;
   let crossedStrikes = false, approaching = false;
@@ -1522,6 +1523,7 @@ class TouchPad {
   }
   cmd(id, b) {
     if (!b.squad.some((s) => s.alive) || !b.player.selectedGroups().some((g) => g.count > 0)) return;
+    this.ctx.sqSeen = true;   // 組があった印（戦の片付けで b.squad が空になった後の「号令できる組が無い」の数え違いを防ぐ・11/19 天王寺砦の戦略家）
     if (this.order(id)) return;
     // 指の丸がまだ・もう出ていない時（開戦の札・戦の終わり・一時停止）は、人も押せないので問題に数えない
     const tc = document.getElementById('tc');
@@ -1534,6 +1536,9 @@ class TouchPad {
     if ((id === 'form' || id === 'fire') && (b.G.rank >= 2 || b.G.lord)) { if (!this.sub) this.sub = { id, n: 0 }; return; }
     // 初めの三戦（missionStyle）は足軽の基本操作だけを出す決まり（simple_controls.js）。号令の輪が無いのは不具合でない（11/17 iMac・森部で数え違い）
     if (simpleControls(b)) { this.real.quickCmd = id; return; }
+    // 11/19 クラウド 天王寺砦の持ち主（戦略家 197秒「槍衾が輪から出せない」★★★5回）：今の組の兵の並び（槍が六人未満など）で選べない号令は、
+    //   輪の上でも選べない決まり（command_rank.js cmdAllowed）。人も出せないので問題に数えない
+    if (!cmdAllowed(b, id)) { this.real.quickCmd = id; return; }
     // 号令の輪に無い号令（陣形・射撃など）は、指では出せない
     this.ctx.noTouchCmd(id, `終わり・段${b.G.rank}・殿${b.G.lord ? 1 : 0}`);
     this.real.quickCmd = id;
@@ -2527,7 +2532,7 @@ async function playPersona(game, spec, aud, c) {
   const td = b.player.takeDamage.bind(b.player);
   b.player.takeDamage = (a, src) => { const d = td(a, src); const k = src ? (src.isStruct ? '柵' : ({ bow: '弓', gun: '鉄砲', cavalry: '騎馬', samurai: '侍', busho: '武将', ashigaru: '足軽' }[src.type] || src.type)) : '?'; hurt[k] = (hurt[k] || 0) + (d || 0); if (d > 0 && src?.group?.name) hurtBy[src.group.name] = (hurtBy[src.group.name] || 0) + d; if (src && (src.type === 'bow' || src.type === 'gun') && d > 0) { b.botShotT = b.t; b.botShooter = src; }
     // 倒れた時の読み直しのため、最後の八つの傷を短く残す（時・元・量・残り・構え・向き・囲み・退避中）。
-    if (d > 0) { const h = b.player.lastHit, u = b.player.u; hitLog.push(`${Math.round(b.t)}s${k}${Math.round(d)}→${Math.round(u.hp)}${h?.guard ? '構' : ''}${h?.guardBroken ? '崩' : ''}${h?.exhausted ? '疲' : ''}${h?.back ? '背' : h?.side ? '横' : ''}${u.mobbed ? '囲' : ''}${b.botSurviving ? '退' : ''}${src?.pos ? `距${Math.hypot(src.pos.x - u.pos.x, src.pos.z - u.pos.z).toFixed(1)}見${b._svFd?.toFixed?.(1)}` : ''}`); if (hitLog.length > 8) hitLog.shift(); }
+    if (d > 0) { const h = b.player.lastHit, u = b.player.u; hitLog.push(`${Math.round(b.t)}s${k}${Math.round(d)}→${Math.round(u.hp)}${h?.guard ? '構' : ''}${h?.guardBroken ? '崩' : ''}${h?.exhausted ? '疲' : ''}${h?.back ? '背' : h?.side ? '横' : ''}${u.mobbed ? '囲' : ''}${b.botSurviving ? '退' : ''}${src?.pos ? `距${Math.hypot(src.pos.x - u.pos.x, src.pos.z - u.pos.z).toFixed(1)}見${b._svFd?.toFixed?.(1)}` : ''}`); hitLog[hitLog.length - 1] += `[${b.player.u.hitKind || ''}|${src?.group?.name || (src?.group ? '名無し' : '組無し')}]`; if (hitLog.length > 8) hitLog.shift(); }   /* 11/19 クラウドせ：稲葉山で侍の傷97のうち組の名の付く物が25だけ・二十五歩先からの当たりがあった。得物と組を残す */
     return d; };
   // 指：本当の input を捕まえる（main の毎コマの b.update は、bot が回すので止める）
   const pad = new TouchPad(game, c);
@@ -2713,7 +2718,8 @@ async function playPersona(game, spec, aud, c) {
     if (rep.time > 180 && rep.kills < rep.time / 60) c.add(`act-dull:${spec.id}`, '斬り合う相手が少なくて退屈', `${Math.round(rep.time / 60)}分で${rep.kills}人`, 1, { cat: '使いづらい' });
     c.feel = 0; c.invulnHit = null; c.mountTry = 0; c.rode = false; c.looseSeen = false; c.bushoMin = 0;
   }
-  if (per.key === 'sen' && !b.squad.length && spec.kind !== 'dojo') c.add(`sen-nosquad:${spec.id}`, 'この戦では号令できる組が無い（指揮する所が無い）', name, 1, { cat: '使いづらい' });
+  if (per.key === 'sen' && !b.squad.length && !c.sqSeen && spec.kind !== 'dojo') c.add(`sen-nosquad:${spec.id}`, 'この戦では号令できる組が無い（指揮する所が無い）', name, 1, { cat: '使いづらい' });
+  c.sqSeen = false;
   if (per.key === 'sek') {
     if (rep.time > 420) c.add(`sek-long:${spec.id}`, '一つの戦が長い（7分を超えた）', `${name}：${Math.round(rep.time / 60)}分${rep.timeout ? '（10分で切り上げた）' : ''}`, rep.timeout ? 2 : 1, { cat: '使いづらい', fix: '途中で区切れる所（段の切れ目）に「ここまで」を置く' });
     if (c.firstFoe && c.firstFoe > 120) c.add(`sek-slowstart:${spec.id}`, '敵に会うまでが長い', `${Math.round(c.firstFoe)}秒歩いてやっと敵`, 1, { cat: '使いづらい' });

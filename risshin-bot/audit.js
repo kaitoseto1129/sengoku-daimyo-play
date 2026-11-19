@@ -197,7 +197,7 @@ export class Auditor {
       // 旗持ち・押し合いの後ろの者も、指定の立ち位置に着けば待ってよい。
       // 遠くの行き先へ向かう途中で詰まった者は、これまでどおり調べる。
       // 遠景の軽い兵（qualityAbstract・farSim）は考えを止め、行き先は _farWant（持ち場）で歩く。古い moveTo で「動かない」と数えない（11/13 クラウドか K127：関ヶ原の福島隊 aiT −120秒）
-      const mt = (u.qualityAbstract || u.farSim) ? u._farWant : u.moveTo;
+      const mt = (u.qualityAbstract || u.farSim) ? (u._farWant && u._farSepO ? (u._auditFw || (u._auditFw = { x: 0, z: 0 }), u._auditFw.x = u._farWant.x + u._farSepO.x, u._auditFw.z = u._farWant.z + u._farSepO.z, u._auditFw) : u._farWant) : u.moveTo;   // 11/19 夜50-48：遠い兵は重なり解きのずれ（army_move の _farSepO）を足した所が立ち位置
       const arrived = mt && Math.hypot(mt.x - u.pos.x, mt.z - u.pos.z) < ((u.jammed || u.jamT > 0) ? (u.mounted ? 4 : 2.6) :   /* 11/18 クラウドせ（稲葉山）：馬は体が長い。味方に塞がれた騎馬の将が持ち場の 3.6m で立つのは着いた内（森可成 (-18,41)） */ (g && g.guard) ? 3 : 1.2);   // 11/17 クラウドヤ三（岩村）：守りの組は持ち場の隊形の枠（2〜3m）に着けば立って待つ   // 持ち場の 2.6m 内で味方に塞がれて待つ者は着いた扱い（army_think の jammed と同じ幅）
       // 床几に据えた総大将（u.perch・army_alive の still と同じ）は動かないのが決まり（11/16 iMac n-mikata：野田福島の三好長逸）
       // 11/18 クラウドカ五（金ヶ崎 80秒・brief）：味方に塞がれた騎馬の将が持ち場の 6〜8m で、味方の隊が1m 内に詰まって立つのは、人垣の後ろで順を待つ内（森可成 (10,-46)→(16,-42)）
