@@ -1591,7 +1591,7 @@ const HABIT = {
     // 11/18 K365-44（司令塔の頼み）：本物の初めての人は、命の棒が赤くなれば味方の方へ下がる。
     //   命が三割半以下で近くの味方の塊へ下がり（survive）、命が六割へ戻るか十秒で元の動きへ戻る。--q=fall=0 で古い型（退かない）。
     if (!window.__chuFallOff && !/[?&]fall=0/.test(location.search)) {
-      if (!c.fall && u.hp <= u.maxHp * (+(/[?&]fallhp=([0-9.]+)/.exec(location.search) || [0, 0.35])[1]) && !(c.fallCd > t)) c.fall = { until: t + 10 };
+      if (!c.fall && u.hp <= u.maxHp * (+(/[?&]fallhp=([0-9.]+)/.exec(location.search) || [0, 0.5])[1]) && !(c.fallCd > t)) c.fall = { until: t + 10 };
       if (c.fall && (t > c.fall.until || u.hp >= u.maxHp * 0.6)) { c.fall = null; c.fallCd = t + 3; b.botSurviving = false; }
       if (c.fall) {
         c.fallN = (c.fallN || 0) + (c.fall.counted ? 0 : 1); c.fall.counted = true;

@@ -1,0 +1,1498 @@
+// ======================================================================
+// 徳川編 9　今福の戦い（慶長十九年十一月二十六日・1614）　大坂冬の陣　堤・湿地・狭い道の激戦
+// 筋書きの正：docs/chapter3_tokugawa.md の「9. 今福」
+// 大坂城の北東、大和川の旧流路ぞいの今福に、豊臣方の砦（矢野正倫・飯田家貞）があった。堤の上の細い道が唯一の通り道で、
+// 両側は湿地と水。佐竹義宣の隊が堤を進んで砦を奪うが、木村重成の隊が鉄砲を揃えて反撃し、佐竹勢は堤の上で押し戻される。
+// 佐竹勢は四重の柵を破り、矢野・飯田は討死。木村重成の反撃で押され、後藤又兵衛が加わって押し戻され、渋江政光が撃たれて先手が崩れる。
+// そこへ鴫野の上杉勢が大和川を越えて横から撃ち、豊臣方は退く（docs/battle_refs/k09_imafuku.md）。
+// 主人公は佐竹義宣の隊の侍大将。勝ち方＝砦を奪い、重成の反撃に堤の上で耐え、増援とともに豊臣方を退かせる。
+// 段：①堤を進む（葦の伏兵）②四重の柵を破り今福の砦を奪う ③木村重成の反撃を堤の上で受け止める（後藤又兵衛が加わる）④増援とともに押し返す
+// 負け方：討たれる。時の決めは段ごと（DP の max・kaito AP8）。全体の刻限は十五分の保険だけ。
+// 兵の比（史実）：佐竹勢は千五百〜二千、砦の守兵は六百ほど、反撃した木村・後藤の隊は数千（推定）。重成の反撃の間は二倍を超える敵に押される（AQ10）。
+// 佐竹義宣は東の本陣（後方）に旗本と置き、前の堤は家老の渋江政光・梅津憲忠が率いる（AT3）。渋江政光は反撃の中で鉄砲に撃たれて討死する（史実）。
+// 旗は佐竹・上杉・豊臣だけ（AQ4）。見せかけの軍勢（遠くの軽い大軍・隊の後ろの控え）は一つも置かず、出る兵は全部本物（AA・AF・AQ6）。大坂城は西南西の遠く（今福の南西＝寄せる向きの先）。
+// 向き：小地図の北（-z）を史実の北に合わせる。-x が西（大坂城の方）、-z が北（鯰江川と今福村）、+z が南（大和川・その向こうに鴫野の上杉勢）。佐竹勢は東から堤を西へ寄せる（プレジデント・乃至政彦の絵図「つつみ一筋」）。
+// 朝日は東の背から、夕日は西の城の方へ沈む（world_weather の日の向きも -z が北）。
+// 地形：国土地理院の標高（dem_imafuku.js・tools/dem.mjs の imafuku）は平らな低地。堤は手で復元（位置は推定）。
+// ======================================================================
+import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import DEM from './dem_imafuku.js';
+import { demSample } from './dem.js';
+import { nobori, yagura, palisade, kagaribi, tawara, lookoutDeckHeight, kobune, bridgeBoard, bridgeWoodMaterial } from './props.js';
+import { RANKS, ladderStep } from './state.js';
+import { sfx } from './audio.js';
+import { enemyGroup, allyGroup, nm, wallLine } from './bhelp.js';
+import { KIT } from './b_nagashinojo.js';
+import { camp } from './b_mid.js';
+import { osakaFar } from './osaka_far.js';
+import { ending as katame } from './k09/katame.js';   // 締め：今福に旗を立てて固め、鴫野の鉄砲の音へ
+import * as DP from './b_depth.js';
+import { depthStart, depthTick, depthJump } from './b_depth.js';
+import { clamp01, gone, uS, uA, uG, uB, dress, gunLine, busho, makeLose, makeBot, setStages } from './b_k_help.js';
+import { timeslipField } from './timeslip_field.js';
+import { stageNow, KILLS } from './stages.js';
+import { revealName } from './battle_intel.js';
+import { localPoint } from './army_local_way.js';
+
+const FORT = { x: -78, z: 0 };                 // 今福の砦（堤の西の端）
+const BANK = 7;                                // 堤の半幅
+const SPAWN = { x: 150, z: 0 };
+const START = { x: 120, z: 0 };
+// 砦を奪ったあとの持ち場（砦の東の木戸の内）。前は砦の東 34m（-44）で、木村の隊は砦の西で佐竹の組と押し合い、
+//   本人は八十秒ほど誰とも当たらず立っていた（描いて遊んで ③ の 146〜229 秒。九2）。砦の西の柵の口（押し合いの所）の手前に置く
+const KEEP = { x: FORT.x - 10, z: 0 };
+const LIMIT = 900;
+const CUTS = [FORT.x + 26, FORT.x + 36, FORT.x + 46];   // 堀切（外の柵の手前）
+const KARIBASHI = FORT.x - 72;                 // 仮橋（史料：堤と片原町の間。矢野は仮橋ぎわで討たれ、守兵は橋を外す間もなく片原町へ逃げた）
+const WESTWARD = -Math.PI / 2;                // 西を向く（堤を寄せる向き）
+const SOUTH = [[-280, 26], [-90, 24], [60, 27], [280, 25]];     // 大和川（堤の南）
+const NORTH = [[-280, -26], [-90, -28], [60, -25], [280, -27]]; // 鯰江川（堤の北・今福村の側）
+
+const KIMURA = { flag: 'toyotomi', armor: 0x2c2a26 };
+const SATAKE = { flag: 'satake', armor: 0x24221f };   // 黒漆の当世具足（色を渡さないと白銀の胴・白い腿の兵になっていた。四3・十5）
+const UESUGI = { flag: 'uesugi', armor: 0x24221f };
+// 梅津憲忠の現存の具足（秋田市立佐竹史料館「鉄地革包錆色漆塗三枚仏胴具足」・桃山）：頭形兜・頬当・三枚仏胴、錆色（黒に近い茶）の漆。
+// 前は名の無い型の毛引の胴と鍬形の兜で、ほかの侍大将と見分けがつかなかった（四3・七1）。world.namedKacchu で渡す
+const KACCHU_K09 = {
+  梅津憲忠: { hat: 'kabuto', bowl: 'zunari', crest: 'none', doStyle: 'hotoke', armor: 0x33281f, helm: 0x30261d, lace: 0x2e2620, odo: 0x2e2620,
+    menpo: 0x2f251c, menpoStyle: 'hanbo', haori: 0, horo: 0, lac: 'tame', fuki: 'tame', ref: '' },
+};
+const UMEZU = { invuln: true, hat: 'kabuto' };
+// 佐竹の足軽・鉄砲足軽は黒漆の陣笠（藁の籠のような明るい笠が混じっていた。四3・九6）
+const kasa = (s) => (s.type === 'ashigaru' || s.type === 'gun' ? { ...s, o: { hat: 'jingasa_n', ...(s.o || {}) } } : s);
+const WADE = 13.5;                             // 堤の両脇の湿地の縁（これより外は脛より深い川。柵の端もここまで）
+const inKeep = (x, z) => Math.abs(z) <= WADE && x >= FORT.x - 14 && x <= FORT.x + 12;
+const D0 = demSample(DEM, 0, 0);
+const gateReachPoint = { x: 0, y: 0, z: 0 };
+const BANK_PASSAGES = [FORT.x - 14, FORT.x + 8, FORT.x + 12, FORT.x + 22, FORT.x + 32, FORT.x + 42];
+// 袖や櫓の脇から持ち場へ斜めに進まず、同じ側で堤の中央へ戻ってから口を通る。
+// 位置は動かさない。本人の案内・兵の行軍・退却で同じ道を使う。
+function bankWay(army, u, goal) {
+  if (!goal || u.perch || Math.abs(u.pos.z) >= 32) return goal;
+  let crossing = null, distance = Infinity;
+  for (const x of BANK_PASSAGES) {
+    if ((u.pos.x - x) * (goal.x - x) >= 0) continue;
+    const d = Math.abs(u.pos.x - x);
+    if (d < distance) { crossing = x; distance = d; }
+  }
+  if (crossing == null || Math.abs(u.pos.z) <= 2 && Math.abs(goal.z) <= 2) return goal;
+  const q = u.k09BankWay || (u.k09BankWay = { x: 0, z: 0, botRadius: 0.8 });
+  let x, z;
+  if (Math.abs(u.pos.z) > 2) {
+    // 柵のすぐ横では先に同じ側へ離れる。柵に沿って中央へ戻そうとすると袖で止まる。
+    const side = u.pos.x >= crossing ? 1 : -1;
+    x = distance < 4 ? crossing + side * 4 : u.pos.x;
+    z = distance < 3 ? u.pos.z : 0;
+  } else { x = crossing + (goal.x > crossing ? 4 : -4); z = 0; }
+  return localPoint(army, u, q, x, z);
+}
+// 伏せ・よろめき・登り・組み合い・負傷者の運搬中は縄を引けない。本人と味方で同じ条件を使う。
+function canPullGate(rt, u) {
+  return u.alive && !u.gone && !u.noTarget && !u.fleeing && !u.group?.routed &&
+    !u.dying && !u.woundOut && !u.rearWound && !u.downed &&
+    !(u.pinT > rt.army.time) && !(u.stagger > 0) && !u.climb && !u.bind && !u.dragging;
+}
+// 木戸の手前まで縄を通せる足場が必要。袖の向こうや櫓の上からは引けない。
+function canReachGate(rt, u, st) {
+  if (!canPullGate(rt, u)) return false;
+  const x = st.seg[0] + (u.pos.x >= st.seg[0] ? 0.3 : -0.3);
+  const z = (st.seg[1] + st.seg[3]) / 2;
+  const y = rt.world.heightAt(x, z);
+  if (Math.abs(u.pos.y - y) >= 2) return false;
+  gateReachPoint.x = x; gateReachPoint.y = y; gateReachPoint.z = z;
+  return !rt.army.wallBetween(u.pos, u.team, gateReachPoint, false);
+}
+// 段の時切れで未達のまま次へ送らない。刻限は戦全体の LIMIT で判定する。
+function requiredStage(s) {
+  s.idleAdvance = false;
+  s.limit = Infinity;
+  s.noHardCap = true;   // 共通の四分・七分の打ち切りでも、未達の木戸・守備・殿を飛ばさない。
+  if (s.kind === 'fight' || s.kind === 'rest') {
+    const start = s.start;
+    s.start = function (rt, C, m, ctx) {
+      start.call(this, rt, C, m, ctx);
+      // 敵の組の中心は湿地へ動く。行き先は通れる砦と西の堤に据える。
+      const step = rt.flags.step;
+      const at = s.kind === 'fight' ? C.at : step === 2 ? FORT : step === 3 ? KEEP : { x: FORT.x - 20, z: 0 };
+      // 段の間の五秒も次の行き先を残す。共通の休息は始まりに印を消す。
+      rt.marker('dp', at, step === 2 ? '今福の砦' : '砦の西の堤', { h: 3 });
+    };
+  }
+  const tick = s.tick;
+  s.tick = function (rt, C, m, ctx, el, dt) {
+    const player = rt.player.u;
+    const fighting = player.alive && !player.gone && !player.noTarget && !player.fleeing && !player.group?.routed &&
+      !player.dying && !player.woundOut && !player.rearWound && !player.downed;
+    if (s.kind === 'fight' && rt.flags.step === 4 && !C.engaged) {
+      const p = rt.player.u.pos;
+      C.engaged = fighting && Math.abs(p.z) <= WADE && p.x < FORT.x + 20 &&
+        // 倒れた敵や柵越しの敵へ寄っただけでは、殿と戦った事にしない。
+        C.groups.some((g) => !gone(g) && g.units.some((u) => u.alive && !u.gone && !u.fleeing && !u.dying && !u.woundOut && !u.rearWound && !u.downed &&
+          Math.abs(u.pos.y - p.y) < 3 && Math.hypot(u.pos.x - p.x, u.pos.z - p.z) < 12 &&
+          !rt.army.wallBetween(p, player.team, u.pos, false)));
+    }
+    const inT = C.inT || 0;
+    const arrived = C.arr;
+    const done = tick.call(this, rt, C, m, ctx, el, dt);
+    // 堤に着いても待ち伏せが残れば最大二十五秒続く。到着時に消される印を砦の前に戻す。
+    if (s.kind === 'move' && !arrived && C.arr && !done) rt.marker('dp', C.at, '砦の前', { h: 3 });
+    // 西口の一点だけでなく、奪った砦の木戸の内と通れる湿地の縁も持ち場。
+    // 半径十四歩だと砦の脇で応戦しても刻が増えず、敵が退いた後も③から進めなかった。
+    // 木戸の外・西の柵の向こう・倒れている間は守備に数えない。
+    // K358（11/17 iMac n-look-face）：西口のすぐ外の堤（西口から十二歩まで）で木村の反撃を受け止めている間も守備に数える。
+    //   砦の内だけを数えると、西口の外で斬り合い続けた act bot が③で七百秒止まり、刻限で任務失敗した（③は打ち切りの無い段）
+    const holding = s.kind === 'hold' && fighting && (inKeep(player.pos.x, player.pos.z) || Math.abs(player.pos.z) <= WADE && player.pos.x >= KEEP.x - 12 && player.pos.x < FORT.x - 14) &&
+      Math.hypot(player.pos.x - C.at.x, player.pos.z - C.at.z) < C.botRadius;
+    if (s.kind === 'hold' && !holding) C.inT = inT;
+    // 共通の残り秒は経過時間だけで減る。持ち場を離れて戻った時も、実際に守る必要がある時間を示す。
+    if (s.kind === 'hold') {
+      // 共通の守備は半径五十六歩まで計時するが、今福の持ち場は砦の内側だけ。
+      // 一度差し戻してから正しい範囲の時間を足す。共通の円の外でも判定を一致させる。
+      C.inT = inT + (holding ? dt : 0);
+      // K358（11/17 iMac n-look-face）：本人が砦を離れて東の残兵を追い続けると、③の守った時間が貯まらず、打ち切りの無い段のまま刻限で任務失敗した（act bot 924秒）。
+      //   段が始まって百六十秒（寄せの波は九十四秒で尽き、守る刻は百秒）・寄せが尽きた後は、佐竹の組が砦を守り抜いたものとして済ませる（声で知らせる）
+      if (s.kind === 'hold' && el >= 160 && !C.waves?.length && C.inT < 45) { C.inT = 45; if (!C.satakeHeld) { C.satakeHeld = true; rt.say('足軽', `佐竹の組が砦を守り抜いたぞ！　${ladderStep(rt.G || {}) >= 5 ? '殿' : 'お頭'}、西の堤へ！`, 3.4); } }
+      // 櫓の脇から西口へ直進すると柱と袖で止まる。砦の東の開けた堤へ戻ってから入る。
+      // 行き先と印を同じ足場に置き、人にも通れる順路を示す。
+      const p = player.pos;
+      const entry = C.entry || (C.entry = { x: FORT.x + 24, z: 0 });
+      // 11/18 クラウド kaito2：東口の印に着いても堤の真ん中（|z|≤4）へ入るまで西口へ替わらず、印の脇で六秒なにも起きなかった（act bot 296秒）。東口から十歩の内に来たら西口を指す
+      C.goal = p.x > FORT.x + 8 && Math.abs(p.z) > 4 && Math.hypot(p.x - entry.x, p.z - entry.z) > 10 ? entry : C.at;
+      if (C.markGoal !== C.goal) {
+        C.markGoal = C.goal;
+        rt.marker('dp', C.goal, C.goal === entry ? '砦の東口' : '砦の西口', { h: 3 });
+      }
+      const left = Math.max(0, Math.ceil(Math.max(100 - el, 45 - C.inT)));
+      rt.objProgress('dp', !holding
+        ? '今福の砦の西口へ戻れ'
+        : left > 0 ? `砦の西口を守る あと${left}秒` : '砦の西口で残る反撃を押し返せ');
+    }
+    // 味方が先に殿を討ち尽くした場合も、西の堤へ本人が進めば締められる。後方に立ったままでは済みにしない。
+    // 共通の済み判定は残り二人も含む。まだ踏みとどまる殿がいる時は、到着だけを交戦の代わりにしない。
+    if (done && s.kind === 'fight' && rt.flags.step === 4 && !C.engaged && C.at &&
+      !C.groups.some((g) => !gone(g) && g.units.some((u) => u.alive && !u.gone && !u.fleeing && !u.dying && !u.woundOut && !u.rearWound && !u.downed))) {
+      const u = rt.player.u;
+      // 通れる湿地の縁も西口に含める。堤の中央だけだと、北の縁（-91,-13）で殿が退いた後も未達のままになる。
+      C.engaged = fighting && Math.abs(u.pos.z) <= WADE && Math.abs(u.pos.x - C.at.x) < 12;
+    }
+    // 共通の段は守兵が崩れると済むが、四つの木戸を破る目標は省かない。
+    if (s.kind === 'fight' && rt.flags.step === 2) {
+      let leaderAlive = false;
+      for (const g of C.groups) if (g.units.some((u) => u.alive && /^(矢野正倫|飯田家貞)$/.test(u.name || ''))) {
+        leaderAlive = true;
+        // 守将を討つ前に退かせると、川の向こうまで追えず目標が行き詰まる。
+        g.noRout = true;
+      }
+      if ([rt.flags.gate, ...(rt.flags.outer || [])].some((st) => st && st.alive)) return false;
+      // 11/9 徳川C：木戸が全部倒れても、味方の組が守兵を前に止まり、本人も守将に届かないと②が十四分止まった（bot）。
+      //   七十五秒後は、実際に守将へ斬り込んだ佐竹の兵だけが討ち取れる。本陣の旗本による遠隔の討死にはしない。
+      const F2 = rt.flags; F2.gatesDownT ??= rt.t;
+      if (leaderAlive && rt.t - F2.gatesDownT > 75) {
+        for (const g of C.groups) for (const u of g.units) if (u.alive && /^(矢野正倫|飯田家貞)$/.test(u.name || '')) {
+          // 本人が十二歩内で斬り合っている守将は、救いで味方に討たせない（本人の手柄を奪わない。百二十秒までは待つ）
+          if (rt.t - F2.gatesDownT < 120 && rt.player?.u?.alive && Math.hypot(rt.player.u.pos.x - u.pos.x, rt.player.u.pos.z - u.pos.z) < 12) continue;
+          // 11/18 04:50 クラウド今福の持ち主：本人の七十歩内の守将（打ちかかって来る途中・0453 で四十五歩先の飯田が討たれたため七十に）も、百五十秒までは救いで討たせない
+          //   （act 0441・0451：守将が本人の十八〜三十二歩先で救いにより味方に討たれ、本人0〜1）
+          if (rt.t - F2.gatesDownT < 150 && rt.player?.u?.alive && rt.player.u.hp >= rt.player.u.maxHp * 0.3 && Math.hypot(rt.player.u.pos.x - u.pos.x, rt.player.u.pos.z - u.pos.z) < 70) continue;
+          // よろめき・組み合い・運搬中などの兵を、近くにいるだけで討ち手にしない。
+          const by = rt.army.units.find((a) => a.team === 0 && !a.isPlayer && !a.isStruct && !a.perch && canPullGate(rt, a) &&
+            Math.abs(a.pos.y - u.pos.y) < 3 && Math.hypot(a.pos.x - u.pos.x, a.pos.z - u.pos.z) < 4 &&
+            !rt.army.wallBetween(a.pos, a.team, u.pos, false));
+          if (!by) continue;
+          const quiet = F2.quietKill;
+          F2.quietKill = true;   // 本人の手柄にはしない
+          try { rt.army.kill(u, by); } finally { F2.quietKill = quiet; }
+          if (!u.alive) rt.say('足軽', `佐竹の組が${u.name}を討ったぞ！`, 3);
+        }
+        leaderAlive = C.groups.some((g) => g.units.some((u) => u.alive && /^(矢野正倫|飯田家貞)$/.test(u.name || '')));
+      }
+      // 共通の判定は残り二人以下でも組を済みとする。守将が残っている間は、討つ目標を済みにしない。
+      if (leaderAlive) return false;
+      // 守将を失った守兵は城へ逃げる（前は noRout のまま堤の西の外れまで出て、段が済まなかった）
+      for (const g of C.groups) if (!gone(g) && /^(矢野正倫|飯田家貞)の守兵$/.test(g.name || '')) { g.noRout = false; g.routed = true; g.order = 'flee'; }
+    }
+    // 殿が袖の外に残ると、本人との接触を待つ保護と横撃の退却が互いを待ち続ける。
+    // 西口を実際に三十秒押さえ、殿の段を百五十秒戦っても残る隊は横撃で退く。
+    // 後方待機・柵越し・倒れている時間では進めない。
+    // 11/18 クラウド K358：④で本人が砦の東の本陣の辺りに留まると、殿は退かず刻限まで負けた（act bot 923秒）。四分たてば上杉と佐竹が殿に当たった事にする
+    if (s.kind === 'fight' && rt.flags.step === 4 && el >= 240 && !C.engaged) C.engaged = true;
+    if (s.kind === 'fight' && rt.flags.step === 4 && el >= 300) for (const g of C.groups) if (!gone(g) && !g.routed) { g.noRout = false; g.morale = 0; g.routed = true; g.order = 'flee'; }   // 五分たっても残る殿は城へ退く
+    if (s.kind === 'fight' && rt.flags.step === 4) {
+      const pushing = fighting && Math.abs(player.pos.z) <= WADE &&
+        Math.hypot(player.pos.x - C.at.x, player.pos.z - C.at.z) < 14 &&
+        !rt.army.wallBetween(player.pos, player.team, C.at, false);
+      C.rearPushT = pushing ? (C.rearPushT || 0) + dt : 0;
+      // K358（11/17 iMac n-look-face）：本人が東に残って西の堤へ来ないと、④は打ち切りの無いまま刻限で任務失敗した（act bot：107m 離れて924秒）。
+      //   ④が始まって百五十秒たてば（11/17 戦が十一分台と長かったので二百四十から縮めた）、上杉の横撃で殿が退いた事にして済ませる（声で知らせる）
+      if (el >= 150 && !C.uesugiDone) {
+        C.uesugiDone = true; C.engaged = true;
+        for (const g of C.groups) if (!gone(g)) { g.noRout = false; g.morale = 0; g.routed = true; g.order = 'flee'; }
+        rt.say('水原親憲', '上杉の鉄砲が殿を崩したぞ！　木村・後藤は城へ退く！', 3.6);
+      }
+      if (el >= 150 && C.rearPushT >= 30) {
+        C.engaged = true;
+        for (const g of C.groups) if (!gone(g)) {
+          g.noRout = false; g.morale = 0; g.routed = true; g.order = 'flee';
+        }
+      }
+    }
+    // 少人数になった時に共通処理が noRout を外すため、横撃前の本隊と未交戦・出た直後の殿は保護を戻す。
+    // 11/18 08:25 クラウド今福の持ち主（POSLOG：本人が殿に当たって数秒で、段の始めから三十秒の守りが切れ、殿の三十八人がいっせいに逃げた＝④の討ち取り0〜2）：
+    //   殿は本人に当たってから二十秒は崩れない（その後は上杉の横撃の気挫けで一分足らずで退く）
+    const engT = rt.flags.dp?.cur?.k09EngT ?? C.k09EngT;
+    // 11/18 08:55 クラウド今福の持ち主（POSLOG 0848：本人と当たって六秒で木村の殿の気が94→0に崩れ、④の本人の討ち取り0〜1）：
+    //   本人が④で四人討つまでは、当たった後も九十秒までは殿を踏みとどまらせる（上杉の打ち切り・五分の退き・押し返しの退きはそのまま）
+    const mine4 = (rt.stats?.kills || 0) - (rt.flags.kills4 ?? 0);
+    const protect = (s.kind === 'hold' && el < 100) || (s.kind === 'fight' && rt.flags.step === 4 && !C.uesugiDone &&
+      (el < 30 || !C.engaged || (mine4 < 4 && el < 90 && (rt.flags.press || 0) < 70) || (engT != null && rt.t - engT < 20)));
+    if (protect) for (const g of C.groups) if (!gone(g) && /^(木村重成|後藤又兵衛)の(隊|二の手|殿)$/.test(g.name || '')) g.noRout = true;
+    // ③の寄せが尽きて百秒過ぎても、堤の脇の湿地に取り残された弓・鉄砲が一人二人立ち尽くし、段が終わらず刻限まで詰んだ（二巡の bot）。
+    //   刻を大きく過ぎたら、残る寄せ手は城へ退かせる（重成・又兵衛の隊も退く。討たれはしない）
+    if (s.kind === 'hold' && el >= 200 && !C.waves?.length) for (const g of C.groups) if (!gone(g) && !g.routed) { g.noRout = false; g.routed = true; g.order = 'flee'; }
+    // 持ち場に戻らず反撃だけが終わった場合も、守った時間を満たしてから済みにする。
+    // 退却の下知を出したコマでも完了を判じる。守備を果たした後、押し合いで
+    // 西口の縁へ動いただけで持ち場への帰還を永遠に待たせない。
+    // 11/18 クラウド K358：act bot が③で砦の東百歩・西の柵の外に出たまま戻らず、二回に一回は十五分の刻限で負けた（924秒）。
+    //   寄せが尽きて四分たてば、砦は味方が保った事にして先へ進む（AY5「自分が動かなくても物語は進む」）。本人の手柄にはならない
+    const held = s.kind === 'hold' && fighting && (C.inT >= 45 || el >= 240) && el >= 100 && !C.waves?.length &&
+      !C.groups.some((g) => !gone(g));
+    return (done || held) && (s.kind !== 'hold' || held) &&
+      // 一度交戦していても、本人が倒れた後に味方だけで殿を崩して勝ちにはしない。
+      // 共通は残り二人でも済みとするが、交戦済みでも踏みとどまる殿を残して締めない。
+      // 残兵を探して全滅させる必要はなく、横撃による退却の下知でも済む。
+      (s.kind !== 'fight' || rt.flags.step !== 4 || (el >= 30 && C.engaged && fighting &&
+        !C.groups.some((g) => !gone(g) && g.units.some((u) => u.alive && !u.gone && !u.fleeing &&
+          !u.dying && !u.woundOut && !u.rearWound && !u.downed))));
+  };
+  return s;
+}
+// 竹の矢来の木戸（史料：堤の先々に竹の矢来の柵が四つ）。冬の枯れた竹を斜めに交え、上下の貫で留め、両端は丸太の柱。
+// 形は世界の座標のまま一つに束ね、組の位置は原点のまま（引き倒す時に army_fx の structTilt が傾けられる）
+let YARAI = null;
+function yaraiGate(W, x, z0, z1, h) {
+  if (!YARAI) YARAI = { pole: new THREE.CylinderGeometry(0.045, 0.055, 1, 6), post: new THREE.CylinderGeometry(0.11, 0.14, 1, 7),
+    bam: new THREE.MeshLambertMaterial({ color: 0x8a7a54 }), wood: new THREE.MeshLambertMaterial({ color: 0x4e4134 }) };
+  const y0 = W.heightAt(x, (z0 + z1) / 2) - 0.25, bam = [], wood = [];
+  const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), V = new THREE.Vector3(), S = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0), P = new THREE.Vector3();
+  const stick = (out, geo, ax, ay, az, bx, by, bz) => {
+    V.set(bx - ax, by - ay, bz - az); const L = V.length(); V.divideScalar(L);
+    Q.setFromUnitVectors(UP, V); P.set((ax + bx) / 2, (ay + by) / 2 + y0, (az + bz) / 2); S.set(1, L, 1);
+    out.push(geo.clone().applyMatrix4(M.compose(P, Q, S)));
+  };
+  const n = Math.round((z1 - z0) / 0.55);
+  for (let i = 0; i <= n; i++) {
+    const z = z0 + 0.1 + i * ((z1 - z0 - 0.2) / n), j = Math.sin(i * 12.9898 + x) * 0.06;
+    if (z + 0.8 <= z1) stick(bam, YARAI.pole, x - 0.05, 0, z, x - 0.05 + j, h + j, z + 0.8);
+    if (z - 0.8 >= z0) stick(bam, YARAI.pole, x + 0.05, 0, z, x + 0.05 - j, h - j * 0.5, z - 0.8);
+  }
+  for (const y of [0.55, h - 0.35]) stick(bam, YARAI.pole, x + 0.13, y, z0 - 0.1, x + 0.13, y + 0.04, z1 + 0.1);
+  for (const z of [z0, z1]) stick(wood, YARAI.post, x, -0.2, z, x, h + 0.35, z);
+  const g = new THREE.Group();
+  for (const [parts, mat] of [[bam, YARAI.bam], [wood, YARAI.wood]]) {
+    const m = new THREE.Mesh(mergeGeometries(parts), mat); m.castShadow = true; m.receiveShadow = true; g.add(m);
+    for (const q of parts) q.dispose();
+  }
+  return g;
+}
+// 堤：中央の細い高まり。両側は低い湿地
+function height(x, z) {
+  let h = (demSample(DEM, x * 4, z * 4) - D0) * 0.5;
+  h += 0.12 * Math.sin(x * 0.03 - z * 0.07);
+  const d = Math.abs(z);
+  const bank = clamp01((BANK + 5 - d) / 7);
+  h += 1.3 * bank;
+  h -= 0.7 * clamp01((d - 14) / 14);
+  // 堀切三か所（史料：四重の矢来と堀切三つ）。外の三つの柵の手前（東）で堤を湿地の高さまで断ち切る。幅六ほど、法は緩く（歩いて降りて登る。足は遅くなる）
+  for (const c of CUTS) { const dx = Math.abs(x - c); if (dx < 3.2) h -= (0.8 * bank + 0.15) * (0.5 + 0.5 * Math.cos(Math.PI * dx / 3.2)); }
+  // 仮橋の下の掘り割り（幅九ほど）。橋の板の下の細い筋だけは堤の高さのまま残し、その上を歩いて渡る
+  { const dx = Math.abs(x - KARIBASHI); if (dx < 4.5) h -= (1.3 * bank + 0.35) * (0.5 + 0.5 * Math.cos(Math.PI * dx / 4.5)) * (1 - clamp01((2 - d) / 0.6)); }
+  return h;
+}
+
+import DEPTH_K09 from './k09/depth.js';   // 軍勢の厚み・陣立ての表（army_depth）
+const k09_imafuku = {
+  depth: DEPTH_K09,
+  heroAssist: true,   // 11/18 クラウド11：本人が命の四分の一を削った兵は、味方の縦隊がとどめを刺しても本人の手柄（battle.js onKill）
+  // 幅十八の共通の新手は川際へ折り畳まれて重なり、段の寄せの枠と進路も塞いだ。
+  // 今福は下の先手・二の備・後備と、木村・後藤の反撃で陣立てを作る。
+  ownReserve: true,
+  noReserve: true,
+  noReinforcements: true,
+  noFrontFill: true,
+  lethal: true,   // 命懸けの戦場（lethal.js）：流れ弾・突然の負傷と討死・制圧・恐怖・孤立
+  // 身の回りの合戦の跡（timeslip_field.js）。今福：冬の堤と湿地。枯れ葦・ぬかるみ・水たまり、堤の上の倒れた槍
+  timeslip: {
+    wet: 0.55, dust: 0.1, trample: 0.3, debris: 1.2, arrows: 1, reeds: 0.5, maxSlope: 0.22,
+    grass: 0xa49c66, grassTints: [0xffffff, 0xeadcb0, 0xc8c898], grassH: 1.2, grassLift: 0.2, grassShape: 'blade', tallGrass: 1,
+    flagColors: [0xe6dfcc, 0x24211e, 0x5a4a36],
+  },
+  spawn: { x: SPAWN.x, z: SPAWN.z, heading: WESTWARD },
+  // 始まりの札の二三行（五の4）。無いと共通の「組の旗と一緒に進もう。」が出ていた
+  // 始まりの札の味方対敵は数で（五4。史実：佐竹勢千五百ほど・砦の守兵六百ほど）
+  introSides: { a: '佐竹　千五百', b: '豊臣　六百' },   // 「豊臣方　六百」だと札の幅で「六／百」と折り返していた
+  introText: () => '夜明け前の今福。鯰江川と大和川にはさまれた一筋の堤を、梅津憲忠の隊と西へ寄せる。豊臣方の四重の柵を破り、砦を奪え。',
+  cutFloor: 0.5,
+  meleeGrace: { rate: 1, burst: 1, interval: 3 },   // 刃を受けた後の3秒は次の刃を通さない（bot が堤の上で続けての太刀で倒れた）
+  wakeOK: (rt) => (rt.flags.step || 0) >= 2,   // 近づいた軽い兵は本物に替える（AA）。堤を進む間は静かに
+  minutes: 14,
+  noReachedRing: true,   // 11/18 クラウド（iMac の検品 k09_imafuku_6koma）：③の持ち場で本人の輪と行き先の輪が二重に見えた（hud_ground.js）
+  quietArmyCalls: true,   // 11/18 クラウド K358（写真）：②の木戸の前で「味方が追撃に移った」が上に出たまま（鴫野と同じ）
+  // 堤の上の徒の寄せ（史料「通れるのは堤だけ」）。本人だけ馬で駆け抜け、組を二十も後ろに置いて砦へ一人で入っていた（一5）。名のある将は馬上のまま（busho の horse）
+  noHorse: true,
+  // 段の共通操作より先に、下の木戸の口へ寄せる操作を通す。省くと袖の柵で止まり続ける。
+  botBrainDepth: true,
+  // ③で矢玉を避け続けて持ち場を離れると、守備の刻が足りないまま刻限になる。
+  // 範囲外では避け足で帰還を遮らず、範囲内でも堤と守備の円から出ない側を選ぶ。
+  botCoverBlocked: (rt, from, to) => {
+    const C = rt.flags.dp?.cur;
+    // 11/18 01:20 クラウド今福の持ち主（POSLOG）：②の百秒あまり、act bot が櫓の鉄砲を避けて堤の南の外（−52〜−59, z−12）の陰に隠れたまま、木戸の守兵と当たらなかった。②は堤の上の陰だけを選ぶ
+    if (rt.flags.step === 2 && C?.s.kind === 'fight' && Math.abs(to.z) >= BANK) return true;
+    // 11/18 クラウド11（POSLOG）：②で木戸から出た番手・守兵が五歩内にいても、櫓の鉄砲を避ける足ばかりで突かず、討ち取り0のまま百二十秒（act 三回とも）。刃の届く敵がいれば避けずに斬り合う
+    if ((rt.flags.step === 2 && C?.s.kind === 'fight' || rt.flags.step === 3 && C?.s.kind === 'hold') && rt.army.nearestEnemy(rt.player.u, 5, (o) => !o.fleeing && !o.woundOut && !o.isStruct && !o.perch && o.type !== 'gun' && o.type !== 'bow')) return true;
+    return C?.s.kind === 'hold' && (!inKeep(from.x, from.z) || Math.hypot(from.x - C.at.x, from.z - C.at.z) >= C.botRadius ||
+      !inKeep(to.x, to.z) || Math.abs(to.z) >= BANK || Math.hypot(to.x - C.at.x, to.z - C.at.z) >= C.botRadius);
+  },
+  // 近接の退避も持ち場を離れない。後方の味方へ退き続けると、守備の刻が足りず③で刻限になる。
+  // すでに外へ押された時は、堤と持ち場へ近づく足を許して戻れるようにする。
+  botRetreatStepAllowed: (rt, to) => {
+    const C = rt.flags.dp?.cur;
+    if (C?.s.kind !== 'hold') return true;
+    const from = rt.player.u.pos;
+    return (Math.abs(to.z) < BANK || Math.abs(to.z) < Math.abs(from.z)) &&
+      (inKeep(to.x, to.z) && Math.hypot(to.x - C.at.x, to.z - C.at.z) < C.botRadius ||
+        Math.hypot(to.x - C.at.x, to.z - C.at.z) < Math.hypot(from.x - C.at.x, from.z - C.at.z));
+  },
+  noCouriers: true,   // 乗り手の無い伝令の馬が堤と川べりを走っていた（BL7）
+  noYaguraTask: true,      // 砦の櫓を脇の目標「物見櫓の中へ入り、守りを追い出せ」にしない（右上は①〜④だけ。三3・十1）
+  dpNoMark: true,         // 行き先を敵部隊の中心へ替えず、堤の上の一か所に保つ。
+  goalSignNoLabel: true,   // ▼の上に「印へ進め」などの字を出さない（三の1・五の1）
+  goalSignOnly: true,      // 通し確認の宙の青い小旗を重ねず、行き先は既存の▼と距離一つにする。
+  stageGoalsOnly: true,    // 右上は四つの段だけ（「敵を何人討つ」で埋めない。三の1・AW3）
+  goalsAllRows: true,      // 共通の既定は今の一件だけ。①〜④を最初から並べ、済みに印を付ける。
+  goalsVisibleRows: 4,     // 現在の進行札が読む件数。四段とも初めから描く。
+  forceBarAlways: true,   // 人数を渡すだけでは共通の棒が隠れる。佐竹・豊臣の残りを戦の間ずっと示す。
+  keepBattleSigns: true,  // 行き先の案内中も、人数の棒・武将名・四つの目標を隠さない。
+  enemyTriangleSigns: true, // 見える敵の頭上に共通の赤い▼を出す。
+  enemyTriangleAll: true,   // 密集した敵や行き先の近くの敵も、所属の▼を間引かない。
+  // 11/18 20:10 クラウド今福の持ち主 ⑥（150秒 柵の木戸 874×402）：柵越しの守兵の頭上に赤い▼が九つ並び、兵より印が目立った（根白坂・岩石城と同じ）。
+  //   本人を狙う敵と、本人の二十五m 内で近い順の六人だけに▼（一コマに一度だけ選ぶ）
+  enemySignVisible: (rt, u) => {
+    const me = rt.player?.u; if (!me) return true; const p = me.pos;
+    if (rt._triT !== rt.t) {
+      rt._triT = rt.t; const near = rt._triNear || (rt._triNear = new Set()); near.clear();
+      const c = rt._triCand || (rt._triCand = []); c.length = 0;
+      for (const v of rt.army.units) { if (!v.alive || v.team === me.team || v.isStruct) continue; const d = (v.pos.x - p.x) ** 2 + (v.pos.z - p.z) ** 2; if (d < 625) c.push(d, v); }
+      for (let k = 0; k < 6 && c.length; k++) { let bi = 0; for (let j = 2; j < c.length; j += 2) if (c[j] < c[bi]) bi = j; near.add(c[bi + 1]); c.splice(bi, 2); }
+    }
+    return u.target === me || u.atk?.target === me || rt._triNear.has(u);
+  },
+  nameTagLimit: 12,        // 既存の名札の枠内で、見える将の名を二、三人だけに絞らない。
+  nameRange: 120,          // 共通の四十メートル制限で、堤の先の木村・後藤や後方の家老の名が消えないようにする。
+  gateGuide: false,        // 竹の矢来の木戸は、前に立てば組の者と縄で引き倒す（update）。「木戸を打て（長押し）」の操作の字と「門が開いた」は出さない（五の1）
+  noSiegeFeel: true,      // 木戸も共通の城門判定に含まれる。低湿地の矢来へ落石・破城槌を出さず、専用の縄と本物の射手だけを使う。
+  hidePlayerSign: true,    // 足元の白い輪（写真に無い作り物の印）を出さない（八の1）
+  hideDefenseArea: true,  // 11/18 クラウド ⑥ 150秒の写真：本人の足元から敵の赤い輪へ向く生成りの大きな楕円と矢印（守りの持ち場）が二重に重なった→出さない（設楽原と同じ）。本人の足元の淡い金の輪は K208（kaito「自分の姿が見づらい」）なので残す
+  goalSignBare: true,      // 真上の▼に「この人について行く」の字を添えない（五の1）
+  nearFlagWholeOcclusion: true, // 狭い堤で視点を覆う幟は、網目にせず描く間だけ全体を避ける。
+  // 右上は戦の間ずっと今の段の一行（三の3）。梅津の後ろに付いた時に「梅津憲忠について行く」へ替えない
+  missionHeading: (rt) => { const s = stageNow(rt); return s ? '①②③④'[s.i] + s.line : ''; },
+  foeHit: 0.9,   // 物かげの無い一本の堤で、見えない矢玉に三度に二度討たれていた（十二3）
+  // 11/6 十五回目（専門家の目・三1・五1）：段の合間の共通の「次の下知を待て」（合図を待つ言い方）、一本の堤に無い「横槍」の声（五秒おきに二度）、
+  // 渋江の討死の札に重なる共通の「味方の大将が討たれた」と、目の前の討死を六秒後に言い直す使番の声を出さない
+  speechAllowed: (rt, who, text) => !/次の下知を待て|横槍が入った|^横槍じゃ|^味方の大将が討たれた$|^渋江政光が討たれた$/.test(String(text || '')) &&
+    !(who === '使番' && /渋江政光、討死/.test(String(text || ''))),
+  // 砦の中の乱戦に「一騎打ち」の見出しだけが名も無く出ていた（今福に一騎打ちの話は無い）。名の無い「敵の隊が崩れた」も出さない（五1）
+  // 渋江の討死の後の名の無い「味方の隊が崩れた」も出さない（渋江の札が「佐竹の先手が崩れる」と告げている）
+  bannerAllowed: (rt, t) => t !== '一騎打ち' && t !== '敵の隊が崩れた' && t !== '味方の隊が崩れた' && t !== '味方の大将が討たれた',
+  // 一本の堤の上で、戸村の組（本人の二十歩ほど後ろ）の様子を使番が走って「後方にて攻めかかっておる」と告げていた（目で見える。五1）
+  allyReports: false,
+  noFlankCry: true,   // 一本の堤で共通の「横槍じゃ！」が④に出ていた（上杉は槍でなく中州の鉄砲）
+  world: {
+    noFake: true,   // 11/13 K285（kaito「本物の兵しか映したらいけない」）：絵だけの兵（addDistantArmy・addClash・陣立ての軽い備）を作らない。映る兵は全員 戦の中の本物
+    seed: 1614126,
+    namedKacchu: KACCHU_K09,   // 梅津憲忠の現存の具足（佐竹史料館）
+    // 史実：佐竹の寄せは卯の刻（夜明け前）。東の空だけ白む暗さで始め、堤に着く頃に夜が明ける（setTime('morning')）
+    time: 'night',
+    // 写真の空は時刻名が変わった直後に昼へ差し替わる。空も九十秒の夜明けの光に合わせる。
+    proceduralSky: true,
+    // 夜明け前の暗さ（旗と兵が昼のように照らされていた。二3）：空も霧も沈め、東の地平の白みだけ残す
+    // 空からの返りの光を青白くしない（黒漆の具足が夜明け前に白銀と水色に光り、腿が白く浮いていた。九6・十5）
+    nightLight: { sky: 0x2a3140, fog: 0x30384a, top: 0x0e1422, sun: 0x8a7e80, sunPos: [60, 6, 95], glow: 0xb08068, glowK: 0.3, hemiSky: 0x4a4640 },
+    nightLift: 1.5,
+    // 11/6 fixc0806：月と空の散る光も下限近くに（篝火と東の白みで形を読ませる）
+    nightFill: 0.3, nightMoonMin: 0.35,
+    // 兵の面の夜の補光（月明かりの青白い足し）を掛けない：黒漆の具足が白銀と水色に光り、腿が白く見えていた（写真で確かめた。四3・十5）
+    unitNightScale: 0,
+    mist: true,
+    groundHalf: 260, moveLim: 240,   // 佐竹の本陣（x 194）を動ける所の内に（176 の外で本陣の兵が 176 へ飛んだ。二巡）
+    farReliefScale: 0.15,   // 大坂の北東は河内の低湿地。地図の外も丘にせず、低く平らにつなぐ
+    // 遠くの山並みも低く霞ませる（四方に高い山がそびえていた。生駒は東の遠くに低く見えるだけ。四5）
+    // 西（大坂の町・海の方）にも山の背が見えていた。河内の低地は地平まで平ら（八1）
+    mountainScale: 0.1, mountainHaze: 0.9,
+    height,
+    // 11/14 クラウド：bankWay（堤の口を通す道）を兵の歩みに入れた後、act bot が二回とも柵の前 (-33,-11) で立ち、敵も寄らず討ち取り 0 のまま
+    //   刻限で失敗した（押した数 2〜4）。外すと 443 秒で達成。直すまで兵の歩みには使わない（関数は残す）
+    // moveWay: bankWay, fleeWay: bankWay,
+    // 河内の沖積の低地。堤の法と川べりに人より大きな白い半球の岩が出ていた（始まりの札の後ろ。八1）→ 泥に埋まる小さな礫だけ
+    alluvialRocks: true,
+    muddy: 0.5,
+    waterSlow: true,
+    // 大和川（幅二百m）と鯰江川は徒では渡れない。深みには入れず、柵を川へ回り込んで抜けられない（一8・史料「通れるのは堤だけ」）
+    riverCross: true,
+    // 脛より深い水には入れない（前は胸まで入れ、砦の後は本人も組の足軽も川に浸かって立っていた。一8・十一2）
+    // 11/6 描いて遊んで：脛まで（0.3）でも、砦の北の縁で本人と組が川面の上に立って見えた（砦の段 125 秒。一8）→ 足の甲まで
+    wadeDepth: 0.12,
+    // 水の板の直線が草地へ露出しないよう、浅い岸は泥の凹凸になじませる（通し確認の指摘）。
+    streams: [{ pts: SOUTH, w: 22, depth: 3.4, buryBanks: true, softBanks: true }, { pts: NORTH, w: 22, depth: 3.4, buryBanks: true, softBanks: true }],
+    paths: [[[240, 0], [150, 0], [60, 0], [-40, 0], [-70, 0]]],
+    tint(x, z, h, c) {
+      // 冬の枯れ葦の湿地。堤の上は土の色
+      const d = Math.abs(z);
+      if (d < BANK + 2) c.setRGB(c.r * 0.55 + 0.2, c.g * 0.5 + 0.16, c.b * 0.4 + 0.08);
+      else c.setRGB(c.r * 0.5 + 0.2, c.g * 0.5 + 0.2, c.b * 0.4 + 0.07);
+    },
+    clear: (x, z) => Math.abs(z) < 14 && x > -110 && x < 200,
+    trees: 70,
+    rocks: 0,   // 河内の低湿地の泥に岩は無い（水際に白い半球の岩が並んでいた。八1）
+    tufts: 3200,
+    treeDensity: (x, z) => (Math.abs(z) > 60 ? 0.9 : 0.1),
+    fleeOut: (x, z, team) => (team === 1 ? x < -170 : x > 230),
+  },
+
+  setup(rt) {
+    timeslipField(rt);   // 身の回りの踏み荒らした地面・倒れた槍と旗・季節の草（def.timeslip）
+    const W = rt.world, F = rt.flags;
+    // 共通の川石（径二 m 近い丸石）が堤のすぐ脇の水に白い半球で浮いて見えた（始まりの札の後ろ・砦の北の縁。八1）。河内の泥の川に大石は無い
+    for (const st of W.def.streams || []) if (st.rockMesh) st.rockMesh.visible = false;
+    F.step = 0; F.ek = 0; F.ak = 0; F.ending = false; F.begun = false;
+    rt.army.heroAssistAll = true;   // 名無しの兵への本人の傷も数える（army_combat.js・def.heroAssist）
+    // ---- 今福の砦：堤をふさぐ四重の柵（史実）・櫓・篝火。外の三重は木戸の弱い柵で、一つずつ破って進む ----
+    F.outer = [];
+    const yaraiStart = rt.army.structs.length;
+    // 名は史料どおり「矢来」。共通の城攻めは「木戸」も拾うため、noSiegeFeel で落石・破城槌を除外する（八1・十3）。
+    //   矢玉は櫓と柵の内の本物の鉄砲・弓が撃つ
+    // 柵の線は外（東＝寄せ手の側）が表になる向きに引く。両端は川の深みまで杭を打ち込み、湿地を回り込めない
+    for (const dx of [22, 32, 42]) {
+      const x = FORT.x + dx;
+      // 木戸の両脇（堤の上の幅いっぱい）は木戸と一緒に引き倒す袖の柵。外は川の縁まで
+      const wing = [...wallLine(rt, [[x, -3], [x, -BANK - 1]], { team: 1, hp: 70, name: '外の矢来', segLen: 5 }), ...wallLine(rt, [[x, BANK + 1], [x, 3]], { team: 1, hp: 70, name: '外の矢来', segLen: 5 })];
+      wallLine(rt, [[x, -BANK - 1], [x, -WADE - 2]], { team: 1, hp: 70, name: '外の矢来', segLen: 5 });
+      wallLine(rt, [[x, WADE + 2], [x, BANK + 1]], { team: 1, hp: 70, name: '外の矢来', segLen: 5 });
+      const st = rt.army.addStruct({ seg: [x, 3, x, -3], nx: 1, nz: 0, hp: 90, maxHp: 90, team: 1, name: '外の矢来の木戸' });
+      st.mesh = yaraiGate(W, x, -3, 3, 2.5); rt.scene.add(st.mesh); st.wing = wing; st._shattered = true;
+      F.outer.push(st);
+    }
+    const fortWing = [...wallLine(rt, [[FORT.x + 12, -3.4], [FORT.x + 12, -BANK - 1]], { team: 1, hp: 1e9, name: '砦の矢来', segLen: 5 }), ...wallLine(rt, [[FORT.x + 12, BANK + 1], [FORT.x + 12, 3.4]], { team: 1, hp: 1e9, name: '砦の矢来', segLen: 5 })];
+    wallLine(rt, [[FORT.x + 12, -BANK - 1], [FORT.x + 12, -WADE - 2]], { team: 1, hp: 1e9, name: '砦の矢来', segLen: 5 });
+    wallLine(rt, [[FORT.x + 12, WADE + 2], [FORT.x + 12, BANK + 1]], { team: 1, hp: 1e9, name: '砦の矢来', segLen: 5 });
+    F.gate = rt.army.addStruct({ seg: [FORT.x + 12, 3.4, FORT.x + 12, -3.4], nx: 1, nz: 0, hp: 200, maxHp: 200, team: 1, name: '砦の木戸' });
+    F.gateMesh = yaraiGate(W, FORT.x + 12, -3.4, 3.4, 3.1); rt.scene.add(F.gateMesh);
+    F.gate.mesh = F.gateMesh; F.gate.wing = fortWing; F.gate._shattered = true;
+    // 刀・火矢では破壊の知らせより先に割れの演出が走る。木戸だけでなく袖と外側の矢来も、置く時から木片を出さない。
+    for (let i = yaraiStart; i < rt.army.structs.length; i++) {
+      const st = rt.army.structs[i];
+      st._shattered = true;
+      // 通し確認：共通の約七十七度止めでは竹・丸太の先が宙に残る。今福の矢来は地面まで倒す。
+      st.fallAngle = Math.PI / 2;
+    }
+    // 櫓は木戸の両脇の二つだけ（奥の櫓は堤の真ん中だと裏の柵の口の正面をふさいで木村・後藤の隊が砦の裏で詰まり（九2）、
+    //   堤の縁へ寄せると砦の中で戦う本人のカメラを壁でふさいだ（十一2））
+    const TOWERS = [[FORT.x + 8, 9], [FORT.x + 8, -9]];
+    F.fortFlags = [];
+    for (const [x, z] of TOWERS) {
+      // 櫓に付く幟も、砦を奪った時に下ろす。建物本体は残す。
+      const tower = yagura(W, x, z, { mon: 'toyotomi', rot: Math.PI / 2 });
+      tower.traverse((m) => {
+        if (m.userData.flag && m.userData.kind === 'toyotomi') {
+          m.userData.noMerge = true;
+          F.fortFlags.push(m);
+        }
+      });
+      rt.scene.add(tower);
+    }   // team を渡さない：共通の櫓の守りと脇の目標を重ねない。守りは下の三人
+    // 櫓の上の鉄砲と弓（二の3・二の7：砦へ近づくほど上から撃たれる）。櫓の床に立たせ、砦が落ちたら討たれる
+    F.towerU = [];
+    for (const [x, z] of TOWERS) {
+      const g = rt.army.addGroup({ team: 1, faction: 'toyotomi', name: '櫓の守り', order: 'hold', anchor: { x, z }, facing: Math.PI / 2, morale: 100, noRout: true, aggro: 2 });
+      g.dmgMult = 0.3;   // 櫓の矢玉も段の敵と同じ重さに（前は素の重さで、堤の上の本人が見えない所からの矢で倒れた。十二3）
+      const y = W.heightAt(x, z) + lookoutDeckHeight() + 0.08;
+      rt.army.spawn(g, ['gun', 'gun', 'bow'].map((type, i) => ({ type, n: 1, o: { ...KIMURA, x: x + 0.4, z: z + 0.6 - i * 0.6 } }))).forEach((u, i) => {
+        u.pos.set(x + 0.4, y, z + 0.6 - i * 0.6); u.perch = { x: u.pos.x, y, z: u.pos.z }; u.mesh.position.copy(u.pos); F.towerU.push(u);
+      });
+    }
+    for (const [x, z] of [[FORT.x + 16, 6], [FORT.x + 16, -6], [FORT.x, 0]]) { try { rt.scene.add(kagaribi(W, x, z)); } catch (e) { console.warn(e); } }
+    for (const [x, z] of [[FORT.x + 2, 8], [FORT.x + 2, -8], [FORT.x - 12, 5]]) {   // 奥の幟は③の持ち場の真ん中を外す
+      const m = nobori(W, x, z, 'toyotomi', 7); m.userData.noMerge = true; rt.scene.add(m); F.fortFlags.push(m);
+    }
+    // 砦の裏（城の側）の柵。堤の上の道だけ口を開け、木村・後藤の隊も守兵もそこを通る（柵を抜けて来ない。一8）
+    // 口は堤の上の道の幅いっぱい（狭いと重成の寄せが柵の裏で詰まり、堤の押し合いにならなかった。九2）
+    rt.scene.add(palisade(W, [FORT.x - 14, WADE + 2, FORT.x - 14, 5.5], { h: 2.6, solid: true }));
+    rt.scene.add(palisade(W, [FORT.x - 14, -5.5, FORT.x - 14, -WADE - 2], { h: 2.6, solid: true }));
+    // 仮橋（砦の西、片原町へ渡る板の橋）：横板・両の桁・掘り割りに立つ橋脚。手すりの無い急ごしらえ
+    { const bx = KARIBASHI, parts = [], put = (g, x, y, z, ry = 0) => { if (ry) g.rotateY(ry); g.translate(x, y, z); parts.push(g); };
+      const y = Math.max(W.heightAt(bx - 4.6, 0), W.heightAt(bx, 0), W.heightAt(bx + 4.6, 0)) + 0.05;
+      for (let x = bx - 4.8; x <= bx + 4.8; x += 0.36) put(bridgeBoard(3.3, 0.1, 0.32, true), x, y + 0.02 * Math.sin(x * 7), 0, Math.PI / 2);
+      for (const z of [-1.5, 1.5]) put(bridgeBoard(10, 0.22, 0.18, true), bx, y - 0.16, z);
+      for (const x of [bx - 2.2, bx + 2.2]) for (const z of [-1.5, 1.5]) put(bridgeBoard(0.2, 2.6, 0.2, true), x, y - 1.4, z);
+      const m = new THREE.Mesh(mergeGeometries(parts), bridgeWoodMaterial()); for (const g of parts) g.dispose();
+      m.castShadow = m.receiveShadow = true; rt.scene.add(m); }
+    // ---- 佐竹の本陣（東の後方）：床几の義宣と旗本だけ ----
+    // 本陣は堤の上（前は z -14 の湿地の縁で、床几の義宣と旗本が脛まで水に浸かっていた。一8）。陣幕は堤の幅に収まるよう小さく
+    const hq = camp(rt, { x: 192, z: -4, w: 14, d: 10, facing: WESTWARD, team: 0, faction: 'tokugawa', mon: 'satake', armor: 0x24221f,
+      guard: 25, guardFlag: 'satake', reserve: 0, runTo: { x: 160, z: 0 } });
+    // 総大将は本陣の床几に座り、旗本に囲まれて前に出ない。camp の大将は名のある将として馬に乗り、馬の上で床几に座る形になって
+    //   堤の東の宙に浮いて見えた（描いて遊んで、③の間に振り返るたび。一2・九6）→ 徒の義宣を陣幕の内に据える
+    // 旗本は camp の二十五人が守る。床几だけの組へ供回りを自動追加すると、陣幕に阻まれた全員が義宣の背後の一点へ置かれる。
+    const hqG = rt.army.addGroup({ team: 0, faction: 'tokugawa', name: '佐竹義宣の本陣', order: 'hold', anchor: { x: 194, z: -4 }, facing: WESTWARD, aggro: 4, width: 1, morale: 100, noRout: true, noRetinue: true });
+    rt.army.spawn(hqG, dress([busho('佐竹義宣', { horse: false, invuln: true, hat: 'kabuto', haori: 0, flag: 'sashi:satake:#202638:#c9a653' })], SATAKE));
+    if (hqG.units[0]) { hqG.leader = hqG.units[0]; hqG.units[0]._crouch = true; }
+    if (hq) hq.general = hqG.units[0] || null;
+    for (const g of rt.army.groups) if (g.team === 0 && !g.mon) g.mon = 'satake';   // 本陣の旗本の隊旗も佐竹の扇に月（徳川の葵にしない）
+    for (const [x, z] of [[158, 8], [158, -8], [172, 0]]) rt.scene.add(nobori(W, x, z, 'satake', 7));
+    rt.scene.add(tawara(W, 196, -8, 0.2, 4));   // 兵糧の俵は本陣の内に（始まりの札の後ろの川べりに積んであった。八1）
+    // 大坂城（西南西の三 km ほど先＝堤を寄せる向きの先。前は大和川のすぐ向こうに近すぎた）：北の石垣の二の丸と京橋口の馬出、手前の惣構えの北（大川）と東（猫間川）。osaka_far.js
+    // 城の形は北が -z の作りなので、北の惣構えは城の北（-z）、東の惣構えは城の東（+x）に引き、外の堀は今福の側に向く
+    try { osakaFar(rt, { x: -950, z: 520, s: 1.05, big: 1.45,   // 描ける奥の限りに置き、形を小さめにして三 km 先の見かけに（④の写真で城がおもちゃのように近く大きかった。八1）
+ land: [[-1420, -10, -881, 890], [-881, 451, -520, 990]], sogamae: [{ pts: [[-1180, 360], [-790, 360]], side: -1, water: true, s: 1.6 }, { pts: [[-790, 360], [-790, 710]], side: -1, water: true, s: 1.6 }] }); } catch (e) { console.warn(e); }
+
+    // ---- 味方：梅津憲忠の隊（主人公）・渋江政光の組。佐竹義宣は東の本陣に残る ----
+    // 11/18 クラウド K358（iMac 検品の20秒の写真）：始まりの夜の堤で本人の周りに味方が一人も見えなかった（一番近い戸村の組が四十二歩先）。
+    //   三つの組を本人の前へ寄せ、戸村の組の背が十八歩先に見えるようにする（並びの順は布陣図のまま）
+    F.satake = allyGroup(rt, { faction: 'tokugawa', name: '梅津憲忠の隊', anchor: { x: SPAWN.x - 66, z: 0 }, facing: WESTWARD, width: 7, aggro: 8, noRout: true, formation: 'column' },
+      dress([busho('梅津憲忠', UMEZU), uS(3), uA(24), uG(8)], SATAKE).map(kasa));
+    F.shibue = allyGroup(rt, { faction: 'tokugawa', name: '渋江政光の組', anchor: { x: SPAWN.x - 42, z: 0 }, facing: WESTWARD, width: 7, aggro: 8, noRout: true, formation: 'column' },
+      dress([busho('渋江政光', { invuln: true }), uS(3), uA(18), uG(6)], SATAKE).map(kasa));
+    // 史実：戸村十太夫義国は渋江とともに第四の柵まで取り、秀忠から感状と刀を受けた（文春・秋田県公文書館）。
+    // 渋江の組の後ろの堤に一人だけ置く（前は北の鯰江川の向こう岸に取り残され、梅津の隊にも同じ名の将がいた）
+    F.tomura = allyGroup(rt, { faction: 'tokugawa', name: '戸村義国の組', anchor: { x: SPAWN.x - 18, z: 0 }, facing: WESTWARD, width: 6, aggro: 8, noRout: true, formation: 'column' },
+      dress([busho('戸村義国', { invuln: true }), uS(2), uA(10), uG(3)], SATAKE).map(kasa));
+    // 味方の隊旗は各家の紋で（隊の家紋 g.mon を渡さないと徳川の家の葵の幟になり、佐竹の列の中に葵の大幟が立っていた。一6・十4）
+    for (const g of [F.satake, F.shibue, F.tomura]) { g.mon = 'satake'; g.defMult = 1.5; g.dmgMult = 1.0; g.aggro = 24; }
+    // 11/18 クラウド（見回り「7分で本人の討ち取り4人・味方が209」）：味方の刃を 1.3→1.0 に。守りの硬さ（1.5）は残し、斬り合いを長くして本人の斬る相手を残す
+    // 細い堤の先頭で囲まれやすい。刃の一太刀を def.cutFloor 倍に（共通の一太刀五割・六割は変えず、この戦だけ。高遠・木津川と同じ作り）
+    // 重成と又兵衛は今福では死なない（深手で担がれて退く。onKill）。共通の「木村重成が討たれた」の知らせは史実に反するので出さない
+    { const ok = rt.onKill.bind(rt); rt.onKill = (v, k) => { const q = F.quiet; if (v.type === 'busho' && v.team === 1 && /木村重成|後藤又兵衛/.test(v.name || '')) F.quiet = true; try { return ok(v, k); } finally { F.quiet = q; } }; }
+    { const P = rt.player, td = P.takeDamage, k = rt.def.cutFloor; P.takeDamage = function (a, s) { const m = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow'; return td.call(this, s && !s.isStruct && !m && a > 0 ? a * k : a, s); }; }   // 11/18 クラウド K358：前は減らした値を返すだけで命には効いていなかった（天王寺の 11/8 と同じ誤り）。受ける量そのものを減らす
+    const n = RANKS[rt.G.rank].squad;
+    // 本人の組も佐竹の黒漆の具足と陣笠で（共通の組は色を渡さず、夜明け前の堤で白銀の胴・藁の笠の兵になっていた。四3・十5）
+    if (n) { const sp = rt.army.spawn; rt.army.spawn = (g, list) => sp.call(rt.army, g, dress(list, SATAKE).map(kasa));
+      try { rt.makeSquad({ x: SPAWN.x + 2, z: 0 }, WESTWARD, [{ kind: 'spear', n: Math.min(n, 16) }]); } finally { rt.army.spawn = sp; } }
+
+    rt.setPhase('brief');
+    rt.obj('main', '堤を西へ進み、四重の柵を破って今福の砦を奪う', 'main');
+    rt.banner('今福', '慶長十九年十一月二十六日　大坂城の北東');
+    // 史実：卯の刻、まず川向うの鴫野で上杉が始め、佐竹は遅れて軍監に「油断」と咎められた（梅津憲忠が受けた）
+    sfx('volleyFar', 0.45); rt.after(1.6, () => sfx('volleyFar', 0.35));
+    rt.say('梅津憲忠', '鴫野で鉄砲が鳴った。上杉はもう寄せておる。軍監殿に「佐竹は油断」と咎められたぞ', 4);
+    rt.after(4.4, () => rt.say('渋江政光', '通れるのはこの堤だけじゃ。夜の明けぬうちに、堤の陰に身を低うして寄る。声を立てるな', 3.8));
+    rt.after(8.6, () => {
+      // 夜明け前の忍び寄り（渋江「声を立てるな」）に、総大将の大声の「進め！」と寄せの法螺貝は合わない。貝は見つかって柵へかかる時に吹く
+      // 主君は家臣を通称・官途名で呼ぶ（梅津半右衛門憲忠・渋江内膳政光）
+      rt.say('佐竹義宣', '大坂城は目と鼻の先。半右衛門、内膳、先陣は任せた。音を立てずに寄せよ', 3.4);
+    });
+    // 下知を待って八秒以上止まらず、始まりから堤の陰を寄せる。
+    // 北の今福村から見えにくい南の肩へ渋江の列を通す。
+    [F.satake, F.shibue, F.tomura].forEach((g, i) => {
+      if (!g || !g.count) return;
+      g.calm = false; g.order = 'move';
+      // 隊の中心は出発点に残し、兵と一緒に進める。行き先へ飛ばすと列が八十歩以上も離れる。
+      g.dest = { x: FORT.x + 60 + i * 14, z: g === F.shibue ? 4.5 : 0 };
+    });
+    rt.after(11.5, () => this.begin(rt));
+  },
+
+  // 戦の途中の保存（battle_checkpoint.js・K211 kaito「途中が全部消えるのは最悪」）：②砦を奪う・③木村の反撃・④押し返すの始まりから続ける。
+  //   段の番号は段の流れ（b_depth.js）の番号（間の休みは飛ばす）。飛ばした段の出来事（夜明け・砦を奪う・渋江の討死・上杉の加勢）は resumeFx で音もなく
+  checkpointStep(rt) { const D = rt.flags.dp; return D && D.on ? D.i : -1; },
+  resumeSteps: [2, 4, 6].map((k) => [k, function (rt) {
+    const F = rt.flags;
+    if (!F.begun) this.begin(rt);
+    if (!F.dp?.on) return;
+    for (let j = F.dp.i; j < k; j++) this.resumeFx(rt, j);
+    depthJump(rt, k);
+  }]),
+  resumeFx(rt, j) {
+    const F = rt.flags;
+    if (j === 0) { F.step = 2; this.dawn(rt); }
+    if (j === 2) this.taken(rt);
+    if (j === 4) { this.shibueFalls(rt); this.reinforce(rt); }
+  },
+  resumeAt(rt, step) {
+    const P = step === 2 ? { x: FORT.x + 50, z: 0 } : step === 4 || step === 6 ? { x: KEEP.x + 4, z: 0 } : null;
+    return P;
+  },
+  dawn(rt) {
+    if (rt.flags.dawn) return;
+    rt.flags.dawn = true;
+    // 全戦の通しで夜から昼へ急に明るく見えた。発見された寄せの途中から、
+    // 砦へ迫る間も九十秒かけて白ませる。到着時に移ろいを掛け直さない。
+    rt.world.setTime('morning');
+    if (rt.world.fade) rt.world.fade.dur = 90;
+  },
+
+  begin(rt) {
+    const F = rt.flags;
+    if (F.begun) return;
+    F.begun = true; F.t0 = rt.t; F.step = 1;
+    rt.setPhase('siege');
+    // 砦の守将と反撃の将の名は佐竹の陣で知れていた（目標の名が「見えぬ敵の陣を物見する」に伏せられ、組頭が物見の話をしていた。二2）
+    for (const n of ['矢野正倫', '飯田家貞', '木村重成', '後藤又兵衛']) revealName(rt, n);
+    // 主の札は段の目標（①〜④）に任せる。残すと段の合間に組頭が済んだ①②の言葉を言い直していた（十1）
+    rt.objRemove('main');
+    const ctx = { faction: 'toyotomi', flag: 'toyotomi', armor: KIMURA.armor, dmg: 0.21, backing: false, scale: 1.4, look: (l) => dress(l, KIMURA),
+      friends: () => [F.satake, F.shibue, F.tomura, ...(F.reinf || [])].filter((g) => g && g.count && !g.routed && !g.k09Withdrawn && !g.units.some((u) => u.perch)), botSeek: 40, botSeekHold: true,
+      // 舟・櫓の射手は堤から斬れない。深みに向かって歩き続けず、堤の上の相手を追う。
+      botFoeAllowed: (u) => !u.perch && !u.isStruct && Math.abs(u.pos.z) < BANK &&
+        (F.dp?.cur?.s.kind !== 'hold' || inKeep(u.pos.x, u.pos.z)),
+      // 中州の加勢を手当ての相手に選ぶと、渡れない川の手前で止まる。
+      // ③の手当ても、守備として数える砦の内側へ退く。木戸の外で待ち続け、刻限にならないようにする。
+      // 到着とみなす一・五歩の手前で止まっても持ち場を出ないよう、二歩の余裕を取る。
+      botBackAllowed: (rt2, x, z) => {
+        const C = rt2.flags?.dp?.cur;
+        return Math.abs(z) < BANK && (C?.s.kind !== 'hold' || inKeep(x, z) && Math.hypot(x - C.at.x, z - C.at.z) < C.botRadius - 2);
+      },
+      routeFight: true };
+    // 木村・後藤の隊は片原町から堤の上を寄せる（隠れた所から湧かせると堤の外の深みに置かれ、後ろの兵が動けずに砦の裏で詰まった。九2）。川べりの鉄砲衆も指定した湿地の縁から出す。
+    // 共通の隠れた出現位置へ移すと、川の深みに置かれて動けなくなる。
+    const onBank = (l) => {
+      ctx.fixedSpawn = true;
+      // 11/18 22:50 クラウド今福の持ち主（act 2245・POSLOG：③の川べりの鉄砲衆七人が共通の guardSpawn で画面の外の川の深み (-125,38) へずらされ、一点に重なって六十秒撃てずにいた）→ 鉄砲は書いた湿地の縁から出す
+      for (const sp of l) if (sp.kind !== 'gun') sp.formation = 'column'; else sp.noGuard = true;
+      return l;
+    };
+    depthStart(rt, ctx, [
+      // ① 堤を進む。葦の中から鉄砲（鉄砲は川の中に立たせず、堤の下の湿地の縁に伏せる）
+      Object.assign(DP.move({ to: { x: FORT.x + 50, z: 0 }, label: '堤', r: 8, max: 240, obj: '堤の上を西へ、砦の前まで進め',
+        say: [['渋江政光', '堤から外れるな！　足を取られて動けなくなるぞ！']],
+        ambush: { d: 70, say: ['足軽', '気づかれた！　今福村と葦の中から鉄砲じゃ！　堤の両側に伏せておる！'], foes: () => {
+          this.dawn(rt);
+          // 11/18 クラウド今福の持ち主（journey 0:50「撃ってくる者が見えない・数が少ない」）：今福村の屋敷の陰と南の葦の奥から、
+          //   火の手が北と南に並んで走るように白い煙と遠い音（兵の絵は置かない・K285。字も出さない）。斬れる鉄砲は前のまま十一人
+          for (let i = 0; i < 10; i++) {
+            const n = i % 2 === 0, x = FORT.x + 112 - i * 7 + (n ? 0 : 3), z = (n ? -1 : 1) * (17 + (i % 3) * 5);
+            rt.after(0.3 + i * 0.55, () => {
+              if (rt.over || rt.flags.step !== 1) return;
+              rt.world.gunSmoke(x, z, 0xcfccc2);   // 環境の煙の枠（32）は霞で埋まっていて出なかった（52秒の写真）。射撃の煙として置く
+              rt.army.playFar('gun', { x, y: rt.world.heightAt(x, z) + 1.5, z }, 0.5);
+            });
+          }
+          return onBank([gunLine('堤の南の葦の鉄砲', { x: FORT.x + 70, z: 11 }, 4, { dmg: 0.21, mass: 0 }), gunLine('今福村の鉄砲', { x: FORT.x + 70, z: -11 }, 7, { dmg: 0.21, mass: 0 })]);
+        } },
+        onEnd: (rt2) => {
+          rt2.flags.step = 2;
+          sfx('horagai', 0.8);   // 見つかったからには忍ばず、貝を吹いて柵へかかる
+          this.dawn(rt2);   // 待ち伏せを経ずに着いた場合も夜明けを始める。
+          // 葦の鉄砲は撃ち掛けたあと砦へ逃げ込む（砦の段で横から撃ち続けない）
+          // 生きた組頭がいる鉄砲衆は士気を零にするだけでは退かない。砦へ退く下知を明示する。
+          for (const g of rt2.army.groups) if (g.team === 1 && /葦の鉄砲|今福村の鉄砲/.test(g.name || '') && g.count && !g.routed) {
+            g.noRout = false; g.morale = 0; g.routed = true; g.order = 'flee';
+          }
+          this.yaraiGuards(rt2);
+        } }), { idleAdvance: false }),
+      // 11/18 17:15 クラウド今福の持ち主（POSLOG 1712：堤の百五十歩を駆けて息14で柵に着き、②の百八十秒を息8〜15のまま退いて討ち取り0〜2）：
+      //   柵の前の立て直しで息を整える（命と傷の重さは変えない）
+      ((r) => { const st = r.start; r.start = function (rt, ...a) { const p = rt.player; if (p && p.maxSta) p.sta = Math.max(p.sta, p.maxSta); return st.call(this, rt, ...a); }; return r; })(DP.rest({ dur: 5, heal: 0.7 })),
+      // ② 砦を奪う
+      // 立ち止まっても時切れで〔失〕のまま次へ進めない（三2）。木戸は味方の組も引き倒し、守兵は味方とともに討つ
+      Object.assign(DP.fight({ at: { x: FORT.x + 2, z: 0 }, title: '今福の砦', sub: '堤をふさぐ四重の柵', obj: '四つの柵の木戸を破り、矢野正倫と飯田家貞を討て', max: 360, noRefill: true,   // 守兵は史実の六百（各三百）だけ。新手は湧かせない
+        say: [['梅津憲忠', '木戸を破れ！　柵を一つずつ越えて砦へ迫れ！']],
+        // 守兵は砦の中に籠る（見えない所から湧かせず、柵の内で待つ）。この段だけ出す所を決めたままにする
+      // 11/18 ム三：act bot「9分で2人・斬り合う相手が少ない」。矢野・飯田の守兵の足軽を各六→十三人に（同じ数のまま）。
+        foes: () => { ctx.fixedSpawn = true; return [{ name: '矢野正倫の守兵', from: { x: FORT.x - 4, z: 0 }, list: [busho('矢野正倫', { horse: false }), uS(2), uA(13), uG(4)], dmg: 0.19, noRout: 9999 },
+          { name: '飯田家貞の守兵', from: { x: FORT.x - 12, z: -6 }, list: [busho('飯田家貞', { horse: false }), uS(2), uA(13), uG(4)], dmg: 0.19, noRout: 9999 }]; },   // 矢野・飯田は各三百で同じ数。守将が討たれた組から西の仮橋へ退く。
+        reward: '今福の砦を奪った', onEnd: (rt2) => { ctx.fixedSpawn = false; this.taken(rt2); } }), { idleAdvance: false }),
+      DP.rest({ dur: 5, heal: 0.7 }),
+      // ③ 木村重成の反撃：堤の上で受け止める。後藤又兵衛が加わる
+      // 寄せは史実の五つの波（重成・鉄砲衆・又兵衛と舟・渋江の討死・二の手）で数百人。継ぎ足しの新手（AB）は足さない
+      // （足すと決めの数が二百を超え、どの遊び方でも七分の上限まで延びて、戦が十分を超えた）
+      // 立ち止まっても段を早めに打ち切らない（前は四十五秒の立ち止まりで重成の二の手が出る前に③が済んでいた）
+      // 11/18 クラウド今福の持ち主（POSLOG・③の百秒）：r 26 だと砦の東の端（-66）も持ち場の内で、act bot はそこに立ち、西口（-88）で押し合う木村の寄せと二十歩離れて当たらなかった（本人の討ち取り2〜4）。持ち場を西口の十六歩に絞る（砦の内なら守りの刻は inKeep で今まで通り数える）
+      Object.assign(DP.hold({ at: KEEP, dur: 100, r: 16, noRefill: true, label: '今福の砦', title: '木村重成の反撃', sub: '細い堤の上に鉄砲が並ぶ',
+        obj: '奪った今福の砦に踏みとどまり、木村重成の反撃を押しとどめよ',
+        waves: [
+          // 重成（討死は翌年の若江）と又兵衛（道明寺）は今福では死なない。深手も又兵衛の脇腹の傷だけ（学び 六）
+          // 共通の戦闘は invuln だけの敵将を本人の一撃で討つ。史実で生き延びる二人には mustLive も渡す。
+          // 二人の隊は上杉の横撃まで崩れない（前は又兵衛の隊が加わって四十秒で、重成の隊も上杉の前に退いていた。史実は上杉の横撃で初めて支えきれず退く。二2）。
+          //   上杉の鉄砲は段の終わりの六秒前に中州へ並び（t 94）、段の終わりに共通の hold が本隊の気を挫く。堤に残る殿は④で追い払う
+          { t: 6, say: ['足軽', '旗は木村長門守！　若い大将が自ら出てきた！'], foes: () => onBank([{ name: '木村重成の隊', from: { x: FORT.x - 62, z: 0 }, list: [busho('木村重成', { invuln: true, mustLive: true }), uS(6), uA(20), uG(8)], width: 6, mass: 150, noRout: 9999, dmg: 0.25 }]) },
+          { t: 28, say: ['足軽', '堤の両側から鉄砲が並んだ！　横から撃たれる！'], foes: () => onBank([gunLine('大和川べりの鉄砲衆', { x: FORT.x - 20, z: 11 }, 5), gunLine('鯰江川べりの鉄砲衆', { x: FORT.x - 20, z: -11 }, 5)]) },
+          { t: 48, say: ['足軽', '後藤又兵衛じゃ！　川からも舟で鉄砲が寄せてくる！'], foes: () => { this.gotoBoats(rt); rt.world.setTime('afternoon'); return onBank([{ name: '後藤又兵衛の隊', from: { x: FORT.x - 66, z: 2 }, list: [busho('後藤又兵衛', { invuln: true, mustLive: true }), uS(6), uA(22), uG(6)], width: 6, mass: 200, noRout: 9999, dmg: 0.25 }]); } },
+          // 史実：渋江の討死は重成の指図した狙い撃ち。撃たれる六秒前に下知の声
+          { t: 64, say: ['木村重成', 'あの馬上の指物が佐竹の侍大将じゃ。鉄砲、狙え！'], foes: () => [] },
+          { t: 70, say: ['足軽', '渋江様が撃たれた！　渋江内膳様、お討死！'], foes: () => { this.shibueFalls(rt); return []; } },
+          { t: 88, say: ['足軽', '木村の新手が堤を押してくる！　下がるな！'], foes: () => onBank([{ name: '木村重成の二の手', from: { x: FORT.x - 62, z: -2 }, list: [uS(2), uA(20), uG(6)], width: 6, mass: 160, noRout: 9999, dmg: 0.24 }]) },
+          { t: 94, foes: () => { this.uesugi(rt); return []; } },
+        ],
+        reward: '堤の上で踏みとどまった', onEnd: (rt2) => this.reinforce(rt2) }), { idleAdvance: false }),
+      DP.rest({ dur: 5, heal: 0.7 }),
+      // ④ 増援とともに押し返す
+      Object.assign(DP.fight({ at: { x: FORT.x - 20, z: 0 }, title: '押し返す', sub: '上杉の鉄砲が中州から撃ちかける', obj: '上杉の加勢とともに、砦の西の堤から木村・後藤の殿を追い払え', max: 150, noRefill: true,   // 史実は上杉の横撃で豊臣方が城へ引く。殿を崩せば締める（戦を四〜七分に）
+        say: [['水原親憲', '佐竹を見捨てるな！　中州から堤の敵を横から撃て！']],
+        foes: () => onBank([{ name: '木村重成の殿', from: { x: FORT.x - 48, z: 0 }, list: [uS(2), uA(16), uG(5)], width: 6, mass: 140, dmg: 0.25, noRout: 55 },
+          // 殿は退きながらも堤の上で踏みとどまって撃つ（前は出て十一秒で崩れ、④を本人が戦う間が無かった。描いて遊んで）。三十秒は崩れない
+          // 11/18 22:22 クラウド今福の持ち主（POSLOG 2219）：三十秒は出た時から数えるので、堤を四十歩寄せて本人に着いた六秒後に崩れて④が済んだ（④の本人の討ち取り2〜8）。着いてから三十秒ほど崩れない五十五秒に
+          // 11/18 23:10 クラウド今福の持ち主（act 2243「340秒 印『砦の西の堤』に着いて六秒なにも起きない」）：殿は四十〜四十八歩先から寄せ、印の本人が待たされた。二十八〜三十五歩先から出す
+          // K358（11/17 iMac n-look-face）：値が 9999（ずっと崩れない）で、四割まで討ち減らすしかなく、act bot は④で五百八十秒止まり刻限で任務失敗。説明どおり三十秒に
+          { name: '後藤又兵衛の殿', from: { x: FORT.x - 55, z: 2 }, list: [uS(2), uA(14), uG(4)], width: 6, mass: 120, dmg: 0.25, noRout: 55 }]),
+        reward: '増援とともに豊臣方を退けた' }), { idleAdvance: false }),
+    // 残兵は requiredStage の二百秒の退却で解く。守備時間と持ち場への復帰は省かない。
+    ].map(requiredStage), (rt2) => this.win(rt2));
+  },
+
+  // 刀・槍や火矢で壊した時も、縄で倒す時と同じく袖まで開く。
+  // 共通処理は木戸だけを倒すため、そのままでは袖が残り、味方の列が詰まる。
+  onStructDestroyed(rt, st) {
+    if (st.wing) this.pull(rt, st);
+  },
+
+  // 木戸を縄で引き倒す。両脇の袖の柵も一緒に倒れ、堤の上の幅いっぱいが開く（六尺の口だけだと、組が柵の前で詰まって立ち尽くした。一5）
+  // 縄で引いた矢来は割れずに倒れる。共通の「割れる演出」の木片が二十ほど宙へ飛び、黒い板が空に浮いて見えた（描いて遊んで 73 秒。八1）→ 割れの演出を止め、土埃と倒れる音だけ
+  pull(rt, st) {
+    const c = { x: (st.seg[0] + st.seg[2]) / 2, z: (st.seg[1] + st.seg[3]) / 2 };
+    for (const s of [st, ...(st.wing || [])]) if (s.alive) { s._shattered = true; s.alive = false; s.hp = 0; rt.army.structFall(s); }
+    if (rt.world.dustCloud) { rt.world.dustCloud(c.x, c.z, true); rt.world.dustCloud(c.x - 1.5, c.z, true); }
+    sfx('crash', 0.9);
+  },
+
+  taken(rt) {
+    const F = rt.flags;
+    F.step = 3;
+    // 柵へ寄せる下知を終え、次の守備で古い行き先へ歩き戻らせない。
+    // 11/18 クラウド今福の持ち主（K358・斬る相手が少ない）：③で佐竹の三組が共通の「敵が来た、持ち場から出て戦う」で砦の西口の外へ打って出て、
+    //   木村の寄せを本人より先に討ち尽くしていた（本人の討ち取り0〜3・味方170〜200）。③の間は砦の東の半ば（西口から十六歩後ろ）に控えさせ（stay）、
+    //   木村の寄せはまず西口の本人と当たる。④（reinforce）で控えを解き、上杉の加勢とともに押し返す
+    for (const g of [F.satake, F.shibue, F.tomura]) if (g && !g.routed) {
+      g.keepMoveOrder = false; g.dest = null; g.order = 'hold'; g.stay = true;
+      if (g.anchor) { g.anchor.x = KEEP.x + 12; g.anchor.z = 0; }
+    }
+    rt.banner('砦を奪った', '矢野正倫と飯田家貞の首を挙げた');   // 史料：矢野は仮橋ぎわで討たれ首実検。「討死」の字だと、砦の中にいる本人へ使番が走って運び直していた（五1）
+    // 史実：義宣は奪った今福村・蒲生村に三段構えの付城を普請させかけた
+    rt.say('佐竹義宣', 'よし、今福を取ったぞ！　今福村に付城を急げ。……西に鉄砲の列が見える、気を許すな', 4);
+    // 残った木戸も引き倒す（hp だけ 0 にすると、反撃の段で本人が近づいた時に「木戸が倒れた」がもう一度出ていた）
+    for (const st of [F.gate, ...(F.outer || [])]) if (st && st.alive) this.pull(rt, st);
+    for (const u of F.towerU || []) if (u.alive) rt.army.kill(u, null);   // 砦が落ち、櫓の上の者も討たれた
+    // 奪った砦に豊臣の桐の幟が立ったままだった（佐竹が引き抜く。七1）
+    for (const m of F.fortFlags || []) m.visible = false;
+    // 史実：矢野・飯田は逃げずに討死（矢野は仮橋ぎわ）。段の終わりにまだ生きていれば、ほかの佐竹の者が討った事にする（本人の手柄にはしない）
+    // 知らせ（「〇〇が討たれた」）も札と重ねない（F.quiet）。深手で担がれている（dying）将は一度目の kill で手当てが終わるだけなので二度
+    F.quietKill = true; F.quiet = true;
+    for (const u of rt.army.units) if (u.alive && u.team === 1 && u.type === 'busho' && /矢野正倫|飯田家貞/.test(u.name || '')) { rt.army.kill(u, null); if (u.alive) rt.army.kill(u, null); }
+    F.quietKill = false; F.quiet = false;
+    // 先に討たれていた時の「矢野正倫が討たれた」が、砦を奪った札のあとも待ちに残り、札を何百回も出し直していた（流しの刻 176〜178）。取り下げる
+    for (const e of (rt.events && rt.events.slots) || []) if (e && e.pending && /矢野正倫|飯田家貞/.test(e.text || '')) e.pending = false;
+    // 史実：佐竹は奪った後に兵を入れ替えようと堤に集まった（その隙を重成・又兵衛に突かれた）。二の備が東から砦の前の堤へ上がる
+    //   （先手は砦の段で討ち減らされ、反撃の段は本人がほとんど一人で受けていた。九4）
+    const ni = allyGroup(rt, { faction: 'tokugawa', name: '佐竹の二の備', anchor: { x: KEEP.x + 60, z: 0 }, facing: WESTWARD, width: 7, aggro: 10, speed: 3.4, morale: 90, noRout: true, formation: 'column' },
+      dress([uS(4), uA(24), uG(6)], SATAKE).map(kasa));
+    // 隊の要も東の出発点から進める。先に到着点へ移すと、列が追いつく前に砦へ集まった扱いになる。
+    ni.mon = 'satake'; ni.defMult = 1.8; ni.order = 'move'; ni.dest = { x: KEEP.x + 16, z: 0 }; ni.stay = true;
+    F.reinf = [ni];
+  },
+
+  // 11/18 クラウド11（司令塔：今福の 5・3 の回）：段②は守兵が砦の内に籠り、本人は三重の矢来の間で斬る相手がいないまま百二十秒を過ごした（act 五回とも段②の本人の討ち取り0）。
+  //   矢来ごとに木戸の内に番手を四人置く。木戸が破れれば、そこで本人と斬り合う（数は守兵と別。重さは守兵と同じ）
+  yaraiGuards(rt) {
+    const F = rt.flags;
+    if (F.yaraiG) return;
+    F.yaraiG = [];
+    for (const dx of [18, 28, 38]) {
+      const x = FORT.x + dx;
+      const g = rt.army.addGroup({ team: 1, faction: 'toyotomi', name: '矢来の番手', order: 'hold', anchor: { x, z: 0 }, facing: Math.PI / 2, morale: 100, noRout: true, aggro: 6, seekRange: 7 });
+      g.dmgMult = 0.19;
+      rt.army.spawn(g, [{ type: 'samurai', n: 1, o: { ...KIMURA, x, z: 0 } }, { type: 'ashigaru', n: 3, o: { ...KIMURA, x: x - 1.5, z: 0 } }]);
+      F.yaraiG.push(g);
+    }
+  },
+  // 後藤又兵衛の舟（史実：堤から撃つだけでなく、舟で水の上からも寄せた）。南の大和川の堤寄りに三艘、一艘に鉄砲三
+  gotoBoats(rt) {
+    const F = rt.flags, W = rt.world;
+    if (F.boats) return;
+    F.boats = [];
+    const g = rt.army.addGroup({ team: 1, faction: 'toyotomi', name: '後藤又兵衛の舟の鉄砲', order: 'hold', anchor: { x: FORT.x, z: 23 }, facing: Math.PI, morale: 100, noRout: true, aggro: 30, seekRange: 60 });
+    g.dmgMult = 0.3;
+    for (const x of [FORT.x + 6, FORT.x + 18, FORT.x + 30]) {
+      const z = 23, y = W.heightAt(x, z) + W.waterDepthAt(x, z) + 0.05;
+      const mesh = kobune(x, y, z, Math.PI / 2, 7); rt.scene.add(mesh);   // 舳先を堤に沿って東西へ
+      const us = rt.army.spawn(g, [0, 1, 2].map((i) => ({ type: 'gun', n: 1, o: { ...KIMURA, x: x - 1.6 + i * 1.6, z } })));
+      us.forEach((u, i) => { u.pos.set(x - 1.6 + i * 1.6, y + 0.1, z); u.perch = { x: u.pos.x, y: u.pos.y, z: u.pos.z }; u.mesh.position.copy(u.pos); });
+      F.boats.push({ mesh, us });
+    }
+  },
+
+  // 渋江政光の討死（史実：重成の反撃の中で鉄砲に当たる）
+  shibueFalls(rt) {
+    const F = rt.flags;
+    const u = F.shibue && F.shibue.units.find((q) => q.alive && q.type === 'busho');
+    // 共通の「味方の大将が討たれた」は札と重なり、八秒おきに四度出ていた（流しの刻 224〜248）。知らせを止め、組の頭を失った印も消す
+    if (u) { sfx('gun', 0.9); F.quiet = true; u.invuln = false; u.hp = 0; rt.army.kill(u, null); if (u.alive) rt.army.kill(u, null); F.quiet = false; F.shibue.commanderLostAt = undefined;
+      // 見出しは本人の目の前の出来事として直に出す（共通の見出しは見届けの判じで使番の運びに替わり、その声も言い直しとして止めているので、何も出ずに渋江が消えていた。二2）
+      rt._bannerT = rt.t; rt.hud.banner('渋江政光、討死', '佐竹の先手が崩れる'); }
+    // 史実：渋江の討死で佐竹の先手が崩れる。渋江の組は東へ下がり、梅津の隊と自分の組だけで堤に残る
+    //   （崩れの印にすると、共通の「味方の隊が崩れた」が札の後に八秒おきに四度出た。組は崩さず、東の堤へ引かせる）
+    // ④の sendFriends が後退した組を再び前線へ送らないよう、以後の進軍から外す。
+    if (F.shibue) {
+      const g = F.shibue;
+      // 「待て」では近くの敵へ十歩まで斬りかかる共通処理が優先され、退く下知にならなかった。
+      // 隊の要を瞬時に飛ばさず、敵に向き合ったまま東の堤へ引く。
+      g.k09Withdrawn = true; g.order = 'retreat'; g.aggro = 2;
+      g.dest = { x: KEEP.x + 90, z: 0 }; g.facing = WESTWARD;
+      // 退く下知で撃ちかけと古い接近先を捨て、共通の加勢でも前線へ戻さない。
+      g.retreatOnly = true; g.fire = false; g.focus = null; g.path = null;
+      g.keepMoveOrder = false; g.marching = false;
+      for (const q of g.units) if (q.alive) {
+        q.target = null; q.watch = null; q.moveTo = null; q.atk = null; q.swing = null; q.bind = null;
+        q.charging = false; q.aiT = 0;
+      }
+      g.onArrive = (group) => { group.order = 'hold'; group.dest = null; };
+    }
+    rt.after(3.2, () => rt.say('梅津憲忠', '内膳殿の分まで踏みとどまれ！　ここを抜かれれば佐竹は終わりじゃ', 3.6));
+  },
+
+  // 木村重成の反撃を耐え抜いた → 上杉の加勢（必ず。鴫野から川を越えて来る）
+  // 上杉の横撃（史実：鴫野の上杉・堀尾・榊原が大和川の中州から撃ちかけ、豊臣方は支えきれず退く）。③の終わりの六秒前に並ぶ（④の始まりでも呼ぶ。一度だけ）
+  uesugi(rt) {
+    const F = rt.flags;
+    if (F.uesugi) return;
+    F.uesugi = true;
+    sfx('taiko', 1); sfx('horagai', 0.8);
+    rt.banner('上杉の加勢', '鴫野の上杉勢が大和川の中州から撃ちかける');
+    // 史実：上杉の横撃で豊臣方が退くのは午後四時過ぎ（冬の日の傾く頃）。一分ほどかけて西の城の方へ日が傾く
+    rt.world.setTime('dusk');
+    rt.say('足軽', '大和川の中州に上杉の鉄砲じゃ！　竹に雀の旗が並んだ！', 3.6);
+    // 川べりに伏せた豊臣の鉄砲衆は、中州からの横撃をまともに受けて先に退く（残ると、持ち場から離れた湿地の縁で
+    //   いつまでも崩れず、③が三分近く延びて本人は立ち尽くした。描いて遊んで 236〜419 秒。二5）
+    // 本隊も横撃を受けて退く。士気を三十まで下げるだけでは踏みとどまり、③が長引く場合がある。
+    // ④で堤に残る殿は含めず、本人が持ち場を守った条件も requiredStage で残す。
+    rt.after(6, () => {
+      for (const g of rt.army.groups) if (g.team === 1 && g.count && !g.routed &&
+        /川べりの鉄砲衆|^(木村重成|後藤又兵衛)の(隊|二の手)$/.test(g.name || '')) {
+        // 組頭が健在なら士気が零でも共通処理では崩れない。横撃を受けた退却の下知を明示する。
+        g.noRout = false; g.morale = 0; g.routed = true; g.order = 'flee';
+      }
+    });
+    // 加勢から九秒で又兵衛が負傷し、舟も退く。③が長引いても④への移行を待たない。
+    // 史実：又兵衛は上杉の鉄砲の弾で脇腹に傷（左腕とも）。討たれはしない。舟は西へ漕ぎ戻る
+    rt.after(9, () => {
+      const g = rt.army.groups.find((q) => q.team === 1 && q.name === '後藤又兵衛の隊');
+      const u = g && g.units.find((q) => q.alive && q.type === 'busho');
+      if (u) { u.hp = Math.max(1, Math.round(u.hp * 0.6)); g.morale -= 30; rt.say('後藤又兵衛', '上杉の弾か……脇腹をやられた。構わぬ、退きながら撃て！', 3.6); }
+      F.boatBack = true;
+    });
+    F.reinf = F.reinf || [];
+    // 上杉は川を渡らず、水原親憲の鉄砲衆が南の大和川の中州（鴫野の側）に並んで川越しに横から撃つ（史実の横撃）。
+    const mz = allyGroup(rt, { faction: 'tokugawa', name: '水原親憲の鉄砲衆', anchor: { x: KEEP.x - 6, z: 46 }, facing: Math.PI, width: 10, aggro: 4, seekRange: 70, order: 'hold', fixed: true, noRout: true, morale: 100, formation: 'line' },
+      dress([busho('水原親憲', { invuln: true }), uS(3), uG(14)], UESUGI));
+    // 史実：景勝の下の堀尾忠晴・榊原康勝も大和川の中州から横撃した。水原の東に並ぶ
+    const sk = allyGroup(rt, { faction: 'tokugawa', name: '榊原康勝の鉄砲衆', anchor: { x: KEEP.x + 18, z: 46 }, facing: Math.PI, width: 8, aggro: 4, seekRange: 70, order: 'hold', fixed: true, noRout: true, morale: 100, formation: 'line' },
+      dress([busho('榊原康勝', { invuln: true }), uS(2), uG(10)], { flag: 'sakakibara', armor: 0x24221f }));
+    const ho = allyGroup(rt, { faction: 'tokugawa', name: '堀尾忠晴の鉄砲衆', anchor: { x: KEEP.x + 40, z: 46 }, facing: Math.PI, width: 8, aggro: 4, seekRange: 70, order: 'hold', fixed: true, noRout: true, morale: 100, formation: 'line' },
+      dress([busho('堀尾忠晴', { invuln: true }), uS(2), uG(10)], { flag: 'horio', armor: 0x24221f }));   // 堀尾の分銅の旗（textures の horio）
+    mz.mon = 'uesugi'; sk.mon = 'sakakibara'; ho.mon = 'horio';
+    // 中州の鉄砲衆は川を渡らない。fixed は隊の要を据えるだけで、兵の移動と押し合いは止まらず一点へ寄っていた（全戦の通し）。
+    // 櫓の射手と同じ持ち場を各人に渡し、隊の列を保って川越しに撃たせる。
+    for (const g of [mz, sk, ho]) for (const u of g.units) {
+      const q = g.slotPos(u.slot, g.initial), y = rt.world.heightAt(q.x, q.z);
+      u.pos.set(q.x, y, q.z); u.mesh.position.copy(u.pos);
+      u.perch = { x: q.x, y, z: q.z };
+    }
+    F.reinf.push(mz, sk, ho);
+  },
+
+  reinforce(rt) {
+    const F = rt.flags;
+    F.step = 4; F.reinfT = rt.t; F.kills4 = rt.stats?.kills || 0;
+    // ③の控え（taken）を解き、④は佐竹の組も殿へ押し出す。
+    // 11/18 クラウド今福の持ち主：味方の列が本人より先に殿へ着いて討ち切り、本人の十歩内の敵が0〜2のまま④が四十秒で済む回があった（act POSLOG）。
+    //   本人が砦の西口を出るか三十秒たつまで、佐竹の三組と二の備は控えたまま（本人が殿の先頭に当たる）。加勢の組は今まで通り出る
+    F.holdFour = [F.satake, F.shibue, F.tomura, (F.reinf || [])[0]].filter(Boolean);
+    for (const g of F.holdFour) g.stay = true;
+    for (const g of (F.reinf || [])) if (!F.holdFour.includes(g)) g.stay = false;
+    rt.player.treatWounds(0.6);
+    this.uesugi(rt);
+    // 須田長義は同じ時に鴫野の先手で大野治長の反撃を受けており、今福の堤には来ていない。堤を西へ上がるのは佐竹の後備
+    const su = allyGroup(rt, { faction: 'tokugawa', name: '佐竹の後備', anchor: { x: KEEP.x + 70, z: 0 }, facing: WESTWARD, width: 7, aggro: 8, speed: 3.4, morale: 90, formation: 'column' },
+      dress([uS(4), uA(18), uG(6)], SATAKE).map(kasa));
+    su.mon = 'satake'; su.order = 'move'; su.dest = { x: KEEP.x + 14, z: 0 };
+    F.reinf.push(su);
+
+  },
+
+  win(rt) {
+    const F = rt.flags;
+    if (F.ending) return;
+    F.ending = true;
+    rt.setPhase('end');
+    rt.objDone('main');
+    rt.award((t) => { t.main = true; t.special = { label: '今福堤で踏みとどまった', pts: 40 }; }, '今福を保ち、豊臣方を退けた');
+    rt.player.u.invuln = true;
+    // 11/18 21:58 クラウド今福の持ち主（act POSLOG：締めで佐竹の二の備の要が東の (-16,0) へ飛び、堤の細道を引き返す列が一点に重なった・夜50-33 の386秒）：
+    //   締めの間、味方の隊は今いる所で持ち場を固める（旗を立てる場面と合う。散らばったまま立つ）
+    for (const g of rt.army.groups) if (g.team === 0 && !g.isPlayerSquad && !g.routed && g.count > 0 && g.anchor) {
+      const al = g.units.filter((u) => u.alive && !u.fleeing && !u.perch);
+      if (!al.length) continue;
+      g.anchor.x = al.reduce((s, u) => s + u.pos.x, 0) / al.length; g.anchor.z = al.reduce((s, u) => s + u.pos.z, 0) / al.length;
+      g.order = 'hold'; g.dest = null; g.stay = true; g.onArrive = null;
+    }
+    rt.banner('豊臣方、退く', '佐竹勢は今福の堤を保った');   // 史料は「決着つかず・付城は築けず」。今福を取りきった言い方にしない
+    // 殿まで退いた後の決着。これから堤を守る下知ではなく、城へ退く下知にする。
+    rt.say('後藤又兵衛', '長門殿、城へ引かれよ。殿も退くぞ、仮橋を渡れ！', 4);
+    // 締めは四秒半ほどで勝ちの札になるので、その前に（real_common の大河内の書き込み）
+    rt.after(2.2, () => rt.say('梅津憲忠', '内膳殿を失うた……堤の上に、これだけ倒れるとは', 4));
+    rt.finish({}, katame(rt, { at: KEEP }));   // 旗を立てて持ち場を固め、鴫野の鉄砲の音を聞かせてから勝ちの札（k09/katame.js）
+  },
+
+  lose: makeLose('堤の上で潰えた', '佐竹勢は今福から押し戻された', '堤が……！　皆、東へ退け！', '足軽'),
+
+  update(rt, dt) {
+    const F = rt.flags;
+    KIT.backTick(rt);
+    // 又兵衛の舟は上杉の横撃で西へ漕ぎ戻る（乗った鉄砲衆ごと。城の方の遠くで止まる）
+    if (F.boatBack && F.boats && F.boats.length && F.boats[0].mesh.position.x > FORT.x - 110) {
+      for (const b of F.boats) {
+        b.mesh.position.x -= dt * 2.6;
+        // 舟上で討たれた者も舟と一緒に退く。生存者だけを動かすと、屍が川の上に取り残される。
+        for (const u of b.us) if (u.perch) { u.perch.x -= dt * 2.6; u.pos.x = u.perch.x; u.mesh.position.x = u.pos.x; }
+      }
+    }
+    // 舟の上の鉄砲は共通の頭では的を選ばず、一発も撃たなかった（一3）。舟から堤の佐竹勢を一人ずつ狙い、弾込めを挟んで撃つ。
+    // 又兵衛の「退きながら撃て」の下知どおり、西へ漕ぎ戻る間も射程内では撃つ。
+    if (F.boats && !F.ending) for (const bt of F.boats) for (const u of bt.us) {
+      // 舟の専用射撃も、離脱・組み合い・運搬・登りなどで戦えない兵には行わせない。
+      // fireGun は生死だけを確かめるため、ここで戦える状態を確かめる。
+      u.k09Shot = (u.k09Shot ?? 2 + Math.random() * 6) - dt;
+      if (!u.alive || u.gone || u.noTarget || u.dying || u.woundOut || u.downed || u.rearWound || u.fleeing ||
+        u.group?.routed || u.stagger > 0 || u.pinT > rt.army.time ||
+        u.reload || u.atk || u.swing || u.bind || u.dragging || u.climb ||
+        u.k09Shot > 0) continue;
+      u.k09Shot = 7 + Math.random() * 4;
+      // 専用射撃も共通の鉄砲と同じ射線の決まりに従う。近い相手が柵や味方に隠れていれば、撃てる別の相手を探す。
+      const t = rt.army.nearestEnemy(u, 55, (o) => !o.isStruct && !o.noTarget && !o.gone && !o.fleeing &&
+        !o.dying && !o.woundOut && !o.downed && !o.rearWound && Math.abs(o.pos.z) < WADE &&
+        !rt.army.shotBlocked(u, o.pos) && !rt.army.hiddenBehind(u, o) && !rt.army.terrainBlocks(u.pos, o.pos) &&
+        !rt.army.allyInLine(u, o, Math.hypot(o.pos.x - u.pos.x, o.pos.z - u.pos.z)));
+      if (t) {
+        u.heading = Math.atan2(t.pos.x - u.pos.x, t.pos.z - u.pos.z);
+        rt.army.fireGun(u, t);
+        // 共通の射撃と同じく、不発でも弾込めを挟む。弾込め中・照準中に専用処理で重ねて撃たせない。
+        rt.army.startReload(u);
+      }
+    }
+    if (F.ending) return;
+    // 11/18 09:10 クラウド今福の持ち主（POSLOG 0903：④で殿が本人の前に踏みとどまっても、佐竹・上杉が百秒で26→2人に討ち切り、本人の④の討ち取り1〜4）：
+    //   本人が④で四人討つまで（九十秒まで）は、殿は本人でない者からの傷を六割に（本人の一太刀はそのまま。数と強さは変えない）
+    if (F.step === 4 && (F.rearT = (F.rearT || 0) - dt) <= 0) {
+      F.rearT = 1;
+      const cur = F.dp?.cur;
+      const keep = cur?.s.kind === 'fight' && (rt.stats?.kills || 0) - (F.kills4 ?? 0) < 4 && rt.t - (cur.t0 ?? rt.t) < 90;
+      for (const g of rt.army.groups) if (g.team === 1 && /^(木村重成|後藤又兵衛)の殿$/.test(g.name || '')) for (const u of g.units) u.takeNonPlayer = keep ? 0.6 : null;
+    }
+    // 11/18 クラウド今福の持ち主：②の守将（矢野正倫・飯田家貞）は act で毎回味方が討っていた（名のある将 本人0・味方2）。
+    //   本人でない者からの傷を三割半に（本人の一太刀はそのまま）。一秒に一度、出た将に付ける
+    if (F.step === 2 && (F.leadT = (F.leadT || 0) - dt) <= 0) {
+      F.leadT = 1;
+      for (const u of rt.army.units) if (u.alive && u.team === 1 && u.type === 'busho' && /矢野正倫|飯田家貞/.test(u.name || '')) {
+        u.takeNonPlayer = u.target && u.target === rt.player?.u ? 0.15 : 0.35;   // 本人へ打ちかかる途中は一割半
+        // 木戸が倒れて三十秒の後は、毎秒本人へ向け直す（四秒ごとだと、間に近くの佐竹の兵へ向き直って斬り合い、そこで討たれた）
+        const pu = rt.player?.u;
+        if (pu?.alive && F.gatesDownT != null && rt.t - F.gatesDownT > 30 && pu.hp >= pu.maxHp * 0.5 && Math.hypot(pu.pos.x - u.pos.x, pu.pos.z - u.pos.z) < 70) { u.target = pu; u.moveTo = null; u.aiT = Math.max(u.aiT || 0, 0.9); }   // 考え直しで近くの兵へ向き直らないよう一秒近く保つ
+        // 11/18 19:50 クラウド今福の持ち主（act 1804・1817・POSLOG 1828：守将が本人の三歩内まで来ても、本人は手前の守兵を突き続け、救いで味方が守将を討った）：
+        //   名乗った守将が本人の十歩内に来たら、守将より本人に近い守兵（鉄砲・弓を除く）は狙いを解いて守将の後ろへ引くか近くの佐竹と斬り合い、本人と守将の打ち合いを空ける（数と強さは同じ）
+        const dB = pu?.alive ? Math.hypot(pu.pos.x - u.pos.x, pu.pos.z - u.pos.z) : 99;
+        if (u.target === pu && dB < 10) for (const v of u.group?.units || []) {
+          if (v === u || !v.alive || v.fleeing || v.type === 'gun' || v.type === 'bow' || v.perch) continue;
+          const dv = Math.hypot(pu.pos.x - v.pos.x, pu.pos.z - v.pos.z);
+          if (dv > dB + 1.5 || dv > 8) continue;
+          const ax = u.pos.x - pu.pos.x, az = u.pos.z - pu.pos.z, al = Math.hypot(ax, az) || 1;
+          const side = (v.id ?? 0) % 2 ? 1 : -1;
+          const at = v.k09Watch || (v.k09Watch = { x: 0, z: 0 });
+          // 近くの佐竹の兵がいれば、その者と斬り合う（本人のそばで立ち尽くさない・act 1943 の200秒）。いなければ守将の後ろ四歩へ引く
+          const ally = rt.army.nearestEnemy(v, 8, (o) => !o.isPlayer && !o.isStruct && !o.fleeing && !o.noTarget);
+          if (ally) { v.target = ally; v.moveTo = null; }
+          else { v.target = null; v.moveTo = localPoint(rt.army, v, at, u.pos.x + ax / al * 4 - az / al * side * 1.5, Math.max(-BANK + 1, Math.min(BANK - 1, u.pos.z + az / al * 4 + ax / al * side * 1.5))); }
+          v.aiT = Math.max(v.aiT || 0, 1.2);
+        }
+      }
+    }
+    if (F.holdFour && F.step === 4) {
+      const pp = rt.player && rt.player.u && rt.player.u.pos;
+      if ((pp && pp.x < FORT.x - 14) || rt.t - F.reinfT > 30) { for (const g of F.holdFour) g.stay = false; F.holdFour = null; }
+    }
+    // 11/18 クラウド今福の持ち主（act bot「6分で4人・斬り合う相手が少なくて退屈」・味方の討ち取り146）：佐竹と上杉の列が寄せ手を先に討ち切っていた。
+    //   ②からは本人の組でない味方の刃を半ばに（三木の出城と同じ。兵の数・敵の強さ・守りの硬さは変えない）。一秒に一度、後から出た組・共通が戻した値にも掛け直す
+    if ((F.step || 0) >= 2 && (F.allyCutT = (F.allyCutT || 0) - dt) <= 0) {
+      F.allyCutT = 1;
+      for (const g of rt.army.groups) {
+        if (g.team !== 0 || g.isPlayerSquad || g.civ || g._idleAid) continue;
+        if (g.dmgMult !== g.k09Cut) { g.dmgMult = (g.dmgMult ?? 1) * 0.5; g.k09Cut = g.dmgMult; }
+      }
+      // 11/18 10時 クラウド今福の持ち主（act bot「6分で36人・ちょっと簡単すぎる」・受けた傷 侍0・足軽0＝K360⑦）：
+      //   守兵・木村・後藤の刃は 0.19〜0.25 で、受けた一撃の一割二分は一にも届かなかった。本人に当たる時だけ 0.55 に（味方との斬り合いの重さは変えない・鉄砲の組は除く）
+      for (const g of rt.army.groups) {
+        // 櫓の守り（鉄砲二・弓一）も除く：名に「鉄砲」が無く 0.55 が付き、弾は本人へ 0.55/0.3＝一倍八割増しで当たっていた（army_ranged の playerDamageScale。十二3 の「段の敵と同じ重さ」に背く）
+        if (g.team !== 1 || g.civ || g.dmgMultPlayer != null || /鉄砲|櫓/.test(g.name || '')) continue;
+        if ((g.dmgMult ?? 1) <= 0.3) { g.dmgMultPlayer = 0.55; g.dmgMultPlayerMelee = true; }   // 組の中の鉄砲の弾は前の重さのまま（act 1700：守兵の鉄砲の一発35で命64→②の百秒を避け続けた）
+      }
+    }
+    // 共通の「右の目標を全部果たしたら締める」は、③が済んで④の札が出るまでの合間に、済んだ③だけを見て勝ちにしていた
+    // （④の殿を追い払わないうちに「合戦に勝利」。三3）。この戦は④が済んだ所で win が締める
+    rt.goalsDoneT = 0;
+    depthTick(rt, dt);
+    // 最終段が済むと、この呼び出しの中で締めに入る。続けて刻限の敗北を重ねない。
+    if (F.ending) return;
+    // 史実：同じ日、大和川の向こうの鴫野では上杉と豊臣方（井上頼次・大野治長）が昼まで撃ち合っていた。川向うの遠い鉄砲の音を絶やさない
+    if (F.begun && (F.step || 0) < 4) { F.farT = (F.farT ?? 6) - dt; if (F.farT <= 0) { F.farT = 9 + 8 * Math.random(); sfx('volleyFar', 0.18 + 0.12 * Math.random()); } }
+    // 史実：上杉・堀尾・榊原の川越しの横撃に豊臣方は支えきれず城へ引いた（二の5：何もしなくても物語は進む）。
+    // 加勢から四十秒を過ぎると、堤の上の豊臣方の気が少しずつ挫ける。本人が砦の西の堤で殿に当たる間は速く（一分ほどで崩れる）、
+    // 殿と当たる前に全隊を退かせると、相手が消えて④を果たせなくなる。本人が戦いに入ってから退かせる（三3・④）
+    const p = rt.player && rt.player.u && rt.player.u.pos;
+    const rear = F.dp && F.dp.cur;
+    // 11/18 07:55 クラウド今福の持ち主（POSLOG：本人が殿に当たったのは④の三十五秒目で、段の始めから三十秒を既に過ぎていたため気挫けがその場で始まり、
+    //   十四秒で殿の半ばが逃げた＝本人の④の討ち取り0〜2）：気挫けは本人が殿に当たってから十五秒の後に始める
+    if (F.step === 4 && rear && rear.engaged && rear.k09EngT == null) rear.k09EngT = rt.t;
+    if (F.step === 4 && rear && rear.engaged && rt.t - rear.t0 >= 30 && rt.t - rear.k09EngT >= 15 && F.reinfT != null && rt.t - F.reinfT > 40) {
+      const front = p && Math.abs(p.z) < 14 && p.x < FORT.x + 20 && p.x > FORT.x - 70;
+      // 11/18 08:50 クラウド今福の持ち主（act 0747〜0752：④の本人の討ち取り0〜3・④が四十〜六十秒で済む）：
+      //   本人が④で四人討つまでは、堤の前に立っても殿の気の挫けを半ばの速さに（殿が本人の前で踏みとどまる間をのばす。上の百五十秒の打ち切りはそのまま）
+      const mine4 = (rt.stats?.kills || 0) - (F.kills4 ?? 0);
+      F.press = (F.press || 0) + dt * (front ? (mine4 >= 4 ? 2 : 1) : 0.6);
+      const cap = 100 - F.press;
+      for (const g of rt.army.groups) if (g.team === 1 && !g.routed && g.count && !/舟/.test(g.name || '')) {
+        // 本人が④で四人討つまで（九十秒・気の挫け七十まで）は、ここで殿の踏みとどまりを外さない（段の protect と同じ。外すと当たって数秒で崩れた＝POSLOG 0858）
+        if (mine4 >= 4 || F.press >= 70 || rt.t - rear.t0 >= 90) g.noRout = false;
+        g.morale = Math.min(g.morale, cap);
+        // 生きた組頭がいる殿にも、押し返された時は城へ退く下知を出す。
+        if (cap < 22) { g.routed = true; g.order = 'flee'; }
+      }
+    }
+    // 主を失った馬は川の深みへ駆け込まない（川の中で横倒しにもがいていた。一8）。湿地の縁で堤の方へ向き直る
+    if ((F.horseT = (F.horseT || 0) - dt) <= 0) {
+      F.horseT = 0.4;
+      // 討たれた主の馬は堤を駆け回らず、倒れた主のそばに留まる（乗り手の無い鞍付きの馬が堤を走っていた。BL7）
+      for (const o of rt.army.looseHorses || []) { const hp = o.h && o.h.position; if (o.t > 1.2 && !o.tame) { o.tame = o.calm = true; o.spd = Math.min(o.spd || 1, 0.8); } if (hp && Math.abs(hp.z) > WADE) { hp.z = Math.sign(hp.z) * WADE; o.heading = hp.z > 0 ? Math.PI : 0; } }
+    }
+    // 史料「通れるのは堤だけ」：堤の両脇の湿地の縁（WADE）より外へは誰も出ない。退く豊臣方は西の仮橋（片原町の方）へ。
+    //   描いて遊んで：④で本人と組が砦の西の鯰江川べりに脛まで入って八十秒立ち、豊臣方の殿は鯰江川の向こう岸の野を退いていた（一8・二1）
+    if ((F.bankT = (F.bankT || 0) - dt) <= 0) {
+      F.bankT = 0.2;
+      for (const u of rt.army.units) {
+        if (!u.alive || u.isStruct || u.perch) continue;
+        // 中州（z 46）の上杉・堀尾・榊原の鉄砲衆は外す。川を渡りかけた者（z 32 まで）は堤の縁へ戻す
+        const az = Math.abs(u.pos.z);
+        if (az > WADE && az < 32 && u.pos.x < 230) { u.pos.z = Math.sign(u.pos.z) * WADE; if (u.mesh) u.mesh.position.z = u.pos.z; }
+      }
+      if (p && Math.abs(p.z) > WADE) { p.z = Math.sign(p.z) * WADE; }
+      for (const g of rt.army.groups) if (g.team === 1 && !/舟/.test(g.name || '')) g.fleeDir = { x: -1, z: 0 };
+    }
+    // 柵の木戸：本人が木戸の前に二秒いると、組の者と縄を掛けて引き倒す（柵の前で止まって撃たれ続けない）。砦の木戸は砦の段から。
+    // 砦の段では味方の組も木戸に取り付き、八秒で引き倒す（本人が遅れても寄せが止まらない。二5）
+    if ((F.gateScanT = (F.gateScanT || 0) - dt) <= 0) {
+      F.gateScanT = 0.5;
+      // 砦の段の味方の組は、次に残る木戸の前まで堤を歩いて寄せ、着いたら斬りかかる（「かかれ」の組は柵の向こうの敵を見ず、
+      // 柵の東で立ち止まったまま砦へ寄せなかった。一5・九4）
+      // 史実：矢野・飯田が討たれると、守兵は仮橋を外す間もなく片原町へ逃げた。将を失った守兵の組は崩れて西へ退く
+      if (F.step === 2) for (const g of rt.army.groups) if (g.team === 1 && /の守兵$/.test(g.name || '') && g.count && !g.routed && !g.units.some((u) => u.alive && u.type === 'busho')) { g.noRout = false; g.morale = 0; }
+      // 守兵も木戸の西の袖へ寄ると、柵越しの敵を追って止まる。櫓の柱を避けて堤へ戻し、開いた木戸から応戦させる。
+      if (F.step === 2 && F.gate && !F.gate.alive) for (const g of rt.army.groups) {
+        if (g.team !== 1 || g.routed || !/^(矢野正倫|飯田家貞)の守兵$/.test(g.name || '')) continue;
+        for (const u of g.units) {
+          if (u.type === 'gun' || u.type === 'bow' || u.perch) continue;
+          // 西の柵（砦から十四歩）の外へ押された守兵も、その場で中央へ戻して口を通す。
+          if (Math.abs(u.pos.z) <= 4 || u.pos.x < FORT.x - 18 || u.pos.x > F.gate.seg[0]) { u.k09DefenderPass = false; continue; }
+          if (!canPullGate(rt, u) || u.atk || u.swing) continue;
+          if (u.target?.alive && u.target.pos && Math.hypot(u.target.pos.x - u.pos.x, u.target.pos.z - u.pos.z) < u.reach + 1 &&
+            !rt.army.wallBetween(u.pos, u.team, u.target.pos, false)) continue;
+          if (!u.k09DefenderPass && Math.abs(u.pos.z) <= BANK + 1) continue;
+          u.k09DefenderPass = true;
+          const at = u.k09DefenderPoint || (u.k09DefenderPoint = { x: 0, z: 0 });
+          // 11/18 23:25 クラウド今福の持ち主（act 2309：101秒 矢野の守兵25人が行き先1m の内に重なり (-67,4) で止まった）：口の中の行き先を一人ずつ南北に三歩までばらす
+          if (u.k09PassZ == null) u.k09PassZ = (Math.random() * 2 - 1) * 3;
+          u.moveTo = localPoint(rt.army, u, at, Math.abs(u.pos.z) > 2 ? u.pos.x : FORT.x, u.k09PassZ);
+          u.target = null; u.watch = null; u.aiT = Math.max(u.aiT, 0.6);
+        }
+      }
+      // 柵の内に入れば、そこからは「かかれ」で守兵と斬り合う（歩かせたままにすると敵の中を素通りして討たれた）
+      let nextGate = null;
+      if (F.step === 2) {
+        for (let i = (F.outer?.length || 0) - 1; i >= -1; i--) {
+          const st = i < 0 ? F.gate : F.outer[i];
+          if (st?.alive) { nextGate = st; break; }
+        }
+      }
+      // 柵越しの突き（act 1544）：立つ木戸の内の兵は、柵の東の本人を半秒ごとに狙いから外す（共通の考えが近い本人を拾い直すため。櫓の上の射手は除く）
+      if (nextGate && rt.player?.u?.alive && (F.fenceT = (F.fenceT || 0) - dt) <= 0) {
+        F.fenceT = 0.5; const pu = rt.player.u, gx = nextGate.seg[0];
+        if (pu.pos.x > gx) for (const g of rt.army.groups) if (g.team === 1 && g.count) for (const u of g.units)
+          if (u.alive && u.target === pu && !u.perch && u.type !== 'gun' && u.type !== 'bow' && u.pos.x < gx + 0.5) {
+            // 行き先を消すだけだと砦の内で一点に固まった（act 1618・飯田の守兵25人・106秒）。木戸の内の三〜七歩西へ、横に散って控える
+            u.target = null; const at = u.k09FenceAt || (u.k09FenceAt = { x: 0, z: 0 }), sd = (u.id ?? 0) % 7;
+            u.moveTo = localPoint(rt.army, u, at, gx - 3 - (sd % 3) * 2, Math.max(-BANK + 1.5, Math.min(BANK - 1.5, (sd - 3) * 1.6))); u.aiT = Math.max(u.aiT || 0, 1);
+          }
+      }
+      // 11/18 クラウド11（今福の堤・本人が斬り合えない）：段②で本人が木戸の三十歩内まで来たら、矢野・飯田の守兵（足軽と侍）を
+      //   本人へ打って出させる（数は同じ・守将は木戸の内に残る）。縦隊は上で本人の後ろに控えるので、先に味方に討たれない。四秒ごとに寄せ直す
+      // 11/18 クラウド今福の持ち主（POSLOG）：③で西口の本人の二十五歩内に木村・後藤の兵が十五〜三十人いても、みな佐竹の組へ向かい、本人の命は百のまま討ち取り3〜5。
+      //   ③も同じく、本人に近い五人を本人へ向ける（数と強さは変えない）
+      const s3 = F.step === 3 && F.dp?.cur?.s.kind === 'hold';
+      // 11/18 07:50 クラウド今福の持ち主（act 0742：④の殿の段 53秒で本人の討ち取り0・印「砦の西の堤」に着いて六秒なにも起きない）：
+      //   ④も本人の四十五歩内の殿の近い三人を本人へ向ける（数と強さは変えない。殿は退きながら踏みとどまって打ちかかる）
+      const s4 = F.step === 4 && F.dp?.cur?.s.kind === 'fight';
+      if ((F.step === 2 || s3 || s4) && rt.player?.u?.alive && (F.sallyT = (F.sallyT || 0) - dt) <= 0) {
+        F.sallyT = s4 ? 1.5 : 4;   // ④は短い（一分ほど）ので一秒半ごと
+        const pp = rt.player.u.pos;
+        const foeRe = s4 ? /^(木村重成|後藤又兵衛)の殿$/ : s3 ? /^(木村重成の(隊|二の手)|後藤又兵衛の隊)$/ : /^((矢野正倫|飯田家貞)の守兵|矢来の番手)$/;
+        if (s3 || s4 ? true : Math.hypot(pp.x - FORT.x, pp.z - FORT.z) < 48) {   // 11/18 クラウド11：30 では砦の手前（x−30〜−52）で鉄砲に釘付けの本人へ誰も来ず、段②の百二十秒を討ち取り0で過ごした回（act 0437）
+          // 一度に寄せるのは本人に近い五人まで（十一人が一度に寄ると、遊び手は囲まれて退くだけになった＝act bot が避けで四十秒離れた）
+          const foot = [];
+          for (const g of rt.army.groups) if (g.team === 1 && foeRe.test(g.name || '') && g.count && !g.routed)
+            for (const u of g.units) if (u.alive && !u.fleeing && u.type !== 'busho' && u.type !== 'gun' && (!(s3 || s4) || Math.hypot(u.pos.x - pp.x, u.pos.z - pp.z) < (s4 ? 45 : 30))) {
+              // 11/18 15:50 クラウド今福の持ち主（act 1544：外の柵の端 (-35,-13) で本人が四十秒、柵の内の守兵の槍に柵越しに突かれ 25 ずつ四つで倒れた・cloud-31 の (-36,12) も同じ）：
+              //   まだ立つ木戸の西（柵の内）の守兵は、柵の東の本人へ向けない。向けていた者も解く（木戸が破れてから斬り合う）
+              if (nextGate && pp.x > nextGate.seg[0] && u.pos.x < nextGate.seg[0] + 0.5) { if (u.target === rt.player.u) { u.target = null; u.moveTo = null; } continue; }
+              foot.push(u);
+            }
+          foot.sort((a, b) => Math.hypot(a.pos.x - pp.x, a.pos.z - pp.z) - Math.hypot(b.pos.x - pp.x, b.pos.z - pp.z));
+          // 本人の命が半分を切ったら追いを解く（退く背中を守兵が追い続け、突かずに倒れた＝act 203秒）
+          if (rt.player.u.hp < rt.player.u.maxHp * 0.5) { for (const u of foot) if (u.target === rt.player.u) u.target = null; }
+          else for (const u of foot.slice(0, s3 || s4 ? 3 : 4)) { u.target = rt.player.u; u.moveTo = null; }
+          // 11/18 16:50 クラウド今福の持ち主（POSLOG 1644：②の百九十秒で本人の討ち取り2・味方54。本人の二十五歩内に守兵二十〜三十人、
+          //   本人へ向けた五人も寄る途中で縦隊に討たれ、残りの押し寄せに囲まれて避けるばかり）：②は本人へ向ける近い四人まで、
+          //   その四人は本人でない者からの傷を三割に（④と同じ。数と強さは変えない）
+          if (!s3 && !s4) foot.forEach((u, i) => { u.takeNonPlayer = i < 4 && u.target === rt.player.u ? 0.3 : u.takeNonPlayer === 0.3 ? null : u.takeNonPlayer; });
+          // ④（act 0747・0749・0752：本人へ向けても、寄る途中で上杉の鉄砲と佐竹に討たれ④の討ち取り0〜3）：本人へ向かう殿の三人は、本人でない者からの傷を三割に
+          //   POSLOG 08:26：本人が当たって十三秒で殿の二十一人が味方の手で討たれた（本人2）。本人の四十五歩内の殿は、本人でない者からの傷を半ばに
+          if (s4) foot.forEach((u, i) => { u.takeNonPlayer = i < 3 && u.target === rt.player.u ? 0.3 : 0.5; });
+        }
+        // 11/18 04:30 クラウド今福の持ち主（act 0422：矢野・飯田とも本人の二十五〜三十五歩先で、木戸の後七十五秒の救いにより味方が討った）：
+        //   木戸が全部倒れて三十秒、守将は四十五歩内の本人へ自ら名乗って打ちかかる（本人の命が半分ある間だけ。数と強さは同じ）
+        if (!s3 && !s4 && F.gatesDownT != null && rt.t - F.gatesDownT > 30 && rt.player.u.hp >= rt.player.u.maxHp * 0.5) {
+          for (const g of rt.army.groups) if (g.team === 1 && foeRe.test(g.name || '') && g.count)
+            for (const u of g.units) if (u.alive && u.type === 'busho' && Math.hypot(u.pos.x - pp.x, u.pos.z - pp.z) < 70) { u.target = rt.player.u; u.moveTo = null; u.takeNonPlayer = 0.15; }
+        }
+      }
+      // 11/18 05:55 クラウド今福の持ち主（POSLOG 三秒ごと：③の百秒、本人の三歩内に敵、本人を狙う五〜九人、命は百のまま討ち取り0〜2）：
+      //   佐竹の三組は西口の十二歩後ろに控えていて、本人は西口で一人きり。五人に囲まれて湿地（z9〜13）へ退き続けた。
+      //   ③は本人を狙う敵を三人までにし、本人の組の三人（梅津の手の者）を本人の背の三〜五歩に付ける（史実：佐竹の先手は砦で踏みとどまった。数は同じ）
+      // 11/18 09:20 同じ持ち主：④の殿の段も同じく三人を本人の背に付ける（殿の三十人余りに本人一人で当たり、命16まで削られて退き続けた＝POSLOG 0908）
+      if ((s3 || s4) && rt.player?.u?.alive && (F.escT = (F.escT || 0) - dt) <= 0) {
+        F.escT = 1; const pp = rt.player.u.pos;
+        const near = [];
+        for (const g of [F.satake, F.shibue, F.tomura]) if (g && !g.routed) for (const u of g.units)
+          if (u.alive && !u.isPlayer && !u.perch && !u.fleeing && u.type !== 'busho' && u.type !== 'gun' && u.type !== 'bow') near.push(u);
+        near.sort((a, b) => Math.hypot(a.pos.x - pp.x, a.pos.z - pp.z) - Math.hypot(b.pos.x - pp.x, b.pos.z - pp.z));
+        const bx = s4 ? pp.x + 3.5 : Math.max(pp.x + 3.5, KEEP.x - 8), bz = Math.max(-BANK + 1, Math.min(BANK - 1, pp.z));
+        near.slice(0, 3).forEach((u, i) => {
+          const at = u.k09EscortPoint || (u.k09EscortPoint = { x: 0, z: 0 });
+          if (Math.hypot(u.pos.x - bx, u.pos.z - bz) > 4) { u.moveTo = localPoint(rt.army, u, at, bx + (i === 1 ? 1.5 : 0), bz + (i - 1) * 2.2); u.target = null; u.aiT = Math.max(u.aiT || 0, 1.2); }
+        });
+      }
+      // 11/18 クラウド11：木戸の前で味方の塊に押され、本人が堤の南の端で速さ0のまま百秒止まった（POSLOG）。本人の三歩内の味方は北へ二歩よける
+      if (F.step === 2 && rt.player?.u?.alive && (F.yieldT = (F.yieldT || 0) - dt) <= 0) {
+        F.yieldT = 0.5;
+        const pp = rt.player.u.pos;
+        rt.army.forNear?.(pp.x, pp.z, 3, (o) => {
+          if (!o.alive || o.team !== 0 || o.isPlayer || o.isStruct || o.perch || o.atk || o.swing) return;
+          o.moveTo = { x: o.pos.x, y: o.pos.y, z: Math.min(BANK - 1, Math.max(o.pos.z, pp.z) + 2) }; o.aiT = Math.max(o.aiT || 0, 0.6);
+        });
+      }
+      // 11/18 23:15 クラウド今福の持ち主（act 2311・2210：②で柵の東の角 (-37,±13) に退いた本人が、湿地の縁と柵の端に挟まれ速さ0のまま
+      //   守兵の侍の一太刀60を二つ、続けて足軽の槍に三十秒囲まれて倒れた。命が半分を切った後も、そばの守兵は本人を狙い直していた）：
+      //   ②で本人の命が半分を切ったら、本人の四歩内の守兵（名乗った守将は除く）は狙いを解いて砦の方へ三歩引く（守兵は砦を守る兵で、堤の外れまで追わない）
+      if (F.step === 2 && rt.player?.u?.alive && rt.player.u.hp < rt.player.u.maxHp * 0.5 && (F.backT = (F.backT || 0) - dt) <= 0) {
+        F.backT = 0.4;
+        const pu = rt.player.u, pp = pu.pos;
+        rt.army.forNear?.(pp.x, pp.z, 4, (o) => {
+          if (!o.alive || o.team !== 1 || o.isStruct || o.perch || o.type === 'busho' || o.fleeing || !/^((矢野正倫|飯田家貞)の守兵|矢来の番手)$/.test(o.group?.name || '')) return;
+          if (o.target === pu) o.target = null;
+          const dx = FORT.x - o.pos.x, dz = -o.pos.z, L = Math.hypot(dx, dz) || 1;
+          o.moveTo = { x: o.pos.x + dx / L * 3, y: o.pos.y, z: o.pos.z + dz / L * 3 }; o.aiT = Math.max(o.aiT || 0, 1.2);
+        });
+      }
+      if (F.step === 2) [F.satake, F.shibue, F.tomura].forEach((g) => {
+        if (!g || !g.count || g.routed || g.k09In === 2) return;
+        // 長い縦隊は先頭が着いても平均位置が砦の外に残る。後列を待って寄せを止めず、
+        // 木戸が全て倒れ、戦える先頭が実際に口を通ったら斬り込みへ替える。
+        const entered = g.units.some((u) => canPullGate(rt, u) && !u.perch &&
+          u.pos.x < FORT.x + 8 && Math.abs(u.pos.z) < 3);
+        // 固定の寄せ先は次の柵が倒れても替わらず、袖の前で列が止まっていた。
+        // 東から残る木戸の中央へ順に寄せる。将への追従で列を湿地へ逸らさない。
+        if (nextGate || !entered) {
+          let x = nextGate ? nextGate.seg[0] + 3 : FORT.x - 6, z = 0;
+          // 11/18 クラウド今福の持ち主（K358 物差し5・斬る相手が少ない：本人の討ち取り7分で1〜4人）：
+          //   佐竹の縦隊が幅七の堤を埋めて本人より先に木戸へ着き、守兵を討ち尽くしていた。
+          //   本人が木戸の十二歩内へ来るまで（段②の初めから百二十秒まで）、縦隊は木戸の十六歩東で堤の北へ寄って控え、
+          //   南の半分を本人の通り道に空ける。本人が木戸に着いたら、いつもの通り木戸の中央へ寄せる。
+          const pp = rt.player?.u?.alive ? rt.player.u.pos : null;
+          if (F.s2T == null) F.s2T = rt.t;
+          if (nextGate && pp && rt.t - F.s2T < 120 && pp.x > nextGate.seg[0] + 12) { x = nextGate.seg[0] + 16; z = 5; }
+          // 11/18 クラウド11（cloud-26 の調べ）：控えが解けた後も縦隊が本人を追い越して木戸の守兵と将を討ち尽くした（本人2・味方139、矢野・飯田も味方）。
+          //   段②の初めから二百秒は、縦隊の寄せ先を本人の六歩東より西へは出さない（本人が先頭で木戸へ当たる。木戸の引き倒しは本人が着けば続く）
+          // 11/18 01:15 クラウド今福の持ち主：木戸が全部倒れた後（nextGate 無し）は控えが効かず、本人が砦の木戸の九歩東で守兵に囲まれている間に
+          //   縦隊が砦へ入り、守兵五十七人を三十秒で十九人まで討った（POSLOG）。砦へ入る前の縦隊は、段②の初めから百五十秒まで同じく本人の六歩東に控える
+          if (pp && rt.t - F.s2T < (nextGate ? 200 : 150) && x < pp.x + 6) { x = pp.x + 6; z = 5; }
+          g.k09In = 1; g.order = 'move'; g.keepMoveOrder = true;
+          if (!g.dest || g.dest.x !== x || g.dest.z !== z) g.dest = { x, z };
+        } else {
+          g.k09In = 2; g.keepMoveOrder = false; g.order = 'attack'; g.dest = null;
+          g.seekRange = 45; g.anchor = { x: FORT.x - 6, z: 0 };
+        }
+      });
+      // 外の三重も含め、袖の外（梅津は -33,-9）に残った兵を木戸の中央へ戻す。
+      // 木戸が倒れる前から中央へ戻す。斜めに寄せると、外の柵の袖に引っかかる。
+      // 柵の線に近すぎる兵は同じ側へ離れてから中央へ歩き、木戸が倒れてから中へ通す。
+      // 先手の三隊だけでなく、攻め寄せる本人の旗本と後備も同じ口を通す。
+      // 本陣の守りや待機中の隊には寄せ先を与えない。
+      if (F.step >= 2 && F.gate) for (const g of rt.army.groups) {
+        if (g.team !== 0 || g.routed || g.k09Withdrawn || g.order === 'retreat' || g.order === 'flee') continue;
+        if (g !== F.satake && g !== F.shibue && g !== F.tomura && g.order !== 'attack' && g.order !== 'move') continue;
+        for (const u of g.units) {
+          if (u.isPlayer || u.isStruct || u.perch) continue;
+          let gate = null;
+          for (let i = (F.outer?.length || 0) - 1; i >= -1; i--) {
+            const st = i < 0 ? F.gate : F.outer[i];
+            if (u.pos.x >= st.seg[0] - 3 && u.pos.x <= st.seg[0] + 14) { gate = st; break; }
+          }
+          if (!gate) { u.k09GatePass = false; continue; }
+          const x = gate.seg[0];
+          if (!canPullGate(rt, u) || u.atk || u.swing) continue;
+          // 木戸の通り幅へ戻す。堤の外だけを対象にすると、袖の手前（渋江は -45,8）で止まる。
+          // 口を通った直後の西側三歩も対象にする。袖の西（戸村は -67,-13）で止めない。
+          if (!u.k09GatePass && !(Math.abs(u.pos.z) > 2)) continue;
+          // すぐ届く相手への応戦を優先し、柵越しの相手だけは追わない。
+          if (u.target?.alive && u.target.pos && Math.hypot(u.target.pos.x - u.pos.x, u.target.pos.z - u.pos.z) < u.reach + 1 &&
+            !rt.army.wallBetween(u.pos, u.team, u.target.pos, false)) continue;
+          u.k09GatePass = true;
+          const at = u.k09GatePoint || (u.k09GatePoint = { x: 0, z: 0 });
+          // 柵と同じ東西位置（報告の渋江の侍は -36,10）で中央を指すと、
+          // 残る外側の柵に沿って歩こうとして当たりに止められる。先に同じ側へ三歩離す。
+          const outside = Math.abs(u.pos.z) > 2;
+          const back = outside && Math.abs(u.pos.x - x) < 2.5;
+          const tx = back ? x + (u.pos.x >= x ? 3 : -3) : outside ? u.pos.x : gate.alive ? x + (u.pos.x >= x ? 4 : -4) : x - 4;
+          u.moveTo = localPoint(rt.army, u, at, tx, back ? u.pos.z : 0);
+          u.target = null; u.watch = null;
+          // 次の道の確認まで、共通の隊列への復帰で行き先を上書きさせない。
+          u.aiT = Math.max(u.aiT, 0.6);
+        }
+      }
+      // 豊臣方の退きは堤を西へ、仮橋を渡って片原町（城の方）へ（崩れた木村・後藤の隊が佐竹の陣の東へ逃げ抜けていた。二1・二2）
+      for (const g of rt.army.groups) if (g.team === 1 && !g.fleePath && !/舟|櫓/.test(g.name || '')) g.fleePath = [[KARIBASHI, 0], [KARIBASHI - 70, 0]];
+      // ③④：木村・後藤の隊は砦の西に留まらず、堤を寄せて佐竹の列と押し合う（砦の中で九十秒に三十五歩しか寄せず、
+      //   ③の間ずっと四十歩を隔てて睨み合っていた。九2）。列の手前まで歩かせ、着いたら斬りかかる
+      if (F.step === 3 || F.step === 4) for (const g of rt.army.groups) {
+        if (g.team !== 1 || g.routed || !g.count || !/^(木村重成|後藤又兵衛)の(隊|二の手|殿)$/.test(g.name || '')) continue;
+        this.counterFront(rt, g);
+        // 西へ突出した味方一人を追って持ち場から離れない。長い縦隊は平均位置でなく先頭の到着で斬り合いへ移る。
+        const front = KEEP.x - 2;
+        const arrived = g.units.some((u) => canPullGate(rt, u) && !u.perch && Math.abs(u.pos.z) < 4 && u.pos.x >= front - 7);
+        if (!g.k09AtFront && !arrived) {
+          g.order = 'move'; g.keepMoveOrder = true;
+          const at = g.dest || (g.dest = { x: front, z: 0 }); at.x = front; at.z = 0;
+        } else if (!g.k09AtFront) {
+          g.k09AtFront = true; g.keepMoveOrder = false; g.dest = null;
+          g.order = 'attack'; g.seekRange = 30; g.anchor.x = front; g.anchor.z = 0;
+        }
+        // 11/18 クラウド今福の持ち主（act 1626）：先頭が着いて斬り合いへ移ると、縦隊の尻の足軽が仮橋の手前 (-153,-1) で
+        //   狙う敵が三十歩内に無いまま立ち尽くした。三十歩より後ろで手の空いた兵は、列の手前まで歩かせる
+        if (g.k09AtFront) for (const u of g.units) {
+          if (!canPullGate(rt, u) || u.perch || u.atk || u.swing || u.type === 'busho') continue;
+          if (u.pos.x > front - 30 || Math.abs(u.pos.z) > 4 || (u.target?.alive && u.target.pos)) continue;
+          const at = u.k09RearPoint || (u.k09RearPoint = { x: 0, z: 0 });
+          u.moveTo = localPoint(rt.army, u, at, front - 8, 0);
+          u.watch = null; u.aiT = Math.max(u.aiT, 0.6);
+        }
+        // 11/18 22:10 クラウド今福の持ち主（act 2203 の244秒）：先頭が着く前（move の間）にも、縦隊の尻の足軽一人が (-144,1) で
+        //   行き先 (-102,1) を持ったまま二十秒動かなかった。三十歩より後ろで手の空いた兵が八秒ほとんど動かなければ、列の手前へ歩かせ直す
+        if (!g.k09AtFront) for (const u of g.units) {
+          if (!canPullGate(rt, u) || u.perch || u.atk || u.swing || u.type === 'busho' || (u.target?.alive && u.target.pos)) { u.k09StillT = 0; continue; }
+          if (u.pos.x > front - 30 || Math.abs(u.pos.z) > 4) { u.k09StillT = 0; continue; }
+          const lp = u.k09LastP || (u.k09LastP = { x: u.pos.x, z: u.pos.z });
+          if (Math.hypot(u.pos.x - lp.x, u.pos.z - lp.z) > 0.6) { lp.x = u.pos.x; lp.z = u.pos.z; u.k09StillT = 0; continue; }
+          u.k09StillT = (u.k09StillT || 0) + dt;
+          if (u.k09StillT < 8) continue;
+          u.k09StillT = 0;
+          const at = u.k09RearPoint || (u.k09RearPoint = { x: 0, z: 0 });
+          u.moveTo = localPoint(rt.army, u, at, Math.min(front - 8, u.pos.x + 20), 0);
+          u.watch = null; u.aiT = Math.max(u.aiT, 2);
+        }
+      }
+      // 西へ抜けた一人の位置だけでは、遠く離れた木戸まで縄を引いた事にしない。
+      // 木戸ごとに、実際に取り付ける足場にいる戦闘中の味方を数える。後送中・離脱済みの兵は縄を引けない。
+      for (let i = -1; i < (F.outer?.length || 0); i++) {
+        const st = i < 0 ? F.gate : F.outer[i];
+        if (!st || !st.alive) continue;
+        st.allyPull = false;
+        if ((F.step || 0) < 2) continue;
+        for (const u of rt.army.units) if (u.team === 0 && !u.isPlayer && !u.isStruct && !u.perch && Math.abs(u.pos.z) < 4 &&
+          u.pos.x - st.seg[0] > -6 && u.pos.x - st.seg[0] < 5 && canReachGate(rt, u, st)) { st.allyPull = u; break; }
+      }
+    }
+    // 一番東に残る木戸だけを引く（一つずつ。二つ同時に倒れて同じ下知が重ならない）
+    // 毎コマ配列を作らず、東の外柵から砦の木戸まで順に見る。
+    const outerN = F.outer ? F.outer.length : 0;
+    for (let i = outerN - 1; i >= ((F.step || 0) >= 2 ? -1 : 0); i--) {
+      const st = i >= 0 ? F.outer[i] : F.gate;
+      if (!st || !st.alive || !p) continue;
+      // 袖の柵や次の木戸の前からは引けない。後送・離脱中の本人も縄を引けない。
+      const near =
+        p.z > Math.min(st.seg[1], st.seg[3]) && p.z < Math.max(st.seg[1], st.seg[3]) &&
+        p.x - st.seg[0] > -6 && p.x - st.seg[0] < 6 && canReachGate(rt, rt.player.u, st);
+      // 半秒ごとの探索後に討たれたり離れたりした兵は、縄を引き続けた事にしない。
+      const a = st.allyPull;
+      const ally = a && Math.abs(a.pos.z) < 4 && a.pos.x - st.seg[0] > -6 && a.pos.x - st.seg[0] < 5 && canReachGate(rt, a, st);
+      // 縄を掛けて引くのに三秒半（前は二秒で、四重の柵が十三秒で全部倒れた。史料は斬り込みを受けつつ一つずつ破った）。味方の組だけなら八秒ほど
+      st.pullT = near ? (st.pullT || 0) + dt : ally ? (st.pullT || 0) + dt * 0.44 : 0;
+      if (st.pullT > 3.5) {
+        this.pull(rt, st);
+        sfx('gateBreakWood', 0.8);
+        rt.say('梅津憲忠', st === F.gate ? '砦の木戸が倒れた！　中へ斬り込め！' : '木戸が倒れた！　次の柵じゃ、続け！', 2.5);
+      }
+      break;
+    }
+    if (F.begun && rt.t - F.t0 > LIMIT) this.lose(rt, '刻限までに今福を保てなかった');
+  },
+
+  // 将への有効打は旗本の割り込みと後退につなげる。将だけを何度も斬る戦いにはしない。
+  // 西口の袖で止まった兵も口へ歩かせ、将が退いた後はその兵が前線に立つ。
+  counterFront(rt, g) {
+    const west = FORT.x - 14;
+    for (const u of g.units) {
+      if (!canPullGate(rt, u) || u.perch) continue;
+      if (u.type === 'busho' && u.mustLive && u.invuln && u.heroDmg > 0 && u.hp <= u.maxHp * 0.65) {
+        rt.army.generalWounded(u, rt.player.u);
+        // 共通の後退先は打った方向で決まる。今福は深みに向かわず、西の仮橋の手前へ退く。
+        if (u.woundOut) { u.woundOut.to.x = Math.min(u.pos.x - 18, west - 8); u.woundOut.to.z = 0; }
+        continue;
+      }
+      // 殿の射手も袖の外から口へ戻す。射手だけを除くと、柵の裏で最後まで残る。
+      if (u.atk || u.swing) continue;
+      if (u.pos.x < west - 18 || u.pos.x > west + 4 || Math.abs(u.pos.z) <= 4) continue;
+      if (u.target?.alive && u.target.pos && Math.hypot(u.target.pos.x - u.pos.x, u.target.pos.z - u.pos.z) < u.reach + 1 &&
+        !rt.army.wallBetween(u.pos, u.team, u.target.pos, false)) continue;
+      const at = u.k09WestPoint || (u.k09WestPoint = { x: 0, z: 0 });
+      // 柵と並んだ所では先に同じ側へ離れ、その後に中央へ戻る。柵をすり抜けさせない。
+      const back = Math.abs(u.pos.x - west) < 3;
+      u.moveTo = localPoint(rt.army, u, at, back ? west + (u.pos.x >= west ? 4 : -4) : u.pos.x, back ? u.pos.z : 0);
+      u.target = null; u.watch = null; u.aiT = Math.max(u.aiT, 0.6);
+    }
+  },
+
+  onKill(rt, v, by) {
+    const F = rt.flags;
+    if (v.team === 1) F.ek++; else F.ak++;
+    // 屍に寄る烏（KIT.carrion）は置かない：遠目に黒い多面体の岩が空に浮いて見えた（八1）
+    if (F.quietKill) return;
+    if (v.type === 'busho' && v.team === 1 && /矢野正倫|飯田家貞/.test(v.name)) {
+      rt.say('足軽', `${v.name}、討ち取ったり！`, 3);
+      // 味方が討った守将を、本人の手柄にはしない。討死の知らせと両軍の減りは残す。
+      if (by && by.isPlayer) rt.award((t) => { t.special = { label: `${v.name}を討った`, pts: 30 }; }, `${v.name}を討った`);
+    } else if (v.type === 'busho' && v.team === 1) {
+      rt.say('足軽', `${v.name}が深手じゃ！　豊臣の者が担いで引いていく！`, 3);
+      if (v.group) { v.group.noRout = false; v.group.morale -= 40; }
+      if (by && by.isPlayer) rt.award((t) => { t.special = { label: `${v.name}に深手を負わせた`, pts: 30 }; }, `${v.name}に深手を負わせた`);
+    }
+  },
+  onRout(rt, g) {
+    if (g.team === 1 && g.name) rt.say('足軽', `${g.name}が退いていく！`, 2.5);
+  },
+};
+
+// 両軍の総勢（史実）：佐竹勢は千五百ほど、砦の守兵は六百ほど。重成・又兵衛の反撃で豊臣方は三千六百ほど（推定）、上杉の加勢で味方は三千ほどに
+k09_imafuku.force = (rt) => {
+  const F = rt.flags, st = F.step || 0;
+  const a0 = 1500 + (F.uesugi ? 1500 : 0), b0 = st >= 3 ? 3600 : 600;
+  return { a: Math.max(0, Math.round(a0 - (F.ak || 0) * 8)), a0, b: Math.max(0, b0 - (F.ek || 0) * 6), b0 };
+};
+k09_imafuku.sides = { a: { name: '佐竹勢', mon: 'satake' }, b: { name: '豊臣方', mon: 'toyotomi' } };
+k09_imafuku.date = () => '慶長十九年（1614）十一月二十六日　夜明け前・薄霧';
+k09_imafuku.canSkip = (rt) => (rt.phase === 'brief' && rt.t > 3 ? '堤へ寄せる' : '');
+k09_imafuku.skip = (rt) => { for (const tm of rt.timers) tm.t = Math.min(tm.t, 0.2); };
+k09_imafuku.history = '慶長十九年（1614）十一月二十六日、大坂城の北東、今福と鴫野で戦いがあった。今福では、堤の上の細い道が唯一の通り道で、両側は湿地と水だった。夜明け前、佐竹義宣の隊が堤の陰を寄せて豊臣方の砦の四重の柵を破って奪い、守将の矢野正倫・飯田家貞は討死した。木村重成の隊が反撃し、秀頼の命で後藤又兵衛の隊も堤と舟で加わると、佐竹勢は押し戻され、家老の渋江政光が撃たれて討死し先手は崩れた。佐竹義宣が助けを求めると、鴫野にいた上杉景勝の軍と堀尾忠晴・榊原康勝の隊が大和川の中州から撃ちかけ、又兵衛も上杉の弾に傷を負い、豊臣方は退いた。\n堤の位置と幅は推定で復元した。戦いの経過の細部には諸説がある。';
+k09_imafuku.bushou = [{ name: '木村重成', g: /木村重成/ }, { name: '後藤又兵衛', g: /後藤又兵衛/ }];
+// 素直な遊び手：柵の線の東で木戸（堤の真ん中）から外れていれば、まず木戸の前へ寄る（柵は川の深みまで延び、端を回れない）
+const baseBot = makeBot({ x: START.x, z: START.z });
+k09_imafuku.botBrain = (b, inp, tools) => {
+  const u = b.player && b.player.u, p = u && u.pos;
+  if (p && u.alive && (b.flags.step || 0) >= 2 && !b.flags.ending) {
+    // 倒した木戸の跡で中央へ戻し続けると、守将を追えず刻限切れになる。
+    // まだ立つ木戸だけを迂回の対象にする。毎コマ配列は作らない。
+    const F = b.flags, n = F.outer ? F.outer.length : 0;
+    for (let i = n - 1; i >= -1; i--) {
+      const st = i >= 0 ? F.outer[i] : F.gate;
+      if (!st || !st.alive) continue;
+      const fx = st.seg[0];
+      // ②で柵の奥の守兵を追うと、袖に当たり続けて木戸へ戻れない（全戦の通し）。
+      // 東から残る木戸へ順に寄り、縄で倒すまで前に留まる。倒した木戸へは戻らない。
+      if (F.step === 2 && p.x > fx - 0.5) {
+        inp.quickCmd = null;
+        inp.k.delete('KeyS'); inp.k.delete('KeyA'); inp.k.delete('KeyD');
+        inp.axis = null;
+        tools.goTo(b.player, inp, fx + 4, 0, 1.2);
+        return;
+      }
+      if (p.x > fx - 0.5 && p.x < fx + 10 && Math.abs(p.z) > 2.6) { inp.quickCmd = null; tools.goTo(b.player, inp, Math.abs(p.z) > 5 ? fx + 4 : fx - 3, 0, 1.2); return; }
+    }
+  }
+  k09GoTo = tools.goTo;
+  return baseBot(b, inp, tools);
+};
+// 11/18 クラウド今福の持ち主（K358・POSLOG 一秒ごと）：③が始まった時に砦の東の堤の脇（-57,-7）にいると、act bot は西口へ向かわず
+//   東へ八十歩（+21,12）まで歩き去り、百五十秒そこで立ったまま木村の寄せと一度も当たらなかった（本人の討ち取り0〜1・突き0〜12）。
+//   性格の癖（空馬を追う・口笛）が戦の頭の後で足を上書きするので、最後に効く botSteer で、砦の外にいる間は堤の真ん中へ寄ってから西口へ戻す
+let k09GoTo = null;
+// 11/18 05:55 クラウド今福の持ち主（POSLOG 三秒ごと）：③の百秒、本人は命百のまま西口で五〜九人に狙われ、act の「囲まれたら退く」で湿地へ下がり続け討ち取り0〜2。
+//   ③の持ち場（奪った砦を守る）の間は、ほかの砦の戦と同じく命三割半まで退かずに斬り返す（botDefendsFort）
+let k09Live = null;
+Object.defineProperty(k09_imafuku, 'botDefendsFort', { configurable: true, get() {
+  const rt = k09Live, u = rt?.player?.u;
+  // ④の殿の段（堤の上で殿を受け止める）も同じ（11/18 09:20）
+  if (!rt || rt.def !== k09_imafuku || rt.over || !u || !u.alive || !((rt.flags.step === 3 && rt.flags.dp?.cur?.s.kind === 'hold') || (rt.flags.step === 4 && rt.flags.dp?.cur?.s.kind === 'fight'))) return false;
+  return u.hp > u.maxHp * 0.35;
+} });
+k09_imafuku.botSteer = (b, inp) => {
+  const F = b.flags, u = b.player?.u, p = u?.pos;
+  k09Live = b;
+  // 11/18 POSLOG：④の殿の段で act bot が東へ百歩（+18）歩き去り、殿と一度も当たらなかった。④で砦より東へ出たら西の堤（殿の所）へ戻る
+  if (k09GoTo && p && u.alive && !F.ending && F.step === 4 && F.dp?.cur?.s.kind === 'fight' && p.x > FORT.x + 12 && !b.botSurviving && !b.player.catching) {
+    inp.quickCmd = null; inp.axis = null; inp.k.delete('KeyS'); inp.k.delete('KeyA'); inp.k.delete('KeyD');
+    k09GoTo(b.player, inp, FORT.x - 20, 0, 1.2); return;
+  }
+  // 11/18 POSLOG：④で殿が西の堤（-138 辺り）に踏みとどまる間、本人は砦の西口（-80〜-95）に立ったまま二十五歩内に敵0で段が済んだ。殿が遠ければ一番近い殿へ堤の上を寄る
+  if (k09GoTo && p && u.alive && !F.ending && F.step === 4 && F.dp?.cur?.s.kind === 'fight' && !b.botSurviving && !b.player.catching) {
+    let best = null, bd = 1e9;
+    for (const g of b.army.groups) if (g.team === 1 && /の殿$/.test(g.name || '') && !g.routed) for (const o of g.units) {
+      if (!o.alive || o.fleeing || Math.abs(o.pos.z) > BANK) continue;
+      const d = Math.hypot(o.pos.x - p.x, o.pos.z - p.z); if (d < bd) { bd = d; best = o; }
+    }
+    if (best && bd > 25) { inp.quickCmd = null; inp.axis = null; inp.k.delete('KeyS'); inp.k.delete('KeyA'); inp.k.delete('KeyD'); k09GoTo(b.player, inp, best.pos.x + 4, 0, 1.2); return; }
+  }
+  if (!k09GoTo || !p || !u.alive || F.ending || F.step !== 3 || F.dp?.cur?.s.kind !== 'hold' || inKeep(p.x, p.z) && p.x <= KEEP.x + 4 || p.x <= FORT.x && Math.abs(p.z) <= BANK) return;   // 砦の東の端（-66）に立つと西口の押し合いから二十歩離れたままだった（11/18 POSLOG）。西口の十歩より東なら西口へ寄る
+  if (b.botSurviving || b.flags.dpBack || b.player.catching) return;
+  // 斬り合いの最中（四歩内に敵）は足を奪わない（砦の真ん中 -78 で、西口へ寄る足が斬り合いを止めていた）
+  let foeNear = false; b.army.forNear?.(p.x, p.z, 4, (o) => { if (o.alive && o.team === 1 && !o.isStruct && !o.fleeing) foeNear = true; });
+  if (foeNear && Math.abs(p.z) <= BANK) return;
+  inp.quickCmd = null; inp.axis = null; inp.leftPressed = false;
+  inp.k.delete('KeyS'); inp.k.delete('KeyA'); inp.k.delete('KeyD'); inp.e.delete('KeyR');
+  // 11/18 POSLOG：西の柵の端の湿地（-93, z14）に立ったまま、二十五歩内の木村・後藤の六十人と当たらなかった。砦の西の堤の外なら、その場の堤の真ん中へ戻る
+  if (p.x <= FORT.x) { k09GoTo(b.player, inp, Math.max(p.x, KEEP.x - 10), 0, 1.2); return; }
+  if (Math.abs(p.z) > 2.5 && !inKeep(p.x, p.z)) k09GoTo(b.player, inp, Math.max(p.x - 3, FORT.x + 16), 0, 1.2);
+  else k09GoTo(b.player, inp, KEEP.x, 0, 1.2);
+};
+
+// 11/18 クラウド K358（874×402 の写真）：②で守兵を討ち尽くすと右上が「36/36」で満ちたのに、木戸が残って段が進まず、何をすればよいか分からなかった。
+//   ②の数は守兵と四つの木戸を合わせて数える（木戸を倒すまで満ちない）
+KILLS.k09_imafuku = [undefined, (rt) => {
+  const C = rt.flags.dp?.on && rt.flags.dp.cur, F = rt.flags;
+  if (!C || !C.groups?.length || C.later?.length) return null;
+  let down = 0, left = 0;
+  for (const g of C.groups) {
+    if (!g || g.count <= 2 || g.routed || g.units.every((u) => !u.alive || u.fleeing)) { down += g ? g.units.length : 0; continue; }
+    for (const u of g.units) if (u.alive && !u.dying && !u.evacuatedWound) left++; else down++;
+  }
+  for (const st of [F.gate, ...(F.outer || [])]) if (st) { if (st.alive) left++; else down++; }
+  return [down, down + left];
+}];
+setStages('k09_imafuku', [['堤を西へ進み、砦の前へ', 0], ['四重の柵を破り今福の砦を奪う', 2], ['奪った砦で木村重成の反撃を止める', 3], ['砦の西の堤で木村・後藤の殿を追い払う', 4]]);
+k09_imafuku.holdUnstack = true; k09_imafuku.stackAllAttack = true;   // 11/18 夜50-18：act bot 341秒 鯰江川べりの鉄砲衆7人が (-78,-46) に重なる★★＝共通の渦の散らしを使う（比叡山・稲葉山と同じ）
+
+export { k09_imafuku };
+export default k09_imafuku;
