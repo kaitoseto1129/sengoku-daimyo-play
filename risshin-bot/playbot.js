@@ -2039,7 +2039,8 @@ function watchStep(b, dt, c) {
     }
   }
   // ---- 中学生：次に何をすればいいか分からない時間 ----
-  if (per.key === 'chu' && !c.wander) {
+  // 11/19 クラウド kaito2（上田 345秒で達成の後、締めの場面の369秒に「迷い」と出た）：勝ち負けが決まった後の締めの間は数えない
+  if (per.key === 'chu' && !c.wander && !(b.over || b.ended || b.flags?.ending)) {
     const foe = b.army.nearestEnemy(u, 25);
     const objKey = b.objectives.map((o) => o.text + o.state + (o.progress || '')).join('|');
     if (objKey !== c.objKey) { c.objKey = objKey; c.objT = t; }
