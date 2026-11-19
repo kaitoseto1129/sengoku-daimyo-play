@@ -2048,7 +2048,11 @@ function watchStep(b, dt, c) {
     let mk = b.markers.find((m) => !m.red) || b.markers[0];
     if (!mk) { try { const q = b.def.missionPin?.(b); if (q && Number.isFinite(q.x)) mk = { pos: { x: q.x, z: q.z } }; } catch (e) { /* 戦のピンが無い */ } }
     const md = mk ? (() => { const q = typeof mk.pos === 'function' ? mk.pos() : mk.pos; return q ? dist(q, u.pos) : null; })() : null;
-    const lost = !foe && t - c.objT > 30 && (!mk || (md != null && md > 45));
+    // 11/19 クラウド kaito2（関ヶ原 1688秒：一の手が崩れて印が二の手の74m先へ移り、そこへ歩いて向かう間も「迷い」と数えた）：
+    //   印へ近づいている間（一秒で半歩より多く詰めた）と、命が減って味方の方へ下がっている間は、迷っているとは数えない
+    const closing = md != null && c.lostMd != null && md < c.lostMd - 0.5;
+    c.lostMd = md;
+    const lost = !foe && !closing && !c.fall && t - c.objT > 30 && (!mk || (md != null && md > 45));
     c.lostRun = lost ? (c.lostRun || 0) + 1 : 0;
     if (c.lostRun === 30) c.add(`lost:${c.bid}:${b.phase || ''}`, '次に何をすればいいか分からない時間が続いた', `${Math.round(t)}秒ごろ、段「${b.phase || '―'}」。任務「${(b.objectives.find((o) => !o.state) || {}).text || '―'}」のまま30秒、${mk ? `印は${Math.round(md)}m先` : '印も無い'}、近くに敵もいない`, 2, { cat: '使いづらい', shot: true, fix: '印を近くに出す・台詞で次の行き先を言う・進み具合を見せる' });
     c.lostSum = (c.lostSum || 0) + (lost ? 1 : 0);
