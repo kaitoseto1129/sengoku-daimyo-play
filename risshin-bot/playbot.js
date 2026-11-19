@@ -2372,6 +2372,11 @@ async function campaignTown(game, c, aud, spec) {
 async function playPersona(game, spec, aud, c) {
   const per = c.per, name = spec.name;
   c.battle = name; c.bid = name; c.where = name; c.arr = null;   // 行き先の到着（K175）は戦ごとに数え直す
+  // 11/19 クラウド44（司令塔の頼み・忍の二戦目で (-176,176) へ500秒・山中の二戦目も討0）：続けて遊ぶ二戦目で、前の戦の「戦の時刻」で数えた状態が残っていた。
+  //   迷い歩き（wander・vwander）・見回し（gaze）・下がり（fall）の終わりの時刻は前の戦の末（数百秒）のまま二戦目では t がまだ小さく、
+  //   向きと歩きが何百秒も前の戦のまま固まる。戦の頭で時刻を持つ状態を全部捨てる。
+  c.wander = null; c.vwander = null; c.gaze = null; c.gazeT = 0; c.gazeN = 0; c.fall = null; c.fallCd = 0;
+  c.mountT = 0; c.rangeT = 0; c.cmdT = 0; c.sObj = null; c.sObjT = 0; c.objKey = null; c.objT = 0; c.lostRun = 0; c.strikeHp = null; c.strikeStuck = null; c.gbCheck = null; c.cmdSeen = null;
   const rep = c.curRep = { battle: name, key: spec.id, kind: spec.kind, scn: spec.scn || '', errors: [], stuck: [], waits: [], flow: [], named: [], time: 0, merit: 0, main: false, squad: '—', down: false, lines: '', loadMs: 0, storyLen: 0, kills: 0, hits: 0, attacks: 0, shots: [] };
   // ---- 始める（戦の前の札 → 押して出陣） ----
   let tClick = performance.now();
@@ -2730,7 +2735,7 @@ async function playPersona(game, spec, aud, c) {
   rep.hurt = Object.entries(hurt).filter(([, v]) => v >= 0.5).sort((a, z) => z[1] - a[1]).map(([k, v]) => `${k} ${Math.round(v)}`).join('・');
   if (b.stats?.parries) rep.hurt += `${rep.hurt ? '・' : ''}受け流し ${b.stats.parries}回`;
   if (rep.down && hitLog.length) rep.hurt += `｜段 ${b.phase || '―'}・最後の傷 ${hitLog.join(' ')}｜誰 ${Object.entries(hurtBy).sort((x, y) => y[1] - x[1]).slice(0, 3).map(([n, v]) => n + Math.round(v)).join(' ')}｜跡 ${(b._trace || []).join(' ')}`;
-  else if (!rep.main) rep.hurt += `｜段 ${b.phase || '―'}｜訳 ${b.result?.failureReason || b.result?.outcomeReason || '―'}｜跡 ${(b._trace || []).join(' ')}`;   // 倒れずに任務を落とした時も、最後の四十秒の居場所を残す
+  else if (!rep.main) rep.hurt += `｜段 ${b.phase || '―'}｜訳 ${b.result?.failureReason || b.result?.outcomeReason || '―'}${b.flags?.kgFailWhy ? `（段 ${b.flags.kgFailWhy}）` : ''}｜跡 ${(b._trace || []).join(' ')}`;   // 倒れずに任務を落とした時も、最後の四十秒の居場所を残す
   rep.lines = b.tracker.lines().map((l) => `${l.label} ${l.pts > 0 ? '+' : ''}${l.pts}`).join('、');
   rep.attacks = rep.attacks || 0;
   rep.cmds = c.cmdN || 0; c.cmdN = 0;
