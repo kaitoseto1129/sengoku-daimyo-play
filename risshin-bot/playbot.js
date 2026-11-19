@@ -1670,7 +1670,9 @@ const HABIT = {
         Math.hypot(u.pos.x - post.x, u.pos.z - post.z) < 7 &&
         Math.hypot(p.takeO.h.position.x - post.x, p.takeO.h.position.z - post.z) < 7;
       const outside = b.flags.pursuit && b.flags.fenceRoute && u.pos.x >= b.flags.fenceRoute.frontX - 0.5;
-      if (p.catching || (!p.mounted && p.mountT <= 0 && (atPost || outside) && !b.army.nearestEnemy(u, 6) && b.def.botMountAllowed?.(b) !== false)) {
+      // 11/19 クラウド設楽原の持ち主：追い討ちで見えた空馬を87回取り損ね、馬を追って退き口から三百m 離れ1066秒かかった（act bot 0532）。
+      //   ほかの戦と同じく六回乗れなかったら馬をあきらめ、戦の頭の道筋へ戻る
+      if (p.catching || (!p.mounted && p.mountT <= 0 && (c.mountTry || 0) < 6 && (atPost || outside) && !b.army.nearestEnemy(u, 6) && b.def.botMountAllowed?.(b) !== false)) {
         if (p.catching || (p.takeO && t - (c.mountT || -9) > 4)) {
           if (!p.catching) { inp.e.add('KeyR'); c.mountT = t; c.mountTry = (c.mountTry || 0) + 1; }
           inp.k.delete('KeyW'); inp.k.delete('KeyS'); inp.k.delete('KeyA'); inp.k.delete('KeyD'); inp.k.delete('KeyE');
@@ -2696,7 +2698,10 @@ async function playPersona(game, spec, aud, c) {
   { const tg = b.tracker.tegara || { zako: 0, named: 0, boss: false }; const sg = stageNow(b); (rep.stg ||= []).push(`終 段${sg ? sg.i + 1 + '/' + sg.n : '—'}${rep.stgLast ? `（この段で討${rep.kills - (rep.stgK || 0)}）` : ''}・手柄 雑${tg.zako}・名${tg.named}・大将${tg.boss ? 1 : 0}＝${tg.zako + tg.named * 3 + (tg.boss || b.tracker.main === true ? 20 : 0)}点`); }
   rep.squad = b.squad.length ? `${b.squad.filter((s) => s.alive).length}/${b.squad.length}` : '—';
   rep.down = !!(b.result && b.result.down) || !P.alive;
-  rep.hurt = Object.entries(hurt).sort((a, z) => z[1] - a[1]).map(([k, v]) => `${k} ${Math.round(v)}`).join('・');
+  // 11/19 クラウド（田野の持ち主）：受け流しで0になった元も「侍 0」と並び、傷を数え損ねたように見えた。0の元は出さず、受け流しの数を添える
+  const hurtSum = Object.values(hurt).reduce((a, v) => a + v, 0);
+  rep.hurt = Object.entries(hurt).filter(([, v]) => v >= 0.5).sort((a, z) => z[1] - a[1]).map(([k, v]) => `${k} ${Math.round(v)}`).join('・');
+  if (b.stats?.parries) rep.hurt += `${rep.hurt ? '・' : ''}受け流し ${b.stats.parries}回`;
   if (rep.down && hitLog.length) rep.hurt += `｜段 ${b.phase || '―'}・最後の傷 ${hitLog.join(' ')}｜誰 ${Object.entries(hurtBy).sort((x, y) => y[1] - x[1]).slice(0, 3).map(([n, v]) => n + Math.round(v)).join(' ')}｜跡 ${(b._trace || []).join(' ')}`;
   else if (!rep.main) rep.hurt += `｜段 ${b.phase || '―'}｜訳 ${b.result?.failureReason || b.result?.outcomeReason || '―'}｜跡 ${(b._trace || []).join(' ')}`;   // 倒れずに任務を落とした時も、最後の四十秒の居場所を残す
   rep.lines = b.tracker.lines().map((l) => `${l.label} ${l.pts > 0 ? '+' : ''}${l.pts}`).join('、');
@@ -2714,7 +2719,7 @@ async function playPersona(game, spec, aud, c) {
     if (combatSwings > 30 && (rep.hitSwings || 0) < combatSwings * 0.2) c.add(`act-miss:${spec.id}`, '突いても、なかなか当たらない', `${rep.attacks}回振り、門・柵に当たった振り${rep.structSwings || 0}回、兵に当たった振り${rep.hitSwings || 0}回`, 2, { cat: '使いづらい', fix: '狙いの補助と、敵まで通れる道・間合いを確かめる' });
     // まだ戦っている相手や、味方が討った相手への突きを討ち取りの回数に混ぜない。
     if (rep.finishedFoes >= 3 && rep.finishedHits / rep.finishedFoes > 6) c.add(`act-tanky:${spec.id}`, '一人倒すのに何度も突かされる', `平均 ${(rep.finishedHits / rep.finishedFoes).toFixed(1)}回で一人`, 1, { cat: '使いづらい', fix: '足軽は2〜3突きで倒れるくらいに' });
-    if (!rep.down && rep.kills >= 15 && !(rep.hurt)) c.add(`act-easy:${spec.id}`, '歯ごたえがない（無傷で大勢倒せる）', `${rep.kills}人を無傷で討った`, 1, { cat: '使いづらい', fix: '敵の打ち返し・囲み方を強める' });
+    if (!rep.down && rep.kills >= 15 && !(hurtSum >= 0.5)) c.add(`act-easy:${spec.id}`, '歯ごたえがない（無傷で大勢倒せる）', `${rep.kills}人を無傷で討った`, 1, { cat: '使いづらい', fix: '敵の打ち返し・囲み方を強める' });
     if (rep.down && rep.time < 120) c.add(`act-hard:${spec.id}`, '始まってすぐやられる（難しすぎ）', `${rep.time}秒で倒れた（${rep.hurt || '―'}）`, 2, { cat: '使いづらい' });
     if (rep.hits > 10 && !c.feel) c.add('act-nofeel', '当たった手応え（止め・揺れ）が感じられない', `${rep.hits}回当てて、ヒットストップが一度も無い`, 2, { cat: '使いづらい', fix: 'battle.js の onPlayerLanded の hitstop を確かめる' });
     if (c.mountTry && !c.rode) c.add(`act-mountfail:${spec.id}`, '馬に乗ろうとしても乗れなかった', `${c.mountTry}回試した`, 2, { cat: '使いづらい', fix: '乗れない時は理由を字幕で' });
