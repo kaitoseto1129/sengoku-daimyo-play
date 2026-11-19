@@ -1,5 +1,5 @@
 <meta charset="utf-8">
-<!-- GitHub Pages 版（tools/mkpages.mjs が v202611182229 として写した） -->
+<!-- GitHub Pages 版（tools/mkpages.mjs が v202611182334 として写した） -->
 <title>戦国立身3D　足軽から天下へ、戦国の合戦アクション</title>
 <meta name="description" content="足軽から天下を目指す、戦国の三人称アクション。桶狭間から本能寺まで、織田信長の三十の合戦を、手に汗握る軍勢の中で戦い抜く。スマホでもパソコンでも遊べます。">
 <link rel="canonical" href="https://kaitoseto1129.github.io/sengoku-daimyo-play/risshin/">
@@ -69,7 +69,7 @@
 })();
 </script>
 <!-- /Meta Pixel -->
-<link rel="icon" type="image/png" sizes="32x32" href="./v202611182229/assets/icon/icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="./v202611182229/assets/icon/icon-16.png"><link rel="icon" type="image/png" sizes="192x192" href="./v202611182229/assets/icon/icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="./v202611182229/assets/icon/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="./v202611182334/assets/icon/icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="./v202611182334/assets/icon/icon-16.png"><link rel="icon" type="image/png" sizes="192x192" href="./v202611182334/assets/icon/icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="./v202611182334/assets/icon/apple-touch-icon.png">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <style>
 :root {
@@ -1093,7 +1093,9 @@ body.mincho, body.mincho button, body.mincho .note { font-family: var(--display)
   #screen.jp-open { overflow: hidden; }
   .jp { position: absolute; grid-template-columns: 1fr; grid-template-rows: 1fr; }
   .jp-side { position: absolute; inset: 0 0 0 auto; width: min(360px, 88vw); max-width: 100%; border-left: 0; border-top: 0; box-shadow: -10px 0 30px rgba(0,0,0,.55); transform: translateX(105%); z-index: 5; pointer-events: none; }
-  .jp-side.jp-show { transform: translateX(0); pointer-events: auto; }
+  .jp-side.jp-show { transform: translateX(0); pointer-events: auto; visibility: visible; transition: transform .22s ease, visibility 0s; }
+  /* 11/19 K374（iPhone 横 874×402・右の安全域 59px）：閉じた横の欄が安全域の分だけ右の端に 40px ほど覗き、切れた字の帯に見えた。閉じたら隠す */
+  .jp-side:not(.jp-show) { visibility: hidden; transition: transform .22s ease, visibility 0s linear .22s; }
   .jp-hint { display: none; }
   .jp-legend { max-width: calc(100% - 40px); }
   .jp-sidebtn { display: inline-flex; min-width: max-content; flex: 0 0 auto; }   /* 字が縮んで切れ、隣の釦と重ならない（W044） */
@@ -1844,7 +1846,7 @@ dialog.battle-retry .btn { box-sizing: border-box; width: 100%; min-width: 0; mi
 #hud #cheat { box-sizing:border-box; pointer-events:auto; max-width:calc(100vw - 32px); max-height:calc(100dvh - 96px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); overflow-y:auto; overscroll-behavior:contain; touch-action:pan-y; }
 #hud #cheat-close { position:sticky; top:0; background:var(--sumi-2); }
 </style>
-<link rel="stylesheet" href="./v202611182229/screens.css">
+<link rel="stylesheet" href="./v202611182334/screens.css">
 
 <canvas id="view"></canvas>
 <div id="lens" aria-hidden="true"></div>
@@ -1993,5 +1995,5 @@ dialog.battle-retry .btn { box-sizing: border-box; width: 100%; min-width: 0; mi
 } }
 </script>
 <script type="module">
-import('./v202611182229/src/main.js').catch((error) => window.__bootFail(error));
+import('./v202611182334/src/main.js').catch((error) => window.__bootFail(error));
 </script>

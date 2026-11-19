@@ -173,6 +173,15 @@ export async function openChrome({ width = 1600, height = 900, port = 9400 + Mat
       pend.set(i, (d) => { clearTimeout(tm); r(d); });
       ws.send(JSON.stringify({ id: i, method, params }));
     });
+    // 11/19 クラウド（長島）：THREE_LOCAL を付け忘れて bot が「読み込みに失敗」の頁で十五分空回りした（しくじりの帳に三度）。
+    //   中継のある Linux の箱で付いていない時は、npm の three@0.160.0 を一度だけ tmp へ展開して自分で付ける
+    if (!process.env.THREE_LOCAL && process.platform === 'linux' && (process.env.HTTPS_PROXY || process.env.https_proxy)) {
+      const dir = join(tmpdir(), 'risshin-three-0.160.0');
+      try {
+        if (!existsSync(join(dir, 'package', 'build', 'three.module.js'))) { mkdirSync(dir, { recursive: true }); execSync('npm pack three@0.160.0 -q && tar xzf three-0.160.0.tgz', { cwd: dir, stdio: 'ignore', timeout: 120e3 }); }
+        if (existsSync(join(dir, 'package', 'build', 'three.module.js'))) process.env.THREE_LOCAL = join(dir, 'package');
+      } catch (e) { /* 取れなければ今まで通り CDN へ */ }
+    }
     // THREE_LOCAL=<three の npm 展開先（package/）>：外へ出られない箱で、jsdelivr の three を手元の物で返す
     if (process.env.THREE_LOCAL) {
       // 11/18 クラウド（岐阜の持ち主）：THREE_LOCAL=1 のように置き場でない値だと three が読めず、bot が何も出さず二十分固まった。先に言って止める

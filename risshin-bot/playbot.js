@@ -1612,7 +1612,10 @@ const HABIT = {
     // 11/18 19:50 UTC クラウド（持ち主 k02）：河田で中学生 bot が段2から1260秒時切れ。足跡は全部「退」（b_depth の手当て退き）で気力3〜29＝
     //   空振りの連打で気力が二割二分を切り、五割五分へ戻る前にまた空振るので、手当ての退きが一戦じゅう解けず柵の口へ行けなかった。
     //   人は息が切れれば空振りをやめる。気力が四割を切ったら、六歩内に敵がいる時だけ連打する（敵の前の連打は残す）
-    if (Math.random() < 0.3 && (p.sta > p.maxSta * 0.4 || b.army.nearestEnemy(u, 6))) inp.leftPressed = true;
+    // 11/19 cloud-08（山中城 1080秒・岩石城 1080秒の時切れ：命三割のまま七百秒、近くに敵がいないのに空振りを続け、振るたびに戦の最中扱いで命が戻らなかった）：
+    //   深手（命六割五分未満）で六歩内に敵がいなければ、人は振らずに息を整える
+    const nearFoe = b.army.nearestEnemy(u, 6);
+    if (Math.random() < 0.3 && (p.sta > p.maxSta * 0.4 || nearFoe) && (nearFoe || u.hp >= u.maxHp * 0.65)) inp.leftPressed = true;
     // 台詞は飛ばす
     if (document.querySelector('#hud #skiphint:not([hidden])')) inp.e.add('Enter');
   },
@@ -1917,7 +1920,7 @@ function radialTraceNote(b) {
   const tr = b && b.player && b.player.touchRadialTrace;
   if (!tr) return '・輪の記録なし（放した時に号令の丸の手が通らなかった）';
   const r = (v) => (Number.isFinite(v) ? Math.round(v) : '—');
-  return `・輪の記録：向き(${r(tr.x)},${r(tr.y)}) 選んだ${tr.selected ?? '—'} 決まった${tr.command || '—'} 位で拒む${tr.rankBlocked ? 'はい' : 'いいえ'} 受けた${tr.accepted ? 'はい' : 'いいえ'} 取り消し${tr.cancelled ? 'はい' : 'いいえ'} 時${r(tr.t)}${tr.resetWhy ? ` 放させた訳${tr.resetWhy}（${r(tr.resetT)}秒）` : ''}${b.player.touchCmdBlocked ? ` 押しを受けぬ訳${b.player.touchCmdBlocked}` : ''}`;
+  return `・輪の記録：向き(${r(tr.x)},${r(tr.y)}) 選んだ${tr.selected ?? '—'} 決まった${tr.command || '—'} 位で拒む${tr.rankBlocked ? 'はい' : 'いいえ'} 受けた${tr.accepted ? 'はい' : 'いいえ'} 取り消し${tr.cancelled ? 'はい' : 'いいえ'} 時${r(tr.t)}${tr.resetWhy ? ` 放させた訳${tr.resetWhy}（${r(tr.resetT)}秒）` : ''}${b.player.touchCmdBlocked ? ` 押しを受けぬ訳${b.player.touchCmdBlocked}` : ''}${tr.releaseX != null ? ` 放した所(${r(tr.releaseX)},${r(tr.releaseY)})` : ''}${tr.upNoDrag ? ` 放した時なぞりの記録なし(${tr.upNoDrag})` : ''}${tr.upShort != null ? ` 放した時のなぞり${r(tr.upShort)}px` : ''}`;   // 11/19 クラウド：諏訪原 breach の「輪の記録が空」4回の訳を絞る
 }
 function watchStep(b, dt, c) {
   if (!b.player) return; // 勝った後の短い終幕で、同じコマのうちに戦が片付いた時
@@ -2762,7 +2765,9 @@ async function runPersona(game, key) {
   aud.scanDom('タイトル');
   // 何を遊ぶか：その人の好みから、ばらばらに n 戦
   const all = listPlayable();
-  const n = clamp(+(Q.get('n') || 1 + Math.floor(Math.random() * 3)), 1, 3);
+  // 11/19 クラウド17：?campfrom=K は織田家編の K 番目から n 戦（六まで）を新しい保存で続けて遊ぶ（戦と戦の間の褒美・地図・保存・再開を照らす通し）
+  const CAMPFROM = Q.get('campfrom');
+  const n = clamp(+(Q.get('n') || 1 + Math.floor(Math.random() * 3)), 1, CAMPFROM != null ? 6 : 3);
   let only = ONLY ? all.filter((x) => ONLY.has(x.id) && (V.mode === 'lord' ? x.kind === 'lord' : !(x.kind === 'lord' && x.scn === 'oda'))) : null;
   // 鍵が一つも合わない時は部分一致（inaba→稲葉山の id）で探す。それでも無ければ別の戦を流さず、ログに残す
   if (ONLY && !(only && only.length)) { const part = all.filter((x) => [...ONLY].some((k) => k && x.id.includes(k))); if (part.length) only = part; else console.warn('[playbot] --only に合う戦が無い:', [...ONLY].join(',')); }
@@ -2783,6 +2788,7 @@ async function runPersona(game, key) {
     const s0 = per.key === 'sen' ? 1 + Math.floor(Math.random() * Math.max(1, camp.length - 1)) : Math.random() < 0.75 ? 0 : Math.floor(Math.random() * camp.length);
     for (let k = 0; k < n && camp[s0 + k]; k++) plan.push({ ...camp[s0 + k], cont: k > 0 });
   }
+  if (CAMPFROM != null && camp.length) { plan.length = 0; const s0 = Math.max(0, Math.min(camp.length - 1, +CAMPFROM || 0)); for (let k = 0; k < n && camp[s0 + k]; k++) plan.push({ ...camp[s0 + k], cont: k > 0 }); }
   // 1000人の表の「遊ぶ所」「身分の進み」があれば、それで決める（種 pick で、どの戦かも決まる）
   if (V.mode && !only) {
     const lords = all.filter((x) => x.kind === 'lord');
