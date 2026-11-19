@@ -2059,7 +2059,10 @@ function watchStep(b, dt, c) {
   if (per.key === 'act' && p.mounted && !c.rode) { c.rode = true; c.rodeT = t; }
   // ---- せっかち：待たされる ----
   if (per.key === 'sek') {
-    const objKey = b.objectives.map((o) => o.text + o.state + (o.progress || '')).join('|');
+    // 11/19 クラウド kaito2（岐阜城の持ち主）：目標を段だけで並べる戦（stageGoalsOnly）は倒した数（3/13）が画面の目標の札（.pg-goals）だけで上がり、
+    //   b.objectives が⑤の間ずっと変わらず、降伏の場の後に「80秒待たされた」と数えていた。画面の目標の札の字の変わりも任務札の変わりに数える
+    let goalTxt = ''; try { goalTxt = document.querySelector('.pg-goals ul')?.textContent || ''; } catch (e) { goalTxt = ''; }
+    const objKey = b.objectives.map((o) => o.text + o.state + (o.progress || '')).join('|') + '#' + goalTxt;
     if (objKey !== c.sObj) { c.sObj = objKey; c.sObjT = t; }
     const foe = b.army.nearestEnemy(u, 30);
     if (!foe && t - c.sObjT > 60 && !c.sWaitSaid) { c.sWaitSaid = true; c.add(`wait:${c.bid}:${b.phase || ''}`, '何もする事が無いまま待たされた', `${Math.round(t - c.sObjT)}秒、任務札が変わらず敵もいない（段 ${b.phase || '―'}）`, 2, { cat: '使いづらい', shot: true, fix: '飛ばせる（canSkip）ようにするか、待つ間にする事を置く' }); }
