@@ -430,6 +430,25 @@ function patientStrike(p, inp, e, d, windupOpening = false) {
     (p.weapon === 'sword' || (!p.guard && p.time - (p.guardOffT ?? -9) > 0.45));
 }
 
+// 退く任務の行き先（戦の決めた印・自前のピン・赤くない印の順）。十秒で四m 近づけなければ十秒は走らせる
+const RETREAT_OBJ = /退け|退かせ|引け|引き揚げ|退き口|陣へ|戻れ/;
+function retreatRun(b) {
+  const u = b.player?.u;
+  if (!u?.alive || b.over || b.ended) return null;
+  const text = (b.objectives || []).filter((o) => !o.state && o.kind !== 'side').map((o) => o.text).join('／');
+  if (!RETREAT_OBJ.test(text)) { b._rr = null; return null; }
+  const gid = b.def.guideMarker?.(b);
+  const gmk = gid && b.markers.find((m) => m.id === gid);
+  const pin = !gmk && b.def.missionPin?.(b);
+  const mk = gmk || (pin && Number.isFinite(pin.x) ? { pos: pin } : null) || b.markers.find((m) => !m.red);
+  const q = mk ? (typeof mk.pos === 'function' ? mk.pos() : mk.pos) : null;
+  if (!q || !Number.isFinite(q.x)) return null;
+  const d = Math.hypot(q.x - u.pos.x, q.z - u.pos.z);
+  if (d < 6) { b._rr = null; return null; }
+  const R = b._rr && b._rr.text === text ? b._rr : (b._rr = { text, t: b.t, d, until: 0 });
+  if (b.t - R.t >= 10) { if (R.d - d < 4) R.until = b.t + 10; R.t = b.t; R.d = d; }
+  return R.until > b.t ? q : null;
+}
 // 戦ごとの遊び方（素直な遊び手を真似る）
 export function brain(b, inp) {
   // 写真用の直接の呼び出しでも、後から開いた出陣札を残して歩かない。
@@ -562,6 +581,9 @@ export function brain(b, inp) {
     b.botSurviving = false;
     return;
   }
+  // 11/19 K362 iMac n-hetsugi（長の割り振り）：任務が「退け・陣へ」の時、敵に捕まって行き先へ近づけなくなったら、斬り合いをやめて行き先へ走る。
+  //   真田丸の段7「味方を竹束の陣へ退かせろ」で、倒れて戻った本人が柵の外で敵26人と斬り合い続け、千秒余り陣へ着かなかった（遊ぶ人なら走る）
+  { const q = retreatRun(b); if (q) { goTo(p, inp, q.x, q.z, 3); inp.runHeld = true; inp.leftPressed = false; return; } }
   // 砦では門への道順と組への下知を先に考え、その後で射撃を避ける。
   // 射手が交互に狙うだけで、戦の頭が一度も呼ばれなくなるのを防ぐ。
   // 退く間も、火縄の光った鉄砲（発射まで一秒余り）には先に射線を外す。退く足のまま撃ち抜かれない。
@@ -1614,8 +1636,10 @@ const HABIT = {
     //   人は息が切れれば空振りをやめる。気力が四割を切ったら、六歩内に敵がいる時だけ連打する（敵の前の連打は残す）
     // 11/19 cloud-08（山中城 1080秒・岩石城 1080秒の時切れ：命三割のまま七百秒、近くに敵がいないのに空振りを続け、振るたびに戦の最中扱いで命が戻らなかった）：
     //   深手（命六割五分未満）で六歩内に敵がいなければ、人は振らずに息を整える
+    // 11/19 クラウド k365-cloud-09（河田の中学生 bot の足跡：段②の二百秒ずっと b_depth の息継ぎ（dpBack）のまま中洲で立ち止まり、
+    //   気力が四割を越えるたびに空振りして、息継ぎの解ける五割五分へ戻らなかった）。息継ぎで下がっている間は、六歩内に敵がいる時だけ振る
     const nearFoe = b.army.nearestEnemy(u, 6);
-    if (Math.random() < 0.3 && (p.sta > p.maxSta * 0.4 || nearFoe) && (nearFoe || u.hp >= u.maxHp * 0.65)) inp.leftPressed = true;
+    if (Math.random() < 0.3 && (p.sta > p.maxSta * 0.4 && !b.flags.dpBack || nearFoe) && (nearFoe || u.hp >= u.maxHp * 0.65)) inp.leftPressed = true;
     // 台詞は飛ばす
     if (document.querySelector('#hud #skiphint:not([hidden])')) inp.e.add('Enter');
   },
