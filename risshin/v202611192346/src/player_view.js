@@ -494,7 +494,7 @@ export class PlayerView {
   // 壁よけで本人まで寄った三人称は左右の肩へ逃がす。頭上へ切り替えない。
   clearCameraBody(camera) {
     const u = this.u, rt = this.rt, pos = camera.position;
-    if (!u.alive || this.mounted || this.fpK > .01 || u.naka || NAKA.cur || rt.game?.photo) return;
+    if (!u.alive || this.mounted || this.fpK > .01 || this.roomFpBlend || u.naka || NAKA.cur || rt.game?.photo) return;
     const dx = pos.x - u.pos.x, dz = pos.z - u.pos.z, height = pos.y - u.pos.y;
     if (dx * dx + dz * dz >= 1.05 * 1.05 || height >= 2.55 || height < .25) return;
     const from = this._bodyFrom || (this._bodyFrom = new THREE.Vector3());
@@ -555,7 +555,7 @@ export class PlayerView {
 
   // 戦ごとの補正と地面の持ち上げの後に、実際の屋根・壁を両面で調べる。
   clearDrawBuildings(camera) {
-    if (this.fpK > .5 || this.u.naka || !this.u.alive || !this.blockers?.length) return;
+    if (this.fpK > .5 || (this.closeFpK || 0) > .5 || this.u.naka || !this.u.alive || !this.blockers?.length) return;
     const from = this._drawFrom || (this._drawFrom = new THREE.Vector3());
     const dir = this._drawDir || (this._drawDir = new THREE.Vector3());
     from.copy(this.u.pos); from.y += this.mounted ? 2.8 : 1.4;
@@ -604,12 +604,15 @@ export class PlayerView {
   fpHide(on, cam) {
     // 近い物を透かす仕組みは止める（透けて見えるのに当たりは残り、見えない壁になっていた。kaito 10/23 稲生 22）。
     //   カメラが物に埋まる時は clearDrawBuildings・camBlock の線で手前へ寄せる。戦の定義が nearFade: true の時だけ元のまま。
-    CAM_NEAR_FADE.value = on && this.rt.def.nearFade === true && cam === this.rt.camera && !(this.rt.game && this.rt.game.photo) ? 1 : 0;
+    // 11/19（本能寺の御殿）：一人称（fpK≥0.5）では見通しの抜き（画面の中ほど九・五m 内の壁・柱を抜く。三人称で本人との間の物を抜くための物）を掛けない。目の前の壁が抜けて透ける
+    CAM_NEAR_FADE.value = on && this.rt.def.nearFade === true && cam === this.rt.camera && this.fpK < 0.5 && !((this.closeFpK || 0) > 0.5) && !(this.rt.game && this.rt.game.photo) ? 1 : 0;
     CAM_NEAR_SCREEN_CUT.value = this.rt.def.nearSceneryScreenCut === false ? 0 : 1;
     CAM_NEAR_CLEAR_DEPTH.value = this.rt.def.nearSceneryClearDepth ?? 9.5;
     CAM_NEAR_SLAB.value = this.rt.def.nearSlab === false ? 0 : 1;
     CAM_NEAR_FOOT.value = this.u.pos.y;
     CAM_NEAR_BODY.value.set(0, 0, 0);
+    // 描く所と頭の近さを残す（player_camera.js が次のコマで、壁に畳まれて体が画面を塞ぐかを見る）
+    if (on && cam === this.rt.camera) this.drawCamD = Math.hypot(cam.position.x - this.u.pos.x, cam.position.y - this.u.pos.y - 1.5, cam.position.z - this.u.pos.z);
     if (on && cam === this.rt.camera && this.fpK < .5 && this.u.alive && !this.u.naka && !NAKA.cur && !this.rt.game?.photo) {
       CAM_NEAR_BODY.value.copy(this.u.pos);
       CAM_NEAR_BODY.value.y += this.mounted ? 1.65 : .95;
@@ -637,7 +640,8 @@ export class PlayerView {
         }
       }
     }
-    if (cam !== rt.camera || this.fpK < 0.72 || (rt.game && rt.game.photo) || !u.alive) return;
+    // 11/19 kaito「何この画角」：壁に寄せられて一人称へ移る間（roomFpBlend・室内も廊下も）は、寄り具合が低くても目の近くなら兜と胴を描かない（下の距離の見張りはそのまま）
+    if (cam !== rt.camera || (this.fpK < 0.72 && !this.roomFpBlend) || (rt.game && rt.game.photo) || !u.alive) return;
     // 11/17 K358（iMac 信貴山「平らな所でも体が消えて槍だけ」）：一人称の度合い（fpK）だけが高いまま、戦ごとの視点の作りでカメラが
     //   本人の四歩ほど後ろに置かれると、下の一人称の切り取り（胴・首・兜を描かない）が三人称の画面に掛かっていた。実際に目の近く（1.2m 内）にいる時だけ切る。
     if (Math.hypot(cam.position.x - u.pos.x, cam.position.z - u.pos.z) > 1.2 ||

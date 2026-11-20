@@ -8,7 +8,7 @@ import * as THREE from 'three';
 import { drawMon } from './textures.js';
 import { idleFarTick } from './idle_far.js';
 // 11/19 係（天王寺レベルの軍勢・携帯の重さ）：表が idleFar の戦は、表が立てた備（_fjR）のうち本人から遠く持ち場で待つだけの組を休ませる（idle_far.js・天王寺と同じ手。携帯だけ）
-export function fujinIdleFar(rt) { const T = fujinFor(rt); if (T && T.idleFar && rt.flags._fj) idleFarTick(rt, { only: (g) => !!g._fjR }); }
+export function fujinIdleFar(rt) { const T = fujinFor(rt); if (T && T.idleFar && rt.flags._fj) idleFarTick(rt, { only: (g) => !!g._fjR || !!g._idleOk }); }   // _idleOk：戦の筋の組でも、持ち場で待つだけの組は休ませてよい印（設楽原の柵の後ろの将の旗本 11/19）
 
 export function fujinFor(rt) {
   const id = rt.def && (rt.def.key || rt.def.id);
@@ -25,6 +25,7 @@ export function fujinTick(rt, enemyGroup, allyGroup) {
       if (isTouch && T.lazy) releaseFar(rt);
       if (rt.flags._fjPend && rt.flags._fjPend.length) { const P = rt.flags._fjPend; rt.flags._fjPend = []; placeRows(rt, T, P, rt.flags._fj, enemyGroup, allyGroup); }
     }
+    fujinMoves(rt, T);
     return;
   }
   if (!rt._tpl || !rt._tpl.E || !rt._tpl.A || !rt.player?.u) return;   // 兵の装束が覚えられてから（戦の始めの数コマ後）
@@ -38,7 +39,7 @@ export function fujinTick(rt, enemyGroup, allyGroup) {
     B.forEach((b, k) => {
       // 11/16 MacBook天王寺-厚み（広さの係の頼み：携帯の塊が10〜12人で薄い）：携帯の deep の表は、一列の二つの塊を列の幅いっぱいに離さず、肩を並べて一つの厚い塊に寄せる（中心の間 5m・兵の数は同じ）
       const off = K > 1 ? ((k + 0.5) / K - 0.5) * (isTouch && T.deep ? Math.min(r.w * 0.92, K * 5) : r.w * 0.92) : 0;   // 列の横（向きに直角）に並べる
-      rows.push({ ...r, x: r.x + c * off, z: r.z - s * off, w: r.blockW || 10, count: r.blockCount || 480, name: b.name || b.lead + 'の備', leaders: b.lead && (!b.onField || !rt.army.units.some((u) => u.alive && u.name === b.lead)) ? [b.lead] : null, standIn: b.onField ? b.lead : null, flag: b.flag || r.flag, block: true });
+      rows.push({ ...r, _off: off, x: r.x + c * off, z: r.z - s * off, w: r.blockW || 10, count: r.blockCount || 480, name: b.name || b.lead + 'の備', leaders: b.lead && (!b.onField || !rt.army.units.some((u) => u.alive && u.name === b.lead)) ? [b.lead] : null, standIn: b.onField ? b.lead : null, flag: b.flag || r.flag, block: true });
     });
   }
   placeRows(rt, T, rows, list, enemyGroup, allyGroup);
@@ -50,6 +51,7 @@ function placeRows(rt, T, rows, list, enemyGroup, allyGroup) {
   let live = -1;
   const roomFull = () => { if (!isTouch || !T.lazy) return false; if (live < 0) { live = 0; for (const u of rt.army.units) if (u.alive && !u.gone) live++; } return live >= (rt.def.realCap ?? 250) + 30; };
   for (let r of rows) {
+    r = movedRow(rt, r);   // 11/19 係（kaito 戸次川「増えた兵は動かずついて来ない」）：段ごとの行き先が満ちた後に立つ備は、その行き先に立てる
     // 11/16 MacBook天王寺-広さ（K315「行けばいる」）：本人の 80m 内まで来た備は、携帯の数の上限を 12 人まで越えても立てる（それより多い時は待つ。遠い備は releaseFar が片付ける）。始まりの陣の周りで一斉に立って 408 人になった（11/16 測り）ので越える幅を絞った
     const dR = Math.hypot(r.x - me.x, r.z - me.z);
     // 11/19 クラウドさ：r.tLazy＝携帯だけ、その行を本人の 140m 内に来た時に立てる（表が lazy でなくても）。r.tN＝携帯の塊の人数（既定の 5〜6 より厚く）
@@ -69,8 +71,70 @@ function placeRows(rt, T, rows, list, enemyGroup, allyGroup) {
       //   十八m 内の相手へ待ちを解かないよう印を外す（塀の内の織田へ寄せない。寄せは台本の波が出す）
       if (g && r.noEngage) g._far = false;
       if (g && live >= 0) live += g.count || 0;
-      if (g) { g._fujinRow = r.row; g._fjR = r; list.push(g); if (r.block) blockLook(rt, g, r); if (!isTouch) overheadPlate(rt, g, r); }
+      if (g) { g._fujinRow = r.row; g._fjR = r; g._mvK = r._mvK0 ?? -1; list.push(g); if (r.block) blockLook(rt, g, r); if (!isTouch) overheadPlate(rt, g, r); }
     } catch (e) { window.__fujinErr = String(e && e.stack || e).slice(0, 300); }
+  }
+}
+
+// 11/19 係（kaito 11/19 戸次川「増えた兵は動かず何もしていない。川を渡っても元の場所にいて、ついて来なかった」・全戦に共通の根）：
+//   表の備は realFromLight が stay・fixed・hold で立てるので、段が進んでも持ち場に立ったままだった。
+//   ① 行の moves：[{ when: (rt) => 条件, x, z, facing, speed }]。満ちた一番後ろの行き先へ、隊列を保って歩いて移る（'move' を浅瀬の口ごとに繋ぐ）。
+//      塊（blocks）は列の中の横のずれ（_off）を行き先の向きで保つ。
+//   ② moves の無い味方の備は、本人が備の中心から 120m より離れたら、本人の 55m 後ろ（備のいた側）へついて来る（六秒ごとに見直す）。
+//      表の stayPut（設楽原の柵の内・付城・囲みの陣）か行の stayPut・noEngage（持ち場で待つだけと決めた備）は動かさない。
+//   ③ 表の cross（{ at: 川の z, mouth: 岸の口の z の幅, fords: [{ x, w }] }）があれば、川の向こうへ移る時は近い浅瀬の中を通る。
+function moveAt(r, m) {
+  const f = m.facing ?? r.facing ?? 0, off = r._off || 0;
+  return { x: m.x + Math.cos(f) * off, z: m.z - Math.sin(f) * off, facing: f };
+}
+function movedRow(rt, r) {
+  const mv = r.moves; if (!mv || !mv.length) return r;
+  let k = -1; for (let i = mv.length - 1; i >= 0; i--) { let ok = false; try { ok = !!mv[i].when(rt); } catch (e) { ok = false; } if (ok) { k = i; break; } }
+  if (k < 0) return r;
+  const p = moveAt(r, mv[k]);
+  return { ...r, x: p.x, z: p.z, facing: p.facing, _mvK0: k };
+}
+function fordPath(T, g, from, to) {
+  const C = T.cross; if (!C || !C.fords || !C.fords.length) return [[to.x, to.z]];
+  const a = C.at || 0, m = C.mouth || 28;
+  if ((from.z - a) * (to.z - a) >= 0) return [[to.x, to.z]];
+  let f = C.fords[0], best = 1e9;
+  for (const q of C.fords) { const c = Math.abs(from.x - q.x) + Math.abs(to.x - q.x); if (c < best) { best = c; f = q; } }
+  const half = Math.max(1, (f.w || 10) - 6), h = ((g.id ?? 0) * 7919 + (g.units?.length || 0) * 31) % 1000 / 1000;
+  const lx = f.x + (h * 2 - 1) * half, s = from.z > a ? 1 : -1;
+  return [[lx, a + s * m], [lx, a - s * m], [to.x, to.z]];
+}
+function marchTo(rt, T, g, p, speed) {
+  const lim = (rt.world?.def?.moveLim || rt.def?.moveLim || 176) - 16;
+  const x = Math.max(-lim, Math.min(lim, p.x)), z = Math.max(-lim, Math.min(lim, p.z));
+  const from = g.anchor || g.center(), pts = fordPath(T, g, from, { x, z });
+  g.speed = speed || 3.6; g.keepMoveOrder = true; g.focus = null; g.path = null; g._fjMoving = true;
+  g._fjR = { ...g._fjR, x, z, facing: p.facing ?? g._fjR.facing };   // 片付け（releaseFar）と立て直しも新しい持ち場で
+  // 'path' は列の後ろの遅れを待って先頭が止まり、浅瀬の中で二十秒余り足踏みした（描かずの数え）。一つずつの 'move' を繋ぐ（遅れた者は駆けて持ち場へ）
+  let i = 0;
+  const next = (q) => {
+    if (i >= pts.length) { q.order = 'hold'; q.anchor = { x, z }; q.dest = null; if (p.facing != null) q.facing = p.facing; q.onArrive = null; q._fjMoving = false; return; }
+    const w = pts[i++]; q.order = 'move'; q.dest = { x: w[0], z: w[1] }; q.onArrive = next;
+  };
+  next(g);
+}
+function fujinMoves(rt, T) {
+  const F = rt.flags, list = F._fj; if (!list || !list.length) return;
+  if ((F._fjMvT || 0) > rt.t) return; F._fjMvT = (rt.t || 0) + 0.5;
+  const me = rt.player?.u; if (!me || rt.over) return;
+  for (const g of list) {
+    const r = g && g._fjR; if (!r || g.routed || !(g.count > 0)) continue;
+    if (r.moves && r.moves.length) {
+      const q = movedRow(rt, r), k = q._mvK0 ?? -1;
+      if (k > (g._mvK ?? -1)) { g._mvK = k; marchTo(rt, T, g, { x: q.x, z: q.z, facing: q.facing }, r.moves[k].speed); }
+      continue;
+    }
+    if (r.side !== 0 || T.stayPut || r.stayPut || r.noEngage || g._fjMoving || (g._flT || 0) > rt.t) continue;
+    const c = g.anchor || g.center(), dx = c.x - me.pos.x, dz = c.z - me.pos.z, d = Math.hypot(dx, dz);
+    if (d <= 120) continue;
+    if (g.units.some((u) => u.alive && u.target && u.target.alive)) continue;   // 斬り合いの最中は離さない
+    g._flT = rt.t + 6;
+    marchTo(rt, T, g, { x: me.pos.x + dx / d * 55, z: me.pos.z + dz / d * 55 }, 3.8);
   }
 }
 

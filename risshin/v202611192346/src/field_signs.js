@@ -1290,6 +1290,6 @@ function placeName(e, u, x, y, d, me) {
   // 遠くても 15 点より小さくしない（遠くの武将の名も読める）
   const k = e._compact ? 1 : Math.max(1, Math.min(1.2, 1.25 - d / 110));
   // 同じ所なら書かない（10/24）
-  const tf = `translate(${Math.round(x)}px,${Math.round(y)}px) translate(-50%,-100%) scale(${k.toFixed(2)})`;
+  const tf = `translate(${Math.round(x * 2) / 2}px,${Math.round(y * 2) / 2}px) translate(-50%,-100%) scale(${k.toFixed(2)})`;
   if (e._t !== tf) { e._t = tf; e.style.transform = tf; e.style.transformOrigin = '50% 100%'; }
 }
