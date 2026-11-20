@@ -8,7 +8,7 @@ import { realFromLight } from './depth_reserve.js';
 import { ST } from './army_depth.js';
 import { noFakeOn } from './world_army_scene.js';
 import { isTouch } from './touch.js';
-import { blockLook } from './fujin_place.js';
+import { blockLook, fujinFor } from './fujin_place.js';
 import { nobori } from './props.js';
 
 export function depthRealTick(rt, enemyGroup, allyGroup) {
@@ -81,7 +81,8 @@ export function depthRealTick(rt, enemyGroup, allyGroup) {
   //   自分で本物を出す備（fieldButai の realMax・本物がいる備）・敵味方の分からない物
   const why = {};   // 確かめ用（thickness.mjs の dbg.dreal）：入れ物を除いた訳の数
   if (typeof window !== 'undefined') window.__dRealDbg = { n: E ? E.length : 0, fj: !!rt.flags._fj, why };
-  if (E && rt.def.emptyReal !== false && !rt.def.fujinOwn && !(rt.flags._fj)) for (const e of E) {
+  // 11/19 係（天王寺レベルの軍勢）：布陣の表が足すだけの備（表の withEmpty＝設楽原の柵の内・本能寺の通り）の戦は、入れ物の本物も前のとおり立てる
+  if (E && rt.def.emptyReal !== false && !rt.def.fujinOwn && !(rt.flags._fj && !fujinFor(rt)?.withEmpty)) for (const e of E) {
     const { g, A, o } = e;
     const x = (A.cx || 0) + (A.off?.x || 0), z = (A.cz || 0) + (A.off?.z || 0);
     const r = S.m.get(e);

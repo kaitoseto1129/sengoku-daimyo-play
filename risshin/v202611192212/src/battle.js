@@ -1,7 +1,7 @@
 import { enemyGroup, allyGroup } from './bhelp.js';
 import { autoReserve, engageNear, unstackAfterOver } from './depth_reserve.js';
 import { sceneBeats } from './scene_beats.js';
-import { fujinTick } from './fujin_place.js';
+import { fujinTick, fujinIdleFar } from './fujin_place.js';
 import { depthRealTick } from './depth_real.js';
 import { idleParkTick } from './idle_park.js';
 import { noboriForestTick } from './nobori_forest.js';
@@ -998,7 +998,7 @@ export class Battle {
     // 戦ごとの環境音：川・夜・嵐と、下知に限って合図を鳴らす戦の決まり。
     silence();
     // silence は戦の曲も止める。出陣の時（main.js startBattle）に鳴らし始めた戦の曲をここで掛け直す（消えたままだと戦の中は曲が無かった。11/2）
-    if (!def.town) { setWarStage(0); setWarTune(def.key || def.id || def.name, def.key || def.id || BATTLES[index]?.id); playMusic(def.dojo ? 'dojo' : 'prebattle'); }
+    if (!def.town) { setWarStage(0); setWarTune(def.key || def.id || def.name, def.key || def.id || BATTLES[index]?.id); playMusic(def.dojo ? 'dojo' : (typeof def.quietOpen === 'function' ? def.quietOpen(this.G) : def.quietOpen) ? null : 'prebattle'); }   // quietOpen：戦の前の章から始まる戦は、法螺と陣太鼓を章が終わるまで鳴らさない（章の側が鳴らす）
     this.soundScene();
     // 建物・陣幕・置き物の当たり：この戦で置く物だけにして、人と馬を押し戻す（units.js collide）
     SOLIDS.length = 0;
@@ -2785,7 +2785,7 @@ export class Battle {
     }
     // ざわめき：戦況の知らせが無い間、たまに足軽の呟きを短く挟む（8秒に一度までの決まりよりずっとまばら）
     // 11/17 K364：町・陣中（戦の外）では戦場の呟き（「来るぞ、構えよ」など）を挟まない
-    if (!this.over && !this.def.town && !this.def.dojo && !this.flags.quiet && this.player.inCombatT <= 0 && !this.player.u.mobbed && this.t > 6 && this.hud.subT <= 0 && this.hud.subQ.length === 0 && (this.ambLineT ?? -99) + 30 + Math.random() * 16 < this.t) {
+    if (!this.over && !this.def.town && !this.def.dojo && !this.flags.quiet && !this.flags.beforeWar && this.player.inCombatT <= 0 && !this.player.u.mobbed && this.t > 6 && this.hud.subT <= 0 && this.hud.subQ.length === 0 && (this.ambLineT ?? -99) + 30 + Math.random() * 16 < this.t) {
       this.ambLineT = this.t;
       // 敵の呟きは、敵が声の届く所（50m）にいる時だけ（陣の中で敵の声が聞こえると、敵が近いと思い違える）
       const side = Math.random() < 0.5 && this.army.nearestEnemy(this.player.u, 50, (o) => o.type !== 'dummy') ? 'enemy' : 'ally';
@@ -2893,7 +2893,8 @@ export class Battle {
     this.dangerTick(dt);
     if (!this.over && !this.pacingExpired) runScriptOrders(this, this.def.update, dt);
     if (this.over) { try { unstackAfterOver(this); } catch (e) { /* 終幕の散らしが出来なくても終わりの画は進む */ } }
-    if (!this.over && !this.pacingExpired) { try { fujinTick(this, enemyGroup, allyGroup); depthRealTick(this, enemyGroup, allyGroup); idleParkTick(this); autoReserve(this, enemyGroup, allyGroup); engageNear(this); } catch (e) { /* 待つ備が作れなくても戦は進む */ }
+    // 11/19 kaito（本能寺「戦が始まる前と始まった後の区別がついていない」）：戦の前の章（前夜の茶会など。flags.beforeWar）の間は、布陣の表・陣立て・新手・場面の兵を立てない。章が終わってから立てる
+    if (!this.over && !this.pacingExpired && !this.flags.beforeWar) { try { fujinTick(this, enemyGroup, allyGroup); depthRealTick(this, enemyGroup, allyGroup); idleParkTick(this); fujinIdleFar(this); autoReserve(this, enemyGroup, allyGroup); engageNear(this); } catch (e) { /* 待つ備が作れなくても戦は進む */ }
       try { sceneBeats(this, enemyGroup, allyGroup); } catch (e) { /* 場面が作れなくても戦は進む（K306） */ }
       try { noboriForestTick(this, dt); } catch (e) { /* 幟が立てられなくても戦は進む（幟の林・nobori_forest.js） */ } }
     battlePacingTick(this);
@@ -2987,7 +2988,7 @@ export class Battle {
       const d = Math.hypot(c.x - this.player.u.pos.x, c.z - this.player.u.pos.z);
       farHeat = Math.max(farHeat, Math.max(0, 1 - d / 260) * 0.55);
     }
-    const farSoldiers = this.battleSound.tick(dt, !pre && !this.over && !this.flags.quiet);
+    const farSoldiers = this.battleSound.tick(dt, !pre && !this.over && !this.flags.quiet && !this.flags.beforeWar);
     setCrowd(pre || this.over ? 0 : Math.max(heat, farHeat, farSoldiers));
     setRain(this.world.rainLevel);
     const u = this.player.u;

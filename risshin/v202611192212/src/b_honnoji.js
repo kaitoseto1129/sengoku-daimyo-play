@@ -23,6 +23,8 @@ import { buildTera, teraTick, breakNear, hallAt, TERA, inTera, GATES, CLIMB, PT,
 import { flagTexture } from './textures.js';
 import { RANKS } from './state.js';
 import { S as SETTINGS } from './settings.js';
+import { isTouch } from './touch.js';
+import { fujinRealN } from './fujin_layout.js';
 import { sfx } from './audio.js';
 import { makeWeapon, poseArms, buildHorse, horseStyleFor } from './units.js';
 import { FL, addDeck, groundAt } from './floors.js';
@@ -364,7 +366,9 @@ function honnoFarWall(rt) {
   if (rt.t < (F.hnFwAt || 0)) return;
   F.hnFwAt = rt.t + 2;
   for (const g of rt.army.groups) {
-    if (g.team !== 1 || !g._fjN || g.depthFree || g.order !== 'hold' || g.routed || !g.count || !g.anchor) continue;
+    // 11/20 クラウドわ：通りに立てた備（_honnoStreet）は除く。遅れて歩いて来る数人の真ん中（塀ぎわ (-103,104)）へ持ち場を移し、それが寺の内と見なされて
+    //   honnoStreetReserve が表門の前の通り (-81,113) へ運び、南の通りの光秀の備が門の前で本人の組に斬られて五十秒で0人になっていた
+    if (g.team !== 1 || !g._fjN || g.depthFree || g._honnoStreet || g.order !== 'hold' || g.routed || !g.count || !g.anchor) continue;
     const us = g.units.filter((u) => u.alive && !u.gone && !u.isPlayer);
     if (us.length < 3) continue;
     // 散らしが一人ずつ横へ動かすので、組の真ん中でなく兵ごとに見る：持ち場から十二歩より遠く、八秒で持ち場へ一歩半も近づいていない兵
@@ -3281,6 +3285,8 @@ function teraResume(def, rt, ph) {
   }
 }
 const honnoji = {
+  // 11/19 係（天王寺レベルの軍勢）：パソコンは四方の通りの明智の布陣の表（fujin_layout.js）の分を上限に足す＝寺の内の新手・通りの立て直しの空きは前と同じ。携帯は今まで（既定 250）
+  realCap: isTouch ? 250 : 250 + fujinRealN('honnoji'),
   goals5: (rt) => rt.G.lord
     ? (STAGES.honnoji || []).slice(0, 2).map(([text], k) => ({ kind: 'stage', k, text, sec: 900,
       check: (q) => (q.over && honnoWon(q)) || (stageNow(q)?.i ?? 0) > k }))
@@ -4476,6 +4482,7 @@ const honnoji = {
   prelude: false,   // 静かな寺に突然の襲撃：溜めない（prelude.js）
   spawn: { x: PATROL_START.x, z: PATROL_START.z, heading: PATROL_START.heading },
   maxFramedFov: 60, // 10/28 始まりの廊下で視点が壁に寄り画角が百度まで広がって、柱と梁が額縁に見えた。広げる上限を六十度に。
+  quietOpen: (G) => !G.lord,   // 11/19 前夜の章から始まるので、開戦の法螺と陣太鼓は朝の鉄砲の後に鳴らす（zenya.js）
   noHorse: true,   // 本能寺の変だけは馬に乗れない（kaito 10/2。寺の中で戦う）
   mapBack: true, mapRange: 170,   // 11/15 K338（天王寺の物差し・K315）：右上の地図を戻し、寺を囲む明智の備と二条御所も点で見せる
   cornerEnemyGuide: true, // 敵の四隅と刀の印で、戸口の旗と見分ける。
@@ -4972,7 +4979,8 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
     honnoRing(rt);
     F.ehon = camp(rt, { x: -195, z: 140, facing: Math.PI * 0.75, team: 1, faction: 'akechi', mon: 'akechi', armor: 0x2a2a30, general: { name: '明智光秀', hat: 'kabuto_m', haori: 0 }, guard: 15, reserve: 0, runTo: { x: -215, z: 150 } });
     for (const [x, z] of [[-24, 40], [-24, 62], [TERA.x0 - 5, 50], [TERA.x0 - 5, 95], [-60, 112], [-40, TERA.z0 - 8]]) honnoTorch(rt, x, z);
-    for (const [x, z] of [[-20, 56], [TERA.x0 - 7, 60], [-50, 114], [-62, TERA.z0 - 8]]) rt.scene.add(nobori(W, x, z, 'akechi', 6));
+    // 11/19 前夜の章（zenya.js）の間は隠すので覚えておく（前夜の通りに桔梗の旗は無い）
+    F.akNobori = [[-20, 56], [TERA.x0 - 7, 60], [-50, 114], [-62, TERA.z0 - 8]].map(([x, z]) => { const o = nobori(W, x, z, 'akechi', 6); rt.scene.add(o); return o; });
     if (F.ehon.general?.mounted) rt.army.setMounted(F.ehon.general, false);
     if (F.ehon.general) F.ehon.general._crouch = true;   // 光秀は寺の外の本陣で床几に腰を下ろす（自ら斬り込まない）
     // 総大将の光秀は寺の外の本陣を動かない（kaito AR3・AT3）。大将の頭に任せると旗本ごと境内へ入って来た（11/3 測り：百五十秒で御殿の前）。
@@ -6201,6 +6209,8 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
       if (rt.G.lord) this.lordDown(rt); else rt.playerDown();
       return;
     }
+    // 11/19 kaito「刀を持った状態で、敵に囲まれた状態で、能を見るとかが始まっちゃう」：前夜の章（flags.beforeWar・zenya.js）の間は明智の寄せ・通りの備・囲みの手を一つも動かさない
+    if (rt.flags.beforeWar) { honnoClothes(rt, dt); return; }
     honnoPressure(rt);
     honnoPathEnd(rt);
     honnoSurround(rt, dt);
@@ -8361,3 +8371,4 @@ honnoji.depthRealTouch = { rate: 0.008, max: 24 };
 // 11/20 クラウドわ（kaito_now 2）：寺を囲む通りの備は初めから通りに居る。見える所に湧かせない共通の出し方（guardSpawn）が南の通りの光秀の備を
 //   町家の列の裏 (-88,160) へずらし、兵が家の列に詰まって重なり（描かずの記録 15秒 重なり23組）、持ち場も家の裏へ移されていた。通りの持ち場にそのまま立てる
 honnoji.depthRealNoGuard = true;
+honnoji.volleyHoldSafe = true;   // 四方の通りで待つ明智の備を塀の上から撃たない（siege_feel.js volley・kaito_now 2）

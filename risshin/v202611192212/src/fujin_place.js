@@ -6,6 +6,9 @@ import { isTouch } from './touch.js';
 import { nobori } from './props.js';
 import * as THREE from 'three';
 import { drawMon } from './textures.js';
+import { idleFarTick } from './idle_far.js';
+// 11/19 係（天王寺レベルの軍勢・携帯の重さ）：表が idleFar の戦は、表が立てた備（_fjR）のうち本人から遠く持ち場で待つだけの組を休ませる（idle_far.js・天王寺と同じ手。携帯だけ）
+export function fujinIdleFar(rt) { const T = fujinFor(rt); if (T && T.idleFar && rt.flags._fj) idleFarTick(rt, { only: (g) => !!g._fjR }); }
 
 export function fujinFor(rt) {
   const id = rt.def && (rt.def.key || rt.def.id);
@@ -62,6 +65,9 @@ function placeRows(rt, T, rows, list, enemyGroup, allyGroup) {
       if (g && T.keep) for (const u of g.units || []) u.keepReal = true;
       // 11/14 クラウドわ（K287「岡山口の秀忠の札が出ない」）：段の途中で本物が作られる大将（onField・秀忠）は、まだいない間は塊の頭に名だけの代わりを立てる（討たれない）。本物が出たら段の側が代わりの名を外す
       if (g && r.standIn) for (const u of g.units || []) if (u.name === r.standIn) { u._standIn = true; u.invuln = true; }
+      // 11/19 係（天王寺レベルの軍勢）：r.noEngage＝持ち場で待つだけの備（本能寺の通りの明智）。共通の engageNear が遠くの備の印（_far）を見て
+      //   十八m 内の相手へ待ちを解かないよう印を外す（塀の内の織田へ寄せない。寄せは台本の波が出す）
+      if (g && r.noEngage) g._far = false;
       if (g && live >= 0) live += g.count || 0;
       if (g) { g._fujinRow = r.row; g._fjR = r; list.push(g); if (r.block) blockLook(rt, g, r); if (!isTouch) overheadPlate(rt, g, r); }
     } catch (e) { window.__fujinErr = String(e && e.stack || e).slice(0, 300); }

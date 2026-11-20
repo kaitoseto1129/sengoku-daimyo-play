@@ -1,5 +1,6 @@
 import { useTerrain } from './asset_manifest.js';
 import { fujinForce } from './fujin_read.js';
+import { fujinRealN } from './fujin_layout.js';
 const SHITARA_N = fujinForce('shitaragahara') || { a: 38000, b: 15000 };   // 両軍の総勢は布陣の表から（K292）
 import { placeGroup, placePlayer } from './b_opening.js';
 import { jinkeiBuild } from './jinkei.js';
@@ -2855,7 +2856,8 @@ const shitaragahara = {
   // 11/14 K119 iMac二十五：前を埋める武田の新手は十六人（携帯八人）。二十八人ずつ足すと上限の手前から一度に越えた
   frontFillSize: 16,
   reserveCap: (isTouch ? 250 : 260) + FAR_REAL_N,   // K292 クラウドせ：川向こうの控えの備（farReal）の分だけ足す   // 待つ備（味方24人ずつ）は上限の三十人手前で足し止める（筋書きの寄せの分を空ける）
-  realCap: (isTouch ? 280 : 290) + FAR_REAL_N + FENCE_FILL_N,   // K356①：柵の全長を埋める本物の分   // K292：控えの備の分   // 11/13 K119 クラウドわ：柵の帯の本物の鉄砲（携帯30・パソコン40）の分だけ枠を足し、武田の新手の枠を減らさない
+  // 11/19 係（天王寺レベルの軍勢）：パソコンは柵の内の布陣の表（fujin_layout.js）の分を足す＝筋書きの寄せ・新手の空きは前と同じ
+  realCap: (isTouch ? 280 : 290 + fujinRealN('shitaragahara')) + FAR_REAL_N + FENCE_FILL_N,   // K356①：柵の全長を埋める本物の分   // K292：控えの備の分   // 11/13 K119 クラウドわ：柵の帯の本物の鉄砲（携帯30・パソコン40）の分だけ枠を足し、武田の新手の枠を減らさない
   meleeGrace: { rate: 1, burst: 1, interval: 2.2 },
   world: {
     noboriSam: true, overheadViewFar: 900,   // 11/16 K338：天王寺と同じく名の無い徒の侍も幟を負い（家の旗の林＝厚み）、真上の布陣で地面の端を欠かさない
