@@ -4,6 +4,7 @@ import { sunomataFinalGoalsDone, sunomataNorthStopped, sunomataPincerDone, sunom
 import * as SU15 from './sunomata/index.js';
 import * as FS from './sunomata/fushin.js';   // 11/10 築城の進み・詰まらない決まり（docs/sunomata_spec_1109.md）
 import { isTouch as TOUCH } from './touch.js';
+import { fujinRealN } from './fujin_layout.js';
 import { depthReserve } from './depth_reserve.js';
 import { DEPTH_SUNOMATA } from './sunomata/depth.js';   // 陣立ての表（army_depth.js）   // 11/8 十五分の構成（材木の運搬・夜と火矢・夜明けの退き）
 import { battleJin, buildBattleJin } from './b_jinkei_g1.js';
@@ -2476,7 +2477,7 @@ function suonoMore(rt, k, groups) {
   if (S.extra.some((g) => g && g.count > 2 && !g.routed && g.units.some((u) => u.alive && !u.fleeing)) || rt.t < (F.sunoMoreT || 0)) return false;
   F.sunoMoreT = rt.t + 6;
   let live = 0;
-  for (const u of rt.army.units) if (u.alive) live++;
+  for (const u of rt.army.units) if (u.alive && !u.group?._fjR) live++;   // 11/19 係：布陣の表の持ち場で待つ塊は数えない（前と同じ数で決める）
   if (live < 228) return false;
   let g = null, bd = 1e9;
   for (const i of k === 1 ? [0, 1] : [1, 2]) {
@@ -3370,6 +3371,8 @@ function sunoResumeRout(...gs) {
 }
 
 const sunomata = {
+  // 11/19 係（kaito「天王寺レベルの軍勢」）：パソコンは布陣の表（fujin_layout.js）の分を上限に足す＝筋書きの寄せ・新手の空きは前と同じ。携帯は今まで
+  realCap: TOUCH ? 250 : 250 + fujinRealN('sunomata'),
   // 11/18 K363 クラウド k365-cloud-50（司令塔：cloud-14 の確かめで「途中から続ける」が無い戦）：段は寄せの手（F.wave 1 一の手・2 二の手・3 三の手）。
   //   前の手は音もなく済ませる（運びの護衛と北門の普請は済み・柵は結び直し・前の寄せ手は退いた）。夜（yoru）は二の手の段を流した時に始まる
   checkpointStep: (rt) => rt.flags.wave || 0,

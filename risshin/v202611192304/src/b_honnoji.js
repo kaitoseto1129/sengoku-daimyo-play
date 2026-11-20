@@ -4482,6 +4482,7 @@ const honnoji = {
   prelude: false,   // 静かな寺に突然の襲撃：溜めない（prelude.js）
   spawn: { x: PATROL_START.x, z: PATROL_START.z, heading: PATROL_START.heading },
   maxFramedFov: 60, // 10/28 始まりの廊下で視点が壁に寄り画角が百度まで広がって、柱と梁が額縁に見えた。広げる上限を六十度に。
+  quietOpen: (G) => !G.lord,   // 11/19 前夜の章から始まるので、開戦の法螺と陣太鼓は朝の鉄砲の後に鳴らす（zenya.js）
   noHorse: true,   // 本能寺の変だけは馬に乗れない（kaito 10/2。寺の中で戦う）
   mapBack: true, mapRange: 170,   // 11/15 K338（天王寺の物差し・K315）：右上の地図を戻し、寺を囲む明智の備と二条御所も点で見せる
   cornerEnemyGuide: true, // 敵の四隅と刀の印で、戸口の旗と見分ける。
@@ -4552,6 +4553,9 @@ const honnoji = {
     gateRoofBacking: true,   // 11/8 critic60 八1：表門の屋根を内から見て垂木だけの骨組みに見えた。野地板を通す
     nightLift: 1.8,    // 携帯でも足もとと門が見える明るさ（夜の持ち上げの下限の少し上）
     fogFar: 200,
+    // 11/20 クラウドわ（kaito_now 2『四方の通りを明智の本物の兵で埋める』）：夜と煙で見通し（world.vis）が八十 m に縮み、寺の内から百 m 先の通りの兵は体が消え、
+    //   百十 m まで出る指物だけが通りに並んでいた（50秒 指物 670 本のうち体の無い物 455）。四方の通りまで体を描く（遠い兵は軽い兵の束＝IMP で描く）
+    bodySight: 130,
     muddy: 0,
     // 通りは境内と堀の手前で切り、寺の庭を町の道が横切らないようにする。
     paths: [...STREET_X.flatMap((s) => s > TERA.x0 - 4 && s < TERA.x1 + 4 ? [[[s, -170], [s, TERA.z0 - 4]], [[s, TERA.z1 + 4], [s, 170]]] : [[[s, -170], [s, 170]]]),
@@ -4978,7 +4982,8 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
     honnoRing(rt);
     F.ehon = camp(rt, { x: -195, z: 140, facing: Math.PI * 0.75, team: 1, faction: 'akechi', mon: 'akechi', armor: 0x2a2a30, general: { name: '明智光秀', hat: 'kabuto_m', haori: 0 }, guard: 15, reserve: 0, runTo: { x: -215, z: 150 } });
     for (const [x, z] of [[-24, 40], [-24, 62], [TERA.x0 - 5, 50], [TERA.x0 - 5, 95], [-60, 112], [-40, TERA.z0 - 8]]) honnoTorch(rt, x, z);
-    for (const [x, z] of [[-20, 56], [TERA.x0 - 7, 60], [-50, 114], [-62, TERA.z0 - 8]]) rt.scene.add(nobori(W, x, z, 'akechi', 6));
+    // 11/19 前夜の章（zenya.js）の間は隠すので覚えておく（前夜の通りに桔梗の旗は無い）
+    F.akNobori = [[-20, 56], [TERA.x0 - 7, 60], [-50, 114], [-62, TERA.z0 - 8]].map(([x, z]) => { const o = nobori(W, x, z, 'akechi', 6); rt.scene.add(o); return o; });
     if (F.ehon.general?.mounted) rt.army.setMounted(F.ehon.general, false);
     if (F.ehon.general) F.ehon.general._crouch = true;   // 光秀は寺の外の本陣で床几に腰を下ろす（自ら斬り込まない）
     // 総大将の光秀は寺の外の本陣を動かない（kaito AR3・AT3）。大将の頭に任せると旗本ごと境内へ入って来た（11/3 測り：百五十秒で御殿の前）。
@@ -6207,6 +6212,8 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
       if (rt.G.lord) this.lordDown(rt); else rt.playerDown();
       return;
     }
+    // 11/19 kaito「刀を持った状態で、敵に囲まれた状態で、能を見るとかが始まっちゃう」：前夜の章（flags.beforeWar・zenya.js）の間は明智の寄せ・通りの備・囲みの手を一つも動かさない
+    if (rt.flags.beforeWar) { honnoClothes(rt, dt); return; }
     honnoPressure(rt);
     honnoPathEnd(rt);
     honnoSurround(rt, dt);

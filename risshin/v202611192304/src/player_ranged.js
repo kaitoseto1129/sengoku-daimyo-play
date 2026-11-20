@@ -8,6 +8,9 @@ import { sfx, deafen } from './audio.js';
 import { S, reduceMotion } from './settings.js';
 import { isTouch } from './touch.js';
 import { TRAIL_N, TRAIL_MAT, _tA, _tB, findInterveningAlly, GUN_RELOAD } from './player.js';
+// 11/19 kaito「鉄砲の精度が低い」：吸い付く照準の狙う高さは、立った者の胸（1.2m）に決め打ちせず、しゃがむ・伏せる者は体の真ん中へ
+//   （持ち場で腰を落として待つ兵の頭は一m ほどで、胸の高さを狙うと頭の上を抜けていた。体の高さの決まりは army_ranged の targetTop と同じ）
+const aimY = (o, t) => { if (o.mounted) return 2.0; const h = o.bodyHeight || 1.72 * (o.mesh?.scale.y || 1); const low = o.downed || o.pinT > t ? 0.3 : o.duckT > t ? 0.55 : 1 - Math.min(1, o.idl?.sit || 0) * 0.42; return Math.min(1.2, h * low * 0.66); };
 
 const AIM_FACE = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);   // 寝かせた輪を画面に向けて立てる
 let AIM_GEO = null, AIM_MAT = null;   // 撃つ先の輪（形と材質は全戦で使い回す）
@@ -236,7 +239,7 @@ export class PlayerRanged {
       if (!o.alive || o.gone || o.noTarget || (o.team === 0 && !(o.mounted && o.horse && !o.isPlayer && !o.invuln)) || o.woundOut || o.type === 'dummy') continue;
       if (nearestEnemy && (o.team === this.u.team || o.fleeing || o.gone || o.civ)) continue;
       if (!weatherSees(this.rt.world, this.u.pos, o.pos)) continue;
-      v.set(o.pos.x - cam.position.x, o.pos.y + (o.mounted ? 2.0 : 1.2) - cam.position.y, o.pos.z - cam.position.z);
+      v.set(o.pos.x - cam.position.x, o.pos.y + aimY(o, this.rt.army.time) - cam.position.y, o.pos.z - cam.position.z);
       const d = v.length();
       if (d < 0.001 || d > maxD) continue;
       const ang = Math.acos(Math.max(-1, Math.min(1, v.dot(dir) / d)));
@@ -285,7 +288,7 @@ export class PlayerRanged {
           if (isTouch && this.weapon === 'gun') {
             const cam = rt.camera, v = this.rangedDir;
             cam.getWorldDirection(v);
-            const wantPitch = Math.atan2(o.pos.y + (o.mounted ? 2.0 : 1.2) - cam.position.y, Math.hypot(o.pos.x - cam.position.x, o.pos.z - cam.position.z));
+            const wantPitch = Math.atan2(o.pos.y + aimY(o, rt.army.time) - cam.position.y, Math.hypot(o.pos.x - cam.position.x, o.pos.z - cam.position.z));
             const viewPitch = Math.atan2(v.y, Math.hypot(v.x, v.z));
             this.pitch = Math.max(-0.5, Math.min(0.55, this.pitch + (wantPitch - viewPitch) * k));
           }
@@ -402,6 +405,7 @@ export class PlayerRanged {
     const sx = u.pos.x + Math.sin(this.yaw) * f + Math.cos(this.yaw) * r;
     const sz = u.pos.z + Math.cos(this.yaw) * f - Math.sin(this.yaw) * r;
     const sy = u.pos.y + (u.mounted ? RIDE.y : 0) + (gun ? 1.46 : 1.5);
+    if (gun) { const a = u.aimFrom || (u.aimFrom = { x: 0, y: 0, z: 0, t: -1 }); a.x = sx; a.y = sy; a.z = sz; a.t = this.rt.army.time; }   // 11/19：fireGun が狙いのずれを同じ筒先から量る
     const d = Math.max(3, Math.hypot(t.pos.x - cam.position.x, t.pos.y + 1.2 - cam.position.y, t.pos.z - cam.position.z));
     cam.getWorldDirection(v).multiplyScalar(d).add(cam.position);
     v.x -= sx; v.y -= sy; v.z -= sz;

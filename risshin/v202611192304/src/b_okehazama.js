@@ -3,6 +3,7 @@ import { crowdRescue } from './crowd_rescue.js';   // 11/17 K365：囲まれた�
 import { depthReserve } from './depth_reserve.js';
 import { fujinForce } from './fujin_read.js';
 import { isTouch as TOUCH } from './touch.js';
+import { fujinRealN } from './fujin_layout.js';
 import { useTerrain } from './asset_manifest.js';
 import { battleJin, buildBattleJin } from './b_jinkei_g1.js';
 // 第1戦　桶狭間。雨後の急襲・旗本の囲み・元の道への帰陣。
@@ -986,6 +987,8 @@ const OKE_GRACE = { rate: 0.009, burst: 0.08, interval: 2.5 };
 const OKE_GRACE_HONJIN = { rate: 0.009, burst: 0.08, interval: 3.5, k1118: true };
 let OKE_RT = null;
 const okehazama = {
+  // 11/19 係（kaito「天王寺レベルの軍勢」）：パソコンは布陣の表（fujin_layout.js）の分を上限に足す＝筋書きの寄せ・新手の空きは前と同じ。携帯は今まで
+  realCap: TOUCH ? 250 : 250 + fujinRealN('okehazama'),
   stackAllAttack: true, // 11/18 マ三：act bot 331秒 assault (71,-8)/(86,11) で味方の10人の隊が attack のまま重なり止まる（2回）。狙い無しで重なる attack 組を共通の渦に散らす
   namedKacchu: OKEHAZAMA_KACCHU,
   // 10/31 iPhone の作りだけ：動く影は二コマに一度描き直す（main.js drawScene。稲葉山と同じ。fps 12→20 の軽く）
@@ -2991,7 +2994,12 @@ html:root body #hud:has(#h-prog[data-battle="okehazama"]):has(#intro:not([hidden
       F.okeNearT = rt.t + 2;
       const me = rt.player.u, P = me.pos;
       let foe = null, fd = 45;
-      for (const u of rt.army.units) { if (!u.alive || u.gone || u.team === me.team || u.fleeing || u.noTarget || u.woundOut) continue; const d = Math.hypot(u.pos.x - P.x, u.pos.z - P.z); if (d < fd) { fd = d; foe = u; } }
+      let fr30 = 0;
+      for (const u of rt.army.units) { if (!u.alive || u.gone || u.isPlayer) continue; const d = Math.hypot(u.pos.x - P.x, u.pos.z - P.z); if (u.team === me.team) { if (d < 30 && !u.fleeing) fr30++; continue; } if (u.fleeing || u.noTarget || u.woundOut) continue; if (d < fd) { fd = d; foe = u; } }
+      // 11/20 クラウドか（続き）：待つ新手（二十人×二組）が四十〜六十 m 後ろに立ち続け、その四十人が「七十 m 内の味方」に数えられて出る目安（三十人未満）に届かず、
+      //   本人の三十 m 内の味方は 2〜8 のまま（描かずの数え 360・480秒）→三十 m 内の味方が十二人より少なければ、待つ新手を一組ずつ出して本人の脇へ寄せる
+      const A = F._dr?.A;
+      if (fr30 < 12 && A?.length) { const g = A.shift(); g.stay = false; g.fire = true; g.aggro = 14; g.seekRange = 40; g.order = 'attack'; g.dest = null; g.path = null; }
       for (const g of rt.army.groups) {
         if (g.team !== me.team || g.isPlayerSquad || g.routed || g.stay || g.order !== 'attack' || !g.count || /本陣/.test(g.name || '')) continue;
         const c = g.center();

@@ -54,6 +54,38 @@ export function k15Fade(rt, mid, title, sub) {
   try { mid(rt); } finally { rt.after(0.6, () => { rt.scene.visible = true; if (title) rt.banner(title, sub || ''); timeSkipGoal(rt, title ? 3 : 1); }, true); }
 }
 
+// 11/19 kaito（本能寺の前夜「急に画面全体の色が変わる。何分（何時間）後という表記があった方がいい」）：時が飛ぶ所のなめらかな暗転。
+//   黒へゆっくり落とし（o.out 秒）→ 黒の間に mid（兵を置き直す・時を進める）→ 真ん中に短く時刻（o.time。kaito が頼んだ字）→ o.hold 秒 → ゆっくり明ける（o.in 秒）→ o.after。
+//   k15Fade（場面を消して 0.6 秒で戻す）は色が一コマで切り替わるので、時が飛ぶ所はこちらを使う。描かない時（bot・NORENDER）も同じ秒で進む。
+export function k15Dark(rt, mid, o = {}) {
+  const out = o.out ?? 1.1, hold = o.hold ?? 1.8, fin = o.in ?? 1.3;
+  let el = null;
+  if (typeof document !== 'undefined') {
+    el = document.createElement('div');
+    el.className = 'k15-dark';
+    el.setAttribute('aria-hidden', 'true');
+    el.style.cssText = `position:fixed;inset:0;z-index:38;background:#000;opacity:0;transition:opacity ${out}s ease-in-out;pointer-events:none;display:flex;align-items:center;justify-content:center;`
+      + 'color:#efe6d2;font-family:"Hiragino Mincho ProN","Yu Mincho",serif;font-size:clamp(18px,3.2vw,30px);letter-spacing:.32em;text-align:center;line-height:1.8';
+    const tx = document.createElement('div');
+    tx.style.cssText = 'opacity:0;transition:opacity .9s ease';
+    tx.textContent = o.time || '';
+    el.appendChild(tx);
+    document.body.appendChild(el);
+    { const e0 = el; requestAnimationFrame(() => { e0.style.opacity = '1'; }); }
+    el._tx = tx;
+    const dispose = rt.dispose.bind(rt);
+    rt.dispose = (...a) => { el?.remove(); return dispose(...a); };
+  }
+  rt.after(out, () => {
+    try { mid?.(rt); } catch (e) { /* 置き直しが出来なくても暗転は明ける */ }
+    if (el && o.time) el._tx.style.opacity = '1';
+    rt.after(hold, () => {
+      if (el) { el._tx.style.opacity = '0'; el.style.transition = `opacity ${fin}s ease-in-out`; el.style.opacity = '0'; }
+      rt.after(fin, () => { el?.remove(); el = null; if (o.title) rt.banner(o.title, o.sub || ''); o.after?.(rt); }, true);
+    }, true);
+  }, true);
+}
+
 // 勝ちの締めを遅らせて余韻を入れる。勝ちの関数を呼ぶ直前に一度。scenes は [[秒, fn], …]（合わせて20〜30秒）。
 export function k15Afterglow(rt, scenes) {
   const fin = rt.finish.bind(rt);

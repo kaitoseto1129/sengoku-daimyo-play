@@ -6,11 +6,11 @@
 // 同じ境内・同じ御殿を使い回す（NG-09）。明智の兵はこの間だけ隠し、寄せない（前夜に兵はいない）。
 // 入れ方：b_honnoji.js で k15Shizuka の後に wrap(honnoji) を一度（shizuka の p1 をさらに包む）。
 // ======================================================================
-import { k15Off, k15Scenes, k15Fade } from '../oda15_kit.js';
+import { k15Off, k15Scenes, k15Dark } from '../oda15_kit.js';
 import { PT } from '../honno_tera.js';
 import { evPerson, evRemove } from '../b_ev6.js';
 import { groundAt } from '../floors.js';
-import { sfx } from '../audio.js';
+import { sfx, playMusic } from '../audio.js';
 import * as THREE from 'three';
 import { nohStage, playNoh, NOH_SEATS } from './nou.js';
 
@@ -36,9 +36,9 @@ export function wrap(def) {
   def.p1 = function (r) {
     const F = r.flags;
     if (F.ending || r.over || !r.player.u.alive) return;
-    if (k15Off(r) || F.zenyaDone || F.shizukaDone || F.hp) return p1.call(this, r);
+    if (k15Off(r) || F.zenyaDone || F.shizukaDone || F.hp) { warOn(r); return p1.call(this, r); }
     if (F.k15stage === 'zenya') return;
-    start(r, () => { F.zenyaDone = true; F.k15on = false; F.k15stage = null; F.k15at = null; p1.call(this, r); });
+    start(r, () => { F.zenyaDone = true; F.k15on = false; F.k15stage = null; F.k15at = null; warOn(r); p1.call(this, r); });
   };
   // 要件60：前夜は飛ばせる（ほかの時は今までどおり飛ばさない）
   const cs = def.canSkip, sk = def.skip;
@@ -62,24 +62,43 @@ function moveMe(rt, x, z, face) {
   if (face != null) P.yaw = face;
 }
 
-// 明智の兵は前夜にはいない。隠して寄せさせず、目が覚めた時に戻す
+// 11/19 kaito「刀を持った状態で、敵に囲まれた状態で、能を見るとかが始まっちゃう。戦が始まる前と始まった後の区別がちゃんとついていない」：
+//   前夜の章の間は flags.beforeWar を立てる（battle.js が布陣の表・陣立て・新手・場面の兵を立てず、戦の音と呟きと武器の札を止める。b_honnoji.js の update も寄せを動かさない）。
+//   それでも先に居る明智の兵（光秀の本陣など）・囲みの松明・桔梗の旗は隠し、寺の者の手の刀・槍・弓も見せない（寝間着の夜に抜き身を持たない）。
+//   朝の鉄砲で目が覚めた時に戻し、そこから初めて明智の兵を立てる（warOn）。
 function hideFoes(rt, on) {
   const F = rt.flags;
   if (on) {
-    F.zenyaHid = [];
+    F.zenyaHid = F.zenyaHid || [];
     for (const g of rt.army.groups || []) {
-      if (g.team === 0) continue;
+      if (g.team === 0 || g._zenyaHid) continue;
+      g._zenyaHid = true;
       F.zenyaHid.push([g, g.peaceful, g.hidden]);
       g.peaceful = true; g.hidden = true;
-      for (const u of g.units) if (u.mesh) { u._zenyaVis = u.mesh.visible; u.mesh.visible = false; }
     }
+    for (const [g] of F.zenyaHid) for (const u of g.units) if (u.mesh && u.mesh.visible) { if (u._zenyaVis === undefined) u._zenyaVis = true; u.mesh.visible = false; }
+    // 寺の者は手に何も持たない（刀は腰のまま）
+    F.zenyaWpn = F.zenyaWpn || new Set();
+    //   u.noWpn は units.js の毎コマの得物の見せ方が見る（手の得物を隠すだけで、持ち物は変えない）
+    for (const u of rt.army.units) if (u.team === 0 && u.alive && !u.noWpn) { u.noWpn = true; if (u.wpn) u.wpn.visible = false; F.zenyaWpn.add(u); }
+    const P = rt.player.u; if (P && !P.noWpn) { P.noWpn = true; if (P.wpn) P.wpn.visible = false; F.zenyaWpn.add(P); }
+    for (const o of [F.ring?.grp, ...(F.akNobori || [])]) if (o && o.visible) { o.visible = false; (F.zenyaObj || (F.zenyaObj = new Set())).add(o); }
   } else {
     for (const [g, pc, hd] of F.zenyaHid || []) {
-      g.peaceful = pc; g.hidden = hd;
-      for (const u of g.units) if (u.mesh && u._zenyaVis !== undefined) { u.mesh.visible = u._zenyaVis; delete u._zenyaVis; }
+      g.peaceful = pc; g.hidden = hd; delete g._zenyaHid;
+      for (const u of g.units) if (u.mesh && u._zenyaVis !== undefined) { u.mesh.visible = true; delete u._zenyaVis; }
     }
-    F.zenyaHid = null;
+    for (const u of F.zenyaWpn || []) { delete u.noWpn; if (u.wpn) u.wpn.visible = true; }
+    for (const o of F.zenyaObj || []) o.visible = true;
+    F.zenyaHid = null; F.zenyaWpn = null; F.zenyaObj = null;
   }
+}
+// 戦の始まり：前の章の印を下ろし、開戦の法螺と陣太鼓（battle.js が quietOpen で止めていた）を鳴らす
+function warOn(rt) {
+  const F = rt.flags;
+  if (F.warOnDone) return;
+  F.warOnDone = true; F.beforeWar = false;
+  if (!rt.G?.lord) playMusic('prebattle');
 }
 
 // 茶釜・風炉・茶碗・茶入（基本形。翌朝も同じ所に残る＝要件55・56）
@@ -125,9 +144,12 @@ function futon(rt) {
 
 function start(rt, done) {
   const F = rt.flags, P = rt.player;
-  F.k15stage = 'zenya'; F.k15on = true;
+  F.k15stage = 'zenya'; F.k15on = true; F.beforeWar = true;
   const stop = () => F.k15stage !== 'zenya' || F.ending || !P.u.alive;
   hideFoes(rt, true);
+  // 後から出来た物（遅れて着いた兵・持ち替えた刀）も、前夜の間は四半秒ごとに隠し続ける
+  const quiet = () => { if (!F.beforeWar || rt.over) return; hideFoes(rt, true); rt.after(0.25, quiet, true); };
+  rt.after(0.25, quiet, true);
   teaSet(rt);
   // 信長は上座に座る（棒立ちで待たない＝要件13）。蘭丸は茶釜の脇に控える
   const nbG = F.nbG, nb = F.nb, kosho = F.kosho;
@@ -153,19 +175,25 @@ function start(rt, done) {
     if (ended) return; ended = true; F.zenyaEnd = null;
     rt.unmark('zenya'); F.k15at = null;
     F.nohSkip?.(); F.nohOff?.(); F.nohOff = null;   // 能の途中でも役者と篝火を片付ける
-    // 暗い間に元へ戻す：客は帰り、信長と小姓は居室へ、本人は寝床で目が覚める
-    rt.scene.visible = false;
-    for (const g of guests) evRemove(rt, g);
-    if (nb?.alive) { delete nb.jinchu; if (nbAnchor) { nbG.anchor = nbAnchor; nbG.facing = nbFace; put(rt, nb, nbAnchor.x, nbAnchor.z, nbFace); } }
-    if (kosho) { if (F.ran) delete F.ran.jinchu; if (koAnchor) { kosho.anchor = koAnchor; kosho.facing = koFace; } kosho.units.forEach((u) => { if (u.alive) put(rt, u, koAnchor.x + (Math.random() - 0.5) * 2, koAnchor.z + (Math.random() - 0.5) * 2); }); }
-    delete P.u.jinchu;
-    moveMe(rt, BED.x, BED.z, Math.PI / 2);
-    hideFoes(rt, false);
-    rt.objDone('main');
-    // 要件21：暗く静か→遠くで鉄砲一つ→間→もう一つ→目が覚める
-    const wake = skipped ? 0.6 : 3.2;
-    if (!skipped) rt.after(1.2, () => sfx('gun', 0.18), true);
-    rt.after(wake, () => { rt.scene.visible = true; sfx('gun', skipped ? 0.2 : 0.3); P.u.lieWant = 0; if (!rt.over) done(); }, true);
+    // 11/19 kaito「急に画面全体の色が変わる」：画面を一コマで消さず、黒へゆっくり落とし、黒の間に元へ戻す（客は帰り、信長と小姓は居室へ、本人は寝床）
+    //   要件21：黒の間は静か→遠くで鉄砲一つ→間→明けて目が覚める（もう一つ）。黒の真ん中に時刻（kaito「何分（何時間）後という表記」）
+    k15Dark(rt, () => {
+      for (const g of guests) evRemove(rt, g);
+      if (nb?.alive) { delete nb.jinchu; if (nbAnchor) { nbG.anchor = nbAnchor; nbG.facing = nbFace; put(rt, nb, nbAnchor.x, nbAnchor.z, nbFace); } }
+      if (kosho) { if (F.ran) delete F.ran.jinchu; if (koAnchor) { kosho.anchor = koAnchor; kosho.facing = koFace; } kosho.units.forEach((u) => { if (u.alive) put(rt, u, koAnchor.x + (Math.random() - 0.5) * 2, koAnchor.z + (Math.random() - 0.5) * 2); }); }
+      delete P.u.jinchu;
+      moveMe(rt, BED.x, BED.z, Math.PI / 2);
+      rt.objDone('main');
+      if (!skipped) rt.after(1.2, () => sfx('gun', 0.18), true);
+    }, {
+      time: '六月二日　明け方', out: skipped ? 0.7 : 1.4, hold: skipped ? 1.2 : 2.6, in: 1.2,
+      after: () => {
+        // 目が覚めてから初めて戦の物を戻す（ここで前夜の印を下ろし、明智の兵を立て始める）
+        F.beforeWar = false; hideFoes(rt, false);
+        sfx('gun', skipped ? 0.2 : 0.3); P.u.lieWant = 0;
+        if (!rt.over) done();
+      },
+    });
   };
   // 歩いて座る（座る印は字でなく座の場所のピン）。来なければ二十五秒で座らせる
   F.k15at = { at: () => ME_SEAT, r: 1.2 };
@@ -175,7 +203,8 @@ function start(rt, done) {
     if (stop() || ended || seated) return;
     const me = P.u.pos;
     waitT += 0.5;
-    if (Math.hypot(me.x - ME_SEAT.x, me.z - ME_SEAT.z) < 1.3 || waitT > 25) { seated = true; sit(); return; }
+    // 11/19 kaito「座り方わからない」：ピンの座の 2.2m 内に来るか、六秒たてば座らせる（座る操作は無い。歩いて近づくだけ）
+    if (Math.hypot(me.x - ME_SEAT.x, me.z - ME_SEAT.z) < 2.2 || waitT > 6) { seated = true; sit(); return; }
     rt.after(0.5, seatTick, true);
   };
   rt.after(0.5, seatTick, true);
@@ -256,11 +285,16 @@ function start(rt, done) {
   };
   const noh = (next) => {
     let stage = null;
-    k15Fade(rt, () => { stage = nohStage(rt); F.nohOff = stage.off; seats('noh'); }, '中庭の舞台', '能を一番。篝火の下に囃子が並ぶ');
-    playNoh(rt, stage, () => stop() || ended, () => {
-      if (stop() || ended) return;
-      k15Fade(rt, () => { stage.off(); F.nohOff = null; seats('hall'); });
-      rt.after(1, next, true);
+    // 11/19 kaito：時が飛ぶ所は黒へなめらかに落とし、黒の間に時刻を出す（茶席→能は「一刻のち」・能→広間は「夜が更けて」）
+    k15Dark(rt, () => { if (stop() || ended) return; stage = nohStage(rt); F.nohOff = stage.off; seats('noh'); rt.obj('main', '能を観る', 'main', true); }, {
+      time: '一刻のち', title: '中庭の舞台', sub: '能を一番。篝火の下に囃子が並ぶ',
+      after: () => {
+        if (stop() || ended || !stage) return;
+        playNoh(rt, stage, () => stop() || ended, () => {
+          if (stop() || ended) return;
+          k15Dark(rt, () => { stage.off(); F.nohOff = null; seats('hall'); rt.obj('main', '上様のおそばに控えよ', 'main', true); }, { time: '夜が更けて', after: () => { if (!stop() && !ended) next(); } });
+        });
+      },
     });
   };
 }

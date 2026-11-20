@@ -35,6 +35,7 @@ import { drawGroundAt } from './render_camera.js';
 import { battleEvent, EVENT_COMMANDER_ADVANCE, EVENT_UNIT_BREAK, EVENT_COMMANDER_KILLED, EVENT_REINFORCEMENT, EVENT_RETREAT } from './battle_events.js';
 import { timeslipField } from './timeslip_field.js';
 import { isTouch } from './touch.js';
+import { fujinRealN } from './fujin_layout.js';
 
 // ======================================================================
 // 第2戦　森部
@@ -3674,7 +3675,8 @@ const moribe = {
   noFieldMap: true,
   // 11/15 K338（天王寺・岡山の出来へ）：右上の地図を戻し、八百歩の森部の野の遠い備も点で見せる。陣の名札も遠目で出す
   mapBack: true, mapRange: 170,
-  realCap: isTouch ? 270 : 340,   // 11/15 K338：本物の兵の上限を天王寺・岡山と同じに（既定250。共通の前を埋める備 frontFill が前60mに40人をそろえられる）
+  realCap: isTouch ? 270 : 340 + fujinRealN('moribe'),   // 11/19 係（天王寺レベルの軍勢）：パソコンは布陣の表の分を足す
+    // 11/15 K338：本物の兵の上限を天王寺・岡山と同じに（既定250。共通の前を埋める備 frontFill が前60mに40人をそろえられる）
   // 11/15 K338：共通の新手（frontFill・depthReserve）を楡俣川の水と岸の坂（z 72〜104）に置かない。敵は北岸の野だけ（act bot：川岸 (-61,78) に置かれた斎藤の新手が坂を上れず20秒止まった）
   reserveOk: (rt, p, foe) => foe ? p.z < nireZ(p.x) - 16 : Math.abs(p.z - nireZ(p.x)) > 16,
   nameRange: 280, nameRangeSamurai: true,
