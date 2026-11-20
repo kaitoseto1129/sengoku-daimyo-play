@@ -461,6 +461,20 @@ export class PlayerRanged {
     this.bowAmmo--;
     u.dmg = 24; // 的の身分で矢の威力を変えない。
     this.rangedVelocity(t, 36);
+    // 11/19 kaito「弓もそう（命中率9割）」：狙う敵がいる時は、矢の落ちと風と的の動きを見越して胸へ射る（止まった的なら五十歩で九割ほど当たる）
+    if (t && t.alive && !t.isStruct && t.pos && t !== u) {
+      const mz = u.naka ? 0.3 : 0.6, ox = u.pos.x + Math.sin(u.heading) * mz - Math.cos(u.heading) * 0.12, oz = u.pos.z + Math.cos(u.heading) * mz + Math.sin(u.heading) * 0.12, oy = u.pos.y + (u.mounted ? RIDE.y : 0) + 1.5;
+      const W = army.windAcc ? army.windAcc(true) : { x: 0, z: 0 }, sp = 36, g = 9.8;
+      let tx = t.pos.x, tz = t.pos.z; const ty = t.pos.y + (t.mounted ? RIDE.y : 0) + 1.15;
+      for (let k = 0; k < 2; k++) {
+        const dd = Math.hypot(tx - ox, tz - oz), dy = ty - oy, disc = sp ** 4 - g * (g * dd * dd + 2 * dy * sp * sp);
+        if (disc < 0) break;
+        const ang = Math.atan((sp * sp - Math.sqrt(disc)) / (g * Math.max(0.1, dd))), T = dd / (sp * Math.cos(ang));
+        tx = t.pos.x + (t.vel?.x || 0) * T - W.x * T * T * 0.5; tz = t.pos.z + (t.vel?.z || 0) * T - W.z * T * T * 0.5;
+        if (k === 1) { const hx = (tx - ox) / Math.max(0.1, dd), hz = (tz - oz) / Math.max(0.1, dd), c = Math.cos(ang);
+          const e = 0.006; this.rangedDir.set((hx * c + (Math.random() - 0.5) * e) * sp, (Math.sin(ang) + (Math.random() - 0.5) * e) * sp, (hz * c + (Math.random() - 0.5) * e) * sp); }
+      }
+    }
     const fatigue = Math.max(0, (this.bowHold || 0) - 3), spread = Math.min(0.05, fatigue * 0.003 + Math.max(0, 0.3 - this.sta / this.maxSta) * 0.04 + Math.max(0, (this.dread || 0) - 0.55) * 0.04 + (u.armWound || 0) * 0.03);   // 腕の傷で矢が外れやすい
     if (spread > 0) { this.rangedDir.x += (Math.random() - 0.5) * 36 * spread; this.rangedDir.y += (Math.random() - 0.5) * 36 * spread; this.rangedDir.normalize().multiplyScalar(36); }
     if (!army.hooks.onPlayerArrow) army.hooks.onPlayerArrow = (victim, result) => {

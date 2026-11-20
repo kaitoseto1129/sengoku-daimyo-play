@@ -85,7 +85,9 @@ export const FUJIN = {   // 置き場の行（本物の備を並べる）。docs
   // 第二次上田（11/14 MB係三 K297 司令塔「前半の戦の布陣を厚い塊に」）：noFake で b_k05_ueda.js の染屋台の尾根の諸隊と神川の向こうの後詰（addDistantArmy・計八つ）が空になり、
   //   徳川三万八千の輪が旗と陣幕だけだった。同じ所に本物の塊と家の幟の林（本多・有馬の酢漿草・大久保の上り藤・榊原の源氏車・山内の柏）。西向き（城へ）。本人の始め 92,-52 と退く先の本陣の前 80m は空く
   //   11/17 クラウド kaito2：携帯で塊が五〜九人と薄く、神川の向こうが白い幟の格子に見えた（220秒・n-allgate の検品）→ deep で肩の触れる厚い塊に（天王寺と同じ）
-  k05_ueda: { keep: true, deep: true, rows: [
+  // 11/19 係（army-11・kaito「天王寺レベルの軍勢」・60秒の本物 743→千八百以上）：秀忠軍三万八千のうち、城を囲む手（北の田の奥・北の林の東・神川の東の岸・城の南の野）に家ごとの塊（blk）を足す。
+  //   真田（二千五百）は城の北と西の外に塊。大手門・城下の道（x 22〜92）・誘いの退き道と林（x 20〜75, z −66〜−120）・尼ヶ淵（z 22〜48）・神川の浅瀬（112,0）と中山道の道（132〜150, 4〜92）は空ける
+  k05_ueda: { keep: true, deep: true, lazy: true, idleFar: true, noboriAll: true, nbTouch: [4, 2], rows: [
     { key: 'okuboB', name: '大久保忠隣の後詰', side: 0, x: 124, z: -64, w: 20, d: 10, count: 150, facing: -S / 2, flag: 'okubo', armor: 0x2e2a26, row: '神川の向こう', leaders: [], blocks: [{ name: '大久保の後詰 一の手', flag: 'okubo' }, { name: '大久保の後詰 二の手', flag: 'okubo' }], blockW: 14, blockMax: 24, ranks: 4, nobori: true },
     { key: 'hondaB', name: '本多忠政の後詰', side: 0, x: 126, z: -22, w: 20, d: 10, count: 170, facing: -S / 2, flag: 'honda', armor: 0x2e2a26, row: '神川の向こう', leaders: [], blocks: [{ name: '本多の後詰 一の手', flag: 'honda' }, { name: '本多の後詰 二の手', flag: 'honda' }], blockW: 14, blockMax: 24, ranks: 4, nobori: true },
     { key: 'yamauchiB', name: '山内一豊の後詰', side: 0, x: 128, z: 22, w: 20, d: 10, count: 130, facing: -S / 2, flag: 'kashiwa', armor: 0x2e2a26, row: '神川の向こう', leaders: [], blocks: [{ name: '山内の後詰', flag: 'kashiwa' }], blockW: 14, blockMax: 24, ranks: 4, nobori: true },
@@ -94,6 +96,18 @@ export const FUJIN = {   // 置き場の行（本物の備を並べる）。docs
     { key: 'someHidetada', name: '染屋台の秀忠の旗本', side: 0, x: 256, z: -4, w: 24, d: 12, count: 240, facing: -S / 2, flag: 'tokugawa', armor: 0x2e2a26, row: '染屋台', leaders: [], blocks: [{ name: '染屋台の旗本 一の手', flag: 'tokugawa' }, { name: '染屋台の旗本 二の手', flag: 'tokugawa' }, { name: '染屋台の旗本 三の手', flag: 'tokugawa' }], blockW: 14, blockMax: 24, ranks: 4, nobori: true },
     { key: 'someOkubo', name: '染屋台の大久保', side: 0, x: 236, z: -74, w: 24, d: 12, count: 160, facing: -S / 2, flag: 'okubo', armor: 0x2e2a26, row: '染屋台', leaders: [], blocks: [{ name: '染屋台の大久保 一の手', flag: 'okubo' }, { name: '染屋台の大久保 二の手', flag: 'okubo' }], blockW: 14, blockMax: 24, ranks: 4, nobori: true },
     { key: 'someSakakibara', name: '染屋台の榊原康政', side: 0, x: 240, z: 70, w: 24, d: 12, count: 160, facing: -S / 2, flag: 'sakakibara', armor: 0x2e2a26, row: '染屋台', leaders: [], blocks: [{ name: '染屋台の榊原 一の手', flag: 'sakakibara' }, { name: '染屋台の榊原 二の手', flag: 'sakakibara' }], blockW: 14, blockMax: 24, ranks: 4, nobori: true },
+    blk('ueA', '北の田の奥の徳川勢 西', 0, 95, -135, 3, 0, 'tokugawa', '徳川 北の奥'),
+    blk('ueB', '北の田の奥の徳川勢 東', 0, 145, -140, 3, 0, 'tokugawa', '徳川 北の奥'),
+    blk('ueC', '神川の東の北の備', 0, 150, -100, 3, -S / 2, 'honda', '徳川 神川の東'),
+    blk('ueD', '神川の東の旗本の北', 0, 175, -72, 3, -S / 2, 'tokugawa', '徳川 神川の東'),
+    blk('ueE', '染屋台の南の備', 0, 192, 52, 3, -S / 2, 'sakakibara', '徳川 神川の東'),
+    blk('ueF', '城の南の野の備 西', 0, 30, 85, 3, S, 'tokugawa', '徳川 城の南'),
+    blk('ueG', '城の南の野の備 東', 0, 85, 98, 3, S, 'honda', '徳川 城の南'),
+    blk('ueH', '城の北を囲む備', 0, -5, -100, 3, 0, 'okubo', '徳川 城の北'),
+    blk('ueI', '城の北西を囲む備', 0, -65, -85, 3, 0, 'tokugawa', '徳川 城の北'),
+    blk('ueS1', '真田の城の北の備', 1, -40, -95, 2, 0, 'sanada1600', '真田 城の北'),
+    blk('ueS2', '真田の城の西の備', 1, -95, -40, 2, -S / 2, 'sanada1600', '真田 城の西'),
+    blk('ueS3', '真田の尼ヶ淵の上の備', 1, -45, 10, 2, S, 'sanada1600', '真田 尼ヶ淵の上'),
   ] },
   // 小田原征伐（11/14 MB係三 K297）：noFake で t12_odawara/hojin.js の全国の大名の陣（addDistantArmy・六つ）が空になり、陣幕と幟二本だけだった。
   //   同じ所に本物の塊と家の幟の林（秀吉の桐・堀・小早川・宇喜多の紺・信雄・秀次）。向きは城（51,-131）へ。本人（井伊の陣 164,-90）から 190m 内に入った時に置かれる
@@ -206,17 +220,18 @@ export const FUJIN = {   // 置き場の行（本物の備を並べる）。docs
   //   柵の口（大宮前 z−280）の前と、本物の将の陣（ALLIED_POSTS・REAR_POSTS）には重ねない。始めの本人（−16,−261）の 190m 内なので始めに立つ。
   //   上限（realCap）はパソコンだけ この表の分（fujinRealN）を足す＝筋書きの寄せ・新手の空きは前と同じ
   //   withEmpty：表は足すだけなので、陣立ての入れ物の本物（depth_real.js）も前のとおり立てる（本能寺も同じ）
+  // 11/19 kaito「後詰めの備ももっとちゃんと前に」：一の列 x−38→−24・二の列 x−95〜−100→−50（柵の後ろの将 x−10 のすぐ後ろに二重に厚く）
   shitaragahara: { stayPut: true, withEmpty: true, deep: true, lazy: true, keep: true, idleFar: true, noboriAll: true, nbTouch: [4, 2], rows: [
-    { key: 'oL2a', name: '佐久間の後備え', side: 0, x: -95, z: -420, w: 39, d: 12, count: 600, facing: S / 2, flag: 'oda', armor: 0x2e2a26, row: '柵の内 二の列', leaders: [], blocks: [{ name: '佐久間の後備え 一' }, { name: '佐久間の後備え 二' }, { name: '佐久間の後備え 三' }], ranks: 4 },
-    { key: 'oL2b', name: '滝川の後備え', side: 0, x: -95, z: -370, w: 39, d: 12, count: 600, facing: S / 2, flag: 'oda', armor: 0x2e2a26, row: '柵の内 二の列', leaders: [], blocks: [{ name: '滝川の後備え 一' }, { name: '滝川の後備え 二' }, { name: '滝川の後備え 三' }], ranks: 4 },
-    { key: 'oL2c', name: '大宮前の後備え', side: 0, x: -100, z: -310, w: 39, d: 12, count: 600, facing: S / 2, flag: 'oda', armor: 0x2e2a26, row: '柵の内 二の列', leaders: [], blocks: [{ name: '大宮前の後備え 一' }, { name: '大宮前の後備え 二' }, { name: '大宮前の後備え 三' }], ranks: 4 },
-    { key: 'oL2d', name: '羽柴の先手', side: 0, x: -100, z: -250, w: 39, d: 12, count: 600, facing: S / 2, flag: 'oda', armor: 0x2e2a26, row: '柵の内 二の列', leaders: [], blocks: [{ name: '羽柴の先手 一' }, { name: '羽柴の先手 二' }, { name: '羽柴の先手 三' }], ranks: 4 },
-    { key: 'oL2e', name: '丹羽の先手', side: 0, x: -100, z: -190, w: 39, d: 12, count: 600, facing: S / 2, flag: 'sujikai', armor: 0x2e2a26, row: '柵の内 二の列', leaders: [], blocks: [{ name: '丹羽の先手 一' }, { name: '丹羽の先手 二' }, { name: '丹羽の先手 三' }], ranks: 4 },
-    { key: 'oL2f', name: '野々村の後備え', side: 0, x: -100, z: -130, w: 39, d: 12, count: 600, facing: S / 2, flag: 'oda', armor: 0x2e2a26, row: '柵の内 二の列', leaders: [], blocks: [{ name: '野々村の後備え 一' }, { name: '野々村の後備え 二' }, { name: '野々村の後備え 三' }], ranks: 4 },
-    { key: 'oL1a', name: '佐久間の脇備え', side: 0, x: -38, z: -400, w: 26, d: 12, count: 400, facing: S / 2, flag: 'oda', armor: 0x2e2a26, row: '柵の内 一の列', leaders: [], blocks: [{ name: '佐久間の脇備え 一' }, { name: '佐久間の脇備え 二' }], ranks: 4 },
-    { key: 'oL1b', name: '野々村の脇備え', side: 0, x: -38, z: -228, w: 26, d: 12, count: 400, facing: S / 2, flag: 'oda', armor: 0x2e2a26, row: '柵の内 一の列', leaders: [], blocks: [{ name: '野々村の脇備え 一' }, { name: '野々村の脇備え 二' }], ranks: 4 },
-    { key: 'oL1c', name: '柴田の先手', side: 0, x: -38, z: -165, w: 26, d: 12, count: 400, facing: S / 2, flag: 'oda', armor: 0x2e2a26, row: '柵の内 一の列', leaders: [], blocks: [{ name: '柴田の先手 一' }, { name: '柴田の先手 二' }], ranks: 4 },
-    { key: 'oL1d', name: '佐々の後備え', side: 0, x: -38, z: -118, w: 26, d: 12, count: 400, facing: S / 2, flag: 'shuro', armor: 0x2e2a26, row: '柵の内 一の列', leaders: [], blocks: [{ name: '佐々の後備え 一' }, { name: '佐々の後備え 二' }], ranks: 4 },
+    { key: 'oL2a', name: '佐久間の後備え', side: 0, x: -50, z: -420, w: 39, d: 12, count: 600, facing: S / 2, flag: 'oda', armor: 0x2e2a26, row: '柵の内 二の列', leaders: [], blocks: [{ name: '佐久間の後備え 一' }, { name: '佐久間の後備え 二' }, { name: '佐久間の後備え 三' }], ranks: 4 },
+    { key: 'oL2b', name: '滝川の後備え', side: 0, x: -50, z: -370, w: 39, d: 12, count: 600, facing: S / 2, flag: 'oda', armor: 0x2e2a26, row: '柵の内 二の列', leaders: [], blocks: [{ name: '滝川の後備え 一' }, { name: '滝川の後備え 二' }, { name: '滝川の後備え 三' }], ranks: 4 },
+    { key: 'oL2c', name: '大宮前の後備え', side: 0, x: -50, z: -310, w: 39, d: 12, count: 600, facing: S / 2, flag: 'oda', armor: 0x2e2a26, row: '柵の内 二の列', leaders: [], blocks: [{ name: '大宮前の後備え 一' }, { name: '大宮前の後備え 二' }, { name: '大宮前の後備え 三' }], ranks: 4 },
+    { key: 'oL2d', name: '羽柴の先手', side: 0, x: -50, z: -250, w: 39, d: 12, count: 600, facing: S / 2, flag: 'oda', armor: 0x2e2a26, row: '柵の内 二の列', leaders: [], blocks: [{ name: '羽柴の先手 一' }, { name: '羽柴の先手 二' }, { name: '羽柴の先手 三' }], ranks: 4 },
+    { key: 'oL2e', name: '丹羽の先手', side: 0, x: -50, z: -190, w: 39, d: 12, count: 600, facing: S / 2, flag: 'sujikai', armor: 0x2e2a26, row: '柵の内 二の列', leaders: [], blocks: [{ name: '丹羽の先手 一' }, { name: '丹羽の先手 二' }, { name: '丹羽の先手 三' }], ranks: 4 },
+    { key: 'oL2f', name: '野々村の後備え', side: 0, x: -50, z: -130, w: 39, d: 12, count: 600, facing: S / 2, flag: 'oda', armor: 0x2e2a26, row: '柵の内 二の列', leaders: [], blocks: [{ name: '野々村の後備え 一' }, { name: '野々村の後備え 二' }, { name: '野々村の後備え 三' }], ranks: 4 },
+    { key: 'oL1a', name: '佐久間の脇備え', side: 0, x: -24, z: -400, w: 26, d: 12, count: 400, facing: S / 2, flag: 'oda', armor: 0x2e2a26, row: '柵の内 一の列', leaders: [], blocks: [{ name: '佐久間の脇備え 一' }, { name: '佐久間の脇備え 二' }], ranks: 4 },
+    { key: 'oL1b', name: '野々村の脇備え', side: 0, x: -24, z: -228, w: 26, d: 12, count: 400, facing: S / 2, flag: 'oda', armor: 0x2e2a26, row: '柵の内 一の列', leaders: [], blocks: [{ name: '野々村の脇備え 一' }, { name: '野々村の脇備え 二' }], ranks: 4 },
+    { key: 'oL1c', name: '柴田の先手', side: 0, x: -24, z: -165, w: 26, d: 12, count: 400, facing: S / 2, flag: 'oda', armor: 0x2e2a26, row: '柵の内 一の列', leaders: [], blocks: [{ name: '柴田の先手 一' }, { name: '柴田の先手 二' }], ranks: 4 },
+    { key: 'oL1d', name: '佐々の後備え', side: 0, x: -24, z: -118, w: 26, d: 12, count: 400, facing: S / 2, flag: 'shuro', armor: 0x2e2a26, row: '柵の内 一の列', leaders: [], blocks: [{ name: '佐々の後備え 一' }, { name: '佐々の後備え 二' }], ranks: 4 },
   ] },
   // 11/19 係（kaito「天王寺レベルの軍勢」・本能寺の物差し＝明智勢 約一万三千が寺の四方の通りを埋める・docs/fujin/honnoji.md）：前は 60秒で 247。
   //   寺（築地 x −151〜−31・z −16〜104）の外の四方の通り（西＝油小路 x−164 とその西・北＝六角 z−30・南＝蛸薬師 z119・東＝西洞院の外 x−10 と町の通り x27）に、

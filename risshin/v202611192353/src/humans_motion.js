@@ -413,7 +413,9 @@ function lowerBody(h, B, dt, time, st, wIdle, sp, w) {
   if (I && wIdle > 0.2) {
     if (I.low > 0.01 && st < 0.5) { lf -= 0.2 * I.low; lk += 0.2 * I.low; rf += 0.04 * I.low; rk += 0.16 * I.low; drop += 0.02 * I.low; }
     // 鉄砲・槍は左の膝を立てて右の膝を着く（手本 docs/ashigaru_ref_1101 の ref3・4：鉄砲は立てた左膝に左肘を乗せる）。弓は左の膝を着く（ref2）
-    if (I.sit > 0.01 && (w === 'gun' || w === 'spear')) {
+    // 11/19 kaito「座り方もちゃんと」（本能寺の前夜の茶席）：座の印が seiza の人（u.jinchu.seiza）は正座。両の腿を前へ水平に揃え、膝を深く折って脛を腿の下へ畳み、尻を踵に乗せる。背は立てたまま
+    if (I.sit > 0.01 && u.jinchu?.seiza) { const s = I.sit; lf -= 1.5 * s; rf -= 1.5 * s; lk += 2.75 * s; rk += 2.75 * s; drop += 0.56 * s; }
+    else if (I.sit > 0.01 && (w === 'gun' || w === 'spear')) {
       // 鉄砲は右の踵に腰を落とし、左の腿をほぼ水平に立てて、前へ屈めた胸から左肘を膝へ下ろす（手を下げる深さは army_move.js の idleFx と同じ）
       // 11/12 kaito 天王寺 12「鉄砲を撃つ構えが変」：狙う間も胸を 0.6 まで屈めると頭が胸へ沈み、筒が陣笠の上を通っていた。
       // 手本 ref3 のとおり、狙う間（aimK）は胸を起こして頬を台木に付ける（込め直し・待つ間は前のまま屈める）

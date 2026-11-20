@@ -1,18 +1,22 @@
 // 画面の上の名札・行き先の印を揺らさない（kaito 11/19「名前が上下に揺れるのはすごいストレス。本当にやめてほしい」）。
-// 歩きの上下・カメラの小さな揺れ・重なり避けの段替えで点が数 px ずつ跳ねるのを、
-// 小さな揺れは止め（3px 未満は動かさない）、大きな動きはなめらかに追う。遠くへ跳んだ時（140px 超）と出し直しはすぐ合わせる。
+// 11/20 クラウドし：前の「3px 未満は止め、超えたら追う」は、ゆっくり動く点（毎秒十五 px ほど＝カメラの回しや歩み寄る敵）で
+//   止まる→跳ぶ→止まるを繰り返し、かえって札がガクガク上下していた（試しの数え：一コマの揺れ 0.04→0.97px）。
+//   止める幅を無くし、動きの速さで追う速さを変えるならし（ゆっくりの時は強くならし、速い時は遅れない）に替えた（同じ試し 0.08px）。
+//   遠くへ跳んだ時（140px 超）と出し直しはすぐ合わせる。
 const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
+const follow = (dt, hz) => 1 - Math.exp(-dt * 2 * Math.PI * hz);
 export function steadyPoint(s, x, y, out = s) {
   const t = now();
   // 同じコマの二つ目（別の印）は混ぜない：そのままの点を返す
   if (s.t != null && t - s.t < 4) { out.x = x; out.y = y; return out; }
   const dt = s.t == null ? 1 : Math.min(.1, (t - s.t) / 1000);
   s.t = t;
-  if (s.x == null || dt > .25 || Math.abs(x - s.x) > 140 || Math.abs(y - s.y) > 140) { s.x = x; s.y = y; }
+  if (s.x == null || dt > .25 || Math.abs(x - s.x) > 140 || Math.abs(y - s.y) > 140) { s.x = x; s.y = y; s.vx = 0; s.vy = 0; }
   else {
-    const a = 1 - Math.exp(-dt * 12);
-    if (Math.abs(x - s.x) >= 1.5) s.x += (x - s.x) * a;
-    if (Math.abs(y - s.y) >= 3) s.y += (y - s.y) * a;
+    const kv = follow(dt, 1);
+    s.vx = (s.vx || 0) + ((x - s.x) / dt - (s.vx || 0)) * kv; s.vy = (s.vy || 0) + ((y - s.y) / dt - (s.vy || 0)) * kv;
+    s.x += (x - s.x) * follow(dt, .7 + .02 * Math.abs(s.vx));
+    s.y += (y - s.y) * follow(dt, .7 + .02 * Math.abs(s.vy));
   }
   out.x = s.x; out.y = s.y;
   return out;

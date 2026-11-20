@@ -29,7 +29,7 @@ const GUESTS = [
   // 寺の僧
   ['日衍', { x: -50.6, z: 88.2 }, -Math.PI / 2, { kosodeCol: 0x2c2a28, obi: 0x2c2a28 }],
 ];
-const SIT = () => ({ standing: false, t: 0, soldiers: [] });
+const SIT = () => ({ standing: false, t: 0, soldiers: [], seiza: true });   // 茶席は正座（humans_motion.js の seiza。kaito 11/19「座り方もちゃんと」）
 
 export function wrap(def) {
   const p1 = def.p1;
@@ -162,7 +162,7 @@ function start(rt, done) {
     kosho.units.forEach((u, i) => { if (u !== F.ran && u.alive) put(rt, u, -56 + i * 1.6, 82.4, 0); });
   }
   const guests = GUESTS.map(([name, at, face, c]) => {
-    const g = evPerson(rt, 0, name, at, face, { calm: true, mortal: true, g: { noRetinue: true, noAI: true, hideFlags: true }, u: { kosode: 1, honnoCloth: true, kosodeCol: c.kosodeCol, obi: c.obi, flag: null, horse: false } });
+    const g = evPerson(rt, 0, name, at, face, { calm: true, mortal: true, g: { noRetinue: true, noAI: true, hideFlags: true }, u: { kosode: 1, honnoCloth: true, weapon: 'none', kosodeCol: c.kosodeCol, obi: c.obi, flag: null, horse: false } });
     for (const u of g.units) { u.jinchu = SIT(); u.invuln = true; put(rt, u, at.x, at.z, face); }
     return g;
   });
