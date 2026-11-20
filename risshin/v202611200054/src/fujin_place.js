@@ -8,7 +8,7 @@ import * as THREE from 'three';
 import { drawMon } from './textures.js';
 import { idleFarTick } from './idle_far.js';
 // 11/19 係（天王寺レベルの軍勢・携帯の重さ）：表が idleFar の戦は、表が立てた備（_fjR）のうち本人から遠く持ち場で待つだけの組を休ませる（idle_far.js・天王寺と同じ手。携帯だけ）
-export function fujinIdleFar(rt) { const T = fujinFor(rt); if (T && T.idleFar && rt.flags._fj) idleFarTick(rt, { only: (g) => !!g._fjR }); }
+export function fujinIdleFar(rt) { const T = fujinFor(rt); if (T && T.idleFar && rt.flags._fj) idleFarTick(rt, { only: (g) => !!g._fjR || !!g._idleOk }); }   // _idleOk：戦の筋の組でも、持ち場で待つだけの組は休ませてよい印（設楽原の柵の後ろの将の旗本 11/19）
 
 export function fujinFor(rt) {
   const id = rt.def && (rt.def.key || rt.def.id);

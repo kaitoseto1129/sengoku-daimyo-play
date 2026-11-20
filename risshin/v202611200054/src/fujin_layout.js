@@ -23,6 +23,10 @@ const hAm = (x, z, f = 0) => [{ when: hAmbush, x, z, facing: f, speed: 4.6 }];
 const NUM = '一二三四五';
 const blk = (key, name, side, x, z, nb, facing, flag, row, o = {}) => ({ key, name, side, x, z, w: 13 * nb, d: 12, count: 200 * nb, facing, flag, armor: side ? 0x2a2622 : 0x2e2a26, row, leaders: [],
   blocks: Array.from({ length: nb }, (_, i) => ({ name: `${name} ${NUM[i]}` })), ranks: 4, noEngage: true, ...o });
+// 11/19 係 army-11：杭瀬川は戦の座標が川の向きに回してある（b_k04_kuisegawa.js の T・O_L）。局所の (x,z)・向き（0＝局所 +z）を同じ式でゲームの座標へ
+const kqT = (x, z) => { const a = x - 70, b = z + 20; return { x: -0.81395 * a + 0.58093 * b, z: -0.58093 * a - 0.81395 * b }; };
+const kqY = (a) => { const v = kqT(70 + Math.sin(a), -20 + Math.cos(a)), o = kqT(70, -20); return Math.atan2(v.x - o.x, v.z - o.z); };
+const kq = (key, name, side, lx, lz, nb, lf, flag, row, o = {}) => { const p = kqT(lx, lz); return blk(key, name, side, Math.round(p.x), Math.round(p.z), nb, kqY(lf), flag, row, o); };
 export const FUJIN = {   // 置き場の行（本物の備を並べる）。docs から自動で作った数の表は fujin_layout.js（FUJIN_TABLE）
   // 大坂夏の陣 天王寺・岡山口（kaito 11/13 の布陣図）。北が大坂城・南が徳川。天王寺口は四重・岡山口は二重
   // 11/14 クラウドわ（K287①司令塔「各陣を幅より奥行きのある厚い塊に」）：deep で塊を奥行きの深い密な四角に（fujin_place の blockLook）
@@ -85,7 +89,9 @@ export const FUJIN = {   // 置き場の行（本物の備を並べる）。docs
   // 第二次上田（11/14 MB係三 K297 司令塔「前半の戦の布陣を厚い塊に」）：noFake で b_k05_ueda.js の染屋台の尾根の諸隊と神川の向こうの後詰（addDistantArmy・計八つ）が空になり、
   //   徳川三万八千の輪が旗と陣幕だけだった。同じ所に本物の塊と家の幟の林（本多・有馬の酢漿草・大久保の上り藤・榊原の源氏車・山内の柏）。西向き（城へ）。本人の始め 92,-52 と退く先の本陣の前 80m は空く
   //   11/17 クラウド kaito2：携帯で塊が五〜九人と薄く、神川の向こうが白い幟の格子に見えた（220秒・n-allgate の検品）→ deep で肩の触れる厚い塊に（天王寺と同じ）
-  k05_ueda: { keep: true, deep: true, rows: [
+  // 11/19 係（army-11・kaito「天王寺レベルの軍勢」・60秒の本物 743→千八百以上）：秀忠軍三万八千のうち、城を囲む手（北の田の奥・北の林の東・神川の東の岸・城の南の野）に家ごとの塊（blk）を足す。
+  //   真田（二千五百）は城の北と西の外に塊。大手門・城下の道（x 22〜92）・誘いの退き道と林（x 20〜75, z −66〜−120）・尼ヶ淵（z 22〜48）・神川の浅瀬（112,0）と中山道の道（132〜150, 4〜92）は空ける
+  k05_ueda: { keep: true, deep: true, lazy: true, idleFar: true, noboriAll: true, nbTouch: [4, 2], rows: [
     { key: 'okuboB', name: '大久保忠隣の後詰', side: 0, x: 124, z: -64, w: 20, d: 10, count: 150, facing: -S / 2, flag: 'okubo', armor: 0x2e2a26, row: '神川の向こう', leaders: [], blocks: [{ name: '大久保の後詰 一の手', flag: 'okubo' }, { name: '大久保の後詰 二の手', flag: 'okubo' }], blockW: 14, blockMax: 24, ranks: 4, nobori: true },
     { key: 'hondaB', name: '本多忠政の後詰', side: 0, x: 126, z: -22, w: 20, d: 10, count: 170, facing: -S / 2, flag: 'honda', armor: 0x2e2a26, row: '神川の向こう', leaders: [], blocks: [{ name: '本多の後詰 一の手', flag: 'honda' }, { name: '本多の後詰 二の手', flag: 'honda' }], blockW: 14, blockMax: 24, ranks: 4, nobori: true },
     { key: 'yamauchiB', name: '山内一豊の後詰', side: 0, x: 128, z: 22, w: 20, d: 10, count: 130, facing: -S / 2, flag: 'kashiwa', armor: 0x2e2a26, row: '神川の向こう', leaders: [], blocks: [{ name: '山内の後詰', flag: 'kashiwa' }], blockW: 14, blockMax: 24, ranks: 4, nobori: true },
@@ -94,6 +100,77 @@ export const FUJIN = {   // 置き場の行（本物の備を並べる）。docs
     { key: 'someHidetada', name: '染屋台の秀忠の旗本', side: 0, x: 256, z: -4, w: 24, d: 12, count: 240, facing: -S / 2, flag: 'tokugawa', armor: 0x2e2a26, row: '染屋台', leaders: [], blocks: [{ name: '染屋台の旗本 一の手', flag: 'tokugawa' }, { name: '染屋台の旗本 二の手', flag: 'tokugawa' }, { name: '染屋台の旗本 三の手', flag: 'tokugawa' }], blockW: 14, blockMax: 24, ranks: 4, nobori: true },
     { key: 'someOkubo', name: '染屋台の大久保', side: 0, x: 236, z: -74, w: 24, d: 12, count: 160, facing: -S / 2, flag: 'okubo', armor: 0x2e2a26, row: '染屋台', leaders: [], blocks: [{ name: '染屋台の大久保 一の手', flag: 'okubo' }, { name: '染屋台の大久保 二の手', flag: 'okubo' }], blockW: 14, blockMax: 24, ranks: 4, nobori: true },
     { key: 'someSakakibara', name: '染屋台の榊原康政', side: 0, x: 240, z: 70, w: 24, d: 12, count: 160, facing: -S / 2, flag: 'sakakibara', armor: 0x2e2a26, row: '染屋台', leaders: [], blocks: [{ name: '染屋台の榊原 一の手', flag: 'sakakibara' }, { name: '染屋台の榊原 二の手', flag: 'sakakibara' }], blockW: 14, blockMax: 24, ranks: 4, nobori: true },
+    blk('ueA', '北の田の奥の徳川勢 西', 0, 95, -135, 3, 0, 'tokugawa', '徳川 北の奥'),
+    blk('ueB', '北の田の奥の徳川勢 東', 0, 145, -140, 3, 0, 'tokugawa', '徳川 北の奥'),
+    blk('ueC', '神川の東の北の備', 0, 150, -100, 3, -S / 2, 'honda', '徳川 神川の東'),
+    blk('ueD', '神川の東の旗本の北', 0, 175, -72, 3, -S / 2, 'tokugawa', '徳川 神川の東'),
+    blk('ueE', '染屋台の南の備', 0, 192, 52, 3, -S / 2, 'sakakibara', '徳川 神川の東'),
+    blk('ueF', '城の南の野の備 西', 0, 30, 85, 3, S, 'tokugawa', '徳川 城の南'),
+    blk('ueG', '城の南の野の備 東', 0, 85, 98, 3, S, 'honda', '徳川 城の南'),
+    blk('ueH', '城の北を囲む備', 0, -5, -100, 3, 0, 'okubo', '徳川 城の北'),
+    blk('ueI', '城の北西を囲む備', 0, -65, -85, 3, 0, 'tokugawa', '徳川 城の北'),
+    blk('ueS1', '真田の城の北の備', 1, -40, -95, 2, 0, 'sanada1600', '真田 城の北'),
+    blk('ueS2', '真田の城の西の備', 1, -95, -40, 2, -S / 2, 'sanada1600', '真田 城の西'),
+    blk('ueS3', '真田の尼ヶ淵の上の備', 1, -45, 10, 2, S, 'sanada1600', '真田 尼ヶ淵の上'),
+  ] },
+  // 河田・米野（docs/fujin/k02_kawada.md：河田の手およそ一万八千・岐阜方 米野と奥の後詰）11/19 係 army-11（天王寺レベルの軍勢・60秒の本物 233→千八百以上）：
+  //   木曽川は z −16〜26（x −60 で）・中洲 (−56,4)。南岸（東軍）は進む道（x −80〜−40）・池田の本陣（−24,135）・山内（80,46）を空けて東西に家ごとの塊、
+  //   北岸（岐阜方）は柵の口（−60,−48）・米野の道（−84,−60〜−140,−68）・新加納の道（−84,−166）を空けて東と奥に塊。持ち場で待つだけ・勝ち負けの組に入らない
+  k02_kawada: { withEmpty: true, deep: true, lazy: true, keep: true, idleFar: true, noboriAll: true, nbTouch: [4, 2], rows: [
+    blk('kaS1', '浅野幸長の後ろの備', 0, -150, 70, 3, S, 'asano', '東軍 南岸 西'),
+    blk('kaS2', '池田長吉の後ろの備', 0, -120, 112, 3, S, 'ageha', '東軍 南岸 西'),
+    blk('kaS3', '一柳直盛の後ろの備', 0, -175, 140, 3, S, 'kuginuki', '東軍 南岸 西', { far: true, tLazy: true }),
+    blk('kaS4', '山内一豊の二陣', 0, 20, 90, 3, S, 'kashiwa', '東軍 南岸 東'),
+    blk('kaS5', '池田の二陣', 0, 62, 122, 3, S, 'ageha', '東軍 南岸 東'),
+    blk('kaS6', '池田の三陣 西', 0, -100, 160, 3, S, 'ageha', '東軍 南岸 奥'),
+    blk('kaS7', '池田の三陣 東', 0, 10, 165, 3, S, 'ageha', '東軍 南岸 奥'),
+    blk('kaS8', '浅野の二の備', 0, 115, 100, 3, S, 'asano', '東軍 南岸 東', { far: true, tLazy: true }),
+    blk('kaN1', '織田秀信方の北岸の備 東', 1, 0, -70, 3, 0, 'oda', '岐阜方 北岸'),
+    blk('kaN2', '織田秀信方の北岸の備 東奥', 1, 30, -112, 3, 0, 'oda', '岐阜方 北岸'),
+    blk('kaN3', '岐阜方の後詰', 1, -20, -142, 3, 0, 'oda', '岐阜方 後詰', { far: true, tLazy: true }),
+    blk('kaN4', '百々綱家の後ろの備', 1, -172, -108, 3, 0, 'oda', '岐阜方 米野', { far: true, tLazy: true }),
+    blk('kaN5', '米野の西の備', 1, -205, -58, 3, 0, 'oda', '岐阜方 米野', { far: true, tLazy: true }),
+    blk('kaN6', '東の浅瀬の後ろの備', 1, 45, -38, 3, 0, 'oda', '岐阜方 北岸'),
+    blk('kaN7', '岐阜方の旗本の後ろ', 1, -55, -125, 3, 0, 'oda', '岐阜方 後詰'),
+  ] },
+  // 岐阜城（docs/fujin/k03_gifu.md：東軍およそ三万四千・城方六千五百）11/19 係 army-11（天王寺レベルの軍勢・60秒の本物 257→千八百以上）：
+  //   金華山は東（本丸 (2,0)）・西の麓に城下と居館。東軍は城下の西の田（本陣 −214,10・先手 −184,3）の北・南・奥に家ごとの塊（東＝S/2 を向く）、
+  //   城方は城下の北と南の外れ・居館の北と南・二の丸と上台所の脇に塊。寄せの道（x −210〜−132, z −8〜10）・百曲り・七曲り・長良川（z −146 より北）は空ける。持ち場で待つだけ・勝ち負けの組に入らない
+  k03_gifu: { withEmpty: true, deep: true, lazy: true, keep: true, idleFar: true, noboriAll: true, nbTouch: [4, 2], rows: [
+    blk('giE1', '池田の二の備', 0, -255, -70, 3, S / 2, 'ageha', '東軍 城下の西'),
+    blk('giE2', '井伊直政の備', 0, -300, -20, 3, S / 2, 'tokugawa', '東軍 城下の西', { far: true, tLazy: true }),
+    blk('giE3', '本多忠勝の備', 0, -292, 60, 3, S / 2, 'honda', '東軍 城下の西', { far: true, tLazy: true }),
+    blk('giE4', '池田の三の備', 0, -255, 100, 3, S / 2, 'ageha', '東軍 城下の西'),
+    blk('giE5', '加藤嘉明の備', 0, -215, -85, 3, S / 2, 'tokugawa', '東軍 城下の北'),
+    blk('giE6', '細川忠興の備', 0, -215, 72, 3, S / 2, 'kuyo', '東軍 城下の南'),
+    blk('giE7', '京極高知の備', 0, -172, -72, 3, S / 2, 'kyogoku', '東軍 城下の北'),
+    blk('giE8', '浅野幸長の備', 0, -172, 85, 3, S / 2, 'asano', '東軍 城下の南'),
+    blk('giE9', '浅野の二の備', 0, -242, 140, 3, S / 2, 'asano', '東軍 瑞龍寺山の麓', { far: true, tLazy: true }),
+    blk('giW1', '津田藤三郎の城下の備 北', 1, -158, -52, 3, -S / 2, 'nobukatsu', '城方 城下'),
+    blk('giW2', '津田藤三郎の城下の備 南', 1, -158, 52, 3, -S / 2, 'nobukatsu', '城方 城下'),
+    blk('giW3', '百々綱家の居館の北の備', 1, -122, -50, 3, -S / 2, 'nobukatsu', '城方 居館'),
+    blk('giW4', '百々綱家の居館の南の備', 1, -122, 48, 3, -S / 2, 'nobukatsu', '城方 居館'),
+    blk('giW5', '木造長政の二の丸の北の備', 1, -64, -42, 3, -S / 2, 'nobukatsu', '城方 二の丸'),
+    blk('giW6', '木造長政の二の丸の南の備', 1, -64, 42, 3, -S / 2, 'nobukatsu', '城方 二の丸'),
+    blk('giW7', '織田秀信の上台所の備', 1, -26, 40, 3, -S / 2, 'nobukatsu', '城方 上台所'),
+  ] },
+  // 杭瀬川（docs/fujin/k04_kuisegawa.md：東軍の中村・有馬・福島・池田・家康の旗本／西軍の石田・宇喜多）11/19 係 army-11（天王寺レベルの軍勢・60秒の本物 239→千八百以上）：
+  //   川の向きに回した座標（kq＝局所 x が赤坂の側）。東軍は渡る所・刈田・有馬の陣・福島と池田の軽い備（132,10・170,−50・165,100）の脇に、西軍は葦の原（−74〜−18, 22〜72）・左近の林（−60,−52）・包みの所（−18,2）から外れた西の奥に塊。
+  //   局所の z −15〜15（x 0〜130）の刈田の道は空ける。持ち場で待つだけ・勝ち負けの組に入らない
+  k04_kuisegawa: { withEmpty: true, deep: true, lazy: true, keep: true, idleFar: true, noboriAll: true, nbTouch: [4, 2], rows: [
+    kq('kuE1', '中村勢の後ろの備', 0, 108, -52, 3, -S / 2, 'toyotomi', '東軍 赤坂の側'),
+    kq('kuE2', '有馬の後ろの備', 0, 108, 48, 3, -S / 2, 'kuki', '東軍 赤坂の側'),
+    kq('kuE3', '福島正則の手の前', 0, 150, -30, 3, -S / 2, 'mizuno', '東軍 赤坂の側'),
+    kq('kuE4', '池田輝政の手の前', 0, 148, 62, 3, -S / 2, 'ageha', '東軍 赤坂の側'),
+    kq('kuE5', '福島正則の二の備', 0, 150, -95, 3, -S / 2, 'mizuno', '東軍 赤坂の側', { far: true, tLazy: true }),
+    kq('kuE6', '徳川の旗本の前', 0, 185, -112, 3, -S / 2, 'tokugawa', '東軍 岡山のふもと', { far: true, tLazy: true }),
+    kq('kuW1', '石田の備 北', 1, -125, -28, 3, S / 2, 'ishida', '西軍 大垣の側'),
+    kq('kuW2', '石田の備 南', 1, -125, 28, 3, S / 2, 'ishida', '西軍 大垣の側'),
+    kq('kuW3', '宇喜多の備', 1, -160, 75, 3, S / 2, 'ukita', '西軍 大垣の側', { far: true, tLazy: true }),
+    kq('kuW4', '石田の後ろの備', 1, -165, -60, 3, S / 2, 'ishida', '西軍 大垣の側', { far: true, tLazy: true }),
+    kq('kuW5', '宇喜多の二の備', 1, -205, 25, 3, S / 2, 'ukita', '西軍 大垣の側', { far: true, tLazy: true }),
+    kq('kuW6', '石田三成の本陣の備', 1, -215, -45, 3, S / 2, 'ishida', '西軍 大垣の側', { far: true, tLazy: true }),
+    kq('kuW7', '宇喜多の三の備', 1, -105, 105, 3, S / 2, 'ukita', '西軍 大垣の側', { far: true, tLazy: true }),
   ] },
   // 小田原征伐（11/14 MB係三 K297）：noFake で t12_odawara/hojin.js の全国の大名の陣（addDistantArmy・六つ）が空になり、陣幕と幟二本だけだった。
   //   同じ所に本物の塊と家の幟の林（秀吉の桐・堀・小早川・宇喜多の紺・信雄・秀次）。向きは城（51,-131）へ。本人（井伊の陣 164,-90）から 190m 内に入った時に置かれる
@@ -165,7 +242,29 @@ export const FUJIN = {   // 置き場の行（本物の備を並べる）。docs
   // 11/18 クラウド k365-cloud-37（一枚表③△「200秒 柵の向こうに鉄砲衆の小さな塊・手前の野は空き」・布陣表 docs/fujin/k16_secret.md「大軍の厚みは未実装」）：
   //   創作の総勢（連合 8万7千・徳川 14万3千）の見え方を、京街道（x≒0）と陣幕の口・柵の口を避けた所に本物の備で足す（深い塊と家の幟の林）。
   //   徳川：二重の柵の奥の東西と、秀忠の陣の西。連合：主人公の組の後ろの東西。どれも持ち場で待つだけ（hold）・段の勝ち負けの組には入らない
-  k16_secret: { deep: true, lazy: true, noboriAll: true, nbTouch: [5, 3], rows: [
+  k16_secret: { withEmpty: true, deep: true, lazy: true, keep: true, idleFar: true, noboriAll: true, nbTouch: [4, 2], rows: [
+    // 11/19 係（kaito「天王寺レベルの軍勢」・元和天下返し）：両軍の本物の兵を千八百以上に（創作の総勢 連合 8万7千・徳川 14万3千の見え方を家ごとの塊で厚く）。
+    //   連合は主人公の組の後ろと東西の野（南＝＋z・北向き＝S）、徳川は二重の柵の奥の東西と秀忠の陣の周り（北＝−z・南向き＝0）。
+    //   京街道（x≈0）・柵の口・陣幕の口（0,−156）・家康の陣幕（0,−166）の周り・東の林の伏せ（96,−50）・西の堤（x≈−122）は空ける。持ち場で待つだけ（noEngage）
+    blk('rsA1', '連合 西の備 一', 0, -92, 70, 3, S, 'mori', '連合 西の野'),
+    blk('rsA2', '連合 西の備 二', 0, -92, 118, 3, S, 'mori', '連合 西の野'),
+    blk('rsA3', '連合 西の備 三', 0, -52, 148, 3, S, 'mori', '連合 後ろ'),
+    blk('rsA4', '連合 中の後備え', 0, -34, 128, 3, S, 'shimazu', '連合 後ろ'),
+    blk('rsA5', '連合 東の後備え', 0, 38, 136, 3, S, 'shimazu', '連合 後ろ'),
+    blk('rsA6', '連合 東の備 一', 0, 90, 108, 3, S, 'shimazu', '連合 東の野'),
+    blk('rsA7', '連合 東の備 二', 0, 108, 66, 3, S, 'shimazu', '連合 東の野'),
+    blk('rsA8', '連合 東の備 三', 0, 132, 122, 3, S, 'shimazu', '連合 東の野'),
+    blk('rsA9', '連合 西の後ろ', 0, -100, 170, 3, S, 'mori', '連合 後ろ'),
+    blk('rsA10', '連合 東の後ろ', 0, 64, 176, 3, S, 'shimazu', '連合 後ろ'),
+    blk('rsA11', '連合 西の脇', 0, -86, 28, 3, S, 'mori', '連合 西の野'),
+    blk('rsA12', '連合 東の脇', 0, 92, 30, 3, S, 'shimazu', '連合 東の野'),
+    blk('rsT1', '徳川の後備え 西の奥', 1, -100, -154, 3, 0, 'tokugawa', '徳川 柵の奥 西', { far: true, tLazy: true }),
+    blk('rsT2', '徳川の後備え 西の奥二', 1, -100, -206, 3, 0, 'tokugawa', '徳川 柵の奥 西', { far: true, tLazy: true }),
+    blk('rsT3', '徳川の後備え 西の後ろ', 1, -70, -172, 3, 0, 'tokugawa', '徳川 柵の奥 西', { far: true, tLazy: true }),
+    blk('rsT4', '徳川の後備え 東の後ろ', 1, 62, -176, 3, 0, 'honda', '徳川 柵の奥 東', { far: true, tLazy: true }),
+    blk('rsT5', '徳川の後備え 東の奥', 1, 108, -150, 3, 0, 'honda', '徳川 柵の奥 東', { far: true, tLazy: true }),
+    blk('rsT6', '徳川の後備え 東の奥二', 1, 108, -206, 3, 0, 'tokugawa', '徳川 柵の奥 東', { far: true, tLazy: true }),
+    blk('rsT7', '徳川の後備え 東の端', 1, 148, -176, 3, 0, 'honda', '徳川 柵の奥 東', { far: true, tLazy: true }),
     { key: 'tkW', name: '徳川の後備え 西', side: 1, x: -62, z: -142, w: 22, d: 10, count: 150, facing: 0, flag: 'tokugawa', armor: 0x2a2622, row: '柵の奥 西', leaders: [], ranks: 4 },
     { key: 'tkE', name: '徳川の後備え 東', side: 1, x: 66, z: -142, w: 22, d: 10, count: 150, facing: 0, flag: 'honda', armor: 0x2a2622, row: '柵の奥 東', leaders: [], ranks: 4 },
     { key: 'tkR', name: '秀忠の手', side: 1, x: -58, z: -198, w: 24, d: 10, count: 150, facing: 0, flag: 'tokugawa', armor: 0x2a2622, row: '本陣の後ろ 西', leaders: [], ranks: 4 },
@@ -206,17 +305,18 @@ export const FUJIN = {   // 置き場の行（本物の備を並べる）。docs
   //   柵の口（大宮前 z−280）の前と、本物の将の陣（ALLIED_POSTS・REAR_POSTS）には重ねない。始めの本人（−16,−261）の 190m 内なので始めに立つ。
   //   上限（realCap）はパソコンだけ この表の分（fujinRealN）を足す＝筋書きの寄せ・新手の空きは前と同じ
   //   withEmpty：表は足すだけなので、陣立ての入れ物の本物（depth_real.js）も前のとおり立てる（本能寺も同じ）
+  // 11/19 kaito「後詰めの備ももっとちゃんと前に」：一の列 x−38→−24・二の列 x−95〜−100→−50（柵の後ろの将 x−10 のすぐ後ろに二重に厚く）
   shitaragahara: { stayPut: true, withEmpty: true, deep: true, lazy: true, keep: true, idleFar: true, noboriAll: true, nbTouch: [4, 2], rows: [
-    { key: 'oL2a', name: '佐久間の後備え', side: 0, x: -95, z: -420, w: 39, d: 12, count: 600, facing: S / 2, flag: 'oda', armor: 0x2e2a26, row: '柵の内 二の列', leaders: [], blocks: [{ name: '佐久間の後備え 一' }, { name: '佐久間の後備え 二' }, { name: '佐久間の後備え 三' }], ranks: 4 },
-    { key: 'oL2b', name: '滝川の後備え', side: 0, x: -95, z: -370, w: 39, d: 12, count: 600, facing: S / 2, flag: 'oda', armor: 0x2e2a26, row: '柵の内 二の列', leaders: [], blocks: [{ name: '滝川の後備え 一' }, { name: '滝川の後備え 二' }, { name: '滝川の後備え 三' }], ranks: 4 },
-    { key: 'oL2c', name: '大宮前の後備え', side: 0, x: -100, z: -310, w: 39, d: 12, count: 600, facing: S / 2, flag: 'oda', armor: 0x2e2a26, row: '柵の内 二の列', leaders: [], blocks: [{ name: '大宮前の後備え 一' }, { name: '大宮前の後備え 二' }, { name: '大宮前の後備え 三' }], ranks: 4 },
-    { key: 'oL2d', name: '羽柴の先手', side: 0, x: -100, z: -250, w: 39, d: 12, count: 600, facing: S / 2, flag: 'oda', armor: 0x2e2a26, row: '柵の内 二の列', leaders: [], blocks: [{ name: '羽柴の先手 一' }, { name: '羽柴の先手 二' }, { name: '羽柴の先手 三' }], ranks: 4 },
-    { key: 'oL2e', name: '丹羽の先手', side: 0, x: -100, z: -190, w: 39, d: 12, count: 600, facing: S / 2, flag: 'sujikai', armor: 0x2e2a26, row: '柵の内 二の列', leaders: [], blocks: [{ name: '丹羽の先手 一' }, { name: '丹羽の先手 二' }, { name: '丹羽の先手 三' }], ranks: 4 },
-    { key: 'oL2f', name: '野々村の後備え', side: 0, x: -100, z: -130, w: 39, d: 12, count: 600, facing: S / 2, flag: 'oda', armor: 0x2e2a26, row: '柵の内 二の列', leaders: [], blocks: [{ name: '野々村の後備え 一' }, { name: '野々村の後備え 二' }, { name: '野々村の後備え 三' }], ranks: 4 },
-    { key: 'oL1a', name: '佐久間の脇備え', side: 0, x: -38, z: -400, w: 26, d: 12, count: 400, facing: S / 2, flag: 'oda', armor: 0x2e2a26, row: '柵の内 一の列', leaders: [], blocks: [{ name: '佐久間の脇備え 一' }, { name: '佐久間の脇備え 二' }], ranks: 4 },
-    { key: 'oL1b', name: '野々村の脇備え', side: 0, x: -38, z: -228, w: 26, d: 12, count: 400, facing: S / 2, flag: 'oda', armor: 0x2e2a26, row: '柵の内 一の列', leaders: [], blocks: [{ name: '野々村の脇備え 一' }, { name: '野々村の脇備え 二' }], ranks: 4 },
-    { key: 'oL1c', name: '柴田の先手', side: 0, x: -38, z: -165, w: 26, d: 12, count: 400, facing: S / 2, flag: 'oda', armor: 0x2e2a26, row: '柵の内 一の列', leaders: [], blocks: [{ name: '柴田の先手 一' }, { name: '柴田の先手 二' }], ranks: 4 },
-    { key: 'oL1d', name: '佐々の後備え', side: 0, x: -38, z: -118, w: 26, d: 12, count: 400, facing: S / 2, flag: 'shuro', armor: 0x2e2a26, row: '柵の内 一の列', leaders: [], blocks: [{ name: '佐々の後備え 一' }, { name: '佐々の後備え 二' }], ranks: 4 },
+    { key: 'oL2a', name: '佐久間の後備え', side: 0, x: -50, z: -420, w: 39, d: 12, count: 600, facing: S / 2, flag: 'oda', armor: 0x2e2a26, row: '柵の内 二の列', leaders: [], blocks: [{ name: '佐久間の後備え 一' }, { name: '佐久間の後備え 二' }, { name: '佐久間の後備え 三' }], ranks: 4 },
+    { key: 'oL2b', name: '滝川の後備え', side: 0, x: -50, z: -370, w: 39, d: 12, count: 600, facing: S / 2, flag: 'oda', armor: 0x2e2a26, row: '柵の内 二の列', leaders: [], blocks: [{ name: '滝川の後備え 一' }, { name: '滝川の後備え 二' }, { name: '滝川の後備え 三' }], ranks: 4 },
+    { key: 'oL2c', name: '大宮前の後備え', side: 0, x: -50, z: -310, w: 39, d: 12, count: 600, facing: S / 2, flag: 'oda', armor: 0x2e2a26, row: '柵の内 二の列', leaders: [], blocks: [{ name: '大宮前の後備え 一' }, { name: '大宮前の後備え 二' }, { name: '大宮前の後備え 三' }], ranks: 4 },
+    { key: 'oL2d', name: '羽柴の先手', side: 0, x: -50, z: -250, w: 39, d: 12, count: 600, facing: S / 2, flag: 'oda', armor: 0x2e2a26, row: '柵の内 二の列', leaders: [], blocks: [{ name: '羽柴の先手 一' }, { name: '羽柴の先手 二' }, { name: '羽柴の先手 三' }], ranks: 4 },
+    { key: 'oL2e', name: '丹羽の先手', side: 0, x: -50, z: -190, w: 39, d: 12, count: 600, facing: S / 2, flag: 'sujikai', armor: 0x2e2a26, row: '柵の内 二の列', leaders: [], blocks: [{ name: '丹羽の先手 一' }, { name: '丹羽の先手 二' }, { name: '丹羽の先手 三' }], ranks: 4 },
+    { key: 'oL2f', name: '野々村の後備え', side: 0, x: -50, z: -130, w: 39, d: 12, count: 600, facing: S / 2, flag: 'oda', armor: 0x2e2a26, row: '柵の内 二の列', leaders: [], blocks: [{ name: '野々村の後備え 一' }, { name: '野々村の後備え 二' }, { name: '野々村の後備え 三' }], ranks: 4 },
+    { key: 'oL1a', name: '佐久間の脇備え', side: 0, x: -24, z: -400, w: 26, d: 12, count: 400, facing: S / 2, flag: 'oda', armor: 0x2e2a26, row: '柵の内 一の列', leaders: [], blocks: [{ name: '佐久間の脇備え 一' }, { name: '佐久間の脇備え 二' }], ranks: 4 },
+    { key: 'oL1b', name: '野々村の脇備え', side: 0, x: -24, z: -228, w: 26, d: 12, count: 400, facing: S / 2, flag: 'oda', armor: 0x2e2a26, row: '柵の内 一の列', leaders: [], blocks: [{ name: '野々村の脇備え 一' }, { name: '野々村の脇備え 二' }], ranks: 4 },
+    { key: 'oL1c', name: '柴田の先手', side: 0, x: -24, z: -165, w: 26, d: 12, count: 400, facing: S / 2, flag: 'oda', armor: 0x2e2a26, row: '柵の内 一の列', leaders: [], blocks: [{ name: '柴田の先手 一' }, { name: '柴田の先手 二' }], ranks: 4 },
+    { key: 'oL1d', name: '佐々の後備え', side: 0, x: -24, z: -118, w: 26, d: 12, count: 400, facing: S / 2, flag: 'shuro', armor: 0x2e2a26, row: '柵の内 一の列', leaders: [], blocks: [{ name: '佐々の後備え 一' }, { name: '佐々の後備え 二' }], ranks: 4 },
   ] },
   // 11/19 係（kaito「天王寺レベルの軍勢」・本能寺の物差し＝明智勢 約一万三千が寺の四方の通りを埋める・docs/fujin/honnoji.md）：前は 60秒で 247。
   //   寺（築地 x −151〜−31・z −16〜104）の外の四方の通り（西＝油小路 x−164 とその西・北＝六角 z−30・南＝蛸薬師 z119・東＝西洞院の外 x−10 と町の通り x27）に、
@@ -326,10 +426,174 @@ export const FUJIN = {   // 置き場の行（本物の備を並べる）。docs
     blk('inS3', '斎藤の東の尾根の備', 1, 88, -100, 2, -S / 4, 'saito', '斎藤 山の東', { far: true, tLazy: true }),
     blk('inS4', '斎藤の西の裏手の備', 1, -90, -110, 2, S / 4, 'saito', '斎藤 山の西', { far: true, tLazy: true }),
   ] },
+  // 11/19 係（kaito「天王寺レベルの軍勢」・八尾若江）：両軍の本物の兵を千八百以上に。家ごとの塊（blk・一塊 44 人）と幟の林。持ち場で待つだけ（noEngage）・keep・idleFar。
+  //   座標は b_k14_yao_wakae.js のとおり：北（−z）が若江、南が八尾。徳川は東（＋x・西向き＝−S/2）、大坂は西（−x・東向き＝S/2）。
+  //   玉串川（x≈40〜48）・長瀬川（x≈−52〜−64）・若江の堤（x≈−8）・東西の道（z≈0〜10）・主人公の寄せ口（96,6）・二つの本陣の道は空ける。史実の比（藤堂 5000・井伊 3200：木村 4700・長宗我部 5300）で徳川が東に厚い
+  k14_yao_wakae: { withEmpty: true, deep: true, lazy: true, keep: true, idleFar: true, noboriAll: true, nbTouch: [4, 2], rows: [
+    blk('ywI1', '井伊の後備え 一', 0, 150, -24, 3, -S / 2, 'ii', '徳川 東の田'),
+    blk('ywI2', '井伊の後備え 二', 0, 152, -76, 3, -S / 2, 'ii', '徳川 東の田'),
+    blk('ywI3', '井伊の後備え 三', 0, 150, -126, 3, -S / 2, 'ii', '徳川 東の田'),
+    blk('ywI4', '井伊の旗本の後ろ', 0, 186, -92, 3, -S / 2, 'ii', '徳川 東の田'),
+    blk('ywT1', '藤堂の後備え 一', 0, 150, 40, 3, -S / 2, 'todo', '徳川 東の田'),
+    blk('ywT2', '藤堂の後備え 二', 0, 156, 92, 3, -S / 2, 'todo', '徳川 東の田'),
+    blk('ywT3', '藤堂の旗本の後ろ', 0, 172, 140, 3, -S / 2, 'todo', '徳川 東の田'),
+    blk('ywT4', '藤堂の予備', 0, 190, 20, 3, -S / 2, 'todo', '徳川 東の田'),
+    blk('ywT5', '藤堂の二陣の後ろ', 0, 190, 70, 3, -S / 2, 'todo', '徳川 東の田'),
+    blk('ywC1', '長宗我部の後備え 一', 1, -96, 40, 3, S / 2, 'chosokabe', '大坂 長瀬川の西'),
+    blk('ywC2', '長宗我部の後備え 二', 1, -100, 160, 3, S / 2, 'chosokabe', '大坂 長瀬川の西'),
+    blk('ywC3', '長宗我部の旗本の後ろ', 1, -140, 60, 3, S / 2, 'chosokabe', '大坂 長瀬川の西'),
+    blk('ywC4', '長宗我部の予備', 1, -144, 140, 3, S / 2, 'chosokabe', '大坂 長瀬川の西'),
+    blk('ywC5', '長宗我部の八尾の南の備', 1, -30, 164, 3, S / 2, 'chosokabe', '大坂 八尾の南', { far: true, tLazy: true }),
+    blk('ywK1', '木村の後備え 一', 1, -96, -96, 3, S / 2, 'toyotomi', '大坂 若江の西'),
+    blk('ywK2', '木村の後備え 二', 1, -100, -150, 3, S / 2, 'toyotomi', '大坂 若江の西'),
+    blk('ywK3', '木村の旗本の後ろ', 1, -142, -100, 3, S / 2, 'toyotomi', '大坂 若江の西', { far: true, tLazy: true }),
+    blk('ywK4', '木村の若江の北の備', 1, -30, -176, 3, S / 2, 'toyotomi', '大坂 若江の北', { far: true, tLazy: true }),
+    blk('ywK5', '山口弘定の後ろの備', 1, 12, -184, 3, S / 2, 'toyotomi', '大坂 若江の北', { far: true, tLazy: true }),
+    blk('ywK6', '内藤長秋の後ろの備', 1, -30, -30, 3, S / 2, 'toyotomi', '大坂 若江の南の田', { far: true, tLazy: true }),
+  ] },
+  // 11/19 係（army-05・kaito「天王寺レベルの軍勢」・docs/fujin/tedorigawa.md）：手取川の北岸（−z）。前は 60秒で本物 273。
+  //   織田（柴田・丹羽・前田の本陣の左右）の後備えと、上杉（先手・後備えの奥）を家ごとの塊（一塊 44 人）と幟で足す。
+  //   主人公の道（x −20〜20・殿の持ち場 0,−38 から渡り口）と渡河列（x ±8）は空け、川（z −26〜20）・南岸には置かない。持ち場で待つだけ（noEngage）。
+  //   idleFar：携帯で本人から遠く待つだけの備を休ませる（idle_far.js）。上杉の奥は本人が来るまで立たない（lazy）
+  tedorigawa: { withEmpty: true, deep: true, lazy: true, keep: true, idleFar: true, noboriAll: true, nbTouch: [4, 2], rows: [
+    blk('tdO1', '丹羽長秀の後備え 西', 0, -75, -52, 3, S, 'sujikai', '織田 北岸の西'),
+    blk('tdO2', '稲葉・氏家の後備え', 0, -118, -52, 3, S, 'oda', '織田 北岸の西'),
+    blk('tdO3', '前田利家の後備え 東', 0, 75, -52, 3, S, 'maeda', '織田 北岸の東'),
+    blk('tdO4', '佐々・不破の後備え', 0, 118, -52, 3, S, 'oda', '織田 北岸の東'),
+    blk('tdO5', '柴田の旗本の後ろ 西', 0, -75, -92, 3, S, 'oda', '織田 北岸の奥'),
+    blk('tdO6', '安藤・金森の備', 0, -118, -92, 3, S, 'oda', '織田 北岸の奥'),
+    blk('tdO7', '柴田の旗本の後ろ 東', 0, 75, -92, 3, S, 'oda', '織田 北岸の奥'),
+    blk('tdO8', '滝川の後詰', 0, 118, -92, 3, S, 'takigawa', '織田 北岸の奥'),
+    blk('tdU1', '上杉の後備え 西の端', 1, -150, -236, 3, 0, 'uesugi', '上杉 奥', { far: true, tLazy: true }),
+    blk('tdU2', '上杉の後備え 西', 1, -105, -236, 3, 0, 'uesugi', '上杉 奥', { far: true, tLazy: true }),
+    blk('tdU3', '上杉の後備え 西寄り', 1, -60, -236, 3, 0, 'uesugi', '上杉 奥', { far: true, tLazy: true }),
+    blk('tdU4', '上杉の後備え 中', 1, -15, -238, 3, 0, 'uesugi', '上杉 奥', { far: true, tLazy: true }),
+    blk('tdU5', '上杉の後備え 東', 1, 110, -234, 3, 0, 'uesugi', '上杉 奥', { far: true, tLazy: true }),
+    blk('tdU6', '上杉の後備え 東の端', 1, 152, -232, 3, 0, 'uesugi', '上杉 奥', { far: true, tLazy: true }),
+  ] },
+  // 11/19 係（army-05・kaito「天王寺レベルの軍勢」・docs/fujin/shigisan.md）：前は 60秒で本物 275。
+  //   織田（信忠の本陣・筒井・細川・羽柴の囲みの後ろと両脇の麓の野）に後備えを、松永（山の西と東の斜面）に二の曲輪の守りを、家ごとの塊（一塊 44 人）と幟で足す。
+  //   登城道（x −6〜6）・九十九折り・寺（58,14）・雄嶽の曲輪の尾根（x −36〜36）・目の前の備の置き場には置かない。持ち場で待つだけ（noEngage）。携帯は idleFar で遠い備を休ませる
+  shigisan: { withEmpty: true, deep: true, lazy: true, keep: true, idleFar: true, noboriAll: true, nbTouch: [4, 2], rows: [
+    blk('sgO1', '信忠の旗本の後備え 西', 0, -75, 172, 3, S, 'oda', '織田 麓の後備え'),
+    blk('sgO2', '織田の後備え 西の端', 0, -120, 172, 3, S, 'oda', '織田 麓の後備え'),
+    blk('sgO3', '信忠の旗本の後備え 東', 0, 75, 172, 3, S, 'oda', '織田 麓の後備え'),
+    blk('sgO4', '織田の後備え 東の端', 0, 120, 172, 3, S, 'oda', '織田 麓の後備え'),
+    blk('sgO5', '佐久間の後詰', 0, -75, 196, 3, S, 'sakuma', '織田 麓の奥'),
+    blk('sgO6', '丹羽の後詰', 0, 75, 196, 3, S, 'sujikai', '織田 麓の奥'),
+    blk('sgO7', '細川の後詰', 0, 120, 196, 3, S, 'oda', '織田 麓の奥'),
+    blk('sgO8', '羽柴の後詰', 0, -120, 196, 3, S, 'oda', '織田 麓の奥'),
+    blk('sgO9', '筒井の後詰', 0, 120, 70, 3, S, 'umebachi', '織田 東の野'),
+    blk('sgO10', '明智の後詰', 0, 120, 42, 3, S, 'akechi', '織田 東の野'),
+    blk('sgO11', '羽柴の囲みの西', 0, -125, 70, 3, S, 'oda', '織田 西の野'),
+    blk('sgO12', '佐久間の囲みの西', 0, -135, 42, 3, S, 'sakuma', '織田 西の野'),
+    blk('sgO13', '織田の西の野の後詰', 0, -130, 100, 3, S, 'oda', '織田 西の野'),
+    blk('sgO14', '織田の東の野の後詰', 0, 130, 100, 3, S, 'oda', '織田 東の野'),
+    blk('sgO15', '織田の後備え 西の奥', 0, -120, 220, 3, S, 'oda', '織田 麓の奥'),
+    blk('sgO16', '織田の後備え 東の奥', 0, 120, 220, 3, S, 'oda', '織田 麓の奥'),
+    blk('sgM1', '松永の西の斜面の備 一', 1, -100, -100, 3, 0, 'todo', '松永 西の斜面', { far: true, tLazy: true }),
+    blk('sgM2', '松永の西の斜面の備 二', 1, -100, -150, 3, 0, 'todo', '松永 西の斜面', { far: true, tLazy: true }),
+    blk('sgM3', '松永の西の斜面の備 三', 1, -100, -200, 3, 0, 'todo', '松永 西の斜面', { far: true, tLazy: true }),
+    blk('sgM4', '松永の西の斜面の備 四', 1, -100, -250, 3, 0, 'todo', '松永 西の斜面', { far: true, tLazy: true }),
+    blk('sgM5', '松永の東の斜面の備 一', 1, 100, -100, 3, 0, 'todo', '松永 東の斜面', { far: true, tLazy: true }),
+    blk('sgM6', '松永の東の斜面の備 二', 1, 100, -150, 3, 0, 'todo', '松永 東の斜面', { far: true, tLazy: true }),
+    blk('sgM7', '松永の東の斜面の備 三', 1, 100, -200, 3, 0, 'todo', '松永 東の斜面', { far: true, tLazy: true }),
+    blk('sgM8', '松永の東の斜面の備 四', 1, 100, -250, 3, 0, 'todo', '松永 東の斜面', { far: true, tLazy: true }),
+  ] },
+  // 11/19 係（army-05・kaito「天王寺レベルの軍勢」・docs/fujin/miki.md）：三木の戦場は城（70,30）の西の平野（x −240〜12・平ら）。前は 60秒で本物 238。
+  //   羽柴（二万）は平野の西の端（x −210・−168）と北（z −205）に後備えを、別所と毛利の搬入（七千五百）は城の西の麓（x 12）と搬入の護衛の後ろ（x −190）に、
+  //   家ごとの塊（一塊 44 人）と幟で置く。主人公の始め（−80,−47）・大村（−64,−118）・平田（−80,−64）・大村道と搬入の道（x −155〜35・z −160〜10）の筋には置かない。持ち場で待つだけ（noEngage）
+  miki: { withEmpty: true, deep: true, lazy: true, keep: true, idleFar: true, noboriAll: true, nbTouch: [4, 2], rows: [
+    blk('mkH1', '羽柴の備 平野の西 1', 0, -210, -150, 3, S / 2, 'toyotomi', '羽柴 西の平野', { far: true, tLazy: true }),
+    blk('mkH2', '羽柴の備 平野の西 2', 0, -210, -110, 3, S / 2, 'toyotomi', '羽柴 西の平野', { far: true, tLazy: true }),
+    blk('mkH3', '羽柴の備 平野の西 3', 0, -210, -70, 3, S / 2, 'toyotomi', '羽柴 西の平野', { far: true, tLazy: true }),
+    blk('mkH4', '羽柴の備 平野の西 4', 0, -210, -30, 3, S / 2, 'toyotomi', '羽柴 西の平野', { far: true, tLazy: true }),
+    blk('mkH5', '羽柴の備 平野の西 5', 0, -210, 10, 3, S / 2, 'toyotomi', '羽柴 西の平野', { far: true, tLazy: true }),
+    blk('mkH6', '羽柴の備 平野の西 6', 0, -210, 50, 3, S / 2, 'toyotomi', '羽柴 西の平野', { far: true, tLazy: true }),
+    blk('mkH7', '羽柴の備 平野の西 7', 0, -210, 90, 3, S / 2, 'toyotomi', '羽柴 西の平野', { far: true, tLazy: true }),
+    blk('mkH8', '羽柴の備 平野の西 8', 0, -210, 130, 3, S / 2, 'toyotomi', '羽柴 西の平野', { far: true, tLazy: true }),
+    blk('mkB1', '別所の城下の備 1', 1, 12, -70, 3, -S / 2, 'mori', '別所 城の西の麓'),
+    blk('mkB2', '別所の城下の備 2', 1, 12, -30, 3, -S / 2, 'mori', '別所 城の西の麓'),
+    blk('mkB3', '別所の城下の備 3', 1, 12, 10, 3, -S / 2, 'mori', '別所 城の西の麓'),
+    blk('mkB4', '別所の城下の備 4', 1, 12, 50, 3, -S / 2, 'mori', '別所 城の西の麓'),
+    blk('mkB5', '別所の城下の備 5', 1, 12, 90, 3, -S / 2, 'mori', '別所 城の西の麓'),
+    blk('mkB6', '別所の城下の備 6', 1, 12, 130, 3, -S / 2, 'mori', '別所 城の西の麓'),
+    blk('mkM1', '毛利の搬入の護衛 1', 1, -190, -110, 3, S / 2, 'mori', '毛利 搬入の護衛', { far: true, tLazy: true }),
+    blk('mkM2', '毛利の搬入の護衛 2', 1, -190, -70, 3, S / 2, 'mori', '毛利 搬入の護衛', { far: true, tLazy: true }),
+    blk('mkM3', '毛利の搬入の護衛 3', 1, -190, -30, 3, S / 2, 'mori', '毛利 搬入の護衛', { far: true, tLazy: true }),
+  ] },
   tottori: { stayPut: true, deep: true, noboriAll: true, nbTouch: [4, 2], rows: [
     { key: 'engoji', name: '円護寺側の付城', side: 0, x: 28, z: -200, w: 24, d: 12, count: 300, facing: Math.PI, flag: 'kiri53', armor: 0x292520, row: '円護寺の付城', leaders: [], ranks: 4, far: true },
     { key: 'karigane', name: '雁金山の宮部の備', side: 0, x: -20, z: -196, w: 20, d: 10, count: 300, facing: Math.PI / 2, flag: 'kiri53', armor: 0x292520, row: '雁金山の付城', leaders: [], ranks: 4, far: true },
     { key: 'taiko', name: '太閤ヶ平の秀吉の旗本', side: 0, x: 128, z: -150, w: 24, d: 12, count: 400, facing: -Math.PI / 2, flag: 'kiri53', armor: 0x292520, row: '太閤ヶ平', leaders: [], ranks: 4, far: true },
+  ] },
+  // 11/19 iMac army-04（kaito「天王寺レベルの軍勢」・雑賀攻め・docs/fujin/saika.md）：前は 60秒で 284。
+  //   織田の山手勢（東岸・西を向く）は後陣（72,0）・堀の先手（26,0）の南北に、川上・川下の控え（50,±70）の外へ、羽柴・荒木・別所・佐久間の手を家ごとの塊（一塊 44 人）で置く。
+  //   雑賀方（西岸・東を向く）は柵（x −47）の後ろに鈴木・土橋の手の塊を置く。川の水（x −24〜−18）・主人公の道（z 0）・使者の道・柵の鉄砲の小組・焼け家（x 78）には置かない。持ち場で待つだけ
+  saika: { withEmpty: true, deep: true, lazy: true, keep: true, idleFar: true, noboriAll: true, nbTouch: [4, 2], rows: [
+    blk('saO1', '羽柴の手 川上の寄り', 0, 54, -34, 3, -S / 2, 'oda', '織田 東岸の南北'),
+    blk('saO2', '荒木の手 川下の寄り', 0, 54, 34, 3, -S / 2, 'oda', '織田 東岸の南北'),
+    blk('saO3', '佐久間の手 後陣の北', 0, 86, -34, 3, -S / 2, 'sakuma', '織田 後陣の脇'),
+    blk('saO4', '佐久間の手 後陣の南', 0, 86, 34, 3, -S / 2, 'sakuma', '織田 後陣の脇'),
+    blk('saO5', '羽柴の後備え 川上', 0, 62, -112, 3, -S / 2, 'oda', '織田 川上の控え', { far: true, tLazy: true }),
+    blk('saO6', '荒木の後備え 川下', 0, 62, 112, 3, -S / 2, 'oda', '織田 川下の控え', { far: true, tLazy: true }),
+    blk('saS1', '鈴木孫一の手 柵の北', 1, -68, -34, 3, S / 2, 'yatagarasu', '雑賀 柵の後ろ'),
+    blk('saS2', '土橋の手 柵の南', 1, -68, 34, 3, S / 2, 'yatagarasu', '雑賀 柵の後ろ'),
+    blk('saS3', '鈴木の後備え 北', 1, -96, -34, 3, S / 2, 'yatagarasu', '雑賀 西岸の後備え'),
+    blk('saS4', '土橋の後備え 南', 1, -96, 34, 3, S / 2, 'yatagarasu', '雑賀 西岸の後備え'),
+    blk('saS5', '雑賀の川上の備', 1, -84, -108, 3, S / 2, 'yatagarasu', '雑賀 川上', { far: true, tLazy: true }),
+    blk('saS6', '雑賀の川下の備', 1, -84, 108, 3, S / 2, 'yatagarasu', '雑賀 川下', { far: true, tLazy: true }),
+  ] },
+  // 11/19 iMac army-04（kaito「天王寺レベルの軍勢」・織田家編の天王寺の戦い・docs/fujin/tennoji.md）：前は 60秒で 283。ほめた物（天王寺の毛利と真田＝k15_tennoji_okayama）には触らない（別の戦の表）。
+  //   織田（南から北＝−z を向く）は一段目（−8,72）・二段目（16,98）・三段目（8,126）の両脇と後ろに、信長の馬廻・諸将の後備えを家ごとの塊（一塊 44 人）で置く。主人公の道（x −25〜25）は空ける。
+  //   本願寺方（砦の北の囲み・南を向く）は砦のきわ（半径 40m）の外、城戸口へ向かう道の両脇に塊で置く。持ち場で待つだけ
+  tennoji: { withEmpty: true, deep: true, lazy: true, keep: true, idleFar: true, noboriAll: true, nbTouch: [4, 2], rows: [
+    blk('toO1', '佐久間の後備え 西', 0, -56, 70, 3, S, 'oda', '織田 一段目の脇'),
+    blk('toO2', '松永の備え 東', 0, 60, 70, 3, S, 'oda', '織田 一段目の脇'),
+    blk('toO3', '羽柴の備え 西', 0, -64, 110, 3, S, 'oda', '織田 二段目の脇'),
+    blk('toO4', '丹羽の備え 東', 0, 68, 112, 3, S, 'oda', '織田 二段目の脇'),
+    blk('toO5', '信長の馬廻の後ろ 西', 0, -40, 152, 3, S, 'eiraku', '織田 三段目の後ろ', { far: true, tLazy: true }),
+    blk('toO6', '信長の馬廻の後ろ 東', 0, 44, 154, 3, S, 'eiraku', '織田 三段目の後ろ', { far: true, tLazy: true }),
+    blk('toH1', '本願寺の北の囲み 西', 1, -52, -122, 3, 0, 'namu', '本願寺 砦の北'),
+    blk('toH2', '本願寺の北の囲み 東', 1, 52, -122, 3, 0, 'namu', '本願寺 砦の北'),
+    blk('toH3', '本願寺の二の手 西', 1, -92, -160, 3, 0, 'namu', '本願寺 城戸口の道', { far: true, tLazy: true }),
+    blk('toH4', '本願寺の二の手 西寄り', 1, -34, -164, 3, 0, 'namu', '本願寺 城戸口の道', { far: true, tLazy: true }),
+    blk('toH5', '本願寺の二の手 東寄り', 1, 34, -164, 3, 0, 'namu', '本願寺 城戸口の道', { far: true, tLazy: true }),
+    blk('toH6', '本願寺の二の手 東', 1, 92, -160, 3, 0, 'namu', '本願寺 城戸口の道', { far: true, tLazy: true }),
+  ] },
+  // 11/19 iMac army-04（kaito「天王寺レベルの軍勢」・越前・大滝寺の山狩り・docs/fujin/echizen_ikko.md）：前は 60秒で 259。
+  //   織田（滝川一益・北＝+z を向く）は麓の陣所（−16,−200）の東西と前に、越前へ入った諸将の手（府中・前田・不破など）を家ごとの塊（一塊 44 人）で置く。
+  //   一向一揆（寺・南＝−z を向く）は参道（x 0）の両脇の山の斜面（外堂・本堂・奥の院の東西）に衆徒の塊を置く。参道・石段・谷道・森の小道・堂の内には置かない。持ち場で待つだけ
+  echizen_ikko: { withEmpty: true, deep: true, lazy: true, keep: true, idleFar: true, noboriAll: true, nbTouch: [4, 2], rows: [
+    blk('ecO1', '滝川の手 麓の西', 0, -64, -212, 3, 0, 'takigawa', '織田 麓'),
+    blk('ecO2', '滝川の手 麓の東', 0, 64, -212, 3, 0, 'takigawa', '織田 麓'),
+    blk('ecO3', '府中三人衆の手', 0, -108, -178, 3, 0, 'oda', '織田 麓の西の端'),
+    blk('ecO4', '前田の手', 0, 108, -178, 3, 0, 'oda', '織田 麓の東の端'),
+    blk('ecO5', '不破の手', 0, -72, -148, 3, 0, 'oda', '織田 麓の前', { far: true, tLazy: true }),
+    blk('ecO6', '金森の手', 0, 72, -148, 3, 0, 'oda', '織田 麓の前', { far: true, tLazy: true }),
+    blk('ecI1', '衆徒 山の西 下', 1, -70, -90, 3, S, 'namu', '一揆 山の斜面'),
+    blk('ecI2', '衆徒 山の東 下', 1, 70, -90, 3, S, 'namu', '一揆 山の斜面'),
+    blk('ecI3', '衆徒 山の西 中', 1, -80, -30, 3, S, 'namu', '一揆 山の斜面'),
+    blk('ecI4', '衆徒 山の東 中', 1, 80, -30, 3, S, 'namu', '一揆 山の斜面'),
+    blk('ecI5', '衆徒 山の西 上', 1, -60, 40, 3, S, 'namu', '一揆 山の斜面', { far: true, tLazy: true }),
+    blk('ecI6', '衆徒 山の東 上', 1, 60, 40, 3, S, 'namu', '一揆 山の斜面', { far: true, tLazy: true }),
+  ] },
+  // 11/19 iMac army-04（kaito「天王寺レベルの軍勢」・岩村城・水晶山・docs/fujin/iwamura.md）：前は 60秒で 238。
+  //   織田（水晶山・南＝−z を向く）は本陣（0,44）・河尻（−14,16）・毛利（20,16）・柵（z −6）の東西と後ろに、信忠の旗本・森・団・浅野・猿荻の手を家ごとの塊（一塊 44 人）で置く。
+  //   武田（岩村城・北＝+z を向く・約三千）は登城道（x 0）の両脇の曲輪・尾根に秋山の配下の塊を置く。柵の口・登城道・曲輪の建物には置かない。持ち場で待つだけ
+  iwamura: { withEmpty: true, deep: true, lazy: true, keep: true, idleFar: true, noboriAll: true, nbTouch: [4, 2], rows: [
+    blk('iwO1', '森長可の手', 0, -76, 30, 3, S, 'mori', '織田 本陣の西'),
+    blk('iwO2', '団忠正の手', 0, 76, 30, 3, S, 'oda', '織田 本陣の東'),
+    blk('iwO3', '浅野左近の手', 0, -76, 78, 3, S, 'oda', '織田 本陣の後ろ 西'),
+    blk('iwO4', '猿荻甚太郎の手', 0, 76, 78, 3, S, 'oda', '織田 本陣の後ろ 東'),
+    blk('iwO5', '信忠の旗本の後ろ 西', 0, -30, 112, 3, S, 'oda', '織田 本陣の奥', { far: true, tLazy: true }),
+    blk('iwO6', '信忠の旗本の後ろ 東', 0, 30, 112, 3, S, 'oda', '織田 本陣の奥', { far: true, tLazy: true }),
+    blk('iwT1', '秋山の配下 三の丸の西', 1, -70, -125, 4, 0, 'takeda', '武田 登城道の脇'),
+    blk('iwT2', '秋山の配下 三の丸の東', 1, 70, -125, 4, 0, 'takeda', '武田 登城道の脇'),
+    blk('iwT3', '大島杢之助の手', 1, -82, -168, 3, 0, 'takeda', '武田 曲輪', { far: true, tLazy: true }),
+    blk('iwT4', '座光寺為清の手', 1, 82, -168, 3, 0, 'takeda', '武田 曲輪', { far: true, tLazy: true }),
+    blk('iwT5', '秋山の配下 二の丸の西', 1, -52, -208, 3, 0, 'takeda', '武田 二の丸', { far: true, tLazy: true }),
+    blk('iwT6', '秋山の配下 二の丸の東', 1, 52, -208, 3, 0, 'takeda', '武田 二の丸', { far: true, tLazy: true }),
   ] },
   mikatagahara: { keep: true, rows: [
     { key: 'tkR2', name: '山県の寄騎（第二陣の外）', side: 1, x: 44, z: -84, w: 26, d: 10, count: 70, facing: 0, flag: 'akazonae', armor: 0x8e1f16, row: '武田 第二陣 右', leaders: [], ranks: 4, nobori: true },
@@ -339,6 +603,15 @@ export const FUJIN = {   // 置き場の行（本物の備を並べる）。docs
     { key: 'tkHQ', name: '信玄の後備え（本陣の後ろ）', side: 1, x: 0, z: -126, w: 40, d: 12, count: 90, facing: 0, flag: 'takeda', armor: 0x3a2622, row: '武田 本陣の後ろ', leaders: [], ranks: 4, nobori: true },
   ] },
 };
+// 11/19 係（天王寺レベルの軍勢・番外 天王寺）：番外の真田は天王寺を丸ごと写した戦（側だけ入れ替え）なので、同じ表を使う（表の side は豊臣方＝0・徳川方＝1 のまま）
+// 豊臣方（味方・side 1・南向き＝0）は毛利の三陣の北に七手組・大野の備の塊を足す（徳川方は天王寺の表のまま千以上ある）。茶臼山（−106,4）・毛利の三陣（−52,−38）・城への道は空ける
+FUJIN.x15_sanada = { ...FUJIN.k15_tennoji_okayama, withEmpty: true, keep: true, idleFar: true, rows: [...FUJIN.k15_tennoji_okayama.rows,
+  blk('sjT1', '七手組の一', 1, -130, -62, 3, 0, 'toyotomi', '豊臣 毛利の北'),
+  blk('sjT2', '七手組の二', 1, -78, -84, 3, 0, 'toyotomi', '豊臣 毛利の北'),
+  blk('sjT3', '大野治長の備', 1, -28, -96, 3, 0, 'toyotomi', '豊臣 毛利の北'),
+  blk('sjT4', '大野治房の備', 1, 24, -56, 3, 0, 'toyotomi', '豊臣 毛利の北'),
+  blk('sjT5', '真田の後備え', 1, -100, -128, 3, 0, 'sanada', '豊臣 毛利の北'),
+] };
 // 11/19 係（天王寺レベルの軍勢）：パソコンでこの表が立てる本物の兵の数（塊は 44 人・無い行は 36 人まで・列の将を足す）。
 //   戦の上限（realCap）にこの分を足すと、筋書きの寄せ・新手の空きが表を足す前と同じになる（設楽原・本能寺）
 export function fujinRealN(id) {

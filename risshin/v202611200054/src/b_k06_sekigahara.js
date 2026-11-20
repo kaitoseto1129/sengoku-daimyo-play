@@ -1390,12 +1390,14 @@ html:root body #hud:has(#h-prog[data-battle="k06_sekigahara"]) #center-call .cc 
     }
     // 11/20 クラウドさ（kaito_now 3 天王寺の出来に・本人が一人にならない）：段4〜5で本人の主の井伊の手・鉄砲衆が宇喜多の前の持ち場に残り、
     //   本人が宇喜多へ寄ると六十歩離れていた（描かずの数え 220秒 鉄砲衆の芯まで60m・三十歩内0）。四十歩より離れたら、槍を合わせたまま陣を本人の方へ六割寄せる（二秒ごと）
-    if ((F.step === 4 || F.step === 5) && !F.ending && rt.t >= (F.iiNearT || 0)) {
+    // 11/20 クラウドか（同じ・後半）：⑦⑧の右翼でも、本人が大谷の手を追って線から三十歩出ると、藤堂・京極・井伊の手が線に残り
+    //   三十歩内の味方が 4〜12 人に痩せた（描かずの数え 580・600秒）。⑦⑧は右翼の五つの手も、三十歩より離れたら同じく本人の方へ六割寄せる
+    if ((F.step === 4 || F.step === 5 || F.step === 7 || F.step === 8) && !F.ending && rt.t >= (F.iiNearT || 0)) {
       F.iiNearT = rt.t + 2;
-      const P = rt.player.u.pos;
-      for (const g of [F.ii, F.iiGun]) if (alive(g) && g.order === 'attack') {
+      const P = rt.player.u.pos, right = F.step >= 7;
+      for (const g of right ? [F.ii, F.iiGun, F.todo, F.todoL, F.kyoL] : [F.ii, F.iiGun]) if (alive(g) && g.order === 'attack') {
         const c = g.center();
-        if (Math.hypot(c.x - P.x, c.z - P.z) > 40) { g.anchor = { x: c.x + (P.x - c.x) * 0.6, z: c.z + (P.z - c.z) * 0.6 }; g.dest = null; g.path = null; g.onArrive = null; }
+        if (Math.hypot(c.x - P.x, c.z - P.z) > (right ? 30 : 40)) { g.anchor = { x: c.x + (P.x - c.x) * 0.6, z: c.z + (P.z - c.z) * 0.6 }; g.dest = null; g.path = null; g.onArrive = null; }
       }
     }
     // 11/20 クラウドわ（kaito_now 3 関ヶ原・本人が一人にならない）：描かずの数え（携帯）で段8（寝返りの後 640〜880秒）は本人の三十歩内の味方が 13→1〜8人、

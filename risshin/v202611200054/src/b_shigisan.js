@@ -1,4 +1,6 @@
 import { useTerrain } from './asset_manifest.js';
+import { isTouch } from './touch.js';
+import { fujinRealN } from './fujin_layout.js';
 import { aheadOf, inStage } from './scene_beats.js';
 import { pressureTick } from './battle_pressure.js';
 import { siegeStages } from './siege_stages.js';
@@ -2559,6 +2561,8 @@ function withdrawBrokenSection(rt, id, groups) {
   }
 }
 const shigisan = {
+  // 11/19 係（天王寺レベルの軍勢）：パソコンは布陣の表（fujin_layout.js）の分を上限に足す。携帯は今まで
+  realCap: isTouch ? 250 : 250 + fujinRealN('shigisan'),
   resumeSteps: [[1, 'climb'], [2, 'tower'], [3, 'gateFight']],   // 戦の途中の保存（battle_checkpoint.js）：段の始まりを、段の関数を順に流して作り直す
   terrainCameraLift: false, // 切岸の上へ持ち上げず、斜面の手前へ寄せて道を見る。
   selfFrameMinDistance: 2.5, // 柵際で寄った時は、本人の胴へ振り向かず前を見る。

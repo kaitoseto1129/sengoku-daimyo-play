@@ -1,4 +1,6 @@
 import { useTerrain } from './asset_manifest.js';
+import { isTouch as IW_TOUCH } from './touch.js';
+import { fujinRealN } from './fujin_layout.js';
 import { aheadOf, inStage } from './scene_beats.js';
 import { rockShape, groundRocks } from './rock_shape.js';
 import { pressureTick } from './battle_pressure.js';
@@ -1078,6 +1080,8 @@ const JIN = [
 //   横持ちの画は見下ろしが狭い（player_camera の landscapeFrame）ので、夜討ちの段に本人が柵の口の近くに立つ間だけ、目を少し高くして切岸の下の寄せ手を見せる（0〜1）。
 let iwCamHigh = 0;
 const iwamura = {
+  // 11/19 iMac army-04（天王寺レベルの軍勢）：パソコンは布陣の表（fujin_layout.js）の分を上限に足す。携帯は今まで
+  realCap: IW_TOUCH ? 250 : 250 + fujinRealN('iwamura'),
   get camLift() { return iwCamHigh * 1.6; },
   resumeSteps: [[1, 'prepare'], [2, 'raid'], [3, 'chase']],   // 戦の途中の保存（battle_checkpoint.js）：段の始まりを、段の関数を順に流して作り直す
   // 稲生と同じ入口で任務・地図・頭上の印・一時停止をそろえる。

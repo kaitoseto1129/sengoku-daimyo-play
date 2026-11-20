@@ -32,7 +32,9 @@ import { timeslipField } from './timeslip_field.js';
 import { battleEvent, EVENT_RETREAT, EVENT_MESSENGER } from './battle_events.js';
 import { goalsTick } from './hud_goals.js';
 import { nakaFind } from './naka.js';
-import { VIEW } from './viewport.js';   // 11/17 K365：innerWidth を毎コマ読まない（札を書き換えた後の配置のやり直しを避ける）
+import { VIEW } from './viewport.js';
+import { isTouch as SAIKA_TOUCH } from './touch.js';
+import { fujinRealN } from './fujin_layout.js';   // 11/17 K365：innerWidth を毎コマ読まない（札を書き換えた後の配置のやり直しを避ける）
 // 指図の字幕・掛け声の札だけを黙らせた画面係の包み。戦の組み立ての中で作ると、包みの手が組み立ての場（rt＝戦）を抱え、
 //   画面係の聞き手を通して閉じた戦が丸ごと記憶に残った（11/17 記憶の測り）。外で作る
 const quietSay = () => false, quietBark = () => {};
@@ -2209,6 +2211,8 @@ const inRearCamp = (p) => Math.abs(p.x - 72) < 8.6 && Math.abs(p.z) < 6.6;
 // 会う前に陣の口へ着けば、そこで本人を待つ。会った後は三十歩より離れると道の途中で待つ（⑤の頭）。
 const ENVOY_APPROACH = ENVOY_ROAD.slice();
 const saika = {
+  // 11/19 iMac army-04（天王寺レベルの軍勢）：パソコンは布陣の表（fujin_layout.js）の分を上限に足す＝新手・筋書きの空きは前と同じ。携帯は今まで
+  realCap: SAIKA_TOUCH ? 250 : 250 + fujinRealN('saika'),
   // 11/18 21:30 UTC クラウド 雑賀の持ち主（20:40 の残り：330秒の一人称の写真で堤の段に赤い▼が三つ以上同時に立ち、兵より印が目立つ）：
   //   岩石城・賤ヶ岳と同じく、本人を狙う敵と二十五m 内の近い六人だけに▼（遠い敵は旗の赤い縁と煙で分かる）。
   //   頭上の▼（hud.foeMarks の間）だけを絞る。field_signs の近くの敵の選び（狙い・打ち合い）には効かせない（効かせると act bot の討ち取りが 13→1 に落ちた）

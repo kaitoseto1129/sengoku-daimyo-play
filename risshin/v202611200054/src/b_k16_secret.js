@@ -13,6 +13,8 @@
 // 向き：北が -z（家康の本陣・京の方）。自分の軍は南（+z）から北へ。
 // ======================================================================
 import * as THREE from 'three';
+import { isTouch as isTouchK16 } from './touch.js';
+import { fujinRealN } from './fujin_layout.js';
 import { nobori, tawara, umajirushi, bobosaku } from './props.js';
 import { stopMusic, setScene } from './audio.js';
 import { RANKS } from './state.js';
@@ -339,6 +341,7 @@ function k16PullToPlayer(rt, dt) {
 }
 
 const k16_secret = {
+  realCap: isTouchK16 ? 250 : 250 + fujinRealN('k16_secret'),   // 11/19 係（天王寺レベルの軍勢）：パソコンは布陣の表の分を上限に足す（携帯は今まで）
   quietArmyCalls: true,   // K358（写真）：「味方が追撃に移った」が真ん中に浮いた（字は名前と人数だけ）
   resumeSteps: LAST,   // 戦の途中の保存（battle_checkpoint.js）：段の始まりを toStep(①〜5) を順に流して作り直す
   // 身の回りの合戦の跡（timeslip_field.js）。淀の野（もしもの戦）：大坂の陣の後の初夏。土埃と踏み荒らした草、倒れた槍と旗

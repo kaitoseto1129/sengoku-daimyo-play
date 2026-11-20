@@ -4364,7 +4364,18 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
       rt.scene.add(b); compactShip(b); F.mass.push(b);
       b.userData.home = { x: b.position.x, z: b.position.z };   // 包む持ち場（甲板の座標）。自船が進んでも櫓で付いて来る（update）
     }
-    for (const e of F.escorts) { shipCrew(rt, e, 0, 12, true, true); F.seaShips.push(e); }
+    // 11/19 係 army-05（kaito「天王寺レベルの軍勢」・60秒の本物 201→千八百以上）：舟の乗員を増やす。供の大船は一艘 80 人（九鬼の約八百二十の比）、
+    //   沖の船団の関船（毛利の安宅）は一艘 48 人・遠い列（外の三重）の小早は 30 人ずつ本物を乗せる（沖の船団の一番近い列は乗り込みに出す控えのまま）。
+    //   舟の甲板は列で並べ直す（kzGrid）。乗せた舟は F.mass から外して F.seaShips へ（自船の動きに付く・退きの段は mass と同じに沖へ下がる）
+    const kzGrid = (b, cols, dx, dz, z0) => b.group.units.forEach((u, i) => { u.shipLocal = { x: (i % cols - (cols - 1) / 2) * dx, z: z0 + Math.floor(i / cols) * dz }; });
+    for (const e of F.escorts) { shipCrew(rt, e, 0, 80, true, true); kzGrid(e, 5, 1.1, 0.9, -8); F.seaShips.push(e); }
+    F.mass = F.mass.filter((m, i) => {
+      const sek = !!m.userData.sekibune; if (!sek && i % 4 < 1) return true;
+      const b = { m, x: m.position.x, z: m.position.z, homeX: m.position.x, homeZ: m.position.z, t: { x: m.position.x, z: m.position.z }, alive: true, ranged: false, kzMass: true, deckY: sek ? 1.3 : 0.65, landed: false };
+      shipCrew(rt, b, 1, sek ? 48 : 30, false, false);
+      if (sek) kzGrid(b, 4, 1.2, 0.9, -3); else kzGrid(b, 3, 0.8, 0.85, -4);
+      b.group.dmgMult = 0.35; F.seaShips.push(b); return false;
+    });
     for (let i = 0; i < 2; i++) {
       const m = F.far[1 + i]; m.userData.departed = true;
       const b = { m, x: m.position.x, z: m.position.z, t: { x: -45 - i * 15, z: -28 + i * 64 },
@@ -4390,7 +4401,7 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
     for (let k = 0; k < pick.length && F.pickets.length < 8; k += Math.max(1, Math.floor(pick.length / 8))) {
       const m = pick[k][0]; m.userData.departed = true;
       const b = { m, x: m.position.x, z: m.position.z, t: { x: m.position.x, z: m.position.z }, alive: true, ranged: true, picket: true, deckY: 0.65, landed: false };
-      shipCrew(rt, b, 1, 8, false, true); F.seaShips.push(b); F.pickets.push(b);
+      shipCrew(rt, b, 1, 24, false, true); kzGrid(b, 3, 0.8, 0.85, -4); F.seaShips.push(b); F.pickets.push(b);   // 11/19 係 army-05：見張りの舟も 24 人（天王寺レベルの軍勢）
       b.group.dmgMult = 0.35; for (const u of b.group.units) u.picket = true;
     }
     F.waterShips = [...new Set([F.deckShip, ...F.escorts.map(b => b.m), F.whiteShip, ...F.far, ...F.seaShips.map(b => b.m)])];
@@ -5597,6 +5608,14 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
     }
     if (F.whiteShip) floatShip(F.whiteShip, motionT, false, true);
     for (const b of F.seaShips) {
+      // 11/19 係 army-05：本物の乗員を乗せた沖の船団（F.mass から移した舟）。留まり、大将船が崩れたら mass と同じに沖へ下がる
+      if (b.kzMass) {
+        floatShip(b.m, motionT, !S.reduceMotion);
+        if (F.bigSunk) {
+          if (!b.retSet) { b.retSet = true; const ox = b.x + 30, oz = b.z - 30, ol = Math.hypot(ox, oz) || 1; b.t = { x: b.x + ox / ol * 20, z: b.z + oz / ol * 20 + 45 }; }
+          shipMove(b, dt, 4);
+        } else shipMove(b, dt, 0.9);
+      }
       if (b.support) floatShip(b.m, motionT, false);
       if (b.picket) {
         floatShip(b.m, motionT, !S.reduceMotion);

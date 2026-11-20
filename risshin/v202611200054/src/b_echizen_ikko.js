@@ -1,4 +1,6 @@
 import { instLod } from './inst_lod.js';
+import { isTouch as IK_TOUCH } from './touch.js';
+import { fujinRealN } from './fujin_layout.js';
 import { rosterPlan } from './jinkei_roster.js';
 import * as THREE from 'three';
 import { flagMaterial, umaGeometry } from './units_flags.js';
@@ -2798,6 +2800,8 @@ function echizenIkkoMorning(rt) {
 // 11/18 K358 クラウド kaito2（全戦の長さ合わせ・一戦4〜7分）：段ごとの逃げ道を五分→三分に。五分の時でも段が止まった時は三段で十五分になった（act bot 764〜994秒）
 const IK_STEP_MAX = 150;   // 11/17 20:30 二分半（act bot 3本の一本が847秒。止まった段を早く送り、600秒以下に）
 const echizen_ikko = {
+  // 11/19 iMac army-04（天王寺レベルの軍勢）：パソコンは布陣の表（fujin_layout.js）の分を上限に足す。携帯は今まで
+  realCap: IK_TOUCH ? 250 : 250 + fujinRealN('echizen_ikko'),
   // 稲生の型。進軍・敵・持ち場を同じ一行とピンで示す（全部の戦の札は今は一行の型・hud_cards.js の battleOrder）。
   missionSingleLine: true,
   reserveSize: 16, reserveLimit: 3,   // 11/18 K358 クラウド kaito2：十組だと外堂と石段の下に新手が九十人溜まり、本人が山門へ行けず段が三つとも時切れ。三組・十六人に。元は 新手は一組二十人・十組まで（外堂の中に三十七人立ち、味方が崩れて山門へ進めなかった。11/13 クラウドG）

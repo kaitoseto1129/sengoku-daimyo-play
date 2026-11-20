@@ -43,6 +43,8 @@ import { install as installOiuchi } from './tennoji/oiuchi.js';   // 追撃の�
 import { install as installYoin, YOIN_SEC } from './tennoji/yoin.js';   // 勝った後の余韻（最後の八秒）
 import { install as installSento } from './tennoji/sento.js';   // 後詰と再攻撃の間、信長が手の先頭に立つ（K295）
 import * as kakoi from './tennoji/kakoi.js';   // K361：砦を四方から囲む幟の林・四方の鉄砲・柵への寄せ・地図の輪と後詰の近づき
+import { isTouch as TENNO_TOUCH } from './touch.js';
+import { fujinRealN } from './fujin_layout.js';
 import { TENNOJI_PLAN, T_GATE, T_HONGATE, SOTO_POLY, HON_POLY, T_HOUSES, T_ROADS } from './castles/tennoji.js';
 
 // kaito 10/31：寄せる敵は、ほかの者より本人を多く狙う。本人から三十歩内で打ちかかる組を本人へ向ける
@@ -2283,6 +2285,8 @@ function tennojiEnemy(rt) {
 }
 
 const tennoji = {
+  // 11/19 iMac army-04（天王寺レベルの軍勢）：パソコンは布陣の表（fujin_layout.js）の分を上限に足す。携帯は今まで
+  realCap: TENNO_TOUCH ? 250 : 250 + fujinRealN('tennoji'),
   waitForPortrait: true, // 左下は撮れた本人の顔だけを出し、黒い人影を残さない（五6）。
   resumeSteps: [[1, 'breakIn'], [2, 'inFort'], [3, 'sortie'], [4, 'chase']],   // 戦の途中の保存（battle_checkpoint.js）：段の始まりを、段の関数を順に流して作り直す
   // 稲生の型。任務は一行、持ち場と残敵はピン一本で示す。

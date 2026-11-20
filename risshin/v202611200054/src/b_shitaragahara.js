@@ -16,7 +16,7 @@ import { isTouch } from './touch.js';
 import { nagashinojo } from './b_nagashinojo.js';
 import { nagashinoFar, nagashinoNear } from './shitaragahara/nagashino_far.js';
 import { lordGrace } from './shitaragahara/saigo.js';
-import { nobori, tawara, lumber, stumps, yagura, hiraTateGeo, WOOD_MAT, paintGeo } from './props.js';
+import { nobori, tawara, lumber, stumps, yagura, hiraTateGeo, WOOD_MAT, paintGeo, umajirushi } from './props.js';
 import { goten } from './castle_parts.js';
 import { tabaGeo, tabaMat } from './taketaba.js';
 import { sfx } from './audio.js';
@@ -49,6 +49,7 @@ import * as ST_TAME from './shitaragahara/tameshi.js';
 import * as ST_MEISHO from './shitaragahara/meisho.js';
 import * as ST_SOKO from './shitaragahara/sokogeki.js';
 import * as ST_PLUS from './shitaragahara/plus.js';
+import * as ST_K1119 from './shitaragahara/k1119.js';   // kaito 11/19：柵の外へ出さない・騎馬の波・将を柵のすぐ後ろへ
 // 地面を作る前に標高を読み終える。後から届いても地面の格子は作り直されない。
 let DEM = null;
 useTerrain('dem_shitaragahara', (data) => { DEM = data; });
@@ -924,24 +925,27 @@ const PEOPLE_BANDS = PEOPLE_PATHS.map((path, i) => ({
   route: path.slice(1).map(([x, z]) => ({ x, z })),
 }));
 // 名札は実在の家紋と併用。紋が未収録の隊は所属する家の紋で示す。
+// 11/19 kaito「武将たちが前面に出ていないから、足軽だけと戦っている感じ。もうちょっと武将を前に」：将の陣と名入りの旗を、
+//   三の柵（x0）のすぐ後ろ（x−10・前は −28〜−65）へ寄せた。羽柴・丹羽・柴田も後ろの段（前は −240〜−300）から柵の後ろの最前列へ。
+//   信忠だけは天神山の後詰として少し後ろ（−36）。馬上の将本人は shitaragahara/k1119.js の frontLords が同じ所に立てる
 const ALLIED_POSTS = [
-  ['佐久間信盛', -28, -440, 'oda', 'oda', 'spear'],
+  ['佐久間信盛', -10, -400, 'oda', 'oda', 'spear'],
   // 11/5 check60：参陣の確かでない仙石秀久に替え、『信長公記』の「家康・滝川陣取りの前に柵」の滝川一益を柵の内の槍の将に
-  ['滝川一益', -55, -340, 'oda', 'oda', 'spear'],
-  ['野々村正成', -55, -200, 'oda', 'oda', 'gun'],
-  ['佐々成政', -55, -70, 'oda', 'shuro', 'gun'],
-  ['前田利家', -55, 0, 'oda', 'maeda', 'gun'],
-  ['塙直政', -55, 70, 'oda', 'oda', 'gun'],
-  ['福富平左衛門', -55, 140, 'oda', 'oda', 'gun'],
-  ['榊原康政', -65, 240, 'tokugawa', 'tokugawa', 'spear'],
-  ['本多忠勝', -65, 440, 'tokugawa', 'honda', 'spear'],
+  ['滝川一益', -10, -322, 'oda', 'oda', 'spear'],
+  ['野々村正成', -10, -224, 'oda', 'oda', 'gun'],
+  ['佐々成政', -10, -40, 'oda', 'shuro', 'gun'],
+  ['前田利家', -10, 40, 'oda', 'maeda', 'gun'],
+  ['塙直政', -10, 80, 'oda', 'oda', 'gun'],
+  ['福富平左衛門', -10, 140, 'oda', 'oda', 'gun'],
+  ['榊原康政', -10, 232, 'tokugawa', 'tokugawa', 'spear'],
+  ['本多忠勝', -10, 430, 'tokugawa', 'honda', 'spear'],
 ];
 const REAR_POSTS = [
   // 11/5 check60：明智光秀は長篠に出ていない。『信長公記』の新御堂山の織田信忠を北の後ろに
-  ['織田信忠', -240, -420, 'oda', 'oda', 'spear'],
-  ['羽柴秀吉', -300, -320, 'oda', 'oda', 'spear'],
-  ['丹羽長秀', -240, -230, 'oda', 'sujikai', 'spear'],
-  ['柴田勝家', -240, -110, 'oda', 'oda', 'spear'],
+  ['織田信忠', -36, -440, 'oda', 'oda', 'spear'],
+  ['羽柴秀吉', -10, -246, 'oda', 'oda', 'spear'],
+  ['丹羽長秀', -10, -168, 'oda', 'sujikai', 'spear'],
+  ['柴田勝家', -10, -98, 'oda', 'oda', 'spear'],
 ];
 const TAKEDA_POSTS = [
   ['馬場信春', 250, -440, 'takeda', 'takeda', 'spear'],
@@ -2857,7 +2861,7 @@ const shitaragahara = {
   frontFillSize: 16,
   reserveCap: (isTouch ? 250 : 260) + FAR_REAL_N,   // K292 クラウドせ：川向こうの控えの備（farReal）の分だけ足す   // 待つ備（味方24人ずつ）は上限の三十人手前で足し止める（筋書きの寄せの分を空ける）
   // 11/19 係（天王寺レベルの軍勢）：パソコンは柵の内の布陣の表（fujin_layout.js）の分を足す＝筋書きの寄せ・新手の空きは前と同じ
-  realCap: (isTouch ? 280 : 290 + fujinRealN('shitaragahara')) + FAR_REAL_N + FENCE_FILL_N,   // K356①：柵の全長を埋める本物の分   // K292：控えの備の分   // 11/13 K119 クラウドわ：柵の帯の本物の鉄砲（携帯30・パソコン40）の分だけ枠を足し、武田の新手の枠を減らさない
+  realCap: (isTouch ? 280 : 290 + fujinRealN('shitaragahara')) + FAR_REAL_N + FENCE_FILL_N + ST_K1119.KIBA_REAL + ST_K1119.FRONT_REAL,   // 11/19：騎馬の波・柵の後ろの将の分   // K356①：柵の全長を埋める本物の分   // K292：控えの備の分   // 11/13 K119 クラウドわ：柵の帯の本物の鉄砲（携帯30・パソコン40）の分だけ枠を足し、武田の新手の枠を減らさない
   meleeGrace: { rate: 1, burst: 1, interval: 2.2 },
   world: {
     noboriSam: true, overheadViewFar: 900,   // 11/16 K338：天王寺と同じく名の無い徒の侍も幟を負い（家の旗の林＝厚み）、真上の布陣で地面の端を欠かさない
@@ -3903,10 +3907,12 @@ const shitaragahara = {
       if (name === F.boss) F.okubo = q.units[0];
     }
     if (!F.okubo) {
-      const q = allyGroup(rt, { faction: 'tokugawa', name: '大久保忠世の控え', fixed: true, fullStrength: true, noGuard: true, anchor: { x: -95, z: 390 }, facing: Math.PI / 2, width: 6, aggro: 6, formation: 'yari' },
+      const q = allyGroup(rt, { faction: 'tokugawa', name: '大久保忠世の控え', fixed: true, fullStrength: true, noGuard: true, anchor: { x: -10, z: 372 }, facing: Math.PI / 2, width: 6, aggro: 6, formation: 'yari' },
         [{ type: 'busho', n: 1, o: { name: '大久保忠世', invuln: true, horse: true } }, { type: 'samurai', n: 2 }]);
       F.officers.push(q); F.okubo = q.units[0];
     }
+    // 11/19 kaito：名のある将を柵のすぐ後ろの最前列へ（馬上・名入りの旗・馬印）。placeFamous より先に作る
+    try { ST_K1119.frontLords(rt, { allyGroup, umajirushi }); } catch (e) { console.warn(e); }
     // 11/13 K119 クラウドわ（kaito「柵の前に鉄砲兵がほとんどいない→端から端まで埋める」）：三つの口の間の柵（-500〜500m のうち口から遠い帯）は
     //   K285 で絵の鉄砲列が無くなり空だった。帯ごとに本物の小さな鉄砲組を三つの柵へ順に置く（口の斉射の番には入れず、寄った敵を撃つ）
     F.lineGuns = [];
@@ -4309,7 +4315,7 @@ const shitaragahara = {
     F.alliedHosts = [...Object.values(buildHost(SHITARA_ODA_JIN)), ...Object.values(buildHost(SHITARA_TOKUGAWA_JIN))];
     F.hill = Object.values(buildHost(SHITARA_TAKEDA_JIN));
     F.namedHosts = [...F.alliedHosts, ...F.hill];
-    postFlag(rt, '徳川家康', IEYASU.x, IEYASU.z, 'tokugawa');
+    postFlag(rt, '徳川家康', ST_K1119.FRONT_X - 2, 298, 'tokugawa');   // 11/19：家康も柵のすぐ後ろへ（本陣の陣幕は弾正山のまま）
     postFlag(rt, '織田信長', CHAUSU.x, CHAUSU.z, 'oda');
     F.katsuyori = DA(KATSUYORI.x, KATSUYORI.z, 38, 30, 300, -Math.PI / 2, A.takeda, 'takeda', 57, 'honjin');
     postFlag(rt, '武田勝頼', KATSUYORI.x, KATSUYORI.z, 'takeda');
@@ -4319,7 +4325,7 @@ const shitaragahara = {
     yield;   // K112：ここで一コマ返す（組み立ての固まりを分ける）
     // 近接する寄せ手と殿は開戦前からそれぞれの備に置く。
     F.waveGroups = this.WAVES.map((w) => this.makeWave(rt, w));
-    F.south = this.makeWave(rt, { name: '山県昌景', general: '赤備えの侍大将', hq: 'shitara_yamagata', fac: 'akazonae', z: MOUTHS[2].z, home: { x: 60, z: MOUTHS[2].z + 4.5 }, cav: 10, ash: 8, bamboo: true });   // K334：柵の端を回る赤備えが一騎では見えないので三→六→十（11/18 寄りの写真で三騎だけ写り『隊』に見えなかった・足すのは騎馬だけ）
+    F.south = this.makeWave(rt, { name: '山県昌景', general: '赤備えの侍大将', hq: 'shitara_yamagata', fac: 'akazonae', z: MOUTHS[2].z, home: { x: 60, z: MOUTHS[2].z + 4.5 }, cav: 12, ash: 8, bamboo: true });   // K334：柵の端を回る赤備えが一騎では見えないので三→六→十（11/18 寄りの写真で三騎だけ写り『隊』に見えなかった・足すのは騎馬だけ）
     // 退路の旗と馬は軽い備の討死の跡。元の馬の形・材質を共用する。
     const fallenModel = F.south.cavalry.units.find((u) => u.horse)?.horse;
     // 10/31 iPhone の記憶：three の clone は userData を JSON で写し直す。乗った馬の userData から辿れる物まで
@@ -4503,8 +4509,8 @@ const shitaragahara = {
   // 11/6 fixc1721：寄せる二つの備。初めは連吾川の東の段丘の縁に構え、下知で段丘を下りて柵へ寄せる（開戦から柵の外で団子にしない）。
   //   具足は黒（赤備えは南の山県だけ・四3）。家の旗は真田の六連銭と武田菱。軍勢対軍勢に見えるよう、本物の徒歩を三十四人に。
   WAVES: [
-    { name: '真田信綱・昌輝', hq: 'shitara_sanada', fac: 'takeda', flag: 'sanada', z: MOUTHS[0].z, home: { x: 148, z: MOUTHS[0].z + 4.5 }, cav: 10, ash: 34, brother: true },   // K356④：寄せを厚く（8・22→10・34）
-    { name: '内藤昌豊', hq: 'shitara_naito', fac: 'takeda', flag: '内藤の胴赤', z: MOUTHS[1].z, home: { x: 152, z: MOUTHS[1].z + 4.5 }, cav: 10, ash: 34, general: '内藤昌豊', final: true },   // K356④
+    { name: '真田信綱・昌輝', hq: 'shitara_sanada', fac: 'takeda', flag: 'sanada', z: MOUTHS[0].z, home: { x: 148, z: MOUTHS[0].z + 4.5 }, cav: 14, ash: 34, brother: true },   // K356④：寄せを厚く（8・22→10・34）
+    { name: '内藤昌豊', hq: 'shitara_naito', fac: 'takeda', flag: '内藤の胴赤', z: MOUTHS[1].z, home: { x: 152, z: MOUTHS[1].z + 4.5 }, cav: 14, ash: 34, general: '内藤昌豊', final: true },   // K356④
   ],
 
   makeWave(rt, w) {
@@ -4608,6 +4614,9 @@ const shitaragahara = {
       q.gone = true; q.b.retreat(180, 60);
     }
     nagashinojo.kit.backTick(rt);
+    // 11/19 kaito：追い討ちまで味方を柵の外へ出さない・武田の騎馬の波（shitaragahara/k1119.js）
+    ST_K1119.fenceKeep(rt, SB);
+    ST_K1119.kibaTick(rt, dt, { SB, enemyGroup, black: shBlackArmy });
     // 射線の遮り（11〜23 章）：鉄砲組の前で味方の槍組が揉み合っていれば、その鉄砲組は撃てない
     if (F.bands) losTick(F.guns, F.spears);
     if ((F.hudT = (F.hudT || 0) - dt) <= 0) {

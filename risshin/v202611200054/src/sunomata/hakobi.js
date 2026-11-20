@@ -138,6 +138,9 @@ function escort(rt) {
   // 人足と同じ時（運びの始めの二秒）に南門を出る。本人が門を出るのを待つと、舟着きに着く前に荷下ろしが済んだ
   if (rt.t - (v.hakobiT ?? rt.t) < 2) return;
   v.esc = 1; v.escHome = { x: g.anchor.x, z: g.anchor.z }; v.escAggro = g.aggro; g._sunoHome = null; g._sunoEsc = true;
+  // 11/20 クラウドさ：この下知が段取りの下知（script_orders）として総大将の使番に載り、使番が着くまで（着かない回は終わりまで）
+  //   川並衆が柵の内に立ったままだった（描いて撮った写真：舟着きに人足だけ）。舟着きは蜂須賀の持ち場なので、正勝が自ら下知する
+  v.escDirect = g.directOrders; g.directOrders = true;
   // 道の間は打ち掛からない（柵の内から敵へ向かって北東の角に詰まった）。岸に着いてから槍を合わせる
   const D = { x: v.dock.x * 0.85 + 3, z: v.dock.z * 0.85 - 5 };
   g.order = 'path'; g.pathIdx = 0; g.speed = 3; g.noAI = true;
@@ -151,7 +154,7 @@ function escortHome(rt) {
   const H = v.escHome, c = g.center();
   g.order = 'path'; g.pathIdx = 0; g.speed = 2.4;
   g.path = Math.abs(c.x) < C.FORT && Math.abs(c.z) < C.FORT ? [[H.x, H.z]] : [...KISHI_ROAD.slice(0, -1).reverse(), [0, C.FORT - 5], [H.x, H.z]];
-  g.onArrive = (q) => { q.order = 'hold'; q.noAI = false; q._sunoEsc = false; q.anchor = { x: H.x, z: H.z }; q.facing = Math.PI / 2; };
+  g.onArrive = (q) => { q.order = 'hold'; q.noAI = false; q._sunoEsc = false; q.directOrders = v.escDirect; q.anchor = { x: H.x, z: H.z }; q.facing = Math.PI / 2; };
 }
 
 export function tick(rt) {

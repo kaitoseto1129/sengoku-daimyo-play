@@ -31,6 +31,7 @@ import * as jin14 from './k14/jindate.js';
 import { DEPTH14 } from './k14/depth.js';
 import { k281Tick, k281Stat } from './k281_count.js';
 import { keepReserve } from './k281_reserve.js';
+import { fujinRealN as fujinRealNYW } from './fujin_layout.js';
 import { isTouch as isTouchYW } from './touch.js';   // 陣立ての表（army_depth.js）   // 二正面の軽い大軍と遠くの乱戦・家臣の守り・棒立ちなし（11/8）
 
 BATTLE_ASSETS.k14_yao_wakae = Object.freeze([...assetsForBattle('k14_yao_wakae')]);
@@ -310,7 +311,7 @@ const k14_yao_wakae = {
   spawn: { x: START.x - 6, z: START.z + 4, heading: -Math.PI / 2 },
   noEnemyFootRing: true,   // 11/19 05時 クラウド持ち主 ⑥写真280秒：狙う敵の足元の太い輪が本人の前の兵の腰に重なり、二つ目の輪に見えた→敵は頭上の▼だけ（木津川口・道明寺・有岡と同じ）
   spearRingDepth: true,   // 11/19 07時 クラウド持ち主 ⑥写真90秒（874×402）：槍の穂先の赤い輪が本人の真ん前の相手の足元で透けて描かれ、本人の腰に巻いた輪に見えた→体の後ろの輪は隠す（根白坂と同じ）
-  realCap: isTouchYW ? 270 : 290,   // 11/19 クラウド kaito2（質を一段・Total War の物差し）：八尾へ向かう野の途中に斬り合う本物の組を二つ足す分（四戦で一番軽い 1コマ9.5ms）
+  realCap: isTouchYW ? 270 : 290 + fujinRealNYW('k14_yao_wakae'),   // 11/19 クラウド kaito2（質を一段・Total War の物差し）：八尾へ向かう野の途中に斬り合う本物の組を二つ足す分（四戦で一番軽い 1コマ9.5ms）
   world: {
     noFake: true,   // 11/13 K285（kaito「本物の兵しか映したらいけない」）：絵だけの兵（addDistantArmy・addClash・陣立ての軽い備）を作らない。映る兵は全員 戦の中の本物
     seed: 1615506,

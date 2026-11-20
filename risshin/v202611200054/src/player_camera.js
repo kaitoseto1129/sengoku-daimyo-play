@@ -115,7 +115,9 @@ export class PlayerCamera {
     const bodySc = (u.mesh && u.mesh.scale.y) || 1;
     // 徒歩は肩の少し下を狙い、低めの肩越しに（地に足が着いた目線。馬上は高く）
     // 足もとの段差・小石で目の高さが跳ねないよう、カメラの見る高さだけなめらかに追う（上りは速く、下りは少しゆっくり）
-    const tyRaw = u.pos.y + (this.mounted ? 1.7 + RIDE.y : 1.58) * bodySc;
+    // 11/19 kaito「座り方もちゃんと画像で見て」（本能寺の前夜の茶席）：座った本人（座の印 u.jinchu で腰を下ろした間）は頭が〇・六m 下がるので、見る高さも下げる（立ったままの高さだと座った本人が画面の下の外になった）
+    const seatDrop = !this.mounted && u.jinchu && !u.jinchu.standing ? 0.62 * Math.max(0, Math.min(1, u.idl?.sit || 0)) : 0;
+    const tyRaw = u.pos.y + ((this.mounted ? 1.7 + RIDE.y : 1.58) - seatDrop) * bodySc;
     if (this.camTY == null || Math.abs(tyRaw - this.camTY) > 3 || dt >= 0.5) this.camTY = tyRaw;
     else this.camTY += (tyRaw - this.camTY) * Math.min(1, dt * (tyRaw > this.camTY ? 14 : 8));
     const target = _cT.set(u.pos.x, this.camTY, u.pos.z);
@@ -260,7 +262,9 @@ export class PlayerCamera {
     const gunSight = this.weapon === 'gun' && this.u.alive && !this.overHold && ((this.aiming && this.gunLoaded && this.aimHoldT >= 0.25) || !!this.shot);
     if (gunSight) this.gunSightUntil = this.rt.t + 0.5;
     const gunView = gunSight || (this.weapon === 'gun' && this.gunSightUntil > this.rt.t);
-    const fpGoal = (this.fpWanted() || gunView) && !this.overHold ? 1 : 0;
+    // 11/19 kaito「何この画角」（本能寺の御殿の廊下）：室内で壁・柱にカメラが寄せられ頭から〇・九m より近くなると、背と肩と柄が画面の下半分を塞いだ。
+    //   その間だけ一人称の目へなめらかに移る（roomFp。下の室内の寄せで立て、空いたら戻す）。兜と胴は fpHide が描かず、手と武器だけ見せる
+    const fpGoal = (this.fpWanted() || gunView || this.roomFp) && !this.overHold ? 1 : 0;
     this.gunViewK = (this.gunViewK || 0) + ((gunView ? 1 : 0) - (this.gunViewK || 0)) * Math.min(1, dt * 6);
     if (reduceMotion() || dt >= 0.5) this.fpK = fpGoal;
     else this.fpK += Math.sign(fpGoal - this.fpK) * Math.min(Math.abs(fpGoal - this.fpK), dt / 0.3);
@@ -535,6 +539,13 @@ export class PlayerCamera {
       const q = L.t / L.dur;
       if (q >= 1) this.camLean = null;
       else { const f = q < 0.2 ? q / 0.2 : 1 - (q - 0.2) / 0.8, m = L.k * f * f * (1 - this.fpK * 0.7); camera.position.x += L.x * m; camera.position.z += L.z * m; }
+    }
+    // 室内の一人称（roomFp）へ移る間と戻る間は、下の室内の寄せ（e<0.5 の時だけ掛かる）が切れ替わる一コマに一・四m 跳んでいた。
+    //   肩越しの所を、最後に室内の寄せで決めた距離（roomOff）より遠くへ置かずに目と混ぜる
+    if (this.roomFp) this.roomFpBlend = true; else if (e <= 0) this.roomFpBlend = false;
+    if (this.roomFpBlend && inRoom && e > 0 && this.roomOff) {
+      const L = camera.position.distanceTo(target), r = Math.min(L, this.roomOff.length());
+      if (L > 0.01) camera.position.sub(target).multiplyScalar(r / L).add(target);
     }
     if (e > 0) {
       const eye = this.eyePos(dt, dir);
@@ -817,7 +828,38 @@ export class PlayerCamera {
         else this.roomUpK += (g - this.roomUpK) * Math.min(1, dt * (g > this.roomUpK ? 6 : 3));
         if (this.roomUpK > 0.001) { camera.position.lerp(_cTmp.copy(target).setY(target.y + 0.55), this.roomUpK); nakaCamClamp(camera.position, this.fpK < 0.5); } }
       if (camera.position.distanceToSquared(target) > 0.04) (this.roomOff || (this.roomOff = new THREE.Vector3())).copy(camera.position).sub(target);
+      // 11/19 kaito「何この画角」：揺れ止めの後でも頭から〇・九m より近い（体が画面を塞ぐ）なら、一人称の目へ移る。一人称から戻る途中（e>0）は立て直さない
+      if (e < 0.02 && d < 0.9 && dt < 0.5 && u.alive && !this.mounted && !(u.jinchu && !u.jinchu.standing) && !this.cine && !this.camShot && !this.rt.game?.photo && !this.rt.over) {
+        // 戻ってすぐ（一・五秒内）また畳まれたら、次に戻すまでの待ちを倍に（四秒まで）。狭い所で行き来しない
+        this.roomFpNeed = this.rt.t - (this.roomFpOut ?? -99) < 1.5 ? Math.min(4, (this.roomFpNeed || 0.6) * 2) : 0.6;
+        this.roomFp = true; this.roomFpT = 0;
+      }
     } else this.camHoldD = null;
+    // 室内の一人称（roomFp）から戻すのは、肩越しの所（camPos）が当たりで畳まれても頭から一・五m 空く間が〇・六秒続いた時だけ（出入りで行き来しない）
+    if (this.roomFp) {
+      if (!inRoom || !u.alive || this.mounted || this.rt.over || this.rt.game?.photo || this.cine || this.camShot) this.roomFp = false;
+      else if (e >= 0.5) {
+        const L = this.camPos.distanceTo(target), h = L > 0.01 ? this.camBlockHit(target, this.camPos, true) : 0;
+        let free = h === null ? L : Math.max(0, h * L - 0.25);
+        // 狭い廊下で肩越しを畳む主な手（間仕切りの角を左右四十糎ずらした線の先読み・上の roomSideL）も同じく測る。これを見ないと出てすぐ畳まれ、一秒ごとに行き来した
+        const F = this.roomFree, E = NAKA.pp, L0 = F && E ? F.distanceTo(target) : 0;
+        if (E && L0 > 0.6) {
+          const sx = (F.z - target.z) / L0 * 0.4, sz = -(F.x - target.x) / L0 * 0.4, LE = Math.hypot(F.x - E.x, F.z - E.z);
+          if (LE > 0.3) for (const sg of [1, -1]) {
+            const eS = _csTP.set(E.x + sx * sg, E.y, E.z + sz * sg), q = _csP.set(F.x + sx * sg, F.y, F.z + sz * sg), x0 = q.x, z0 = q.z;
+            NAKA.pp = eS; nakaCamClamp(q, true); NAKA.pp = E;
+            const t = Math.hypot(q.x - eS.x, q.z - eS.z) / LE;
+            if (Math.hypot(q.x - x0, q.z - z0) > 0.05 && t < 0.97) free = Math.min(free, Math.max(0, L0 - (1 - t) * LE));
+          }
+        }
+        this.roomFpT = free > 1.5 ? (this.roomFpT || 0) + dt : 0;
+        if (this.roomFpT > (this.roomFpNeed || 0.6)) {
+          this.roomFp = false; this.roomFpOut = this.rt.t;
+          // 戻る肩越しは、空いた距離まで広げてから目と混ぜる（入る時の短い距離のままだと頭の中から始まり、すぐまた畳まれた）
+          if (this.roomOff && this.roomOff.lengthSq() > 1e-4) this.roomOff.setLength(Math.max(this.roomOff.length(), Math.min(free, L)));
+        }
+      }
+    }
     // 壁の補正や一人称の揺れの後も、水面より上へ目線を保つ。川床の高さだけでは胸まで浸かる川で沈む。
     if (!inRoom) {
       const W = this.rt.world, depth = W.waterDepthAt(camera.position.x, camera.position.z);
@@ -929,7 +971,7 @@ export class PlayerCamera {
     const on = !def.town && !def.dojo && !NAKA.cur && !u.naka && u.alive && !rt.over && !(rt.vicHoldUntil > rt.t) &&
       !this.aiming && !this.overHold && !this.cmdOpen && !this.radial && !this.fpWanted() && !(this.fpK > 0.01) && !rt.game?.photo;
     // 野の固定カメラから外れていた後は、距離と高さの追い（camR・camH）を今の狙いから始め直す
-    if (!on || !this.camFixed) this.camR = this.camH = this.elevCut = null;
+    if (!on || !this.camFixed) { this.camR = this.camH = this.elevCut = null; this.closeFpK = 0; this.closeFp = false; }
     this.camFixed = on;
     if (!on) return false;
     // 寄せていた分は向きへ移し、画面が跳ねないようにする
@@ -949,7 +991,8 @@ export class PlayerCamera {
     }
     const W = rt.world, bodySc = (u.mesh && u.mesh.scale.y) || 1;
     // 見る高さ：肩の少し下（馬上は鞍の上）。段差で跳ねないよう高さだけなめらかに
-    const tyRaw = u.pos.y + (this.mounted ? 1.7 + RIDE.y : 1.58) * bodySc;
+    const seatDrop = !this.mounted && u.jinchu && !u.jinchu.standing ? 0.62 * Math.max(0, Math.min(1, u.idl?.sit || 0)) : 0;   // 座った本人は見る高さも下げる（上の三人称と同じ。本能寺の前夜の茶席）
+    const tyRaw = u.pos.y + ((this.mounted ? 1.7 + RIDE.y : 1.58) - seatDrop) * bodySc;
     if (this.camTY == null || Math.abs(tyRaw - this.camTY) > 3 || dt >= 0.5) this.camTY = tyRaw;
     else this.camTY += (tyRaw - this.camTY) * Math.min(1, dt * (tyRaw > this.camTY ? 14 : 8));
     const target = _cT.set(u.pos.x, this.camTY, u.pos.z);
@@ -1079,7 +1122,7 @@ export class PlayerCamera {
       // K365 クラウド36（箕作の描かずの見張り 12〜19秒）：寄りたい距離が体の内（1.05m 未満）だと、体よけ（clearCameraBody）が
       //   一・二m 後ろへ飛ばし、次のコマでまた寄るのを毎コマ繰り返して画が跳ねた。体よけが働いた後は、寄りたい距離が戻るまで 1.15m で留める
       // 留めをやめるのは寄りたい距離が十分戻った時（1.6m）。1.1m で外すと真後ろへ戻ってまた壁で寄り、四十五度の振れを繰り返した（本能寺 12〜15 秒）
-      if (this.bodyHeld && rw >= 1.6) this.bodyHeld = null;
+      if (this.bodyHeld && (rw >= 1.6 || seatDrop > 0.3)) this.bodyHeld = null;   // 座った本人は体よけの留め（一・二m 横の高い所）を使わない（茶席で座った本人が画面の下の外になった）
       if (this.bodyHeld) { this.camR = this.bodyHeld.r; this.camH = this.bodyHeld.h; }
       // 体の内へ入る前に、1.15m の所が空いていればそこで止める（体よけで飛ばす回数を減らす。本能寺 11〜25 秒の跳ね）
       else if (this.camR < 1.15) {
@@ -1150,6 +1193,27 @@ export class PlayerCamera {
       this.camR = Math.hypot(this.camPos.x - target.x, this.camPos.z - target.z); this.camH = this.camPos.y - target.y;
     }
     camera.position.copy(this.camPos);
+    // 11/19 kaito「何この画角」（本能寺の御殿の渡り廊下・表門の方を向いた所）：壁と柱に寄せられ、描く直前の体よけ（clearCameraBody）でも逃げ場が無く、
+    //   カメラが頭から〇・九m 内に残って、背と肩と柄が画面の下半分を塞いだ。その間は一人称の目へ〇・三秒でなめらかに移り、兜と胴を描かない（fpHide）。
+    //   戻すのは、肩越しの所が頭から一・四m より離れた間が〇・六秒続いた時（戻ってすぐ畳まれたら待ちを倍に・四秒まで）。座った本人・馬上は掛けない
+    {
+      const dHead = this.camPos.distanceTo(target), dDraw = this.drawCamD ?? 9;
+      this.drawCamD = null;   // 描いたコマの値は一度だけ使う（描かない間に古い値で入らない）
+      const canFp = u.alive && !this.mounted && !(u.jinchu && !u.jinchu.standing) && dt < 0.5;
+      if (!canFp) this.closeFp = false;
+      else if (!this.closeFp && (this.closeFpK || 0) < 0.02 && Math.min(dHead, dDraw) < 0.9 && ((this.occK ?? 1) < 0.7 || this.bodyHeld)) {   // 壁で畳まれている時だけ（味方の体で寄った時は掛けない）
+        this.closeFpNeed = rt.t - (this.closeFpOut ?? -99) < 1.5 ? Math.min(4, (this.closeFpNeed || 0.6) * 2) : 0.6;
+        this.closeFp = true; this.closeFpT = 0;
+      } else if (this.closeFp) {
+        this.closeFpT = dHead > 1.4 ? (this.closeFpT || 0) + dt : 0;   // 一人称の間は描いた所が目にあるので、肩越しの所だけで見る
+        if (this.closeFpT > (this.closeFpNeed || 0.6)) { this.closeFp = false; this.closeFpOut = rt.t; }
+      }
+      const goal = this.closeFp ? 1 : 0;
+      this.closeFpK = reduceMotion() || dt >= 0.5 ? goal : (this.closeFpK || 0) + Math.sign(goal - (this.closeFpK || 0)) * Math.min(Math.abs(goal - (this.closeFpK || 0)), dt / 0.3);
+      this.roomFpBlend = this.closeFpK > 0.01;
+    }
+    const ck = (this.closeFpK || 0) * (this.closeFpK || 0) * (3 - 2 * (this.closeFpK || 0));
+    if (ck > 0.001) { camera.position.lerp(this.eyePos(dt, dir), ck); u.fpk = ck; }
     // 体よけで斜め後ろに留めている間は、四歩先を見る（十二歩先だと本人が画面の横の外になった。箕作 129・144 秒）
     // def.camLookFar：戦が始めだけ目を高く引く時（樫井の畷）、見る先を前へ延ばして下を向きすぎない（遠くの敵が上の地図の裏へ上がらない）
     const look = _cLk.copy(target).addScaledVector(dir, this.bodyHeld ? 4 : 12 + (def.camLookFar || 0)).addScaledVector(right, side);
@@ -1160,16 +1224,19 @@ export class PlayerCamera {
       const ox = target.x - this.camPos.x, oz = target.z - this.camPos.z, ol = Math.hypot(ox, oz);
       if (ol > 0.3 && (ox * fx + oz * fz) / ol < 0.82) look.set(target.x + ox / ol * 4, look.y, target.z + oz / ol * 4);
     }
+    // 座った本人は、見る先を本人の二歩半先の膝の高さへ下げる（座った姿と前の客を一つの画に入れる。本能寺の前夜の茶席）
+    if (seatDrop > 0.3) look.lerp(_cTmp.set(target.x + fx * 2.5, u.pos.y + 0.45, target.z + fz * 2.5), Math.min(1, seatDrop / 0.62));
+    if (ck > 0.001) look.lerp(_cTmp.copy(camera.position).addScaledVector(dir, 12), ck);   // 一人称へ寄る間は目の向き（見ている方）を見る
     camera.up.copy(_WORLD_UP);
     camera.lookAt(look);
     // 画角は固定（走る・駆ける・打たれるで変えない）
     if (Math.abs(camera.fov - this.fovWant) > 0.05) { camera.fov += (this.fovWant - camera.fov) * Math.min(1, dt * 6); camera.updateProjectionMatrix(); }
     // 通常の三人称も手前を〇・三五メートル切り、直前を横切る矢の拡大を防ぐ。
-    if (camera.near !== 0.35) { camera.near = 0.35; camera.updateProjectionMatrix(); }
+    { const nw = ck > 0.5 ? 0.05 : 0.35; if (camera.near !== nw) { camera.near = nw; camera.updateProjectionMatrix(); } }   // 一人称の間は目の前の手と刀を切らない
     // 足もとを画面の下の端の近くへ置く所まで、目線だけを上げ下げする（位置は動かさない）
     {
       camera.updateMatrixWorld();
-      const footY = this.camTY - (this.mounted ? 1.7 + RIDE.y : 1.58) * bodySc;
+      const footY = this.camTY - ((this.mounted ? 1.7 + RIDE.y : 1.58) - seatDrop) * bodySc;
       // K365 クラウド36（伏見の開戦・cloud-19）：前が上り坂だと、足を画面に入れる見下ろしで目の前の斜面と塀だけが映り、
       //   坂の上の戦場が見えなかった。上り坂ほど、足でなく胸を画面の下に置く所まで目線を上げる（ゆっくり切り替える）
       const riseAhead = (cameraGroundAt(W, u.pos.x + fx * 10, u.pos.z + fz * 10) - u.pos.y) / 10;
@@ -1187,12 +1254,12 @@ export class PlayerCamera {
           _cQ.set(u.pos.x, footY + 1.2 * bodySc, u.pos.z).applyMatrix4(camera.matrixWorldInverse);
           if (_cQ.z < -0.3) r = Math.min(r, Math.max(-1.0, Math.atan2(_cQ.y, -_cQ.z) - Math.atan(-0.6 * half)));
         }
-        r *= 1 - (this.duelHK || 0) * 0.85;   // 一騎打ちで相手が切岸の上の間は、足もとより相手を画の中ほどに
+        r *= (1 - (this.duelHK || 0) * 0.85) * (1 - ck);   // 一人称へ寄る間は足もとの見下ろしを掛けない。一騎打ちで相手が切岸の上の間は、足もとより相手を画の中ほどに
         camera.rotateX(r);
         // K365 クラウド36（越前の本道の坂・cloud-50 の写真：画面の八割が斜面）：急な上り坂では胸を下に置いても、
         //   目の前の斜面が画を埋めて坂の先（行き先・敵）が見えなかった。坂の二十m 先の地面の一・五m 上が画の上の方（〇・二五）に
         //   入るまで目線を上げる。胸が画の下の方（〇・六二）より下へ出る所で止める（位置は動かさない）
-        if (upK > 0.05) {
+        if (upK > 0.05 && ck < 0.5) {
           camera.updateMatrixWorld();
           const ax = u.pos.x + fx * 20, az = u.pos.z + fz * 20;
           _cQ.set(ax, cameraGroundAt(W, ax, az) + 1.5, az).applyMatrix4(camera.matrixWorldInverse);

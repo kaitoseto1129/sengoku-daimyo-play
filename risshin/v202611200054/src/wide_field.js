@@ -26,7 +26,7 @@ import { isTouch as TOUCH } from './touch.js';
 export const WIDE_IDS = new Set(['shitaragahara', 'echizen', 'echizen_ikko', 'iwamura', 'tennoji', 'saika', 'tedorigawa', 'shigisan',
   'kizugawa', 'miki', 'arioka', 'iga', 'tottori', 'takato', 'tano', 'honnoji',
   // K341⑤（K340 の四つを先に）：三方ヶ原も広い戦場に（布陣の表の備を本当の距離に・行けばいる）
-  'mikatagahara', 'moribe', 'okehazama', 'sunomata', 'nagashima', 'okawachi', 'anegawa', 'kanegasaki', 't06_hetsugi', 'odani', 't01_yamazaki', 't03_komaki', 't02_shizugatake', 't04_negoro', 't05_ichinomiya', 't07_ganjaku', 't08_nejirozaka', 't03b_nagakute', 't09_yamanaka', 't10_oshi', 't11_hachioji', 'shiga', 'hieizan', 'nodafukushima', 'inabayama', 'tonezaka', 'inou', 'mitsukuri', 'suwahara']);   // 稲生は入れると林秀貞の備（遠い行）が hold で14人一点に重なった（act bot 391秒）ので外した
+  'mikatagahara', 'moribe', 'okehazama', 'sunomata', 'nagashima', 'okawachi', 'anegawa', 'kanegasaki', 't06_hetsugi', 'odani', 't01_yamazaki', 't03_komaki', 't02_shizugatake', 't04_negoro', 't05_ichinomiya', 't07_ganjaku', 't08_nejirozaka', 't03b_nagakute', 't09_yamanaka', 't10_oshi', 't11_hachioji', 'shiga', 'hieizan', 'nodafukushima', 'inabayama', 'tonezaka', 'inou', 'mitsukuri', 'suwahara', 't12_odawara']);   // 稲生は入れると林秀貞の備（遠い行）が hold で14人一点に重なった（act bot 391秒）ので外した
 // 海の上の戦（木津川口）は陸の備を立てない（地図だけ）
 const MAP_ONLY = new Set(['kizugawa']);
 const ALLY = /織田|徳川|信長|羽柴|信忠|滝川/;

@@ -4479,8 +4479,9 @@ const nodafukushima = {
       for (const u of rt.army.units) if (u.alive && u.team !== p.u.team && !u.fleeing && Math.abs(u.pos.x - P.x) < 5 && Math.abs(u.pos.z - P.z) < 5 && Math.hypot(u.pos.x - P.x, u.pos.z - P.z) < 4.5) n++;
       // 11/18 K358 iMac n-kiba（act bot 18:49・19:08 夜の段で二回続けて倒れた・本陣の脇の休む所 (42〜46,38〜40) で門徒の鉄砲と新手に囲まれた。
       //   d83ab3e17b で近くの敵の寄せが強まった後。敵は弱めず味方の厚みで受ける）：囲まれた時に駆け寄る味方に、持ち場に据えた組（fixed）も二十歩内なら加える。夜は二人に囲まれた所から
-      if (n >= (F.step === 3 ? 2 : 3)) {
-        const near = rt.army.groups.filter((g) => g.team === p.u.team && !g.isPlayerSquad && !g.routed && !g.civ && (!g.fixed && !g.stay || F.step === 3 && !g.noAI && !g.perch) && g.count >= 4)
+      const nfNear = F.step === 3 || F.retreating;   // 11/19 K358 iMac n-kiba（act bot 22:28・23:28 退く段で堤へ寄せる門徒に囲まれ倒れた）：退く段も夜と同じく
+      if (n >= (nfNear ? 2 : 3)) {
+        const near = rt.army.groups.filter((g) => g.team === p.u.team && !g.isPlayerSquad && !g.routed && !g.civ && (!g.fixed && !g.stay || nfNear && !g.noAI && !g.perch) && g.count >= 4)
           .map((g) => { const c = g.center(); return { g, d: c ? Math.hypot(c.x - P.x, c.z - P.z) : 1e9 }; }).filter((e) => e.d < (e.g.fixed || e.g.stay ? 20 : 45)).sort((a, c) => a.d - c.d).slice(0, 2);
         for (const { g } of near) if (!(g._nfRescueT > rt.t)) { g._nfRescueT = rt.t + 6; g.order = 'move'; g.dest = { x: P.x, z: P.z }; g.path = null; g.onArrive = (q) => { q.onArrive = null; q.order = 'attack'; }; }
       }

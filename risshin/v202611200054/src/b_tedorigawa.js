@@ -2,6 +2,8 @@ import { instLod } from './inst_lod.js';
 import { aheadOf } from './scene_beats.js';
 import { retreatRunFromBlade } from './bot_retreat.js';
 import { bodyGeometry } from './units_model.js';
+import { isTouch } from './touch.js';
+import { fujinRealN } from './fujin_layout.js';
 import { lodSwap, muddyFlag, umaGeometry } from './units_flags.js';
 import { rockShape } from './rock_shape.js';
 import { woodTex, barkTex } from './nature.js';
@@ -1980,6 +1982,8 @@ function tedoPersonVisible(rt, u) {
 }
 
 const tedorigawa = {
+  // 11/19 係（天王寺レベルの軍勢）：パソコンは布陣の表（fujin_layout.js）の分を上限に足す＝筋書きの空きは前と同じ。携帯は今まで
+  realCap: isTouch ? 250 : 250 + fujinRealN('tedorigawa'),
   resumeSteps: [[1, 'retreat'], [2, 'rearguard'], [3, 'cross'], [4, 'south']],   // 戦の途中の保存（battle_checkpoint.js）：段の始まりを、段の関数を順に流して作り直す
   // 稲生と同じ一行・ピン一本。退き口なので謙信の討取りを任務にはしない。
   missionSingleLine: true,

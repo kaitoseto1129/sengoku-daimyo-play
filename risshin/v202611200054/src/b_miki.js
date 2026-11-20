@@ -1,4 +1,6 @@
 import { retreatRunFromBlade } from './bot_retreat.js';
+import { isTouch } from './touch.js';
+import { fujinRealN } from './fujin_layout.js';
 import { aheadOf, inStage } from './scene_beats.js';
 import { useTerrain } from './asset_manifest.js';
 import { demSample } from './dem.js';
@@ -1499,6 +1501,8 @@ function mikiGoalBoard(rt) {
   };
 }
 const miki = {
+  // 11/19 係（天王寺レベルの軍勢）：パソコンは布陣の表（fujin_layout.js）の分を上限に足す。携帯は今まで
+  realCap: isTouch ? 250 : 250 + fujinRealN('miki'),
   quietArmyCalls: true, // 11/18 K358（写真）：備ひとつの崩れで「味方が追撃に移った」「敵が総崩れ」を出さない（戦の途中の任務と食い違う）
   // 両軍の数は史実の規模で（kaito 11/3・11/6 K196：百数十人と出さない）。羽柴方の総勢二万・別所方の七千五百は備の表（1214・1224 行）と同じ復元の目安なので「仮」を付ける
   force(rt) {
