@@ -5,6 +5,7 @@
 import * as THREE from 'three';
 import { reduceMotion, S } from './settings.js';
 import { missionTarget } from './mission_pin.js';
+import { FUJIN } from './fujin_layout.js';
 
 const HOLD = 5, DESCEND = 1.8, CAP = 900;   // 布陣図はゆっくり（kaito 11/3 AV17）。触る・キーで飛ばせる。11/6 BW・BX「始まりの待ちは15秒まで」で地図は七秒ほどに
 const MINCHO = '"Hiragino Mincho ProN","Yu Mincho","YuMincho","Noto Serif JP",serif';
@@ -135,6 +136,18 @@ export function introLayout(rt) {
       const k = Math.min(120, Math.round(n / 3)), rr = 4 + Math.sqrt(n) * 0.9;
       for (let i = 0; i < k; i++) { const a = R() * Math.PI * 2, r = Math.sqrt(R()) * rr; push(side, f.x + Math.cos(a) * r, f.z + Math.sin(a) * r * 0.6); }
       if (f.name) names.push({ side, name: f.name, x: f.x, z: f.z, fj: true });
+    }
+  }
+  // 11/19 kaito「本能寺みたけどまだ入ってない」：布陣の表（fujin_layout.js の FUJIN）で戦場に立てた備も、布陣図に名の無い駒と点で出す（戦場の兵の厚みと図を合わせる）
+  const FT = FUJIN[rt.def && (rt.def.key || rt.def.id)];
+  if (Array.isArray(FJ) && FJ.length && FT && Array.isArray(FT.rows)) {
+    for (const r of FT.rows) {
+      const side = ally(r.side) ? 0 : 1, K = r.blocks && r.blocks.length ? r.blocks.length : 1, c = Math.cos(r.facing || 0), s2 = Math.sin(r.facing || 0);
+      for (let k = 0; k < K; k++) {
+        const off = K > 1 ? ((k + 0.5) / K - 0.5) * (r.w || 20) * 0.92 : 0, x = r.x + c * off, z = r.z - s2 * off;
+        units.push({ side, x, z, n: 30, dx: Math.sin(r.facing || 0), dz: Math.cos(r.facing || 0), m: 1 });
+        for (let i = 0; i < 14; i++) { const a = R() * Math.PI * 2, rr = Math.sqrt(R()) * 7; push(side, x + Math.cos(a) * rr, z + Math.sin(a) * rr * 0.6); }
+      }
     }
   }
   return { me: me ? { x: me.pos.x, z: me.pos.z } : { x: 0, z: 0 }, dots, units, arrows, names, pin, force, half: W?.half || 200 };

@@ -1971,8 +1971,9 @@ export class Army {
         // 霧の外の敵は体・旗・軽い遠景への置き換えも隠す。近づけば戻す。
         //   霧・林・煙の見通しは一人ずつ時をずらして 0.12 秒ごとに調べ直す（毎コマ全ての敵で煙の粒を全てたどると重い）
         //   11/18 kaito「遠くは描かない」：味方も同じ。霧の無い戦は 150m より先を描かない（数・動き・当たりはそのまま、描くだけ止める）
+        //   11/20 クラウドわ（kaito_now 2 本能寺）：戦が bodySight（m）を決めた時は、霧の見通しが短くてもそこまで体を描く（指物は 110m まで出るので、通りに旗だけが立ち兵の体が無かった）
         if (P && u !== P) {
-          if (!(u._fogSeeAt > this.time)) { u._fogSeeAt = this.time + 0.12 + (u.id % 7) * 0.01; const vis = Math.min(this.world.vis ?? Infinity, this.world.scene?.fog?.far ?? 150); u._fogSee = this.world.ohView || (u.pos.x - P.pos.x) ** 2 + (u.pos.z - P.pos.z) ** 2 <= vis * vis; }   // 描く・描かないは霧で見えなくなる遠さで決める（判断の見通しより手前で消さない。稲生 54）
+          if (!(u._fogSeeAt > this.time)) { u._fogSeeAt = this.time + 0.12 + (u.id % 7) * 0.01; const vis = Math.max(Math.min(this.world.vis ?? Infinity, this.world.scene?.fog?.far ?? 150), this.world.def?.bodySight || 0); u._fogSee = this.world.ohView || (u.pos.x - P.pos.x) ** 2 + (u.pos.z - P.pos.z) ** 2 <= vis * vis; }   // 描く・描かないは霧で見えなくなる遠さで決める（判断の見通しより手前で消さない。稲生 54）
           if (!u._fogSee) hide = true;
         }
         // 有岡では近い味方を描画直前に透かす。ここで消すと透かす対象からも外れてしまう。
@@ -1981,7 +1982,8 @@ export class Army {
         u.camHidden = hide; u.camAt = this.frameNo;
         u.mesh.visible = !hide;
         // 得物はカメラのすぐ前（体ごと消す 2.2m）まで見せる。隠すと手だけが宙を握って見える（鉄砲・弓・刀は近くても隠さない）
-        if (u.wpn && !(u.human && u.human.cmdHid)) u.wpn.visible = !hide && dist < 95 && ((cd > lim && !u.spearNearCamera) || (u.wpnKind || u.lookWeapon) !== 'spear');   // 体を消した兵の槍だけが宙に浮かない（11/19 伊賀 240秒）
+        // u.noWpn：得物を手に持たない間（本能寺の前夜の茶会・能・寝床。11/19 kaito「茶会も、寝る時も刀を持ったまま」）
+        if (u.wpn && !(u.human && u.human.cmdHid)) u.wpn.visible = !hide && !u.noWpn && dist < 95 && ((cd > lim && !u.spearNearCamera) || (u.wpnKind || u.lookWeapon) !== 'spear');   // 体を消した兵の槍だけが宙に浮かない（11/19 伊賀 240秒）
         // 乱戦の槍も指物と同じく、カメラと自分の間にある近い味方の分だけ薄くする（画面の真ん中を塞がないように）
         if (u.wpn && u.wpn.visible && !u.isSub && (u.wpnKind || u.lookWeapon) === 'spear') {
           let wfade = false;

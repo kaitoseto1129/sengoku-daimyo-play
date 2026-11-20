@@ -3,6 +3,7 @@ import { crowdRescue } from './crowd_rescue.js';   // 11/17 K365：囲まれた�
 import { depthReserve } from './depth_reserve.js';
 import { fujinForce } from './fujin_read.js';
 import { isTouch as TOUCH } from './touch.js';
+import { fujinRealN } from './fujin_layout.js';
 import { useTerrain } from './asset_manifest.js';
 import { battleJin, buildBattleJin } from './b_jinkei_g1.js';
 // 第1戦　桶狭間。雨後の急襲・旗本の囲み・元の道への帰陣。
@@ -986,6 +987,8 @@ const OKE_GRACE = { rate: 0.009, burst: 0.08, interval: 2.5 };
 const OKE_GRACE_HONJIN = { rate: 0.009, burst: 0.08, interval: 3.5, k1118: true };
 let OKE_RT = null;
 const okehazama = {
+  // 11/19 係（kaito「天王寺レベルの軍勢」）：パソコンは布陣の表（fujin_layout.js）の分を上限に足す＝筋書きの寄せ・新手の空きは前と同じ。携帯は今まで
+  realCap: TOUCH ? 250 : 250 + fujinRealN('okehazama'),
   stackAllAttack: true, // 11/18 マ三：act bot 331秒 assault (71,-8)/(86,11) で味方の10人の隊が attack のまま重なり止まる（2回）。狙い無しで重なる attack 組を共通の渦に散らす
   namedKacchu: OKEHAZAMA_KACCHU,
   // 10/31 iPhone の作りだけ：動く影は二コマに一度描き直す（main.js drawScene。稲葉山と同じ。fps 12→20 の軽く）
@@ -2983,7 +2986,28 @@ html:root body #hud:has(#h-prog[data-battle="okehazama"]):has(#intro:not([hidden
     depthReserve(rt, { active: (r) => r.phase === 'assault' && !F.victory && !r.over && !F.ending,
       enemy: { limit: 12, make: (r, at) => enemyGroup(r, { fixed: true, noGuard: true, faction: 'imagawa', formation: 'yari', spacing: 1.5, width: 18, anchor: at, facing: FIELD_TURN, morale: 85, aggro: 15, seekRange: 22, order: 'hold' }, [{ type: 'samurai', n: 6 }, { type: 'ashigaru', n: 22 }]) },
       allyBandMin: 20, allyDist: 42,
-      ally: { limit: 6, make: (r, at) => allyGroup(r, { fixed: true, fullStrength: true, noGuard: true, name: '織田の新手', anchor: at, facing: Math.PI + FIELD_TURN, formation: 'yari', order: 'hold', noRout: true, morale: 100, aggro: 15, seekRange: 16 }, [{ type: 'samurai', n: 4 }, { type: 'ashigaru', n: 16 }]) } });
+      // 11/20 クラウドか：味方の新手 六→十二組（六組を出し切った三百六十秒の後、本人の周りの味方が九人まで痩せた）
+      ally: { limit: 12, make: (r, at) => allyGroup(r, { fixed: true, fullStrength: true, noGuard: true, name: '織田の新手', anchor: at, facing: Math.PI + FIELD_TURN, formation: 'yari', order: 'hold', noRout: true, morale: 100, aggro: 15, seekRange: 16 }, [{ type: 'samurai', n: 4 }, { type: 'ashigaru', n: 16 }]) } });
+    // 11/20 クラウドか（kaito_now 3 主人公が一人にならない）：突撃の後半（480秒）、出た織田の新手と攻める組が六十〜百五十 m 後ろで今川の備と斬り合い続け、
+    //   本人の三十 m 内の味方 1・敵 36 になっていた（描かずの数え 携帯）。二十八 m より離れた味方の攻める組は、二秒ごとに陣を本人の十二 m 脇（来た側）へ寄せ、本人に一番近い敵を狙わせる
+    if (rt.phase === 'assault' && !F.victory && !F.ending && !rt.over && rt.t >= (F.okeNearT || 0) && rt.player.u.alive) {
+      F.okeNearT = rt.t + 2;
+      const me = rt.player.u, P = me.pos;
+      let foe = null, fd = 45;
+      let fr30 = 0;
+      for (const u of rt.army.units) { if (!u.alive || u.gone || u.isPlayer) continue; const d = Math.hypot(u.pos.x - P.x, u.pos.z - P.z); if (u.team === me.team) { if (d < 30 && !u.fleeing) fr30++; continue; } if (u.fleeing || u.noTarget || u.woundOut) continue; if (d < fd) { fd = d; foe = u; } }
+      // 11/20 クラウドか（続き）：待つ新手（二十人×二組）が四十〜六十 m 後ろに立ち続け、その四十人が「七十 m 内の味方」に数えられて出る目安（三十人未満）に届かず、
+      //   本人の三十 m 内の味方は 2〜8 のまま（描かずの数え 360・480秒）→三十 m 内の味方が十二人より少なければ、待つ新手を一組ずつ出して本人の脇へ寄せる
+      const A = F._dr?.A;
+      if (fr30 < 12 && A?.length) { const g = A.shift(); g.stay = false; g.fire = true; g.aggro = 14; g.seekRange = 40; g.order = 'attack'; g.dest = null; g.path = null; }
+      for (const g of rt.army.groups) {
+        if (g.team !== me.team || g.isPlayerSquad || g.routed || g.stay || g.order !== 'attack' || !g.count || /本陣/.test(g.name || '')) continue;
+        const c = g.center();
+        const d = Math.hypot(c.x - P.x, c.z - P.z); if (d <= 28) continue;
+        g.anchor = { x: P.x + (c.x - P.x) / d * 12, z: P.z + (c.z - P.z) / d * 12 }; g.dest = null; g.path = null; g.onArrive = null;
+        if (foe) g.focus = foe;
+      }
+    }
     quietOtherFlags(rt, F.victory ? F.returnGroup : rt.phase === 'assault' && F.entered ? null : rt.hostGroup);
     const combatTask = rt.phase === 'assault' && !!F.entered && !F.victory && !rt.over && !F.ending &&
       !retreatRequired(rt) && !rt.dodgeGuide && !(rt.hud.retreatGuide?.active && rt.hud.retreatGuide.valid);

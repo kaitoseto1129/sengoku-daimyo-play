@@ -555,7 +555,10 @@ export const ArmyThink = {
           (!PP.soloFor || PP.soloFor === u || !PP.soloFor.alive) &&
           !u.name && !u.isLord && !u.stdHeld && !u.banner && !u.fleeing && !g.guardOn && !g.noEngage && !g.hidden && !g.ambush && !g.peaceful && !g.people && !g.civ &&
           u.type !== 'busho' && u.type !== 'porter' && u.type !== 'dummy' && !u.civ && !u.noTarget && !u.mounted && !g.interiorHold &&
-          g.order !== 'retreat' && g.order !== 'assault' && g.order !== 'path' && g.order !== 'flee' && !g.routed && !g.stay && !g.retreatOnly &&
+          g.order !== 'retreat' && g.order !== 'assault' && g.order !== 'path' && g.order !== 'flee' && !g.routed && !g.retreatOnly &&
+          // 11/19 kaito「大軍の中にいるのに全然攻撃を食らわない」：持ち場の備（stay・fujin_layout と depth_reserve の厚い備）も、本人が八歩の内に来たら近い者から持ち場を離れて斬りかかる。
+          //   呼ばれた者は十二歩までは追い、本人が離れれば呼びが切れて持ち場へ戻る（遠くの者は寄せない）
+          (!g.stay || Math.hypot(PP.pos.x - u.pos.x, PP.pos.z - u.pos.z) < (u.pullUntil > this.time ? 12 : 8)) &&
           // 11/18 ウ四・難（K362 真田丸 act bot：本人の四歩内で本人を狙わない敵の考えの九割が「隊が退き・立て直しの型」で、一歩先の味方とだけ斬り合い、すぐ横の本人には一度も振らなかった）
           //   退く隊・立て直す隊の兵も、三歩半の内（下の「槍の届く相手には応戦」と同じ間合い）に立つ本人には向き直って斬る。遠い本人は今まで通り追わない。
           !g._ai?.ambushWait && (g._ai?.mode !== 'withdraw' && g._ai?.mode !== 'rally' || Math.hypot(PP.pos.x - u.pos.x, PP.pos.z - u.pos.z) < 3.5) &&

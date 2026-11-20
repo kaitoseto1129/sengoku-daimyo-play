@@ -8,6 +8,10 @@
 //   row：列の名（真上の写真・名札の読み取り用）。leaders：その列の大名・将（名のある武将として一人ずつ付く。同じ名は一つ）。
 // 出所：docs/fujin/<戦>.md・docs/fujin_all_1109.md・docs/books/*_zukan_1114.md。係三は 他の戦の行を足す（key は戦の def.key）。
 const S = Math.PI;
+// 11/19 係（kaito「天王寺レベルの軍勢」・桶狭間・森部・墨俣・稲葉山）：nb 塊（一塊 44 人・幅 13m）の行を一つ書く。持ち場で待つだけ（noEngage）
+const NUM = '一二三四五';
+const blk = (key, name, side, x, z, nb, facing, flag, row, o = {}) => ({ key, name, side, x, z, w: 13 * nb, d: 12, count: 200 * nb, facing, flag, armor: side ? 0x2a2622 : 0x2e2a26, row, leaders: [],
+  blocks: Array.from({ length: nb }, (_, i) => ({ name: `${name} ${NUM[i]}` })), ranks: 4, noEngage: true, ...o });
 export const FUJIN = {   // 置き場の行（本物の備を並べる）。docs から自動で作った数の表は fujin_layout.js（FUJIN_TABLE）
   // 大坂夏の陣 天王寺・岡山口（kaito 11/13 の布陣図）。北が大坂城・南が徳川。天王寺口は四重・岡山口は二重
   // 11/14 クラウドわ（K287①司令塔「各陣を幅より奥行きのある厚い塊に」）：deep で塊を奥行きの深い密な四角に（fujin_place の blockLook）
@@ -234,6 +238,82 @@ export const FUJIN = {   // 置き場の行（本物の備を並べる）。docs
   // 11/19 クラウド k365-cloud-37（遠景の大軍・120秒の並べ見で一番薄い：千代川の岸の夜に柵の内の幟だけ・司令塔の許し）：
   //   秀吉の囲みの付城（b_tottori.js の TOTTORI_ATTACK＝円護寺・雁金山・太閤ヶ平。軽い兵は 11/4 kaito AP9・AV4 で置かない）に本物の備を立てる。
   //   本人の岸から 200m 先なので far（260m の内で立てる）。持ち場で待つだけ・味方・勝ち負けの組に入らない（敵味方の強さは変えない）
+  // 11/19 係（kaito 11/19「天王寺レベルの軍勢」：課金の入口の四戦の 60秒の両軍の本物を千八百以上に。前は 桶狭間 284・森部 318・墨俣 291・稲葉山 231）：
+  //   家ごとの塊（blk・一塊 44 人）と幟の林。持ち場で待つだけ（noEngage）・勝ち負けの組に入らない（keep で枠の外しにも消えない）。
+  //   主人公の道・任務の場所・建物・柵・川には置かない。遠い行は lazy（近づけば立つ）・far は 260m の内で立つ（携帯は tLazy で 140m）。
+  //   withEmpty：表は足すだけ（陣立ての入れ物の本物も前のとおり）。idleFar：携帯で遠く待つだけの塊を休ませる（idle_far.js）
+  // 桶狭間（docs/fujin/okehazama.md：今川の本陣の周り六千・信長二千足らず）。座標は戦場の座標（b_okehazama.js の fieldPoint をかけた後）。
+  //   織田は雨の谷（P1 の道 z−20〜−35）の南に信長の本隊の残り、今川は義元の本陣（110,33）の南・東・北の坂に休む備（地形の細かい所 x≦165 の内）。
+  //   突撃の道（46,−2→76,28→112,33）と本陣の幕の内の周り二十五 m は空ける
+  okehazama: { withEmpty: true, deep: true, lazy: true, keep: true, idleFar: true, noboriAll: true, nbTouch: [4, 2], rows: [
+    blk('okO1', '信長の馬廻りの後ろ', 0, -20, -72, 3, S / 2, 'eiraku', '織田 谷の南'),
+    blk('okO2', '信長の本隊の徒', 0, -62, -66, 3, S / 2, 'oda', '織田 谷の南'),
+    blk('okO3', '信長の本隊の後ろ', 0, -100, -58, 2, S / 2, 'oda', '織田 谷の南'),
+    blk('okI1', '今川の本陣南の坂の備', 1, 96, -52, 3, -S / 2, 'imagawa', '今川 本陣の南'),
+    blk('okI2', '井伊の後備え', 1, 142, -44, 3, -S / 2, 'imagawa', '今川 本陣の南'),
+    blk('okI3', '今川の旗本の東の備', 1, 150, 0, 3, -S / 2, 'imagawa', '今川 本陣の東'),
+    blk('okI4', '今川の旗本の東の二の手', 1, 148, 62, 3, -S / 2, 'imagawa', '今川 本陣の東'),
+    blk('okI5', '今川の後備え 南', 1, 112, -96, 3, -S / 2, 'imagawa', '今川 本陣の奥'),
+    blk('okI6', '今川の後備え 中', 1, 152, -86, 3, -S / 2, 'imagawa', '今川 本陣の奥'),
+    blk('okI7', '今川の後備え 北', 1, 150, 116, 3, -S / 2, 'imagawa', '今川 本陣の奥'),
+    blk('okI8', '今川の本陣北の坂の備', 1, 130, 100, 3, -S * 0.75, 'imagawa', '今川 本陣の北'),
+    blk('okI9', '今川の北の休む備', 1, 82, 108, 3, -S * 0.75, 'imagawa', '今川 本陣の北'),
+    blk('okI10', '松井の後備え', 1, 60, -66, 3, -S / 2, 'imagawa', '今川 本陣の南'),
+  ] },
+  // 森部（docs/fujin/moribe.md：織田 千五百・斎藤 六千）。北（−z）が斎藤、南が織田。楡俣川 z≈88・あふれた流れ z≈47（x−26〜58）。
+  //   斎藤は横に並ぶ備え（z−56〜−78）の東西の外と奥の二列に、織田は川の南の後詰（丹羽・佐久間）。真ん中の戦場（x−60〜50）・道（ROAD2）・薬師堂（66,46）は空ける
+  moribe: { withEmpty: true, deep: true, lazy: true, keep: true, idleFar: true, noboriAll: true, nbTouch: [4, 2], rows: [
+    blk('mbO1', '丹羽長秀の後詰', 0, -78, 140, 3, S, 'oda', '織田 川の南の後詰'),
+    blk('mbO2', '佐久間信盛の後詰', 0, 36, 166, 3, S, 'oda', '織田 川の南の後詰'),
+    blk('mbO3', '織田の旗本の後ろ', 0, 98, 136, 3, S, 'eiraku', '織田 川の南の後詰'),
+    blk('mbS1', '日比野の手 東の外', 1, 78, -70, 3, 0, 'saito', '斎藤 一の備えの外'),
+    blk('mbS2', '斎藤の先手の東の備', 1, 104, -22, 3, -S / 6, 'saito', '斎藤 一の備えの外'),
+    blk('mbS3', '長井の手 西の外', 1, -112, -76, 3, 0, 'saito', '斎藤 一の備えの外', { far: true, tLazy: true }),
+    blk('mbS4', '斎藤の控え 東', 1, 128, -66, 3, 0, 'saito', '斎藤 一の備えの外', { far: true, tLazy: true }),
+    blk('mbS5', '斎藤の後ろ 西', 1, -92, -122, 3, 0, 'saito', '斎藤 後ろ', { far: true, tLazy: true }),
+    blk('mbS6', '斎藤の後ろ 東', 1, 62, -122, 3, 0, 'saito', '斎藤 後ろ', { far: true, tLazy: true }),
+    blk('mbS7', '斎藤の後ろ 東の端', 1, 116, -114, 3, 0, 'saito', '斎藤 後ろ', { far: true, tLazy: true }),
+    blk('mbS8', '斎藤の後ろの奥 西', 1, -30, -166, 3, 0, 'saito', '斎藤 後ろの奥', { far: true, tLazy: true }),
+    blk('mbS9', '斎藤の後ろの奥 東', 1, 50, -170, 3, 0, 'saito', '斎藤 後ろの奥', { far: true, tLazy: true }),
+  ] },
+  // 墨俣（docs/fujin/sunomata.md：砦の内百八十・寄せ手の斎藤は一の手〜三の手と寄せ大将で千六百・本陣三千）。砦は ±18、長良川は x62〜112。
+  //   斎藤は北と西の陣の空き地（SUNO_CAMP_CLEAR）と東岸（x146〜150）に砦へ向けて、織田は南の空き地に後詰（信長の先手）。
+  //   北の道（x≈0）・砦の門・運びの道（SUPPLY_GUIDE）・岸を進退する六隊（x122）・川の中は空ける
+  sunomata: { withEmpty: true, deep: true, lazy: true, keep: true, idleFar: true, noboriAll: true, nbTouch: [4, 2], rows: [
+    blk('suO1', '織田の後詰 西', 0, -36, 102, 3, S, 'oda', '織田 南の後詰'),
+    blk('suO2', '織田の後詰 東', 0, 34, 106, 3, S, 'oda', '織田 南の後詰'),
+    blk('suO3', '織田の後詰 荷の守り', 0, -128, 88, 3, S * 0.8, 'oda', '織田 南の後詰'),
+    blk('suN1', '斎藤の北の寄せの備', 1, -30, -150, 3, 0.1, 'saito', '斎藤 北'),
+    blk('suN2', '斎藤の北東の備', 1, 34, -120, 3, 0, 'saito', '斎藤 北'),
+    blk('suN3', '斎藤の北西の備', 1, -120, -106, 2, 0.85, 'saito', '斎藤 北西'),
+    blk('suN4', '斎藤の北の後ろの備', 1, -80, -132, 3, 0.4, 'saito', '斎藤 北'),
+    blk('suW1', '斎藤の西の寄せの備', 1, -150, -12, 2, S / 2, 'saito', '斎藤 西'),
+    blk('suE1', '斎藤の東岸の備 一', 1, 150, -62, 3, -S / 2, 'saito', '斎藤 東岸'),
+    blk('suE2', '斎藤の東岸の備 二', 1, 150, -8, 3, -S / 2, 'saito', '斎藤 東岸'),
+    blk('suE3', '斎藤の東岸の備 三', 1, 150, 50, 3, -S / 2, 'saito', '斎藤 東岸'),
+    blk('suE4', '斎藤の東岸の備 四', 1, 150, 110, 3, -S / 2, 'saito', '斎藤 東岸'),
+    blk('suE5', '斎藤の東岸の備 五', 1, 150, -118, 3, -S / 2, 'saito', '斎藤 東岸'),
+  ] },
+  // 稲葉山（docs/fujin/inabayama.md：織田 一万二千〜一万五千・斎藤の城兵 四千）。北（−z）が金華山、南が井口の町、西を長良川（x−127〜−165）が流れる。
+  //   織田は町の南の野（瑞龍寺山の道 ROAD と本陣・佐久間・滝川の備の間を空けて）・東の野（佐久間・坂井・池田の寄せの後ろ）・西の川と町の間に、山へ向けて。
+  //   斎藤は山の東と西の斜面（七曲り・百曲り・水手道の道から三十 m 外）に町へ向けて。町の家・鹿垣・寺（−58,50）・町の人の逃げ道（x−105〜−120・x124）は空ける
+  inabayama: { withEmpty: true, deep: true, lazy: true, keep: true, idleFar: true, noboriAll: true, nbTouch: [4, 2], rows: [
+    blk('inO1', '織田の本陣の西の備', 0, -80, 132, 2, S, 'eiraku', '織田 町の南'),
+    blk('inO2', '丹羽長秀の後ろの備', 0, 55, 128, 3, S, 'oda', '織田 町の南'),
+    blk('inO3', '佐久間信盛の後ろの備', 0, 95, 145, 3, S, 'oda', '織田 町の南'),
+    blk('inO4', '織田の後詰 南', 0, 55, 155, 3, S, 'oda', '織田 町の南'),
+    blk('inO5', '池田恒興の後ろの備', 0, 135, 85, 3, S * 1.25, 'oda', '織田 東の野'),
+    blk('inO6', '池田恒興の東の備', 0, 140, 40, 3, S * 1.25, 'oda', '織田 東の野'),
+    blk('inO7', '坂井政尚の後ろの備', 0, 100, 85, 3, S * 1.25, 'oda', '織田 東の野'),
+    blk('inO8', '織田の東の山裾の備', 0, 145, -5, 2, S * 1.25, 'oda', '織田 東の野'),
+    blk('inO9', '森可成の後ろの備', 0, -95, 70, 2, S * 0.75, 'tsuru', '織田 西の川べり'),
+    blk('inO10', '森可成の西の備', 0, -92, 15, 2, S * 0.75, 'tsuru', '織田 西の川べり'),
+    blk('inO11', '織田の東の尾根の備', 0, 148, -45, 2, S * 1.25, 'oda', '織田 東の野'),
+    blk('inS1', '長井道利の手 東の斜面', 1, 92, -58, 3, -S / 4, 'saito', '斎藤 山の東', { far: true, tLazy: true }),
+    blk('inS2', '斎藤の西の斜面の備', 1, -96, -58, 3, S / 4, 'saito', '斎藤 山の西', { far: true, tLazy: true }),
+    blk('inS3', '斎藤の東の尾根の備', 1, 88, -100, 2, -S / 4, 'saito', '斎藤 山の東', { far: true, tLazy: true }),
+    blk('inS4', '斎藤の西の裏手の備', 1, -90, -110, 2, S / 4, 'saito', '斎藤 山の西', { far: true, tLazy: true }),
+  ] },
   tottori: { deep: true, noboriAll: true, nbTouch: [4, 2], rows: [
     { key: 'engoji', name: '円護寺側の付城', side: 0, x: 28, z: -200, w: 24, d: 12, count: 300, facing: Math.PI, flag: 'kiri53', armor: 0x292520, row: '円護寺の付城', leaders: [], ranks: 4, far: true },
     { key: 'karigane', name: '雁金山の宮部の備', side: 0, x: -20, z: -196, w: 20, d: 10, count: 300, facing: Math.PI / 2, flag: 'kiri53', armor: 0x292520, row: '雁金山の付城', leaders: [], ranks: 4, far: true },

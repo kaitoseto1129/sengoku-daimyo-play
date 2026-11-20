@@ -33,6 +33,8 @@ import { revealName } from './battle_intel.js';
 import { makeTownWay } from './inabayama_town_way.js';
 import { VIEW } from './viewport.js';
 import { TIER } from './device_tier.js';
+import { isTouch as INABA_TOUCH } from './touch.js';
+import { fujinRealN } from './fujin_layout.js';
 import { gauss, enemyGroup, allyGroup, nm, centerOf, wallLine } from './bhelp.js';
 import { camp } from './b_mid.js';
 import { placeGroup, placePlayer } from './b_opening.js';
@@ -4779,7 +4781,9 @@ const inabayama = {
   reserveFrom: 60,   // 11/13 クラウドD：待つ備を六十秒から（九十秒の厚みが本人の三十〜六十m に三十八人で四十に届かなかった）
   // 11/13 クラウドD：待つ備が本物の枠（二百五十）を埋め、付け入りで出す「大手の木戸の守り」が零人で出て、七曲りの登りが時間切れ（act bot 655秒で失敗）。
   //   待つ備は二百人まで・付け入り（七曲りの登り）から先は新しく作らない（筋書きの守りに枠を譲る）
-  reserveCap: 200,
+  // 11/19 係（kaito「天王寺レベルの軍勢」）：パソコンは布陣の表（fujin_layout.js）の分を上限に足す＝待つ備・筋書きの守りの空きは前と同じ。携帯は今まで
+  reserveCap: 200 + (INABA_TOUCH ? 0 : fujinRealN('inabayama')),
+  realCap: INABA_TOUCH ? 250 : 250 + fujinRealN('inabayama'),
   frontFillFoe: true,   // 11/15 K338：前60m を敵の本物で数える（町を焼く段は味方で埋まって新手が出ず、敵は16人だった）
   reserveYield: (rt) => (rt.flags.step || 0) >= 3,
   frontFillWhen: (rt) => (rt.flags.step || 0) !== 3,   // 11/18 夜50-02：付け入りの登りの間は、麓に前を埋める新手を出さない（act が麓の新手を追って登りが二百秒を越えた）
@@ -7965,7 +7969,7 @@ const inabayama = {
     if (rt.t >= (F.budgetAt || 0)) {
       F.budgetAt = rt.t + 1;
       let live = 0;
-      for (const u of rt.army.units) if (u.alive && !u.isStruct) live++;
+      for (const u of rt.army.units) if (u.alive && !u.isStruct && !u.group?._fjR) live++;   // 11/19 係：布陣の表の持ち場で待つ塊は数えない（部隊の本物の枠は前と同じ）
       // 弱い端末（device_tier.js）は遠い備の本物を少し早めに止める。目の前の乱戦の兵は減らさない（稲生 1）。
       let room = Math.max(0, (TIER.weak ? 200 : 235) - live);
       for (const b of rt.butai || []) {

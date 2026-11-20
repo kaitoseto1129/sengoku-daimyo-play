@@ -131,7 +131,10 @@ export class PlayerHurt {
     const pool = Math.min(cap, (this.meleePool ?? cap) + Math.max(0, rt.t - (this.meleePoolAt ?? rt.t)) * u.maxHp * grace.rate);
     const taken = Math.min(amount, pool);
     this.meleePool = pool - taken; this.meleePoolAt = rt.t;
-    if (taken > 0) this.meleeGraceUntil = rt.t + grace.interval;
+    // 11/19 kaito「大軍の中に入ったら、攻撃をもっとされて HP がどんどん減っていくのが当たり前」：刃を受けた後の猶予は、
+    //   六歩の内の敵の槍・刀が味方より三人以上多い時だけ、囲む数に応じて縮める（一人二人との斬り合い・名のある将との一騎打ちは今まで通り）
+    const A = rt.army, press = Math.max(0, (A.playerCrowd || 0) - (A.playerSupport || 0) - 2);
+    if (taken > 0) this.meleeGraceUntil = rt.t + (press > 0 ? Math.max(0.3, grace.interval / (1 + 0.5 * press)) : grace.interval);
     return taken;
   }
   takeDamage(amount, src) {
