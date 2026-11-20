@@ -391,6 +391,25 @@ function honnoFarWall(rt) {
     g.facing = Math.atan2(ax, az);
   }
 }
+// 11/20 クラウドか（K436）：御殿の段で裏門へ落ちる女房衆（被衣）。上様と本人が御殿へ着く前（p6 の初め）から、
+//   控えの間の西の奥 (-67〜-69, 89) に立って控えさせる。目の前に急に湧かせない。
+function honnoNyoboWait(rt) {
+  const F = rt.flags;
+  if (F.nyobo) return F.nyobo;
+  const from = { x: -68, z: 89.2 };
+  const g = allyGroup(rt, { fixed: true, fullStrength: true, name: '落ちる女房衆', anchor: from, facing: Math.PI / 2, formation: 'column', colW: 2,
+    speed: 1.6, aggro: 0, civ: true, noRout: true, arriveNoncombat: true },
+    [[0x8a3a3e, 0x3a2420], [0xc9bfa6, 0x6a2a2a], [0x5a4a6e, 0x2a231c], [0xa0624a, 0x30251c]].map(([col, obi]) =>
+      ({ type: 'ashigaru', n: 1, o: { flag: null, weapon: 'none', kosode: 1, kosodeCol: col, obi, cloth: col, hat: 'none', kazuki: 0xd8d0bc, armor: 0x3a342a, invuln: true } })));
+  if (!g) return null;
+  F.nyobo = g;
+  g.noAI = true; g.order = 'hold';
+  g.units.forEach((u, i) => {
+    u.noTarget = true; u.dmg = 0; u.civ = true;
+    u.pos.x = from.x - (i / 2 | 0) * 1.1; u.pos.z = from.z - 0.5 + (i % 2) * 1.0; u.pos.y = rt.world.heightAt(u.pos.x, u.pos.z); u.heading = Math.PI / 2;
+  });
+  return g;
+}
 // 11/19 クラウドし（K380 段1〜3・要件書3「周辺に小姓・女房衆」）：朝の表庭に女房衆が二人、宿坊の前で立ち話をしている（本人の正面・門への道の南）。
 //   鬨の声（P2）で宿坊の戸口へ小走りに入って消える（敵も味方も狙わない・着物の色は推定。御殿の段の落ちる女房衆とは別の二人）
 function honnoMorningWomen(rt) {
@@ -1852,8 +1871,46 @@ function honnoRing(rt) {
   const gg = new THREE.BufferGeometry(); gg.setAttribute('position', new THREE.BufferAttribute(gp, 3));
   const glow = new THREE.Points(gg, ringGlowMat()); glow.frustumCulled = false; grp.add(glow);
   F.ring = { grp, flame, glow };
+  // 11/20 kaito（K425）「門の外だけでなく、塀の上の全周に明智の旗（桔梗）が見えれば囲まれた感じが出る」：
+  //   堀の外の岸（塀から 5.6〜8m）に、桔梗の幟を二〜四本の組で四方に立てる。布は塀と平らに向け、境内から布の面と紋が見える。
+  //   布の下は地から約 3.5m で、高さ 2.6m の築地の笠の上に布だけが出る。等間に並べると看板やビルの列に見えた（10/29）ので、
+  //   組の間を 6〜14m 空け、組の中も前後・高さ・傾きを散らす。鬨の声（門の段）から六秒かけて四方に少しずつ立つ。
+  const wf = [];
+  for (const [[ax, az], [bx, bz], [nx, nz]] of sides) {
+    const len = Math.hypot(bx - ax, bz - az), tx = (bx - ax) / len, tz = (bz - az) / len;
+    for (let s = 3 + rr(ax, az, 11) * 5; s < len - 3;) {
+      const k = 2 + Math.floor(rr(ax + s, az + s, 12) * 3);
+      for (let i = 0; i < k; i++, s += 1.4 + rr(ax + s, az, 13) * 1.8) {
+        const off = 5.6 + rr(ax + s, az + i, 14) * 2.4;
+        const x = ax + tx * s + nx * off, z = az + tz * s + nz * off;
+        if (teraMoatDepth(x, z) > 0) continue;
+        if ([...Object.values(GATES), { ...CLIMB, w: 4 }].some((g) => Math.hypot(x - g.x, z - g.z) < g.w / 2 + 5)) continue;
+        wf.push([x, z, rr(x, z, 15), Math.atan2(nx, nz)]);
+      }
+      s += 6 + rr(ax + s, az, 16) * 8;
+    }
+  }
+  wf.sort((a, b) => rr(a[0], a[1], 17) - rr(b[0], b[1], 17));   // 立つ順は四方に散らす
+  const wPlace = ([x, z, j, yaw], P, E, S) => {
+    P.set(x, W.heightAt(x, z), z);
+    E.set((j - 0.5) * 0.12, yaw + (rr(x, z, 18) - 0.5) * 0.7, (rr(x, z, 19) - 0.5) * 0.12);
+    const width = .9 + j * .2;
+    S.set(width, .82 + rr(x, z, 20) * .26, width);
+  };
+  const wGrp = new THREE.Group(); grp.add(wGrp);
+  const wMesh = [inst(staffSrc.geometry, staffSrc.material, wf, wPlace), inst(noboriClothLite(6.4), flagSrc.material, wf, wPlace)];
+  for (const im of wMesh) { grp.remove(im); wGrp.add(im); im.count = 0; }
+  wGrp.visible = false;
+  F.ring.wall = { grp: wGrp, mesh: wMesh, n: wf.length, t: -1 };
   // 門の開口から見える低い松明。塀の外の高い火だけでは内側に灯が届かない。
   for (const z of [GATES.main.z - 2.2, GATES.main.z + 2.2]) honnoTorch(rt, GATES.main.x + 4, z, 0.65);
+}
+
+// K425：塀の外の四方の桔梗の幟を立て始める（鬨の声の時）。
+function honnoWallFlags(rt) {
+  const wl = rt.flags.ring?.wall;
+  if (!wl || wl.t >= 0) return;
+  wl.t = rt.t; wl.grp.visible = true;
 }
 
 // 前後左右から寄せる寄せ手。見通せる十六歩の内の敵を数え、足りない方角（空いた背・脇を先に）へ三、四人ずつ出す。
@@ -1947,6 +2004,11 @@ function honnoSurround(rt, dt) {
     F.ring.flame.material.opacity = 0.72 + Math.sin(rt.t * 11.3) * 0.12 + Math.sin(rt.t * 23.7) * 0.08;
     F.ring.glow.material.opacity = 0.62 + Math.sin(rt.t * 7.1) * 0.1 + Math.sin(rt.t * 17.3) * 0.06;
     if (F.hp >= 9 && F.ring.grp.visible) F.ring.grp.visible = false;
+    const wl = F.ring.wall;
+    if (wl && wl.t >= 0) {
+      const c = Math.min(wl.n, Math.ceil(wl.n * Math.min(1, (rt.t - wl.t) / 6)));
+      if (wl.mesh[0].count !== c) for (const im of wl.mesh) im.count = c;
+    }
   }
   if (!(F.hp >= 3 && F.hp <= 7)) return;
   // 後続の発砲は少し遅れて同じ持ち場から響く。二挺を同時に鳴らさない。
@@ -2163,6 +2225,9 @@ function gateBlocker(rt) {
 function closeGate(rt, by) {
   const F = rt.flags, W = rt.world, gm = GATES.main;
   if (F.gMain || F.ending || rt.over || F.hp !== 2) return;
+  // K424（kaito 11/20「破られた後に閉まるのは変。破られたら開いたまま」）：明智勢が門の口に入っていたら、門番は閂を下ろせない。
+  //   押し出して急に閉めず、門は開いたまま寄せ手を迎える（自分で長押しした時だけ、口の者を押し出して閉める）。
+  if (by !== 'me' && (F.gateBreached || gateBlocker(rt)?.team === 1)) { F.gateBreached = true; return; }
   // 11/6 critic60：口に人がいる間は閉まらず、「閉めよ」「口を空けよ」の下知が数秒ごとに入れ替わって、門は最後まで開いたままだった。
   //   閂を下ろす時は、門番と馬廻が口の者を押し出す。下知は出さない。
   //   11/11 クラウドわ：扉の線の向こうへ移すと人が扉を抜けて見える（すり抜けの数え 3）。今いる側の口の外へ押すだけにする。
@@ -2235,7 +2300,7 @@ function honnoFall(rt, v) {
   // 空きが尽きた時も山にしない。重なる古い亡骸は共通の片付けで武具だけ残す。
   for (let i = A.dead.length - 1; i >= 0; i--) {
     const u = A.dead[i];
-    if (u === v || u.isPlayer || u.death?.aid || !u.honnoRest) continue;
+    if (u === v || u.isPlayer || u.death?.aid || !u.honnoRest || u.name && !u.isSub) continue;   // 11/20 K440：名のある者の亡骸は重なりの片付けで消さない
     if ((v.honnoRest.x - u.honnoRest.x) ** 2 + (v.honnoRest.z - u.honnoRest.z) ** 2 < 2.4 ** 2) A.clearCorpse(i);
   }
 }
@@ -4233,7 +4298,7 @@ const honnoji = {
   get kumiLead() { return !(honnoLive?.flags?.step >= 5); },
   goalSignUnitNoLabel: true, // 頭上の▼に「ここを攻める」などの字を添えない（kaito 10/23 字は使わない）
   goalSignNoLabel: true,
-  enemyTriangleSigns: true,
+  enemyTriangleSigns: true, enemyTrianglesWithPin: true, // K422（kaito 11/20）：明智の兵の頭上に敵の赤い▼。行き先のピンの間も消さない
   nearbyAllySignLimit: 0,
   noDodgeCard: true,
   noPlayerFoot: true, // 足元の白い輪は出さない（ちらつきの元）。
@@ -5145,6 +5210,7 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
     honnoMorningWomenRun(rt);
     rt.after(1.2, () => { sfx('bellRapid', 0.5); });
     rt.bark('表門で門番の叫び。「桔梗の旗じゃ！　明智の兵が門の前に！」', true);
+    honnoWallFlags(rt);
     // 門の外に桔梗の旗の列と松明（B115）
     for (const dz of [-12, -7, -3, 3, 7, 12]) rt.scene.add(nobori(rt.world, -23.5 + Math.abs(dz) * 0.15, 50 + dz, 'akechi', 5.5));
     // 門の正面は兵が二列で通る。篝の脚を口の真ん中へ置かない。
@@ -5262,7 +5328,7 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
     rt.marker('next', () => F.gateApproach?.alive ? F.gateApproach.pos : F.patrolDistance > 10 ? F.patrolGuide : null, '門の内へ戻る道',
       { h: 3, guidePriority: 200, guideAlways: true, alwaysDistance: true, routeDistance: () => F.patrolDistance });
     nbSay(rt, '弓を持て！　門の口で迎え撃つ', 3.5);
-    rt.obj('main', F.gMain?.alive ? '表門の内で、上様を明智勢から守る' : '表門を奪われた。本堂へ下がり、上様を守れ', 'main', true);
+    rt.obj('main', F.gMain?.alive ? '表門の内で、上様を明智勢から守る' : '破られた表門の口で、上様を明智勢から守る', 'main', true);
     // 寄せ手の突撃は門外から。寺の守り手への号令と取り違えない。
     rt.army.playFar('sig_kakari', HONNO_GATE, 0.8);
     rt.objProgress('main', '門外の法螺貝と陣太鼓の早打ち＝明智勢の突撃。門の口を守れ');
@@ -5548,6 +5614,7 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
     if (F.hp >= 6) return;
     F.hp = 6; F.pT = rt.t;
     rt.setPhase('move');
+    honnoNyoboWait(rt);   // K436：落ちる女房衆は御殿の奥に先に控えさせる（湧かせない）
     clearTeraReserve(rt);
     honnoBreath(rt);   // 11/18 司令塔の決め (a)：段の変わり目で命を半ばまで戻す
     fireStage(rt, 4);
@@ -5663,18 +5730,15 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
     rt.obj('main', '控えの間の口で上様を守り、明智勢を通すな', 'main', true);
     // 11/18 クラウドし（K338②・本から取る物：当代記・『信長を殺した男』6巻 35話「女房衆に三度『退け』と言って奥へ入る」）：
     //   御殿の段の初めに、上様が女房衆を退かせ、小袖の女房衆が北の間から渡りの道を裏門へ落ちて行く（敵も味方も狙わない・着物の色は推定）
+    // 11/20 クラウドか（K436「頭に布を巻いた者が急に湧き出す」）：前は御殿の段の二秒半後に、被衣の女房衆四人を控えの間（本人の着く所）へ
+    //   その場で生んでいた。今は御殿へ移る段（p6）の初めから控えの間の西の奥に控えさせ（honnoNyoboWait）、ここでは歩かせるだけ。
     rt.after(2.5, () => {
-      if (F.hp !== 7 || F.ending || F.nyobo) return;
+      if (F.hp !== 7 || F.ending || F.nyoboRun) return;
       nbSay(rt, '女どもは退け。……退けと申すに。裏門から落ちよ', 3);
-      const from = { x: -61, z: 89 };
-      const g = allyGroup(rt, { fixed: true, fullStrength: true, name: '落ちる女房衆', anchor: from, facing: -Math.PI / 2, formation: 'column', colW: 2,
-        speed: 1.6, aggro: 0, civ: true, noRout: true, arriveNoncombat: true },
-        [[0x8a3a3e, 0x3a2420], [0xc9bfa6, 0x6a2a2a], [0x5a4a6e, 0x2a231c], [0xa0624a, 0x30251c]].map(([col, obi]) =>
-          ({ type: 'ashigaru', n: 1, o: { flag: null, weapon: 'none', kosode: 1, kosodeCol: col, obi, cloth: col, hat: 'none', kazuki: 0xd8d0bc, armor: 0x3a342a, invuln: true } })));
+      const g = F.nyobo || honnoNyoboWait(rt);
       if (!g) return;
-      F.nyobo = g;
-      g.units.forEach((u, i) => { u.noTarget = true; u.dmg = 0; u.civ = true; u.pos.x = from.x - (i / 2 | 0) * 1.1; u.pos.z = from.z + (i % 2) * 1.1; u.pos.y = rt.world.heightAt(u.pos.x, u.pos.z); });
-      g.noAI = true; g.order = 'path'; g.path = HONNO_ESCAPE_PATHS.h8.map((q) => [q[0], q[1]]); g.pathIdx = 0;
+      F.nyoboRun = true;
+      g.noAI = true; g.order = 'path'; g.path = HONNO_ESCAPE_PATHS.h8.slice(2).map((q) => [q[0], q[1]]); g.pathIdx = 0;
       // 裏門の外へ出たら消す（西の通りの明智の備へ歩いて行かない）
       const gone2 = (q) => { q.onArrive = null; for (const u of q.units) if (u.alive && !u.gone) { try { rt.army.despawn(u); } catch (e) { /* 消せなければそのまま */ } } };
       g.onArrive = gone2; rt.after(70, () => gone2(g));   // 道で詰まっても七十秒で消す
@@ -5772,7 +5836,7 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
     F.okuSeen = (late) => {
       if (F.ending || rt.over || !rt.player.u.alive) return;
       const me = rt.player.u.pos;
-      if (Math.hypot(me.x - PT.oku.x, me.z - PT.oku.z) < 30) rt.player.cine = { x: PT.oku.x, z: PT.oku.z, t: 3.2, encounter: true };
+      if (Math.hypot(me.x - PT.oku.x, me.z - PT.oku.z) < 30) rt.player.cine = { x: PT.oku.x, z: PT.oku.z, t: 6, encounter: true };
       rt.banner('上様、奥の間へ', F.ranFell ? '上様が自ら戸を立てられた。戸の内に、もう声はない' : '蘭丸が戸を立てた。戸の内に、もう声はない');
       F.kosho.anchor = { ...PT.kyoshitsu };
       // 遅れて戸が立った時は、退く道を歩き抜ける間の足止めを同じだけ延ばす。
@@ -5835,7 +5899,7 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
     rt.award((t) => t.side.push('本能寺から落ちのびた'), '本能寺から落ちのびた');
     sfx('kane', 0.5);
     rt.banner('本能寺、炎上', '御殿からは、もう声が聞こえない');
-    honnoSay(rt, '', '――信長は奥へ入り、火の中で自害したと伝わる', 4);
+    if (!F.nbDeathSaid) honnoSay(rt, '', '――信長は奥へ入り、火の中で自害したと伝わる', 4);
     rt.army.play('eshout', { x: -60, z: 70 }, 1.3);
     rt.after(1.5, () => rt.bark('振り返れば、御殿の屋根が炎に包まれている。寺の内の鬨の声が、勝ち鬨に変わった'));
     rt.after(5, () => this.toNijo(rt));
@@ -6297,7 +6361,13 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
       }
       if (F.okuWordT && rt.t - F.okuWordT >= 3.4) {
         F.okuShut(); F.okuSeen(s8 - 20);
-        rt.after(1, () => F.okuNext());
+        // 11/20 クラウドし（K441「信長の最期は一番大切な場面。ゆっくり見せる。死ぬ前に次の段が出ないように順を直す」）：
+        //   戸が閉まって一秒で「裏門から落ちのびよ」が出て、上様の自害の知らせは裏門を出てから（二条の段の直前）だった。
+        //   戸が閉まった後、奥の間を六秒見せ（寄せ手は止める）、上様の最期を先に告げてから退く下知を出す。
+        F.nbDeathSaid = true;
+        if (rt.player.u.alive) holdFoes(rt, rt.player.u.pos, 30, 8, 1.2, true);
+        rt.after(2.4, () => { if (!F.ending && !rt.over) honnoSay(rt, '', '――戸の内で、上様は自ら腹を召された', 3.6); });
+        rt.after(6.2, () => F.okuNext());
         // 奥の戸を閉めてから火を放つ。退く下知と同時に奥まで燃やさない。
         rt.after(3, () => { if (!F.ending && !rt.over) { F.T.fire.ignite('goten', '信長の命の火'); blaze(rt, 'goten'); } });
       }
@@ -7024,7 +7094,8 @@ function honnoTick(def, rt, dt) {
     }
     // 上様の着くのを待たずに門前の守りへ移る（上様は後から加わる）。門を閉められぬままでも、四十秒で押し入られる。
     // 本人が閉め損ねても、門の守りへ移る時は門番と馬廻が閂を下ろす（門は閉まってから破られる）。
-    if (!F.gMain && (F.gateOccupied >= 6 || t > 40)) closeGate(rt, 'other');
+    if (!F.gMain && F.gateOccupied >= 6) F.gateBreached = true;   // K424：門の口を六秒押さえられた＝破られた。閉めずに開いたまま
+    if (!F.gMain && t > 40) closeGate(rt, 'other');
     if ((F.gMain && Math.hypot(p.x - PT.gateIn.x, p.z - PT.gateIn.z) < 8) || F.gateOccupied >= 6 || t > 40) def.p3(rt);
   } else if (F.hp === 3) {
     const g = F.gMain;
@@ -7456,6 +7527,7 @@ Object.assign(honnoji, {
     rt.setPhase('defend');
     sfx('bellRapid', 0.5);
     rt.banner('明智光秀、謀反', '桔梗の旗が本能寺を囲む');
+    honnoWallFlags(rt);
     rt.obj('main', '表門の内で、弓と槍を取り、寄せる明智勢を防ぐ', 'main', true);
     rt.marker('gE', { x: HONNO_GATE.x, z: HONNO_GATE.z }, '表門', { h: 3 });
     rt.army.playFar('sig_kakari', HONNO_GATE, 0.8);
@@ -8374,4 +8446,5 @@ honnoji.depthRealTouch = { rate: 0.008, max: 24 };
 // 11/20 クラウドわ（kaito_now 2）：寺を囲む通りの備は初めから通りに居る。見える所に湧かせない共通の出し方（guardSpawn）が南の通りの光秀の備を
 //   町家の列の裏 (-88,160) へずらし、兵が家の列に詰まって重なり（描かずの記録 15秒 重なり23組）、持ち場も家の裏へ移されていた。通りの持ち場にそのまま立てる
 honnoji.depthRealNoGuard = true;
+honnoji.siegeNoDrops = true;   // K432（kaito 11/20「兵もいないのに門から岩のような物が流れてくる」）：城攻め共通（siege_feel.js drop）の門の石と矢は、櫓も塀の上の守りも無い寺の表門から湧いて見えた
 honnoji.volleyHoldSafe = true;   // 四方の通りで待つ明智の備を塀の上から撃たない（siege_feel.js volley・kaito_now 2）

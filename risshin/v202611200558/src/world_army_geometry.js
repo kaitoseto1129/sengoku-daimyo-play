@@ -378,7 +378,7 @@ function armyLayout(o, R) {
     const important = list.filter((q) => q.imp || q.k === 4);
     return { list: important.concat(list.filter((q) => !(q.imp || q.k === 4))), nImp: important.length };
   }
-  const flagP = o.flagRate ?? (kind === 'cavalry' ? 0.95 : 0.85);
+  const flagP = o.flagRate ?? (kind === 'cavalry' ? 0.95 : 0.15);   /* 11/20：絵の軍勢の徒も、旗は本物の兵の幟持ちに近い割合へ（0.85 では全員が旗で布の壁。戦が flagRate を決めた所はそのまま） */
   const S = [];
   const put = (lx, lz, k, x = {}) => S.push({
     lx, lz, k, helm: x.helm ?? (k === 3 || k === 5 || k === 6 ? 1 : (R() < 0.08 ? 1 : 0)),

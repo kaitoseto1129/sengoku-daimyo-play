@@ -9,7 +9,7 @@ import { driveHorse, placeHorseExtras } from './humans_horse_animate.js';
 import { S, MEM_TIGHT } from './settings.js';
 import { makeRealHorse, dressHorse, tackGeometry, colGeo, tf, strap, mergeG } from './humans_horse_tack.js';
 import { preparationFrame } from './humans_shared.js';
-import { MK } from './units_model.js';
+import { MK, horseFarTackParts } from './units_model.js';
 import { PLAIN_UV } from './humans_dress.js';
 import { stirrupParts } from './horse_tack.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -120,6 +120,7 @@ async function primeHorses(rt, current = () => true) {
 }
 // 遠めの馬の脚：面を減らした形は脚が細い棒になる。高さごとの芯から外へ膨らませ、前腕と脛（すね）の肉・膝（腕節）と飛節・球節の関節の膨らみを付ける（頂点は増やさない）
 const LEG_JOINT = [[0.47, 0.2], [0.47, 0.2], [0.57, 0.2], [0.57, 0.2]];   // 前脚は腕節・球節、後脚は飛節・球節の高さ（m）
+const LEG_FAT = 0.5;
 function legSlices(g, S) {
   const m = /^[ul](\d)$/.exec(g); if (!m) return null;
   const leg = +m[1], N = 40, D = 0.03, sx = new Float32Array(N), sz = new Float32Array(N), sn = new Float32Array(N);
@@ -132,7 +133,8 @@ function legSlices(g, S) {
     const top = 1 - ss(y, (hind ? 0.78 : 0.74) * ly, (hind ? 0.95 : 0.9) * ly);   // 胴との境目は動かさない
     // 前腕・脛は太く、管（すね骨）は締まり、関節は膨らむ。蹄は少しだけ
     const meat = ss(y, jk + 0.04, jk + 0.16) * 0.5, cannon = 0.36, joint = bump(y, jk, 0.05) * 0.26 + bump(y, jf, 0.035) * 0.24;
-    const f = (y < 0.1 ? 0.12 : cannon + meat + joint) * top;
+    // 11/20 imac/look-cavalry 六回目：骨入りの馬と並べると、中ほどの脚は太さが倍近くあり、十四頭の枠の境で脚が急に細くなって見えた。膨らみを半分に（LEG_FAT）
+    const f = (y < 0.1 ? 0.12 : cannon + meat + joint) * top * LEG_FAT;
     return [1 + f * 0.85 * fat, 1 + f * fat];   // 管は横より前後に厚い
   };
   return { c, k };
@@ -161,7 +163,8 @@ function proxyGeos(st) {
       else if (kd === 2) c.copy(mane).multiplyScalar(0.7 + 0.5 * S.T[i]);
       else if (kd === 3) c.setRGB(0.02, 0.016, 0.014);
       else {
-        c.copy(coat).multiplyScalar(0.85 * S.C[i]);
+        // 11/20 imac/look-cavalry 五回目（骨入りと並べた写真）：中ほどの毛色は骨入りより暗く、赤みが濃かった（骨入りは毛並みの鈍い照りで白っぽく返る）。少し明るく、彩を二割抜いて寄せる
+        c.copy(coat).multiplyScalar(0.9 * S.C[i]); { const l = c.r * 0.3 + c.g * 0.59 + c.b * 0.11; c.r += (l - c.r) * 0.12; c.g += (l - c.g) * 0.12; c.b += (l - c.b) * 0.12; }   // 六回目：舞台では向きで骨入りより明るくも暗くも見えた。設楽原の戦場では 1.1 倍・彩 30% 抜きだと砂色に褪せたので、戦場で茶に見えた三回目の値の近くへ戻す
         // 鹿毛の脚先は黒い。鼻づらは暗い肌。腹の下は少し淡い（体の色の絵の陰と合わせる）
         const legs = (1 - THREE.MathUtils.smoothstep(y, 0.24, 0.55)) * Math.min(1, pts);
         c.lerp(mane, legs * 0.85);
@@ -182,6 +185,19 @@ function proxyGeos(st) {
     geo.setAttribute('mtl', new THREE.BufferAttribute(mt, 1));
     const uv = new Float32Array(n * 2); for (let i = 0; i < n; i++) { uv[i * 2] = PLAIN_UV[0]; uv[i * 2 + 1] = PLAIN_UV[1]; }
     geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+    // 11/20 imac/look-cavalry 四回目：30m より先は部品を組んだ馬（細い棒の脚・筒の首）で、境で本物の形へ替わる時に体つきが跳んだ（K153）。
+    //   遠くも同じ本物の形を、頂点を升目でまとめて間引いた版で描く（毛色・脚先の黒・陰の焼き込みはそのまま受け継ぐ）。
+    //   拵えごとに一度作って共有し、兵ごとには何も作らない。?oldfar で前の部品を組んだ馬に戻して比べる
+    let thin = OLD_FAR ? null : thinGeo(geo, g);
+    if (thin && g === 'body') {
+      const parts = []; horseFarTackParts(parts, st);
+      for (const p of parts) {
+        if (!p.index) { const m = p.attributes.position.count, ii = new Uint32Array(m); for (let i = 0; i < m; i++) ii[i] = i; p.setIndex(new THREE.BufferAttribute(ii, 1)); }
+        if (!p.attributes.normal) p.computeVertexNormals();
+        for (const nm of Object.keys(p.attributes)) if (!['position', 'normal', 'color', 'col2', 'mtl', 'uv'].includes(nm)) p.deleteAttribute(nm);
+      }
+      thin = mergeGeometries([thin, ...parts]) || thin;
+    }
     if (g === 'body') {
       // 和鞍・胸繋・尻繋（本物の馬と同じ形）を胴に混ぜる
       const T = tackGeometry(st), add = [geo];
@@ -223,12 +239,47 @@ function proxyGeos(st) {
       for (let i = 0; i < m; i++) uv.setXY(i, PLAIN_UV[0], PLAIN_UV[1]);
       const ix = new Uint32Array(m); for (let i = 0; i < m; i++) ix[i] = i;
       t.setIndex(new THREE.BufferAttribute(ix, 1));
+      // 11/20 imac/look-cavalry 五回目：遠くの馬に面懸が無く、赤備えの朱の面懸が 30m の境で急に現れた。同じ面懸を升目で間引いて遠くの首にも混ぜる
+      if (thin) { const tb = thinGeo(t, 'bridle'); if (tb.index.count) { thin.computeVertexNormals(); thin = mergeGeometries([thin, tb]) || thin; } }
       geo = mergeGeometries([geo, t]) || geo;
     }
     geo.computeBoundingSphere();
     out[g] = geo;
+    if (thin) { thin.computeBoundingSphere(); out[g + 'Far'] = thin; }
   }
   PX.styles.set(key, out);
+  return out;
+}
+const OLD_FAR = typeof location !== 'undefined' && /[?&]oldfar\b/.test(location.search);
+// 頂点を升目（cell）ごとに一つへまとめ、潰れた三角を捨てる。毛と体は混ぜない。脚は細いので横の升目を細かく
+// 11/20 五回目：尾は升目が粗いと房がまとまって中ほどより細く見えたので細かく。面懸は太さ 1〜2cm の紐なので、紐が消えない細かさで
+const THIN_CELL = { body: [0.1, 0.1, 0.12], neck: [0.075, 0.075, 0.075], tail: [0.034, 0.08, 0.034], bridle: [0.028, 0.06, 0.028] };
+function thinGeo(geo, g) {
+  // 六回目：脚の上（太い前腕・腿）は粗い升目で足りる。前の部品の馬と同じ三角の数に収める
+  const cell = THIN_CELL[g] || (g[0] === 'u' ? [0.055, 0.11, 0.055] : [0.034, 0.1, 0.034]);
+  const pos = geo.attributes.position, col = geo.attributes.color, mt = geo.attributes.mtl, n = pos.count, ix = geo.index.array;
+  const id = new Map(), map = new Int32Array(n), acc = [];
+  for (let i = 0; i < n; i++) {
+    const k = Math.floor(pos.getX(i) / cell[0]) + ',' + Math.floor(pos.getY(i) / cell[1]) + ',' + Math.floor(pos.getZ(i) / cell[2]) + ',' + Math.floor(mt.getX(i));
+    let j = id.get(k);
+    if (j === undefined) { j = acc.length; id.set(k, j); acc.push([0, 0, 0, 0, 0, 0, 0, mt.getX(i)]); }
+    const a = acc[j]; a[0] += pos.getX(i); a[1] += pos.getY(i); a[2] += pos.getZ(i); a[3] += col.getX(i); a[4] += col.getY(i); a[5] += col.getZ(i); a[6]++;
+    map[i] = j;
+  }
+  const m = acc.length, P = new Float32Array(m * 3), C = new Float32Array(m * 3), M = new Float32Array(m), U = new Float32Array(m * 2), IX = [];
+  for (let j = 0; j < m; j++) { const a = acc[j], s = 1 / a[6]; P[j * 3] = a[0] * s; P[j * 3 + 1] = a[1] * s; P[j * 3 + 2] = a[2] * s; C[j * 3] = a[3] * s; C[j * 3 + 1] = a[4] * s; C[j * 3 + 2] = a[5] * s; M[j] = a[7]; U[j * 2] = PLAIN_UV[0]; U[j * 2 + 1] = PLAIN_UV[1]; }
+  const seen = new Set();
+  for (let i = 0; i < ix.length; i += 3) {
+    const a = map[ix[i]], b = map[ix[i + 1]], c = map[ix[i + 2]];
+    if (a === b || b === c || a === c) continue;
+    const k = [a, b, c].sort((x, y) => x - y).join(','); if (seen.has(k)) continue; seen.add(k);
+    IX.push(a, b, c);
+  }
+  const out = new THREE.BufferGeometry();
+  out.setAttribute('position', new THREE.BufferAttribute(P, 3));
+  out.setIndex(IX); out.computeVertexNormals();
+  out.setAttribute('color', new THREE.BufferAttribute(C, 3)); out.setAttribute('col2', new THREE.BufferAttribute(C.slice(), 3));
+  out.setAttribute('mtl', new THREE.BufferAttribute(M, 1)); out.setAttribute('uv', new THREE.BufferAttribute(U, 2));
   return out;
 }
 function applyProxy(h) {
@@ -236,35 +287,37 @@ function applyProxy(h) {
   h.userData.px = true;
   const P = proxyGeos(h.userData.style || {}), PV = HR.proxy.piv, K = PX_HORSE_K;
   const meshOf = (g) => g.isMesh ? g : g.children.find((o) => o.isMesh);
-  const swap = (mesh, hi, off) => {
+  const swap = (mesh, hi, off, far) => {
     if (!mesh || !hi) return;
     const L = mesh.userData.lod, lo = L ? L[1] : mesh.geometry;
-    lodSwap(mesh, hi, proxyLo(lo, off), 30);
+    // 測る時だけ（window.__farCompare）：前の部品の馬の形も持たせ、同じコマで遠くの形を入れ替えて三角を比べられるようにする（ふだんは何も作らない）
+    if (far && typeof window !== 'undefined' && window.__farCompare) mesh.userData.farOld = proxyLo(lo, off);
+    lodSwap(mesh, hi, far || proxyLo(lo, off), 30);
   };
   // 胴（支点は動かさない）
-  swap(H.body, P.body, _pxOff.set(0, 0, 0));
+  swap(H.body, P.body, _pxOff.set(0, 0, 0), P.bodyFar);
   // 首と頭
   {
     const np = PV.neck.clone().multiplyScalar(1 / K), off = H.neck.position.clone().sub(np);
-    H.neck.position.copy(np); swap(meshOf(H.neck), P.neck, off);
+    H.neck.position.copy(np); swap(meshOf(H.neck), P.neck, off, P.neckFar);
     for (const e of H.ears || []) e.visible = false;
     // 銜の場所（首の座標）：上唇の少し奥
     H.bitN = new THREE.Vector3(0.05 / K, 0, 0).add(HR.proxy.bitN);
   }
   // 尾
-  { const tp = PV.tail.clone().multiplyScalar(1 / K), off = H.tail.position.clone().sub(tp); H.tail.position.copy(tp); swap(meshOf(H.tail), P.tail, off); }
+  { const tp = PV.tail.clone().multiplyScalar(1 / K), off = H.tail.position.clone().sub(tp); H.tail.position.copy(tp); swap(meshOf(H.tail), P.tail, off, P.tailFar); }
   // 脚
   for (let i = 0; i < 4; i++) {
     const Lg = H.legs[i], Kg = H.lowers[i];
     const up = PV['u' + i].clone().multiplyScalar(1 / K), lw = PV['l' + i].clone().multiplyScalar(1 / K);
     const oldL = Lg.position.clone(), oldKA = oldL.clone().add(Kg.position);
     Lg.position.copy(up); Kg.position.copy(lw.clone().sub(up));
-    swap(meshOf(Lg), P['u' + i], oldL.clone().sub(up));
-    swap(meshOf(Kg), P['l' + i], oldKA.sub(lw));
+    swap(meshOf(Lg), P['u' + i], oldL.clone().sub(up), P['u' + i + 'Far']);
+    swap(meshOf(Kg), P['l' + i], oldKA.sub(lw), P['l' + i + 'Far']);
   }
 }
 // 今の形の馬に、骨の入った馬を付ける・外す
-function attachReal(h) {
+function attachReal(h, u = null) {
   const H = h.userData.horse;
   if (!H.real) H.real = HR.pool.pop() || makeRealHorse();
   const R = H.real;
@@ -275,6 +328,10 @@ function attachReal(h) {
   // 付けたコマのうちに姿勢を合わせる（立ち姿のまま一コマ出ないように）
   R.yaw = undefined; R.prev = H.speed || 0; R.oneK = H.dead ? 'death' : null; R.oneT = H.dead ? H.deadT : 0; R.flinch = 0;
   driveHorse(h, 0, H.speed || 0);
+  // 11/20 imac/look-cavalry 七回目：骨入りの馬は使い回す（HR.pool）。鐙・力革・手綱の置き場は前の持ち主の最後の形（倒れた馬なら地面の高さ）のまま残り、
+  //   付けた兵が「画面の外」の扱いの間は置き直されない（humans_runtime.js は画面の外の馬の馬具を飛ばす）ので、立っている馬の足もとに鐙が落ち、手綱が地面を這って写った。
+  //   付けたコマのうちに一度、今の馬と乗り手に合わせて置く
+  placeHorseExtras(h, u);
 }
 function detachReal(h) {
   const H = h.userData.horse, R = H.real;
@@ -360,7 +417,7 @@ function updateHorses(rt) {
     if (horsesOn.has(h)) continue;
     if (madeHorses >= 2 && !h.userData.horse.real) continue;   // 一コマに作るのは二頭まで（一コマが重くならないよう）
     if (!HR.pool.length) madeHorses++;
-    attachReal(h); horsesOn.add(h);
+    attachReal(h, want.get(h)); horsesOn.add(h);
   }
   return want;
 }

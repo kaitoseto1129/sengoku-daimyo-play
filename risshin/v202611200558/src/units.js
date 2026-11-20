@@ -284,6 +284,7 @@ export function unBlue(c) {
 }
 const NOBLUE_SKIP = new Set(['skin', 'face', 'tier', 'vi', 'flag', 'standard', 'mon', 'kacchu']);
 const _noBlueKacchu = new Map();   // 武将の具足の表は形の使い回しの鍵なので、直した写しも一人一つに保つ
+const NEAR_FLAG_THIN = !(typeof location !== 'undefined' && /[?&]nearflag=0/.test(location.search));
 function allyNoBlue(look, deep = true) {
   for (const k in look) {
     // 仙石家伝来具足の紺糸威は、本人の鉢の指定がある時だけ保つ。
@@ -726,7 +727,7 @@ export class Army {
       //   隊旗の旗持ちは幟の大きさ（下の addGroup）。戦が ordinaryFlagStride を決めた時だけ間引く
       pole: o.flag !== null && u.type !== 'porter',
       flag: o.flag === null || u.type === 'porter' ? null : (o.flag || gen.flag || fac.flag),
-      flagScale: o.flagScale ?? (u.type === 'player' ? 1 : 1.3),
+      flagScale: o.flagScale ?? (o.name || o.horse || u.type === 'cavalry' || u.type === 'busho' ? 1.3 : 1),   /* 11/19 kaito「背中の指物は小さく」：並の兵の背旗は幅一尺・丈二尺余（約 0.31×0.68m。docs/soldier_look_1119.md）。前は 1.3 倍（0.47×0.94m）で列の頭の上が布の壁になった */
       flagShape: o.flagShape ?? (loanArmor ? fac.flagShape ?? 0 : privateArmor ? vi % 3 : 0),
       standard: o.standard || null,
       // 戦の年代に合わせた具足。共有の表を参照し、近景と遠景で同じ装備を使う。
@@ -881,6 +882,20 @@ export class Army {
       //   赤備えの家だけ、籠手の家地と鎧下を青の無い墨・焦げ茶にし、両手とも篠籠手を着ける（六組の一つは素肌の前腕だった）。籠手の鉄の篠・鎖は元のまま
       if (red && !heroGood) { look.cloth = [0x1f1c1a, 0x2a2420, 0x24201c, 0x2e2622, 0x1f1c1a, 0x2a2420][vi]; look.kote = 3; }
       if (heroGood) look.hat = 'jingasa';
+      // 11/19 kaito「兵は全戦共通の部品。見た目を一気に」：揃いの御貸具足でも、塗りの古さ・貸し出しの年で黒の深さが一人ずつ違う（docs/soldier_look_1119.md）。
+      //   姿（黒い広い陣笠・黒紺の桶側胴・筒臑当）は 11/3 の old_good のまま。六組（vi）の中で笠と胴の黒の色みと明るさだけを少しずらす（形の数は六組のまま増えない）。
+      //   笠：黒漆・溜塗がかった黒・錆地の鉄・照りの落ちた黒。胴：黒紺・墨・鉄の地。鎧下の明るさは下（11/20）で決める
+      if (oldGood && !red) {
+        look.hatColor = [0x1c1916, 0x2b1f18, 0x26241f, 0x1c1916, 0x181716, 0x2a221b][vi];
+        // 11/20 長：陣笠の形を四種（units_model.js hatParts の kasaShape）。六組のうち三組は今の円錐のまま、一文字・とがり・浅い椀を一組ずつ
+        if (o.hat == null || o.hat === 'jingasa') look.kasaShape = [0, 1, 0, 2, 3, 0][vi];
+        // 11/20 長「縅の糸の色の筋」：胴の素懸の糸（look.odoshi）。家ごとに一色（旗の名から）、兵ごとに明るさを少し違える。
+        //   味方は青を使わない（kaito 10/31）：萌黄・紅・茶・白・紫。敵は紺・浅葱も。草摺の裾板に紅の菱縫・二筋の素懸（units_model.js の既にある作り）
+        const oh = houseHash(String(look.flag || fac.flag || ''));
+        look.odoshi = new THREE.Color((u.team === 0 ? [0x86963e, 0xb23a2a, 0xa67238, 0xc8be9e, 0x86507a] : [0x3a5c98, 0x62a2aa, 0xb23a2a, 0x86963e, 0xc8be9e])[oh % 5]).multiplyScalar([0.86, 0.78, 0.92, 0.82, 0.9, 0.75][vi]).getHex();
+        look.kusazuriHishinui = 0x8e3024; look.kusazuriSugake = 1;
+        look.armor = [0x2a2e36, 0x2d2c2c, 0x2a2e36, 0x33312d, 0x262a31, 0x2f2c29][vi];
+      }
       if (!look.kasaGold) look.helm = look.armor;
       // 11/8 critic60 有岡（四3）：10月初めの足軽の紺の衣・紺の威が、上の「味方は青くしない」（allyNoBlue）の後に入り、敵味方が同じ青灰に並んだ。
       //   味方は戦の土色の衣（def.allyCloth）を戻し、青を抜き直す（敵は紺のまま。見分けは衣の色と旗）
@@ -891,6 +906,14 @@ export class Army {
       }
       // 11/18 クラウド 伊賀：敵の衣の色を戦の定義の物のまま保つ（def.enemyOwnLook）。10月初めの足軽の紺に上書きされ、味方と同じ暗い影に並んでいた
       if (oldGood && u.team !== 0 && this.world.def.enemyOwnLook) { if (o.cloth != null) look.cloth = o.cloth; }
+      // 11/20 長「昼の戦で兵が黒一色の影に見える」（設楽原の昼の寄り：笠・胴・鎧下・袴・脛当が全部同じ黒で、人の形が読めなかった）：
+      //   鎧下と袴は褪せた麻・木綿の明るさへ（いちばん明るい色の成分を 0x4c〜0x60 まで。色みは戦・家の決めた物のまま、六組で少し違える）。黒漆の胴・笠との間に明暗の差が出る
+      if (oldGood && !red) {
+        const h = look.cloth | 0, R = (h >> 16) & 255, G = (h >> 8) & 255, B = h & 255, k = Math.min(3, [0x5a, 0x50, 0x60, 0x54, 0x5c, 0x4c][vi] / Math.max(R, G, B, 1));   // 0x62〜0x7a では夜明け前の姉川で中ほどの兵の手足が白っぽい灰に浮いた（白い人形に見せない）
+        // 味方は青く見せない（kaito 10/31）：明るくした墨・鼠は空の色をもらって青灰に見えるので、味方だけ生成り・柿渋の側へ少し寄せる（緑 0.95・青 0.84）
+        const w = u.team === 0 ? [1, 0.95, 0.84] : [1, 1, 1];
+        if (k > 1) look.cloth = (Math.min(255, Math.round(R * k * w[0])) << 16) | (Math.min(255, Math.round(G * k * w[1])) << 8) | Math.min(255, Math.round(B * k * w[2]));
+      }
     }
     // 名の無い侍（旗本・馬廻・近習を含む）の具足は自前の物なので、人ごとに威と漆が違う（現存の当世具足の紅・萌黄・白・茶・紫・黒糸威、黒漆・錆地・溜塗）。
     //   戦の定義は隊の全員に家の一色（例 桶狭間 胴 0x24221f・威 0x5a4630）を渡すので、侍が胴も威も同じ焦げ茶の一色に並んでいた（11/3）。
@@ -1136,9 +1159,12 @@ export class Army {
     // 隊旗のほかに、六人に一人は大きな幟の指物（kaito 11/2 Q「軍勢が少なくても旗がぶわっと並べば本物らしくなる」）。戦う兵のまま
     // 戦が noboriBand（N）を決めた時は、N 人に一人を幟にし、指物の大きさを決めた隊でも幟を立てる（K292 図鑑の「旗の帯」）
     if (this.world.def.blockForm && !g.isPlayerSquad) { if (!g.blocky) g._mix = null; g.blocky = true; }   // 11/14 K292：備を厚い四角の塊に（units_group.js layout）
-    const band = !this.world.def.noboriFactions || this.world.def.noboriFactions.includes(g.faction) ? this.world.def.noboriBand || 0 : 0, bigEvery = band || 6;   // noboriFactions：幟の帯をその家だけに（本能寺は寄せる明智だけ。寺の内の上様の小姓は幟を負わない）
+    const band = !this.world.def.noboriFactions || this.world.def.noboriFactions.includes(g.faction) ? this.world.def.noboriBand || 0 : 0, bigEvery = band ? Math.max(8, band * 4) : 12;   // noboriFactions：幟の帯をその家だけに（本能寺は寄せる明智だけ。寺の内の上様の小姓は幟を負わない）
     // noboriSam：名の無い徒の侍も幟の帯に入れる（11/15 K292 クラウドさ：天王寺の徳川の先手は侍・鉄砲が多く、後ろからの引きで家の旗が少なかった）
-    let bigFlags = total >= 6 && !g.isPlayerSquad ? Math.floor(total / bigEvery) : 0, bigStep = 0;
+    // 11/19 kaito「幟は幟持ちだけに」：前は布陣の表のある戦（noboriBand 1）で全員・帯の戦（2）で二人に一人が丈 3m の幟を背負い、兵の前が白い壁になった。
+    //   幟持ちは帯の戦で八〜十二人に一人・ほかは十二人に一人（合戦図屏風の備：幟は備の後ろに数本ずつ固まる。docs/soldier_look_1119.md）
+    // 11/20 長：隊旗の立つ隊（八人以上。上の banner）は幟持ちを一人減らす（八人の隊に隊旗一本＋幟一本が立ち、丘が布の壁になった。設楽原）
+    let bigFlags = total >= 6 && !g.isPlayerSquad ? Math.max(banner ? 0 : 1, Math.round(total / bigEvery) - (banner ? 1 : 0)) : 0, bigStep = 0;
     // 組の番号：同じ側・同じ家の徒歩の隊に、出た順に一番〜三番（騎馬の隊・小さな隊には付けない）
     if (!g.kumiNo && !g.cav && total >= 6) {
       const K = this.kumiCount || (this.kumiCount = {}), k = g.team + '|' + g.faction;
@@ -1170,7 +1196,7 @@ export class Army {
         const liteSam = spec.type === 'samurai' && total >= 10 && !g.isPlayerSquad && !(chiefSpec && g.lordHere) && !spec.o?.name && !spec.o?.keep && !spec.o?.horse && !spec.o?.armor && samN++ % 3 !== 0;
         // 大きめの部隊には隊旗を持つ旗持ちを一人（鉄砲の隊は、小旗の中に大きな隊旗が一本）
         const bo = banner && (spec.type === 'ashigaru' || (g.isGun && spec.type === 'gun')) && !(spec.o && spec.o.flag === null) ? { flagScale: 2.1 } : {};
-        const big = !bo.flagScale && bigFlags > 0 && (spec.type === 'ashigaru' || (band && spec.type === 'gun') || (band && this.world.def.noboriSam && spec.type === 'samurai' && !spec.o?.horse)) && !spec.o?.name && spec.o?.flag !== null && (spec.o?.flagScale == null || (band && spec.o.flagScale < 1.8)) && bigStep++ % bigEvery === (band ? band >> 1 : 3) ? { flagScale: band ? (this.world.def.noboriScale || 2.8) : 1.9 } : {};   // noboriScale：引きで家の旗の色が読めるよう、戦ごとに幟の帯の大きさを決める（K292 設楽原 iMac七）。11/15 iMac三十 K324：既定を 2.4→2.8（稲生3・設楽原3.1 と戦ごとに上げていた。引きで細い線に溶けない）
+        const big = !bo.flagScale && bigFlags > 0 && (spec.type === 'ashigaru' || (band && spec.type === 'gun') || (band && this.world.def.noboriSam && spec.type === 'samurai' && !spec.o?.horse)) && !spec.o?.name && spec.o?.flag !== null && (spec.o?.flagScale == null || (band && spec.o.flagScale < 1.8)) && bigStep++ % bigEvery === Math.min(3, bigEvery >> 1) ? { flagScale: band ? (this.world.def.noboriScale || 2.8) : 1.9 } : {};   // noboriScale：引きで家の旗の色が読めるよう、戦ごとに幟の帯の大きさを決める（K292 設楽原 iMac七）。11/15 iMac三十 K324：既定を 2.4→2.8（稲生3・設楽原3.1 と戦ごとに上げていた。引きで細い線に溶けない）
         if (big.flagScale) bigFlags--;
         const so = standard && spec.type === 'ashigaru' && !spec.o?.name && !spec.o?.sohei && !spec.o?.kosode && !spec.o?.keep && !spec.o?.horse && spec.o?.flag !== null
           ? { standard: chiefGear?.flag || chiefSpec.o.flag || GENERALS[chiefSpec.o.name.replace(/^.* /, '')]?.flag || FACTION[g.faction]?.flag || (g.team === 0 ? (this.world.def?.sides?.a?.mon || 'oda') : (this.world.def?.sides?.b?.mon || 'enemy')), flag: null, weapon: 'none', dmg: 0 } : {};
@@ -1927,6 +1953,16 @@ export class Army {
         if (u.flag) u.flag.visible = (dist < 110 || this.world.ohView) && !(u.group && u.group.hideFlags);   // 引きの視点（world.ohView・K106）は遠い戦線の旗も
         // 11/19 クラウド山崎：戦が nearAllyFlagHide（m）を決めた時は、カメラの間近の味方の指物・幟を描かない（手前の幟の林が画面の三分の一を塞いだ）
         if (u.flag && u.flag.visible && this.world.def.nearAllyFlagHide && u.team === 0 && !u.isStandard && !u.isUma && u.camD < this.world.def.nearAllyFlagHide) u.flag.visible = false;
+        // 11/20 iMac 足軽の係・長（kaito 11/19「幟が兵の前を壁のように塞ぐ」の本題は本人の視点の近さ）：全戦で、カメラの六m内に入った幟・隊旗（flagScale 1.8 以上）は
+        //   布の幅を巻いた幟のように細くし（六m で元の幅・三m で一割半）、二・七m より内は布を描かない。兵の体・竿を持つ手・並の指物はそのまま。
+        //   本人の組は幟を負わない（spawnSteps）ので、塞ぐのは隣の備の幟持ち。持ち場は動かさず、カメラに近い時の布だけ細くする。?nearflag=0 で前
+        if (u.flag && NEAR_FLAG_THIN && (u.look?.flagScale || 1) >= 1.8 && !u.isStandard && !u.isUma) {
+          const sx0 = u._flagSx0 ?? (u._flagSx0 = u.flag.scale.x), d = u.camD ?? dist;
+          if (d < 6) {
+            if (d < 2.7) u.flag.visible = false;
+            else { const k = Math.max(0.15, (d - 3) / 3); if (Math.abs(u.flag.scale.x - sx0 * k) > 0.01) { u.flag.scale.x = sx0 * k; u.flag.updateMatrix(); } }
+          } else if (u.flag.scale.x !== sx0) { u.flag.scale.x = sx0; u.flag.updateMatrix(); }
+        }
       }
       // 画面の外にいる兵は手足の動きを省く
       const detailWake = u.qualityWasOffscreen && !u.offscreen;
@@ -2337,7 +2373,7 @@ export class Army {
       if (st.n >= st.im.cap) { u.imp = false; u.mesh.visible = true; continue; }
       const helm = u.look.hat && u.look.hat.startsWith('kabuto') ? 1 : 0;
       // 近い兵と同じ具足・笠の色（姿ごとに一度だけ決める。上で束の名より先に決めてある。近づいて骨の人に替わっても色が飛ばない）
-      st.im.put(st.n++, u.pos.x, u.pos.z, u.heading, k, helm, k === 0 ? 1.25 : 0, u.look.flag ? ((u.look.flagScale || 0) >= 2 ? 2 : 1) : 0, (u.id * 0.618) % 1, u.impTint);
+      st.im.put(st.n++, u.pos.x, u.pos.z, u.heading, k, helm, k === 0 ? 1.25 : 0, u.look.flag ? ((u.look.flagScale || 0) >= 2 ? 2 : u.id % 3 === 0 || u.team !== 0 && u.id % 3 === 1 ? 1 : 0) : 0, (u.id * 0.618) % 1, u.impTint);   // 11/20 長「丘に黄色い旗の壁」：遠い束の並の指物は味方三人に一人・敵三人に二人だけ描く（幟と隊旗は全部。近い兵の指物はそのまま。敵は旗で見分けるので多めに残す）
     }
     for (const st of I.values()) st.im.commit(st.n);
   }

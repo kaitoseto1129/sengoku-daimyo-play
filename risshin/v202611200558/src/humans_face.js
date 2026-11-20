@@ -23,7 +23,9 @@ function faceShapeKey(key, L, F, full, v) {
   }
   return [F, gk];
 }
-const faceAo = (hat) => hat.startsWith('jingasa') ? 0.78 : hat.startsWith('kabuto') ? 0.8 : 0;
+// 11/20 長「顔が肌色の平たい玉・昼でも黒い」：陣笠の陰 0.78 では、昼の日なたでも笠の下の顔が真っ黒な面になり目鼻・髭が読めなかった（設楽原の寄り）。
+//   笠の下の顔は地面の照り返しで明るい（合戦図屏風・古写真の笠の人も顔は読める）。額と目元の陰は残し、頬・鼻・顎を読ませる
+const faceAo = (hat) => hat.startsWith('jingasa') ? 0.5 : hat.startsWith('kabuto') ? 0.8 : 0;
 // 戦の支度の間に、顔の絵・材質・形・髪・目・口を前もって作る（戦の中で一枚ずつ描いて固まらないよう）。作った物は scanFace0 が使い回す
 function warmFace(key, L, F0, full) {
   const hat = L.hat || '', ao = faceAo(hat) * (WORLD?.def.restrainedFaces ? 0.7 : 1);

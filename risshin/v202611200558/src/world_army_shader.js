@@ -288,7 +288,7 @@ vec3 aApply(APose P, vec3 v, float isN) {
   #ifdef USE_INSTANCING
     if ((pt == 10.0 || pt == 11.0) && isN < 0.5) {
       float fdS = smoothstep(60.0, 170.0, distance((modelMatrix * instanceMatrix)[3].xyz, cameraPosition));
-      vec3 fp2 = vec3(0.0, 1.25, -0.17); q = fp2 + (q - fp2) * (1.0 + fdS * (aInfo2.x > 1.5 ? 0.5 : 0.8));
+      vec3 fp2 = vec3(0.0, 1.25, -0.17); q = fp2 + (q - fp2) * (1.0 + fdS * (aInfo2.x > 1.5 ? 0.0 : 0.3));   /* 11/20 kaito 11/19「指物は小さく」：遠くで指物 1.8 倍・幟 1.5 倍は丘に布の壁を作った（設楽原）。指物 1.3 倍・幟は等倍 */
     }
   #endif
   q *= P.show;

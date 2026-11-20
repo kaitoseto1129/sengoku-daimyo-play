@@ -37,6 +37,8 @@ const FLAG_BG = {
   hachisuka: '#ece6d6', manji: '#ece6d6', gyoyo: '#ece6d6', kitabatake: '#ece6d6', sakuma: '#ece6d6', hori: '#ece6d6',
   kuki: '#ece6d6', asano: '#ece6d6', horio: '#ece6d6', narita: '#ece6d6', akadori: '#ece6d6', kashiwa: '#ece6d6', kuginuki: '#ece6d6', umebachi: '#ece6d6',
   honganji: '#ece6d6', sagarifuji: '#ece6d6', ikko: '#ece6d6', namu: '#ece6d6',
+  // K348（11/19 クラウド）：雑賀衆の旗は八咫烏（鈴木氏・熊野の烏）。前は表に無く、灰白の無地の旗だった（docs/armor_study.md の雑賀の節）
+  yatagarasu: '#ece6d6', saika: '#ece6d6',
   // 明石全登の手（キリシタンの組）の花クルス
   kurusu: '#ece6d6', rokkaku: '#ece6d6', nadeshiko: '#ece6d6', shichiyo: '#ece6d6',
 };
@@ -48,6 +50,7 @@ const FLAG_DYE = {
   oda: '#cdac50', eiraku: '#cdac50', imagawa: '#9f2846', saito: '#4a4440',
   azai: '#3c4048', asakura: '#6a5240', takeda: '#ba3825', tokugawa: '#3a3a38',
   honganji: '#5a4a40', sagarifuji: '#5a4a40', ikko: '#98663b', namu: '#98663b',
+  yatagarasu: '#2e2a26', saika: '#2e2a26',
   mori: '#3a3834', uesugi: '#5b5448', akechi: '#8a7a55',
   hojo: '#bca25c', shimazu: '#5e5a4e', date: '#55524a', sanada: '#9a2a20', sanada2: '#9a2a20',
   toyotomi: '#8a6418', kiri53: '#8a6418', ishida: '#4a4a52', chosokabe: '#3e3c36', otomo: '#7a6448',   // 11/8 critic60（十5・樫井）：生成りの地に淡い金で、遠目に紋の無い白い板に見えた。濃い金茶に（11/8：この注が石田・長宗我部・大友の色を消していたので行末へ移した）
@@ -585,6 +588,9 @@ const MON = {
     }
   },
   honganji(g, bg) { MON.sagarifuji(g, bg); },
+  // K348：雑賀衆の隊の旗も孫一の八咫烏の形を使い回す（形は一つ・材質は旗の種類ごとに一度だけ作る）
+  yatagarasu(g, bg) { MON['孫一の八咫烏'](g, bg); },
+  saika(g, bg) { MON['孫一の八咫烏'](g, bg); },
   // 北条鱗：正三角より平たい三つの鱗を、頂で接して山に積む
   hojo(g) { const b = 0.96, h = 0.6; for (const [x, y] of [[0, -h], [-b / 2, 0], [b / 2, 0]]) poly(g, [[x, y], [x + b / 2, y + h], [x - b / 2, y + h]]); },
   // 竹に雀（上杉笹）：竹の輪と笹の葉、向き合う二羽の雀（形は紋帳を簡略にした）

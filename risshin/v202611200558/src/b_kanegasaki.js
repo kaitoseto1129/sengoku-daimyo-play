@@ -1594,6 +1594,23 @@ function kgNarrowHome(rt) {
     if (Math.hypot(c.x - L.x, c.z - L.z) > 20) { g.anchor = { x: L.x + ((k % 3) - 1) * 6, z: L.z - 6 + Math.floor(k / 3) * 4 }; g._fitAt = 0; }
     k++;
   }
+  // 11/19 クラウド（K338・act bot 十本の狭路の段で本人の三十m 内の敵が百五十秒ほど 0）：味方の新手（二の列・号令 attack）と退いて来た味方が
+  //   柵の北の谷 (-10〜-30, 55〜90) へ出て追手と打ち合い、追手は柵の手前で崩れて一人も旗まで来なかった。
+  //   柵より十六歩以上北へ出た二の列の組は、柵の後ろ（南へ六〜十四歩）で控えさせる（殿の組は上のとおり柵の前で槍を構える）
+  let j = 0;
+  for (const g of rt.army.groups) {
+    if (g.team !== 0 || !g.count || g.routed || g.isPlayerSquad || g.isRunner || g.order === 'flee' || g.order === 'retreat' && g.kgFenceBack) continue;
+    if (g.name !== '味方の新手' && g.name !== '退いて来た味方') continue;   // 退いて来た味方は殿の組（F.tono）にも入るが、谷へ出たら同じく柵の後ろへ
+    const c = g.center();
+    if (c.z > L.z - 16 || c.z < L.z - 75) continue;
+    // 号令 hold では兵が谷で一人ずつ斬り合ったまま戻らなかった（流しで二十人余りが谷に残る）。斬り合いを解き、退く号令で柵の後ろへ歩かせ、着いたら構えさせる
+    const to = { x: L.x + ((j % 3) - 1) * 7, z: L.z + 6 + Math.floor(j / 3) * 4 };
+    j++;
+    g.kgFenceBack = true;
+    g.order = 'retreat'; g.dest = to; g.path = null; g.focus = null; g.stay = false; g.seekRange = 6; g._fitAt = 0;
+    for (const u of g.units) if (u.alive && !u.fleeing) { u.target = null; u.atk = null; u.moveTo = null; }
+    g.onArrive = (gr) => { gr.order = 'hold'; gr.anchor = { x: to.x, z: to.z }; gr.facing = Math.PI; gr.dest = null; gr.onArrive = null; gr.seekRange = 12; gr._fitAt = 0; };
+  }
 }
 // 11/18 夜50-03（金ヶ崎の負けの型の多く＝本人が四〜六人に囲まれ、退く途中で一太刀14〜17が重なって倒れる）：
 //   難しさの設定の「本人へ同時に掛かる数」（settings.js DIFFICULTY.attackers・普通3）は戦の中で使われていなかった。
@@ -3326,6 +3343,9 @@ const kanegasaki = {
   waitGuardAllowed(rt) { return !this.botEvacuating(rt); }, // 退く下知の間は長押しで待たせない。
   playerTaken: 0.45,   // 11/15 owner-2：0.55 では退きの段で足軽の一撃が上限の20で入り続け、囲まれて倒れた（act bot 7本中2本・312秒と344秒）。敵の組の dmgMult は上限に掛からず効かない。// 11/10 関所：構えずに受けた刃の床（命の五割）で、act の bot が開幕の攻めで十度に五度、二〜四太刀で倒れ殿まで届かなかった。十五分の長い殿戦なので一太刀を三割弱に（稲生 0.6 と同じ考え）。
   meleeGuide(rt) { return !this.botEvacuating(rt); },
+  // 11/19 クラウド（K338・act bot 80秒で倒れ）：離反の報せの前の攻めの段（城を落とした後の優勢）で、峠の後詰の侍の一太刀17が続いて倒れた。
+  //   報せの前だけ一太刀の床を八割に（K360⑦ の下限）。殿の段からは今まで通り
+  floorMult: (rt) => rt.flags.betrayed ? 1 : 0.8,
   softOpen: 0,   // 撤退戦の開幕を無傷の猶予にしない。
   // 敵の打ち込みの重さ（bot が楽に勝ちすぎたので締める。player.js の takeDamage）
   foeHit: 1,
@@ -5298,6 +5318,29 @@ function kgHold(line, dur, waves, ambush = false) {
         }
         if (live < 6) { C.waves.push({ ...C.reserve, list: C.reserve.list.map(e => ({ ...e })) }); C.nextReserve = el + 28; }
       }
+      // 11/19 クラウド（K338・act bot 743秒）：狭路の砦の段（521〜692秒）で、本人の三十m 内の敵が百七十秒 0 だった。
+      //   後続は川の砦の北（百m 先）から出て、道で殿の組と打ち合ううちに消え、柵まで一人も来なかった（journey ④「柵を越えようとする敵を必ず出す」）。
+      //   狭路の段で柵の三十m 内に朝倉の兵が十四秒いなければ、谷道の四十四歩北（木立の折れ）から後続の槍組を出す（二十秒に一度・本物の兵の上限は共通のまま）
+      //   主力の退きの秒（prog）は狭路に着く前に満ちているので条件に使わない。後続は待ち列（六十五歩後ろ）を通さず、ここから道を下って柵へ寄せる
+      //   （待ち列から出すと川の砦の北に残る味方へ向き直り、北へ戻って行った）
+      if (line === 2 && !rt.flags.fleeing && !rt.flags.ending && el < C.deadline) {
+        let nearN = 0;
+        for (const u of rt.army.units) if (u.team === 1 && kgActive(u) && !u.isStruct && u.group?.faction !== 'azai' &&
+          Math.hypot(u.pos.x - L.x, u.pos.z - L.z) < 30) nearN++;
+        if (nearN >= 3) C.lullT = el;
+        else if (C.lullT === undefined) C.lullT = el;
+        else if (el - C.lullT >= 14 && el >= (C.lullNext || 0) && !C.waves.length) {
+          C.lullT = el; C.lullNext = el + 20;
+          const at = kgRoadAt(RETREAT_ROAD, L.z - 44);
+          const list = cappedList(rt, [uS(2), uA(8)]);
+          if (list.reduce((a, e) => a + e.n, 0) >= 4) {
+            const g = spawnEnemy(rt, { faction: 'asakura', name: '谷道を詰める朝倉勢', anchor: { x: at.x, z: at.z }, facing: 0, order: 'attack', seekRange: 24,
+              width: 8, aggro: 12, morale: 90, fleeDir: { x: 0, z: -1 }, dmgMult: 0.35, formation: 'yari', noGuard: true }, dress(list, ASAKURA));
+            C.groups.push(g);
+            kgChase(rt, g);
+          }
+        }
+      }
       for (let i = C.waves.length - 1; i >= 0; i--) {
         const w = C.waves[i];
         if (el < w.t) continue;
@@ -5322,7 +5365,9 @@ function kgHold(line, dur, waves, ambush = false) {
         }
       }
       const p = rt.player.u.pos;
-      const away = !kgInHold(L, p.x, p.z);
+      // 11/19 クラウド（K338・act bot 4本中2本 582・644秒の負け）：川の砦で東の追手と騎馬の追手に押されて砦の後ろ（南・旗から二十〜三十m）へ下がり、
+      //   後ろで斬り合っているのに「持ち場を離れた」と数えられ、守りの秒が貯まらず期限で殿が崩れた。川の砦だけ、旗の南三十一m の内も持ち場に数える
+      const away = !kgInHold(L, p.x, p.z) && !(line === 1 && p.z >= L.z && Math.hypot(p.x - L.x, p.z - L.z) <= L.r + 22);
       // 11/10 関所：川の砦で、渡りの段の寄せが南岸へ届く前に川の北で崩れて逃げ（order flee）、接敵が付かないまま
       //   百九十二秒の期限で殿が崩れて負けた（act の bot 三度）。持ち場で守る間に段の寄せが一人残らず崩れたら、守り切った事にする。
       // 徒歩の後続を退けても、まだ来ていない騎馬の追手まで受けた事にしない。

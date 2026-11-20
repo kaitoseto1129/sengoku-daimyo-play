@@ -721,6 +721,8 @@ function vitals(h, B, dt, time, sp, wIdle, wWalk, wRun, st) {
     // 背筋を伸ばし、首を前へ出さない（11/3 kaito「変なポーズ」）：前かがみの癖は小さく、首は起こす方へ。走りは踵から（足首を起こす）
     rotWorld(B.Spine, _right, Math.min(0.03, (V?.lean || 0) * 0.14) * mv - 0.03 * wWalk + wRun * 0.04 * (h.seed - 0.3));
     rotWorld(B.Neck, _right, Math.min(0, ((h.seed * 13.7) % 1 - 0.4) * 0.12) * mv - 0.1 * mv);
+    // 11/19：歩く時の首の癖（少し傾ける人・少し横を見る人。±4°・±5°）。皆の頭が同じ向きで揃って進む人形の列に見せない。走りと遠い兵には掛けない
+    rotWorld(B.Neck, _fwd, (((h.seed * 31.7) % 1) - 0.5) * 0.14 * wWalk); rotWorld(B.Neck, _up, (((h.seed * 57.3) % 1) - 0.5) * 0.18 * wWalk);
     rotWorld(B.LeftFoot, _right, -0.28 * wRun - 0.06 * wWalk); rotWorld(B.RightFoot, _right, -0.28 * wRun - 0.06 * wWalk);
     const A = h.act, ph = (A.walk.time / Math.max(0.01, A.walk.getClip().duration)) * Math.PI * 2;
     rotWorld(B.Hips, _fwd, Math.sin(ph) * 0.05 * (V?.out || 0) * wWalk);

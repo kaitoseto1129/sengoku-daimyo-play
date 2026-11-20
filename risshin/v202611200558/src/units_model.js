@@ -722,6 +722,10 @@ MAT.onBeforeCompile = (sh) => {
           float shuP = smoothstep(0.1, 0.3, material.diffuseColor.r - max(material.diffuseColor.g, material.diffuseColor.b));
           material.specularShininess = mix(material.specularShininess, mix(170.0, 12.0, wornP), shuP);
           material.specularColor *= 1.0 + 0.9 * shuP;
+          // 11/20 iMac 足軽の係（長「黒漆の柔らかい照り」）：黒漆（笠・胴）は点の照りだけでは昼に艶の無い黒い布に見えた。赤漆（shuP）は上の版のまま、
+          //   黒漆だけ照りを少し広く柔らかく（鋭さ 70→44）・少し強く（1.45 倍）。擦れ・谷・埃で消えるのは前のまま（docs/soldier_look_1119.md 三回目）
+          material.specularShininess = mix(mix(44.0, 12.0, wornP), material.specularShininess, shuP);
+          material.specularColor *= mix(1.45, 1.0, shuP);
           // 11/17 K341④（長篠の高い引きで遠い兵の束が黒い塊）：板の段の陰の濃さは近く（40m 内）だけ。遠いほど漆の地を少し持ち上げ（空気の明るさ）、形と色を読ませる
           float farL = ${typeof location !== 'undefined' && /[?&]farlift=0/.test(location.search) ? '0.0' : 'smoothstep(40.0, 130.0, length(vViewPosition))'};   // ?farlift=0 で前
           material.diffuseColor *= mix(mix(0.42, 1.1, smoothstep(0.4, 0.92, txA.g)) * vec3(1.06, 1.0, 0.9), vec3(1.0), farL);
@@ -733,7 +737,7 @@ MAT.onBeforeCompile = (sh) => {
         } else if (mkP == 3) {
           // 鉄：漆より鈍く、照りは鉄の色に寄せる
           material.specularShininess = 32.0;
-          material.specularColor = mix(vec3(0.22), material.diffuseColor * 1.6, 0.5) * max(1.0 - dd * 0.8 - dustP * 0.5, 0.0);   // 11/17 K348：倒れた兵（上を向く面）は埃と汚れで負になり、色の崩れ（紫の斑）が出た
+          material.specularColor = mix(vec3(0.3), material.diffuseColor * 1.6, 0.5) * max(1.0 - dd * 0.8 - dustP * 0.5, 0.0);   /* 11/20：鉄（鋲・臑当の蝶番・籠手の板）の鈍い照りを少し強く（0.22→0.3） */   // 11/17 K348：倒れた兵（上を向く面）は埃と汚れで負になり、色の崩れ（紫の斑）が出た
         } else if (mkP == 2) {
           // 11/17 K358（桶狭間の中ほどの兵の顔が白い点に浮く）：遠い肌は照りを消し、日焼けの色へ少し沈める（顔の形と目鼻は顔の係のまま）
           float farS = smoothstep(14.0, 40.0, length(vViewPosition));
@@ -743,7 +747,7 @@ MAT.onBeforeCompile = (sh) => {
           //   手本＝東博・九博の当世具足を着た古写真（幕末の甲冑武者）：庇の下の顔は肌の色が沈み、目鼻は陰の塊。8m から先の肌を陰の色へ寄せ、補光を半分に（下の aomap）
           float midS = smoothstep(7.0, 22.0, length(vViewPosition));
           float downP = clamp(-dot(normal, normalize((viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz)), 0.0, 1.0);
-          material.diffuseColor *= mix(vec3(1.0), vec3(0.7, 0.62, 0.55) * (1.0 - 0.25 * downP), midS);
+          material.diffuseColor *= mix(vec3(1.0), vec3(0.8, 0.73, 0.66) * (1.0 - 0.25 * downP), midS);   /* 11/20 長：近い顔の笠の陰を 0.5 に上げたので、中ほどの顔だけ黒く沈まないよう少し戻す（0.7→0.8） */
           material.specularColor *= 1.0 - 0.9 * midS;
           skinMidP = midS;
           skinAnyP = 1.0;   // 11/18 K365（クラウド・箕作の夜）：夜の補光と縁の照りが陣笠の下のうなじを橙に光らせた。夜ほど肌の補光を落とす（下の aomap）
@@ -1664,21 +1668,26 @@ function hatParts(look, parts, hi, fallen = false) {
     //   10月初めの足軽（look.oldGood。kaito 11/3 old_good「黒い広い陣笠」）は 10/7 の版の差し渡し（半径 0.33）に戻す
     const KR = look.oldGood ? 1 : 0.85 * 0.84;   // 11/8 critic60 小田原 25：まだ肩幅より大きく見えた。差し渡し約 46cm へ
     // 高さ：縁が眉の高さ。頭は笠の円錐の内に入り、頭に当てる輪（布）は円錐の内で頭の太い所に掛かる（縁の高さで頭の上に載せると、頭から浮いて見える）
-    const hy = 1.6;   // 笠の縁は眉の上（1.655 では笠が頭から浮き、下から頭頂が見えた。10/30。1.575 では縁が鼻まで下りて目が隠れた。10/31）
-    const fit = look.oldGood ? 1 : 0.96 + ((look.vi || 0) % 6) * .016; // 六つの共用形で笠の張りを変える。
+    // 11/19：10月初めの足軽の広い笠（kaito 11/3）も、差し渡しを一人ずつ ±4％（一尺五寸〜一尺六寸余）ずらす。型で抜いた同じ皿が並んで見えた。六組の形のまま
+    const fit = look.oldGood ? (look.face === 'player' ? 1 : 0.96 + ((look.vi || 0) * 5 % 6) * .016) : 0.96 + ((look.vi || 0) % 6) * .016; // 六つの共用形で笠の張りを変える。
+    // 11/20 長「陣笠の形を三〜四種」：0 今の円錐・1 一文字笠（平たく頭の上に載る）・2 とがり笠（頂の立った細い円錐）・3 浅い椀の笠（桃形に近い丸い頂）。
+    //   look.kasaShape（units.js が六組 vi から決める。本人・戦が指した笠は 0）。六組の形の中で替えるので、形の数は増えない（docs/soldier_look_1119.md）
+    const KS = look.kasaShape | 0;
+    const kasaXf = ([r, y]) => KS === 1 ? [r * 1.04, y * 0.5] : KS === 2 ? [r * 0.9, y * 1.5] : KS === 3 ? [r * 0.95, 0.15 * Math.pow(Math.max(0, Math.cos(Math.min(1, r / (0.3 * KR * fit)) * Math.PI / 2)), 0.75) + (r > 0.3 * KR * fit ? 0.012 * (r / (0.3 * KR * fit) - 1) * 8 : 0)] : [r, y];
+    const hy = 1.6 + (KS === 1 ? 0.085 : KS === 3 ? 0.02 : 0);   // 笠の縁は眉の上（1.655 では笠が頭から浮き、下から頭頂が見えた。10/30。1.575 では縁が鼻まで下りて目が隠れた。10/31）
     if (!hi) {
       // 遠くの軽い形：なだらかな円錐と縁
-      const prof = [[0.0, 0.23], [0.07, 0.18], [0.16, 0.113], [0.25, 0.043], [0.31, 0.0], [0.315, -0.012]].map(([r, y]) => new THREE.Vector2(r * KR * fit, y));
+      const prof = [[0.0, 0.23], [0.07, 0.18], [0.16, 0.113], [0.25, 0.043], [0.31, 0.0], [0.315, -0.012]].map(([r, y]) => kasaXf([r * KR * fit, y])).map(([r, y]) => new THREE.Vector2(r, y));
       // 中景へ切り替わる時にも笠の縁が十二角へ跳ねない。共用する形だけを細かくする。
-      parts.push(P(at(new THREE.LatheGeometry(prof.slice().reverse(), 20, Math.PI, Math.PI * 2), 0, hy, 0), col, { mk: MK.lac, reg: 'kasa', c2: 0x3e2a1e, mk2: MK.wood }));
+      parts.push(P(at(new THREE.LatheGeometry(prof.slice().reverse(), 20, Math.PI, Math.PI * 2), 0, hy, 0), col, { mk: MK.lac, reg: 'kasa', c2: col, mk2: MK.lac }));   /* 11/20：遠い形の笠は下地の茶（木）が日向で広く照り、藁の笠に見えた。近くの黒い笠と同じ漆の色に */
       parts.push(P(at(new THREE.TorusGeometry(0.282 * 0.84 * fit, 0.0065, 3, 20), 0, hy - 0.004, 0, Math.PI / 2), 0x221e1a, { mk: MK.lac }));
       return;
     }
     // 近くの陣笠（御貸具足の鉄笠・塗り笠）：浅い円錐が頂から縁へ少し反り、縁の先でわずかに上へ返る。頂に小さな座。
     // 黒漆の艶、擦れた所（縁・頂・欠け）から下塗りが出る（塗り陣笠は朱の下塗り、安い笠は紙と竹の茶）。前に小さく家紋（家ごとに金か朱）、顎紐
-    const R = 0.33 * KR * fit;
+    const R = 0.33 * KR * fit * (KS === 1 ? 1.04 : KS === 2 ? 0.9 : KS === 3 ? 0.95 : 1);
     // 戦国の陣笠は頂の立った円錐（資料の雑兵の笠）：頂を上げ、縁へ真っ直ぐ下ろす（平たい皿にしない）
-    const prof = [[0, 0.158], [0.02, 0.156], [0.05, 0.146], [0.1, 0.123], [0.16, 0.09], [0.22, 0.056], [0.27, 0.031], [0.3, 0.017], [0.318, 0.01], [0.33, 0.014]].map(([r, y]) => [r * KR * fit, y * (look.lacquer != null ? 0.86 : 1) + (look.lacquer != null || look.oldGood ? 0.03 : 0.08) * Math.max(0, 1 - r / 0.3)]);   // 御貸具足の笠は手本（ref1）の浅い円錐（11/1）   // 頂を少し下げて浅く（10/31）   // 本の陣笠は頂のとがった円錐（10/27 頂を上げた）
+    const prof = [[0, 0.158], [0.02, 0.156], [0.05, 0.146], [0.1, 0.123], [0.16, 0.09], [0.22, 0.056], [0.27, 0.031], [0.3, 0.017], [0.318, 0.01], [0.33, 0.014]].map(([r, y]) => [r * KR * fit, y * (look.lacquer != null ? 0.86 : 1) + (look.lacquer != null || look.oldGood ? 0.03 : 0.08) * Math.max(0, 1 - r / 0.3)]).map(kasaXf);   // 御貸具足の笠は手本（ref1）の浅い円錐（11/1）   // 頂を少し下げて浅く（10/31）   // 本の陣笠は頂のとがった円錐（10/27 頂を上げた）
     const yAt = (r) => { for (let i = 1; i < prof.length; i++) if (r <= prof[i][0]) { const [ra, ya] = prof[i - 1], [rb, yb] = prof[i]; return ya + (yb - ya) * (r - ra) / (rb - ra); } return prof[prof.length - 1][1]; };
     // 回す点は下から上の順に並べる（上から上の順だと面が下を向き、上から見えるのは裏の茶色だった）
     const kasa = new THREE.LatheGeometry(prof.slice().reverse().map(([r, y]) => new THREE.Vector2(r, y)), 48, Math.PI, Math.PI * 2);
@@ -1703,7 +1712,7 @@ function hatParts(look, parts, hi, fallen = false) {
     const under = new THREE.LatheGeometry(prof.map(([r, y]) => new THREE.Vector2(Math.min(r, R - 0.003), y - 0.003)), 32);
     parts.push(P(at(under, 0, hy, 0), 0x2e1c16, { mk: MK.lac, reg: 'lacq' }));
     // 縁は鉄の板を巻き返した厚い縁（薄い皿の板に見せない。10/31）
-    parts.push(P(at(new THREE.TorusGeometry(R - 0.002, 0.0062, 5, 48), 0, hy + 0.011, 0, Math.PI / 2), col, { mk: MK.lac, reg: 'kasa', c2: c2n, mk2: MK.lac, rv: [0, 0.1] }));
+    parts.push(P(at(new THREE.TorusGeometry(R - 0.002, 0.0062, 5, 48), 0, hy + prof[prof.length - 1][1] - 0.003, 0, Math.PI / 2), col, { mk: MK.lac, reg: 'kasa', c2: c2n, mk2: MK.lac, rv: [0, 0.1] }));
     // 頂の座（笠の頂を押さえる小さな丸い金具）
     parts.push(P(at(ball(0.022, 0.01, 0.022, 10, 4), 0, hy + prof[0][1] - 0.001, 0), col, { mk: MK.lac, reg: 'lacq', c2: c2n, mk2: MK.lac }));
     parts.push(P(at(new THREE.TorusGeometry(0.026, 0.003, 3, 12), 0, hy + prof[0][1] - 0.005, 0, Math.PI / 2), 0x2a2420, { mk: MK.iron }));
@@ -2622,7 +2631,7 @@ function okeDo(r0, armor) {
 // 足軽の桶側胴（横矧）の近くの形：横長の鉄の板を七段に重ね、鋲で留める（御貸具足）。上の段の裾が下の段の上に重なり、裾の縁が少し外へ出る。
 // 胸から腰へすぼまる（樽のように腹が張らない）。一段を前・左・後・右の四枚に分け、okeV の絵（板の長さに鋲が三つ）を一枚ずつ貼る
 const OKE_PROF = [[0.184, 0.88], [0.19, 0.95], [0.203, 1.05], [0.226, 1.18], [0.245, 1.3], [0.238, 1.38], [0.19, 1.43], [0.1, 1.46]];
-function okeYoko(r0, armor) {
+function okeYoko(r0, armor, odoshi = null) {
   const rAt = (y) => { for (let i = 1; i < OKE_PROF.length; i++) { const [ra, ya] = OKE_PROF[i - 1], [rb, yb] = OKE_PROF[i]; if (y <= yb) return ra + (rb - ra) * ((y - ya) / (yb - ya)); } return OKE_PROF[OKE_PROF.length - 1][0]; };
   const rows = 7, Y0 = 0.876, Y1 = 1.345, H = (Y1 - Y0) / rows, t = 0.0085, out = [];
   for (let j = 0; j < rows; j++) {
@@ -2641,6 +2650,17 @@ function okeYoko(r0, armor) {
   const top = [[rAt(1.338) + 0.008, 1.338], [rAt(1.36) + 0.007, 1.362], [0.238, 1.38], [0.19, 1.43], [0.1, 1.46]].map(([r, y]) => new THREE.Vector2(r * r0, y));
   const tg = new THREE.LatheGeometry(top, 24, Math.PI, Math.PI * 2); tg.scale(1, 1, 0.8);
   out.push(P(tg, armor, { mk: MK.lac, reg: 'lacq', c2: 0x4a2a1a, mk2: MK.lac }));
+  // 11/20 長「縅の糸の色の筋」：横矧の桶側胴の素懸威。板の継ぎ目ごとに、二本一組の糸が上の板の裾から下の板へ短く渡る（縦の点の列）。
+  //   前に四筋・背に二筋。色は look.odoshi（units.js が家ごとに一色・兵ごとに少し違える）。細い帯を足すだけ（一領 144 三角）・近い形だけ（okeYoko は hi の時だけ）
+  if (odoshi != null) {
+    const pt = (th, y, off) => { const r = (rAt(y) + t + off) * r0; return [Math.sin(th) * r, y, Math.cos(th) * r * 0.8]; };
+    for (const th of [-0.6, -0.21, 0.21, 0.6, Math.PI - 0.32, Math.PI + 0.32]) for (const dt of [-0.03, 0.03]) for (let j = 1; j < rows; j++) {
+      const yj = Y0 + j * H;
+      out.push(P(surf(1, 1, (u, v) => pt(th + dt + (u - 0.5) * 0.034, yj - 0.02 + v * 0.036, 0.0035 + (1 - v) * 0.006)), odoshi, { reg: 'cord', dirt: 0.5 }));
+    }
+    // 胸板の下の一筋（横の糸の帯）：胸の前だけ
+    out.push(P(surf(6, 1, (u, v) => pt(-0.7 + u * 1.4, Y1 - 0.012 + v * 0.011, 0.01)), odoshi, { reg: 'cord', dirt: 0.5 }));
+  }
   return out;
 }
 // 足軽の簡素な貸し具足の胴（kaito 10/30「ボカッと丸い円柱がかぶせられているみたい。もっとナチュラルに」）：
@@ -2900,11 +2920,11 @@ function bodyGeometry(key, o, hi, grp) {
   const partKeys = {
     base: [under],
     // 雑賀の堀の金小札・胴丸・脇板・緒を、同色の別形式の具足と混ぜない。
-    torso: [armor, lace, kozaneMk, under, doStyle, !!o.ladderMon, o.doNishiki, o.mon, o.monCol, o.trim, o.left, !!o.horo, !!o.menpo, (o.vi || 0) % 3, named, plateArmor, !!o.domaru, !!o.sode, !!o.wakiita, o.takahimo, o.kurijime, !!o.doSugake, !!o.doKebiki, o.doLaceBands, !!o.backOpening, rightOpening, !!o.agemaki, o.doOpening, !!o.honkozane, o.sodeStyle, !!o.takahimo, takigawaTakahimo, o.munaitaGold || 0, o.face === 'player' && o.lacquer != null],
-    hips: [kusazuriColor, lace, kusazuriMat, doStyle, !!o.domaru, o.kusazuriBands, o.kusazuriHishinui, o.kusazuriMimiito, !!o.yurugi, !!o.kusazuriSugake, o.kusazuriLaceRows, o.kusazuriFur, o.doLaceBands, o.takedaRed, !!o.goldKozane, o.kusazuriCount, o.kusazuriLength, !!o.honkozane, !!o.kusazuriStepped, takigawaKusazuri, !!o.kusazuriNarrow],
+    torso: [armor, lace, o.odoshi, kozaneMk, under, doStyle, !!o.ladderMon, o.doNishiki, o.mon, o.monCol, o.trim, o.left, !!o.horo, !!o.menpo, (o.vi || 0) % 3, named, plateArmor, !!o.domaru, !!o.sode, !!o.wakiita, o.takahimo, o.kurijime, !!o.doSugake, !!o.doKebiki, o.doLaceBands, !!o.backOpening, rightOpening, !!o.agemaki, o.doOpening, !!o.honkozane, o.sodeStyle, !!o.takahimo, takigawaTakahimo, o.munaitaGold || 0, o.face === 'player' && o.lacquer != null],
+    hips: [kusazuriColor, lace, o.odoshi, kusazuriMat, doStyle, !!o.domaru, o.kusazuriBands, o.kusazuriHishinui, o.kusazuriMimiito, !!o.yurugi, !!o.kusazuriSugake, o.kusazuriLaceRows, o.kusazuriFur, o.doLaceBands, o.takedaRed, !!o.goldKozane, o.kusazuriCount, o.kusazuriLength, !!o.honkozane, !!o.kusazuriStepped, takigawaKusazuri, !!o.kusazuriNarrow],
     sodeP: [armor, lace, kozaneMk, !!o.sode, o.shoulderMark, plateArmor, !!o.domaru, doStyle, named, o.sodeMimiito, o.sodeStyle, o.sodeHishinui, o.sodeLaceBands, o.sodeShape, hi ? o.sodeLining : null, o.takedaRed, !!o.honkozane, !!o.sodeCrownFit, takigawaSode],
     sodeN: [armor, lace, kozaneMk, !!o.sode, o.shoulderMark, plateArmor, !!o.domaru, doStyle, named, o.sodeMimiito, o.sodeStyle, o.sodeHishinui, o.sodeLaceBands, o.sodeShape, hi ? o.sodeLining : null, o.takedaRed, !!o.honkozane, !!o.sodeCrownFit, takigawaSode],
-    head: [o.zukin || 0, o.face === 'player', !!o.oldGood, under, o.detail85, o.hat, o.hatColor, o.hachi, o.helm, o.bowl, o.lace, o.mon, o.tenugui, o.kasaDrape !== false, o.vi || 0, o.menpo, o.menpoStyle, o.sujiPlates, o.shikoroRows, o.fukigaeshiRows, o.shikoroStyle, o.shikoroLace, !!o.doubleShikoro, !!o.momonariHagi, o.bowlHeight, !!o.tehenHole, !!o.honkozane, o.shinodare === false, o.fukigaeshiBadge === false, !!o.helmetCord, S.quality === 'high' && o.crest === 'takigawa_buffalo', o.helmetRope],
+    head: [o.zukin || 0, o.face === 'player', !!o.oldGood, under, o.detail85, o.hat, o.hatColor, o.hachi, o.helm, o.bowl, o.lace, o.mon, o.tenugui, o.kasaDrape !== false, o.vi || 0, o.kasaShape | 0, o.menpo, o.menpoStyle, o.sujiPlates, o.shikoroRows, o.fukigaeshiRows, o.shikoroStyle, o.shikoroLace, !!o.doubleShikoro, !!o.momonariHagi, o.bowlHeight, !!o.tehenHole, !!o.honkozane, o.shinodare === false, o.fukigaeshiBadge === false, !!o.helmetCord, S.quality === 'high' && o.crest === 'takigawa_buffalo', o.helmetRope],
     haori: [o.haori, o.detail85, o.haoriCollar, o.haoriMon || o.mon, o.haoriMonCol, S.quality === 'high' && o.haoriMon === 'takigawa_haori'],
     back: [o.horo, o.longHoro],
     // 一益の復元した拵えと納刀・抜刀を分ける。同じ指定の形は引き続き共用する。
@@ -2948,7 +2968,7 @@ function bodyGeometry(key, o, hi, grp) {
   const domaruOpening = hi && o.domaru && o.goldKozane;
   // 胴
   if (loan) parts.push(...ashiDo(r0, armor, hi, under, bareLoan, hi && o.face === 'player', lace));
-  else if (hi && doStyle === 'okegawa') parts.push(...(T === 0 || o.munaitaGold ? okeYoko(r0, armor) : okeDo(r0, armor)));
+  else if (hi && doStyle === 'okegawa') parts.push(...(T === 0 || o.munaitaGold ? okeYoko(r0, armor, T === 0 ? o.odoshi : null) : okeDo(r0, armor)));
   else {
     const smooth = doStyle === 'hotoke' || doStyle === 'katahada';
     parts.push(P(cuirass(r0, hi ? 28 : 12, smooth ? 0 : doStyle === 'okegawa' ? 5 : 6, hi, o.doOpening, o.honkozane, o.backOpening, rightOpening, domaruOpening, doStyle === 'sugake' ? (hi ? 4 : 2) : 1), armor, { mk: kozaneMk, reg: smooth ? 'lacq' : doStyle, c2: smooth ? armor : doStyle === 'okegawa' ? 0x4a2a1a : lace, c2Bands: o.doLaceBands, mk2: smooth || doStyle === 'okegawa' ? MK.lac : MK.cloth, rv: rows }));
@@ -3567,7 +3587,7 @@ function bodyGeometry(key, o, hi, grp) {
           for (let j = 0; j < 5; j++) {
             const y = KY0 + j * H;
             parts.push(P(limb(point(y + .002, .016), point(y + H - .003, .004),
-              .003, .003, 4), lace, { reg: 'cord' }));
+              .003, .003, 4), o.odoshi ?? lace, { reg: 'cord' }));
           }
         }
       }
@@ -5042,8 +5062,8 @@ function shinGeometry(o, hi, part) {
           P_.push(P(at(g, 0, -0.14, -0.004), ac, { mk: MK.lac, reg: 'okeV', rv: [((j + 2) % 4) / 4, ((j + 2) % 4 + 1) / 4], swap: true, flipV: true, c2: 0x4a2a1a, mk2: MK.lac }));
         }
         // 蝶番（板の境の細い鉄）と、上下の紐
-        for (const j of [-0.5, 0.5]) { const a = j * w3; P_.push(P(at(new THREE.BoxGeometry(0.006, 0.2, 0.005), Math.sin(a) * 0.075 * b, -0.14, Math.cos(a) * 0.075 * b - 0.004, 0.06, a, 0), 0x2a2420, { mk: MK.iron })); }
-        for (const y of [-0.055, -0.225]) P_.push(P(at(new THREE.TorusGeometry((y > -0.1 ? 0.079 : 0.068) * b, 0.004, 3, 12), 0, y, -0.004, Math.PI / 2), 0x2a2520, { reg: 'cord' }));
+        for (const j of [-0.5, 0.5]) { const a = j * w3; P_.push(P(at(new THREE.BoxGeometry(0.009, 0.2, 0.006), Math.sin(a) * 0.076 * b, -0.14, Math.cos(a) * 0.076 * b - 0.004, 0.06, a, 0), 0x5a5e62, { mk: MK.iron })); /* 11/20：蝶番の鉄を明るく太く（三枚の板の境が読める） */ }
+        for (const y of [-0.055, -0.225]) P_.push(P(at(new THREE.TorusGeometry((y > -0.1 ? 0.079 : 0.068) * b, 0.0055, 4, 12), 0, y, -0.004, Math.PI / 2), 0x8c7c5c, { reg: 'cord' })); /* 11/20：上下の緒は生成りの麻（黒い板に黒い紐で溶け、灰の筒に見えた） */
         // 立挙：膝頭を覆う反った板（臑当の上の端から立ち上がる）。下に布の膝の当て
         { const g = arcCyl(0.084 * b, 0.086 * b, 0.075, 4, Math.PI * 0.62, 0); g.translate(0, 0.012, 0.004); g.rotateX(-0.12); P_.push(P(g, ac, { mk: MK.lac, reg: 'okeV', rv: [0.75, 1], swap: true, flipV: true, c2: 0x4a2a1a, mk2: MK.lac })); }
       } else P_.push(P(at(arcCyl(0.08 * b, 0.064 * b, 0.22, 4, Math.PI * 0.95, 0), 0, -0.14, -0.004), ac, { mk: MK.lac, reg: 'lacq' }));
@@ -5225,7 +5245,8 @@ function armGeometry(o, sd, kote, hi, part) {
   // 黒漆の仕上げは一般的な籠手による復元で、本人の所用品の特定ではない。
   // https://www.meihaku.jp/curator-tweet/curator-tweet-kogusoku-kote/
   const fullKote = S.quality === 'high' && o.crest === 'takigawa_buffalo' && T >= 1;
-  const kc = T >= 2 ? kuroKote(o.lace || cloth) : cloth;
+  // 11/20 長「籠手の袖：紺か茶の布地に黒い鎖・筏の鉄板」：足軽の家地は鎧下より一段濃い布。青みのある布（敵の紺）は紺のまま、ほかは茶へ寄せる（味方を青灰に見せない）
+  const kc = T >= 2 ? kuroKote(o.lace || cloth) : T === 0 ? ((h) => { const R = (h >> 16) & 255, G = (h >> 8) & 255, B = h & 255, w = B > R + 6 ? [0.62, 0.66, 0.8] : [0.74, 0.6, 0.44]; return (Math.round(R * w[0]) << 16) | (Math.round(G * w[1]) << 8) | Math.round(B * w[2]); })(cloth) : cloth;
   // 別の武将の威色や鉄地の部品を、一益の黒い家地・黒漆へ混ぜない。
   const handArmor = o.goldKozane ? 0x1c1a1a : o.armor || 0x1c1a1a;
   const k = 'arm' + (o.detail85 ? '個体|' : '') + skin + '|' + cloth + '|' + sd + '|' + (kote ? 1 : 0) + '|' + T + '|' + (hi ? 1 : 0) + (part || '') + (T === 0 && kote ? '|' + (o.armor || 0) : '') + (fullKote ? '|黒漆籠手|' + kc + '|' + (o.armor || 0x1c1a1a) : '') + (T >= 2 && kote ? '|' + handArmor + '|' + kc : '');
@@ -5244,7 +5265,7 @@ function armGeometry(o, sd, kote, hi, part) {
     // 11/9 桶狭間の写真（1600×900）で足軽の腕がまだ滑らかな紺の筒：鎖・筏・篠・肘金・手甲が全部、家地の黒紺（o.armor 0x2a2e36）と同じ暗さで、
     //   形があっても色の対比が無く溶けていた。御貸具足の籠手の金物は鉄の錆地（佐竹史料館の三本篠籠手・永青文庫の小篠籠手）なので、
     //   足軽は篠・筏・肘金・手甲・鎖の目を鈍い鉄の色（kI）にし、家地の紺の上に金物の段が見えるように。形の数は同じ（材質も共有のまま）
-    const kI = 0x3a3e42, kIron = { mk: MK.iron, reg: 'iron' }, chainC = T === 0 ? 0x5a5e62 : 0x2e3236;
+    const kI = T === 0 ? 0x26282b : 0x3a3e42, kIron = { mk: MK.iron, reg: 'iron' }, chainC = T === 0 ? 0x1c1d1f : 0x2e3236;   /* 11/20 長：足軽は布地（kc）の上に黒い鎖・黒鉄の筏と篠 */
     // 足軽の鎖は、絵の筏の四角（遠くで水玉に見えた）を避け、鎖の目だけの帯（本人の籠手と同じ ru・rv）を貼る。筏は下の鉄の板で出す
     const chainUV = T === 0 ? { reg: 'kote', c2: chainC, mk2: MK.iron, ru: [0, 0.8], rv: [0.46, 0.77] } : { reg: 'kote', c2: chainC, mk2: MK.iron };
     if (part !== 'fore') P_.push(P(limb([0, -0.02, 0], [0, -0.27, 0], 0.058 * b, 0.05 * b, seg), kc, chainUV));
@@ -6021,29 +6042,11 @@ const HORSE_K = 0.86;
 function coatShade(g) {
   if (!g.attributes.normal) g.computeVertexNormals();
   const n = g.attributes.normal;
-  for (const nm of ['color', 'col2']) { const a = g.attributes[nm]; if (!a) continue; for (let i = 0; i < a.count; i++) { const s = 0.85 * (0.76 + 0.34 * THREE.MathUtils.smoothstep(n.getY(i), -0.7, 0.9)); a.setXYZ(i, a.getX(i) * s, a.getY(i) * s, a.getZ(i) * s); } }
+  for (const nm of ['color', 'col2']) { const a = g.attributes[nm]; if (!a) continue; for (let i = 0; i < a.count; i++) { const s = 0.9 * (0.76 + 0.34 * THREE.MathUtils.smoothstep(n.getY(i), -0.7, 0.9)); a.setXYZ(i, a.getX(i) * s, a.getY(i) * s, a.getZ(i) * s); } }
   return g;
 }
-export function buildHorse(st = ENEMY_HORSE) {
-  const key = [st.coat, st.mane, st.tack, st.saddle, st.aori, st.tassels, st.armor].join('|');
-  // root（置き場所）→ pose（竿立ち・倒れる）→ shape（和種の大きさへ縮める）→ 胴・首・脚・尾。近くでは root に骨の入った馬（humans.js）が付く
-  const root = new THREE.Group();
-  const pose = new THREE.Group(), shape = new THREE.Group();
-  shape.scale.setScalar(HORSE_K);
-  pose.add(shape); root.add(pose);
-  root.userData.style = st;
-  const c = st.coat, dark = 0x14100c;
-  // 胴・鞍・障泥・胸繋・尻繋・厚総・馬鎧
-  const body = mergedMesh('hb' + key, (P) => {
-    // 胴：胸は深く、腹は締まり、尻は丸い（回転体で作り、横に少しつぶす）
-    const prof = [[0.02, -0.92], [0.2, -0.86], [0.3, -0.7], [0.33, -0.45], [0.3, -0.15], [0.28, 0.1], [0.3, 0.38], [0.32, 0.6], [0.26, 0.8], [0.1, 0.9], [0.02, 0.92]].map(([r, y]) => new THREE.Vector2(r, y));
-    const barrel = new THREE.LatheGeometry(prof, 14);
-    barrel.rotateX(Math.PI / 2); barrel.scale(0.86, 1, 1);
-    P.push(coatShade(paint(at(barrel, 0, 1.26, 0), c, false, MK.wood)));
-    // 胸前と尻の張り
-    const chest = new THREE.SphereGeometry(0.26, 12, 8); chest.scale(0.95, 1.1, 0.8);
-    P.push(coatShade(paint(at(chest, 0, 1.2, 0.7), c, false, MK.wood)));
-    for (const sx of [0.14, -0.14]) { const hq = new THREE.SphereGeometry(0.2, 10, 8); hq.scale(0.9, 1.1, 1.1); P.push(coatShade(paint(at(hq, sx, 1.33, -0.62), c, false, MK.wood))); }
+// 遠くの馬の馬具（鞍・障泥・鐙・胸懸と尻懸・房・馬鎧）。部品を組んだ遠くの胴（buildHorse）と、本物の形を間引いた遠くの胴（humans_horses.js proxyGeos）の両方に混ぜる
+export function horseFarTackParts(P, st) {
     // 鞍（前輪と後輪が高い）
     P.push(paint(at(new THREE.BoxGeometry(0.42, 0.08, 0.5), 0, 1.55, 0.02), st.saddle));
     P.push(paint(at(saddleBow(0.24, 0.39, 0.12, 0.14).clone(), 0, 1.56, 0.25, -0.2), st.saddle));
@@ -6070,6 +6073,28 @@ export function buildHorse(st = ENEMY_HORSE) {
       P.push(paint(at(new THREE.CylinderGeometry(0.31, 0.3, 1.0, 12, 1, true, Math.PI * 0.35, Math.PI * 1.3), 0, 1.22, 0, Math.PI / 2, 0, 0), st.armor, true));
       P.push(paint(at(new THREE.CylinderGeometry(0.315, 0.305, 0.04, 12, 1, true, Math.PI * 0.35, Math.PI * 1.3), 0, 1.22, 0.5, Math.PI / 2), 0xb8231a));
     }
+}
+export function buildHorse(st = ENEMY_HORSE) {
+  const key = [st.coat, st.mane, st.tack, st.saddle, st.aori, st.tassels, st.armor].join('|');
+  // root（置き場所）→ pose（竿立ち・倒れる）→ shape（和種の大きさへ縮める）→ 胴・首・脚・尾。近くでは root に骨の入った馬（humans.js）が付く
+  const root = new THREE.Group();
+  const pose = new THREE.Group(), shape = new THREE.Group();
+  shape.scale.setScalar(HORSE_K);
+  pose.add(shape); root.add(pose);
+  root.userData.style = st;
+  const c = st.coat, dark = 0x14100c;
+  // 胴・鞍・障泥・胸繋・尻繋・厚総・馬鎧
+  const body = mergedMesh('hb' + key, (P) => {
+    // 胴：胸は深く、腹は締まり、尻は丸い（回転体で作り、横に少しつぶす）
+    const prof = [[0.02, -0.92], [0.2, -0.86], [0.3, -0.7], [0.33, -0.45], [0.3, -0.15], [0.28, 0.1], [0.3, 0.38], [0.32, 0.6], [0.26, 0.8], [0.1, 0.9], [0.02, 0.92]].map(([r, y]) => new THREE.Vector2(r, y));
+    const barrel = new THREE.LatheGeometry(prof, 14);
+    barrel.rotateX(Math.PI / 2); barrel.scale(0.86, 1, 1);
+    P.push(coatShade(paint(at(barrel, 0, 1.26, 0), c, false, MK.wood)));
+    // 胸前と尻の張り
+    const chest = new THREE.SphereGeometry(0.26, 12, 8); chest.scale(0.95, 1.1, 0.8);
+    P.push(coatShade(paint(at(chest, 0, 1.2, 0.7), c, false, MK.wood)));
+    for (const sx of [0.14, -0.14]) { const hq = new THREE.SphereGeometry(0.2, 10, 8); hq.scale(0.9, 1.1, 1.1); P.push(coatShade(paint(at(hq, sx, 1.33, -0.62), c, false, MK.wood))); }
+    horseFarTackParts(P, st);
   }, (Q) => horseBodyHi(Q, st));
   shape.add(body);
   // 首と頭

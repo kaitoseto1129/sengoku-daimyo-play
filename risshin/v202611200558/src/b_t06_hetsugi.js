@@ -1122,6 +1122,13 @@ const t06_hetsugi = {
         // 同（直した後の act bot 356〜536秒）：供を討たれて手傷で控えた将（十河）が一人で河原に三分立った。一人になった将は元親の旗本の脇へ退いて控える（信親は筋書きの最期があるので除く）
         if (F.step >= 3 && g.count <= 1 && g !== F.nobu && g !== F.moto && live(F.moto) && F.moto.anchor) p = { x: F.moto.anchor.x - dx + 5, z: F.moto.anchor.z - dz + 3 };
         // 11/18 クラウド持ち主（K352⑥「突っ立つ将」）：③の包囲では十河・統常の旗本が二十 m 先の島津を前に五十秒立った（act bot 456〜506秒）。包まれてからは二十六 m まで打ち掛かる
+        // 11/20 クラウドさ（kaito_now 3「主人公が一人にならない」・描かずの数え（携帯）：③の救援で本人が信親へ向かう間、十河・統常・元親の旗本は
+        //   自分の塊の持ち場に五十 m 残り、三百八十秒で本人の三十 m 内の味方が六人）：四十 m より離れた将の組は、持ち場を本人の方へ六割寄せる（関ヶ原と同じ型）。
+        //   元親（退かせる的）・信親（筋書きの持ち場）・仙石（逃げる）と、二人を切った組は除く
+        if (F.step === 3 && F.s3?.st >= 1 && g !== F.moto && g !== F.nobu && g !== F.sen && g.count >= 3 && P.alive) {
+          const qx = p.x + dx - P.pos.x, qz = p.z + dz - P.pos.z;
+          if (Math.hypot(qx, qz) > 40) p = { x: p.x - qx * 0.6, z: p.z - qz * 0.6 };
+        }
         keep(g, { x: p.x + dx, z: p.z + dz }, F.step >= 3 ? 20 : 14, F.step >= 3 ? 26 : 16);
       }
       for (const [g, b, dx, dz] of F.followFoe) {
