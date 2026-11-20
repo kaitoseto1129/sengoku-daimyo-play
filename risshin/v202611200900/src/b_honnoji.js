@@ -1006,6 +1006,10 @@ function honnoPressure(rt) {
         Math.abs(u.pos.y - p.y) < 3 && Math.hypot(u.pos.x - p.x, u.pos.z - p.z) <= 16) nearby++;
   }
   if (alive + 4 > 240 || nearby + 4 > (goten ? 10 : 14)) return;
+  // 11/20 K439（kaito「敵が際限なく来て終わらない。信長の最期まで締まった流れに」）：静けさの度に四人ずつ足す追手は、段ごとに組の数を限る
+  //   （御殿・縁は三組＝十二人、本堂は六組）。台本の各口の波は残し、討ち払えば静かになって次の段（上様の最期）へ進む。クラウドさ
+  const fk = F.hp + '/' + (F.k15stage || ''), fc = F.followCnt || (F.followCnt = {});
+  if ((fc[fk] || 0) >= (goten || enQuick ? 3 : 6)) return;
   const routes = F.hp <= 5 ? [HONDO_PRESSURE_PATH] : F.hp === 6
     ? (F.mv ? [MOVES[F.mv].pts] : []) : Object.values(GOTEN_IN);
   for (const route of routes) for (let i = 1; i < route.length; i++) {
@@ -1016,7 +1020,7 @@ function honnoPressure(rt) {
       if (d < 6 || d > 10 || !inTera(x, z) || !patrolClear(rt, x - 0.4, z) || !patrolClear(rt, x + 0.4, z) ||
           !patrolClear(rt, x - 0.4, z - 1.4) || !patrolClear(rt, x + 0.4, z - 1.4)) continue;
       const g = akechi(rt, '寺内へ続く明智の追手', [[x, z], [p.x, p.z]], goten ? [uS(1), uA(3)] : [uA(4)], { entered: true, player: true, dmg: goten ? 1.2 : enQuick ? 0.6 : 1 });
-      if (g) F.honnoQuiet = 0;
+      if (g) { F.honnoQuiet = 0; fc[fk] = (fc[fk] || 0) + 1; }
       return;
     }
   }
@@ -1377,6 +1381,40 @@ const NB_GATE_PATH = [[-67, 89], [-62, 89], [-62, 82.2], [-52, 82.2], [-52, 80],
 // 目の前に敵がいる時、布が無い時、傷が浅い時は縛らない。一撃の重さはそのまま。
 // 段の切れ目：馬廻・小姓衆が自分の前の寄せ手へ斬り込み、数歩押し返す（兵は減らさない）。
 // 押された兵は一瞬よろめき、狙いを外す。その間に上様と次の場へ移り、布を巻く。
+// 11/20 クラウドし（K430・kaito「味方が20人ほどになったら、小姓たちはその場で戦って時を稼ぎ、主人公と2〜3人が上様を奥へ連れて行く」）：
+//   寺の供（小姓・馬廻・持ち場）が二十人まで減ったら一度だけ、蘭丸と力丸の二人を上様に残し、ほかの小姓はその場に踏みとどまる組に分ける。
+//   馬廻もその場で構え、後の段で上様の後ろへ付け直さない（F.k430Stay）。残る組は F.posts に入れ、供の数え・守りの重さは今までどおり。
+function honnoK430(rt, NB) {
+  const F = rt.flags;
+  if (F.k430 || F.ending || rt.over || rt.G.lord || !NB?.alive || F.hp < 3 || F.hp > 6 || gone(F.kosho)) return;
+  if ((F.k430Ck = (F.k430Ck || 0) - 1) > 0) return;
+  F.k430Ck = 20;
+  let ally = 0;
+  for (const g of [F.kosho, F.uma, ...(F.posts || [])]) if (g) for (const u of g.units) if (u.alive) ally++;
+  if (ally > 20) return;
+  F.k430 = true;
+  const keep = new Set(['森蘭丸', '森力丸']);
+  const stay = F.kosho.units.filter((u) => u.alive && !keep.has(u.name));
+  if (stay.length) {
+    const c = { x: 0, z: 0 };
+    for (const u of stay) { c.x += u.pos.x / stay.length; c.z += u.pos.z / stay.length; }
+    const g = rt.army.addGroup({ team: 0, faction: F.kosho.faction, name: '踏みとどまる小姓衆', order: 'hold', anchor: c, facing: F.kosho.facing || 0, formation: 'line', width: 3, aggro: 12, noRout: true });
+    g.historicalOrders = true; g.hideFlags = true; g.defMult = 1; g.dmgMult = F.kosho.dmgMult;
+    for (const u of stay) {
+      F.kosho.units.splice(F.kosho.units.indexOf(u), 1);
+      u.group = g; u.slot = g.units.length; g.units.push(u); u.moveTo = null; u.aiT = 0;
+    }
+    for (let i = 0; i < F.kosho.units.length; i++) F.kosho.units[i].slot = i;
+    g.leader = g.units[0]; g.initial = g.units.length;
+    F.kosho.initial = F.kosho.units.length;
+    (F.posts ||= []).push(g);
+    F.k430G = g;
+  }
+  if (!gone(F.uma)) { F.uma.order = 'hold'; F.uma.anchor = { ...(F.uma.center?.() || F.uma.anchor) }; F.uma.aggro = 12; F.k430Stay = true; }
+  const who = stay.find((u) => u.name)?.name || '小姓';
+  honnoSay(rt, who, `ここはわれらが食い止める！　${nm(rt)}、上様を奥へお連れせよ！`, 3.4);
+  rt.after(3.6, () => { if (!F.ending && !rt.over) honnoSay(rt, '森蘭丸', '……かたじけない。上様、こちらへ！', 2.8); });
+}
 function pushBack(rt, r, who, text) {
   const u = rt.player.u;
   let n = 0;
@@ -1518,6 +1556,17 @@ function honnoSay(rt, speaker, text, duration = 4) {
   if (from) rt.say(speaker, text, duration);
 }
 const nbSay = (rt, s, t = 3) => honnoSay(rt, '織田信長', s, t);
+// 11/20 K419：上様の横に着いたら、三つの台詞が順に自動で進む（上様は声の方へ向き直る）
+function honnoK419(rt) {
+  const F = rt.flags;
+  if (F.k419T) return;
+  F.k419T = rt.t;
+  const nb = F.nb, at = (s, f) => rt.after(s, () => { if (F.hp === 1 && !F.ending && !rt.over) f(); });
+  if (nb?.alive) { const q = rt.player.u.pos; nb.heading = nb.facing = Math.atan2(q.x - nb.pos.x, q.z - nb.pos.z); }
+  at(0.2, () => nbSay(rt, '何事か。……如何なる者の企てぞ', 2.4));
+  at(2.8, () => honnoSay(rt, '森蘭丸', '明智日向守の謀反にございます！', 2.6));
+  at(5.6, () => nbSay(rt, '是非に及ばず', 2.5));
+}
 // 得物と実際の射撃・間合いを一緒に替える。形は設営時に二つだけ用意する。
 function nbWeapon(rt, kind) {
   const u = rt.flags.nb, w = rt.flags.nbWeapons[kind];
@@ -2091,7 +2140,9 @@ function honnoSurround(rt, dt) {
   // 11/17 kaito（K352）「味方は甲冑を着ていない・敵は甲冑で守りが強い、その差が分からない・敵が七百減るのに味方は十人」：供の守りを減り具合で二十五倍まで上げていたのをやめ、
   //   寝間着・小袖の供は甲冑の明智勢より脆く（傷を一・二五倍）、打つ力も具足に阻まれて六割に（due は下の使いのため残す）
   void due;
-  for (const g of [F.kosho, F.uma, ...(F.posts || [])]) if (g) { g.defMult = 1; g.dmgMult = Math.min(g.dmgMult ?? 1, 0.75); }   // 守り0.8・打つ力0.6では供が先に尽き、本人が一人で囲まれて act bot が四回続けて討たれた
+  // 11/20 クラウドし（K429）：数の札が本物の数になったので、本物の味方が時計の目当て（初めの数×時計の割合）より三人より少なければ、供の傷を半分に（縁の段で六十三→十三と、時計の四十二より早く尽き、表門に七人だけ残った）
+  const liveA = honnoAllyLive(rt), thinA = liveA < Math.round((F.kinjuShown ?? 100) * (F.allyLive0 || 100) / 100) - 3;
+  for (const g of [F.kosho, F.uma, ...(F.posts || [])]) if (g) { g.defMult = thinA ? 2 : 1; g.dmgMult = Math.min(g.dmgMult ?? 1, 0.75); }   // 守り0.8・打つ力0.6では供が先に尽き、本人が一人で囲まれて act bot が四回続けて討たれた
   // 囲みの寄せ手が増えた分、上様が一太刀で崩れないように（上様を狙う台本の寄せ手は、これまでどおり手傷を負わせる）
   if (F.nbG && F.nb?.alive) F.nbG.defMult = F.nb.hp < F.nb.maxHp * 0.5 ? 10 : 4;
   // 鉄砲・矢は defMult を通らない。囲みの最中は上様の傷の進みを七分ほどに均す（離れて任せきりにすれば、それでも深手になる）
@@ -2143,6 +2194,9 @@ function honnoSurround(rt, dt) {
   // 火の回る回廊（kairo）も、中庭と渡り廊下の口へ来る台本の二波が相手。補充が重なると背から八十余の傷を受け、
   //   退いて巻く間も追われて倒れた（11/16 クラウドし act bot 1736：kyoto の段 394秒）。11/16 クラウドす。
   // 11/18 K358（司令塔：倒れる段の敵を減らす）：⑤本堂の内でも密度の補充を重ねない（act bot が⑤で毎回倒れた。台本の『本堂へ踏み込む侍』と流し込みが相手）
+  // 11/20 K439 クラウドさ：最後の御殿（7）も台本の五波と限りある追手だけが相手（囲みの補充が尽きず『際限なく来る』になっていた）。
+  //   表門（3）の補充は十二組まで（尽きれば門の外の人垣と台本の突撃だけ）
+  if (F.hp === 7 || (F.hp === 3 && (F.surK3 || 0) >= 12)) return;
   if (F.hp === 4 || F.hp === 5 || F.hp === 6 || F.k15stage === 'saigo' || F.k15stage === 'kairo' || n + 4 > want || all + 4 > want + 5 || alive + 4 > 236 || rt.t < (F.surSpawnAt || 0)) return;
   // 空いた方角を先に。同じ数なら背、左右、前の順
   const order = [2, 1, 3, 0].sort((a, b) => quad[a] - quad[b]);
@@ -2177,6 +2231,7 @@ function honnoSurround(rt, dt) {
           { entered: true, player: toMe, foe: toMe ? null : foe, role, far: 1e9, aggro: 12, seek: 26, dmg: 1.2 });
         if (!g) return;
         g.surround = true; g.honnoHp = F.hp;
+        if (F.hp === 3) F.surK3 = (F.surK3 || 0) + 1;
         rt.world.gunSmoke(x, z, 0x4a4642);
         if (qd !== 0 && rt.t - (F.surCallT ?? -99) > 8) {
           F.surCallT = rt.t;
@@ -3489,6 +3544,9 @@ const honnoji = {
   // 11/13 MB係四：新手は寺を囲む明智の二線として通りの奥に立てて見せるだけで出さない（K116「寺を取り囲んでいない」）。
   //   出すと門の段で本人が門を離れて斬り合い 47→831 秒終わらず、京の段では受けた傷の半分が新手で 452 秒で倒れた（act bot）。寺の内の寄せは筋書きの波が受け持つ
   reserveRelease: () => false,
+  // 11/20 クラウドさ（K439「終わらない」）：二条御所（段3）より後は共通の新手（待つ備・前を埋める備）を作らない。描かずの通しで二条の二百秒に新手が百十二人湧き、
+  //   本人が門の外 (28,-30) の新手へ引かれて西の門の内の守りの秒が二十で止まり、段が終わらなかった。二条の寄せは台本の五波と御所を囲む大軍の絵が受け持つ
+  reserveFold: (rt) => (rt.flags.step || 0) >= 3,
   // 11/15 クラウドせ：味方の新手（depth_reserve）は出さない。本能寺・二条に織田の援けは来ない（供百・二条五百・信長公記）。
   //   出すと御殿の段で表門の外の通り (-27,60) に味方の新手が立ち、行き先 (-19,60) の明智へ築地に阻まれ二十秒動かなかった（act bot 456秒）
   reserveNoAlly: () => true,
@@ -4175,7 +4233,7 @@ const honnoji = {
     if (F.step >= 3) return '御所の西の門へ';
     if ((F.hp === 2 || F.hp === 3) && gateFight(rt)) return '表門の口で明智勢を討て';
     // 戸口の枠と旗に添える札は、遠い門の行き先より先に示す。
-    if (F.hp === 1) return F.waitReached ? '本堂の東の縁で待て' : '本堂の東の縁へ進め';
+    if (F.hp === 1) return F.waitReached ? '上様のおそばで下知を聞け' : '上様のおそばに控えよ';
     if (F.hp === 4 || F.hp === 5) {
       if (F.hp === 4 && Math.hypot(rt.player.u.pos.x - HONDO_IN.x, rt.player.u.pos.z - HONDO_IN.z) < 6)
         return '本堂の東の縁で上様を待て';
@@ -4227,7 +4285,7 @@ const honnoji = {
     if (F.hp === 6) return F.escortShown ? '御殿へ退く上様の所へ戻る' : '上様と御殿へ退く';
     if (F.hp === 7) return '奥の信長へ';
     if (F.hp === 8) return this.escapeGuideLabel(rt);
-    return F.hp === 1 ? '本堂の東の縁へ進む' : '本能寺の境内を上様のもとへ';
+    return F.hp === 1 ? '上様のおそばへ進む' : '本能寺の境内を上様のもとへ';
   },
   doorGuideLabel(rt) {
     const hp = rt.flags.hp;
@@ -4238,13 +4296,13 @@ const honnoji = {
     return '裏門へ退く戸を通る';
   },
   waitOrderLabel(rt, reached) {
-    if (!rt.G.lord && rt.flags.hp === 1) return reached ? '本堂の東の縁で待て' : '本堂の東の縁へ進め';
+    if (!rt.G.lord && rt.flags.hp === 1) return reached ? '上様のおそばで下知を聞け' : '上様のおそばに控えよ';
   },
   escapeGuideLabel(rt, point = rt.missionGuide?.pos) {
     if (!rt.G.lord && rt.flags.step === 5) return '京の外れへ 逃げよ';
     if (!rt.G.lord && rt.flags.step >= 6) return '使者の家へ';
     if (!rt.G.lord && rt.flags.hp === 8) return '裏門から 外へ退け';
-    const place = rt.flags.step >= 3 ? '二条御所の西の門' : rt.flags.hp === 1 ? '本堂の東の縁' : rt.flags.hp <= 3 ? '表門の内' : rt.flags.hp <= 5 ? '本堂の口' : '御殿の控えの間';
+    const place = rt.flags.step >= 3 ? '二条御所の西の門' : rt.flags.hp === 1 ? '上様のおそば' : rt.flags.hp <= 3 ? '表門の内' : rt.flags.hp <= 5 ? '本堂の口' : '御殿の控えの間';
     if (!point) return `${place}へ退け`;
     const target = point;
     const p = rt.player.u.pos, yaw = templeViewYaw(rt);
@@ -4443,7 +4501,7 @@ const honnoji = {
       if (Math.hypot(rt.player.u.pos.x - GATES.main.x, rt.player.u.pos.z - GATES.main.z) > 6) return this.travelGuideLabel(rt, true);
       return '門を閉める';
     }
-    return ({ 1: F.waitReached ? '本堂の東の縁で待て' : '本堂の東の縁へ進め', 3: '上様を守れ', 4: this.travelGuideLabel(rt, true), 5: !F.hondoDirect || F.hondoDistance >= 6 ? this.travelGuideLabel(rt, true) : '上様を守れ',
+    return ({ 1: F.waitReached ? '上様のおそばで下知を聞け' : '上様のおそばに控えよ', 3: '上様を守れ', 4: this.travelGuideLabel(rt, true), 5: !F.hondoDirect || F.hondoDistance >= 6 ? this.travelGuideLabel(rt, true) : '上様を守れ',
       6: this.travelGuideLabel(rt, true), 7: '上様を守れ', 8: this.escapeGuideLabel(rt) })[F.hp] || text;
   },
   taskTimeLabel: () => '', // 稲生の水準：残り秒の字は出さない（失敗までの猶予は変えない）。
@@ -5136,16 +5194,19 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
       sfx('kane', 0.28); rt.army.play('eshout', { x, z }, 0.8);
       if (i === 0) rt.bark('遠くの町で鐘が鳴り、人の叫びが広がる');
     }));
-    rt.obj('main', '本堂の東の縁へ進め', 'main', true);
-    F.waitReached = false;
+    rt.obj('main', '上様のおそばに控えよ', 'main', true);
+    F.waitReached = false; F.k419T = 0;
     // 待つ輪は表庭の始まりから表門の方へ三歩（屋根の外）。御殿の廊下に置くと、始まってすぐ廊下へ戻って
     // 視点が柱と梁の黒い額縁に囲まれていた（10/28 点付け）。表門と桔梗の旗を正面に見て待つ。
     const WAIT = { x: PATROL_START.x + 2.6, z: PATROL_START.z - 0.6 };
+    // 11/20 K419（kaito「上様のおそばに控えよで上様の所へ行くと、何事か→明智の謀反にございます→是非に及ばずと自動で進む」）：
+    //   待つ輪は上様の横（居室の上様から一歩半）に置き、着いたら（来なければ鬨から十八秒で）三つの台詞を順に流す。前は表門の近くの輪で待たせ、上様の台詞は時刻で遠くに流れていた。
+    if (F.nb?.alive && !rt.G.lord) { const q = rt.player.u.pos, d = Math.hypot(q.x - F.nb.pos.x, q.z - F.nb.pos.z) || 1; WAIT.x = F.nb.pos.x + (q.x - F.nb.pos.x) / d * 1.5; WAIT.z = F.nb.pos.z + (q.z - F.nb.pos.z) / d * 1.5; }
     const wait = F.waitPlace = { x: WAIT.x, z: WAIT.z, y: groundAt(rt.world, WAIT.x, WAIT.z, rt.player.u.pos.y) };
     const ring = F.waitRing = rt.ring(wait.x, wait.z, 1.1, 0xfff3ba, .65, 48, false);
     ring.position.y = wait.y + .09;
     ring.material.depthTest = true; // 床に沿わせ、人の体の向こうには描かない。
-    rt.marker('next', wait, () => F.waitReached ? '本堂の東の縁で待て' : '本堂の東の縁へ進め', { guideArea: 'wait', h: .1, guideRadius: 1.1, waitArrived: () => F.waitReached, waitGuide: () => F.waitReached ? `待っている・あと${Math.max(1, Math.ceil(14 - (rt.t - F.pT)))}秒` : '' });
+    rt.marker('next', wait, () => F.waitReached ? '上様のおそばで下知を聞け' : '上様のおそばに控えよ', { guideArea: 'wait', h: .1, guideRadius: 1.1, waitArrived: () => F.waitReached, waitGuide: () => F.waitReached ? `待っている・あと${Math.max(1, Math.ceil(14 - (rt.t - F.pT)))}秒` : '' });
     const at = (s, f) => rt.after(s, () => { if (F.hp === 1 && !F.ending && !rt.over) f(); });
     honnoMorningWomen(rt);
     // 供は百ほど。寺の外には一万三千の明智勢。まだ誰も知らない
@@ -5168,10 +5229,7 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
       rt.obj('main', '表から鉄砲じゃ。上様の下知を聞け', 'main', true);
       rt.objProgress('main', '供のそばで構えよ。下知が出たら表門へ走れ');
     });
-    at(6.6, () => nbSay(rt, '是は謀叛か。如何なる者の企てぞ', 2.4));
-    at(8.5, () => honnoSay(rt, '森蘭丸', '明智が者と見え申し候！', 2.6));
-    at(11.3, () => nbSay(rt, '是非に及ばず', 2.5));
-    at(14, () => this.p2(rt));
+    // K419：上様との三つの台詞は、上様の横に着いてから流す（下の毎コマの所・honnoK419）
 
     F.patrolGuide = { x: PT.gateIn.x, z: PT.gateIn.z };
     F.patrolProbe = { x: 0, y: 0, z: 0 };
@@ -5497,7 +5555,7 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
     rt.bark('三分以内に、お堂で上様と合流しよう', true);
     const approach = F.nbSt === 'D' && F.nb.pos.z > 60 ? F.nbG.path.slice(F.nbG.pathIdx) : [];
     nbSet(rt, 'D', { pts: [...approach, [-42, 47], [-45.5, 46], [-48.5, 46], [HONDO_IN.x, HONDO_IN.z]], then: 'E' });
-    F.uma.order = 'hold'; F.uma.anchor = { x: HONDO_FRONT.x + 0.5, z: HONDO_FRONT.z }; F.uma.aggro = 7;
+    if (!F.k430Stay) { F.uma.order = 'hold'; F.uma.anchor = { x: HONDO_FRONT.x + 0.5, z: HONDO_FRONT.z }; F.uma.aggro = 7; }   // K430：踏みとどまった馬廻は付け直さない
     rt.zone('hz', HONDO_FRONT.x - 2, HONDO_FRONT.z, 6);
     const at = (s, f) => rt.after(s, () => { if (F.hp === 4 && !F.ending) f(); });
     // 11/18 クラウドし（K338②・『戦国一統』4巻 VOL.29「表庭は殺し間」）：門が破れて本堂へ退く時、表庭の左右の築地の際から明智の鉄砲が十字に撃つ。
@@ -5562,7 +5620,7 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
     bindWindow(rt, 5, 1, 6, '堂の僧');
     nbWeapon(rt, 'spear');
     nbSet(rt, 'E', { at: { x: -50.5, z: 46 } });
-    F.uma.anchor = { x: -48.5, z: 46 };
+    if (!F.k430Stay) F.uma.anchor = { x: -48.5, z: 46 };
     fireStage(rt, 3);
     const at = (s, f) => rt.after(s, () => { if (F.hp === 5 && !F.ending) f(); });
     // 北の塀がまだ崩れていなければ、先に塀を打ち崩してから入る（11/11 クラウドか：塀の外 (-65,-15) で六人が重なって止まった）
@@ -5744,7 +5802,7 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
       g.onArrive = gone2; rt.after(70, () => gone2(g));   // 道で詰まっても七十秒で消す
     });
     rt.zone('gt', PT.hikae.x + 3, PT.hikae.z, 7);
-    F.uma.order = 'hold'; F.uma.anchor = { x: -55, z: 86 };
+    if (!F.k430Stay) { F.uma.order = 'hold'; F.uma.anchor = { x: -55, z: 86 }; }
     const at = (s, f) => rt.after(s, () => { if (F.hp === 7 && !F.ending && !F.k15on) f(); });
     // 廊下の北の口（障子の向こう）から、目の前へ明智の兵が踏み込んで斬りかかる
     // 御殿へ入った直後は、小姓衆が襖を立てる数秒だけ息を整えられる（布を巻くならこの間）。
@@ -5934,6 +5992,11 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
     //   表門が破れた後は寺の中へ流し込むので（pourIn）、二条へ移る時に一緒に片付ける（二条を攻める明智勢は二条の段の組だけ）
     for (const g of rt.army.groups || []) if (g && g.team === 1 && /^(明智光忠|藤田伝五|溝尾茂朝)$/.test(g.name || '')) for (const u of g.units) if (u.alive) rt.army.despawn(u);
     if (F._dr) { F._dr.E.length = 0; F._dr.A.length = 0; if (F._dr.F) F._dr.F.length = 0; }
+    // 11/20 クラウドさ（K439「終わらない」）：寺の四方の通りに立てた明智の本物の備（布陣の表 F._fj・depth_real の F._dReal。パソコンは二千人ほど）が
+    //   二条へ移っても残り、門の波の「全部の兵が二百四十人より少ない時だけ寄せる」が一度も満ちず、寄せ手が来ないまま守りの秒が数えられず段が終わらなかった。
+    //   寺から十町離れた通りの備は二条の場面で片付ける（立て直しの待ちも空に）。二条を攻める明智勢は二条の段の組と御所を囲む大軍の絵だけ（depthReal も二条では止める）
+    for (const g of [...(F._fj || []), ...(F._dReal ? F._dReal.m.values() : [])]) if (g && g.units) for (const u of g.units) if (u.alive) rt.army.despawn(u);
+    F._fjPend = [];
     teleport(rt, NIJO_GATE.x + 5, NIJO_GATE.z + 2);
     rt.after(1.2, () => { rt.scene.visible = true; });
     rt.banner('二条御所の西の門を守れ', '信忠様は妙覚寺から二条御所へ移り、明智を迎え撃つ');   // 時が飛ぶので、真ん中に次の目標を出す（kaito AT7）
@@ -6378,7 +6441,7 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
       for (const p of F.okuDoors) {
         if (!p.alive || p.open === 0) continue;
         F.okuClosing = true;
-        p.want = 0;
+        p.want = 0; p.keepShut = true;
         if (p.saved) Object.assign(p.solid, p.saved);
         F.T.sliding.add(p);
       }
@@ -6729,6 +6792,7 @@ function honnoTick(def, rt, dt) {
       ? '敵の方を向こう'
       : '敵を向いて構えよう', true);
   }
+  honnoK430(rt, NB);
   // 小姓衆は信長の後ろに付く（終局では居室の口に残る）
   if (!gone(F.kosho) && !F.koshoStay && NB.alive && F.hp >= 2) {
     F.kosho.order = 'hold';
@@ -7064,8 +7128,10 @@ function honnoTick(def, rt, dt) {
       }
       F.waitRing.material.opacity = F.waitReached ? SETTINGS.reduceMotion ? .9 : .8 + Math.sin(rt.t * 3) * .12 : .65;
     }
-    rt.objProgress('main', t < 5.4 ? '明け方。上様は奥の居室でお休みじゃ' : '供のそばで構えよ。下知が出たら表門へ走れ');
-    if (t >= 14) def.p2(rt); // 門へ先に走っても、謀反の知らせと下知は最後まで聞かせる。
+    rt.objProgress('main', t < 5.4 ? '明け方。上様は奥の居室でお休みじゃ' : F.k419T ? '上様の下知を聞け' : '上様のおそばへ。下知を聞け');
+    // K419：鬨の後、上様の横に着くか（来なければ十八秒で）、上様「何事か」→蘭丸「明智の謀反」→上様「是非に及ばず」と自動で進む
+    if (!F.k419T && t >= 5.8 && (F.waitReached || F.nb?.alive && Math.hypot(p.x - F.nb.pos.x, p.z - F.nb.pos.z) <= 3.5 || t >= 24)) honnoK419(rt);
+    if (F.k419T ? rt.t - F.k419T >= 8.4 : t >= 40) def.p2(rt); // 謀反の知らせと下知は最後まで聞かせてから表門の段へ。
   } else if (F.hp === 2) {
     if (F.patrolScan === 0.5 && !F.gMain) {
       const blocker = gateBlocker(rt);
@@ -7803,7 +7869,8 @@ function honnoClock(rt) {
 function honnoToll(rt) {
   const F = rt.flags, p = rt.player.u.pos;
   if (rt.t < (F.tollAt || 0)) return;
-  const shown = F.kinjuShown ?? 100;
+  // 11/20 クラウドし（K429）：数の札は本物の兵の数（honnoji.force）。時計（百人の割合）を初めの本物の数に掛けた所まで、本物の味方を減らす
+  const shown = Math.round((F.kinjuShown ?? 100) * (F.allyLive0 || 100) / 100);
   let alive = 0, best = null, bestScore = -Infinity, bestFoe = null;
   for (const u of rt.army.units) {
     if (!u.alive || u.team !== 0 || u.isPlayer || u.isStruct || u.civ || u.noTarget || u.gone || u.dying) continue;
@@ -7813,14 +7880,32 @@ function honnoToll(rt) {
     const t = u.target?.alive && u.target.team !== 0 && Math.hypot(u.target.pos.x - u.pos.x, u.target.pos.z - u.pos.z) < 3.5 ? u.target : null;
     if (!t && d < 16) continue;
     const tier = u.group === F.kosho ? (u.name ? 0 : 1) : 2;
-    const score = tier * 100 + (t ? 30 : 0) + Math.min(d, 40);
+    const score = tier * 100 + (t ? 50 : 0) + Math.min(d, 40);   // 11/20 クラウドし（K429）：斬り合う者を先に。奥の持ち場（御殿・勝手口）で上様を待つ供を遠いからと先に倒さない
     if (score > bestScore) { bestScore = score; best = u; bestFoe = t; }
   }
-  if (!best || alive <= Math.max(6, shown + 5)) return;
-  F.tollAt = rt.t + Math.max(0.7, 2 - (alive - shown - 5) * 0.1);
+  if (!best || alive <= Math.max(6, shown)) return;
+  F.tollAt = rt.t + Math.max(0.7, 2 - (alive - shown) * 0.1);
   rt.army.kill(best, bestFoe);
 }
-honnoji.force = (rt) => { const F = rt.flags, n = !rt.G.lord && F.step >= 3; return { a: Math.max(0, n ? 500 - (F.lostA3 || 0) : Math.min(honnoClock(rt), 100 - (F.lostA || 0))), a0: n ? 500 : 100, b: Math.max(0, 13000 - (F.lostB || 0)), b0: 13000 }; };
+// 11/20 クラウドし（K429 kaito「味方の数（40何人）と見える兵が合わない。数も減らない。数字＝本物の兵にし、各所で上様を守らせる」）：
+//   寺の中の味方の数は、百人からの時計（honnoClock）を出していたので、本物の味方が六十余りの時に八十・九十六と出ていた。
+//   味方の数は、いま寺に立つ本物の味方（本人を除く）を数えて出す。満ちは戦の間に見た一番多い数。時計は honnoToll が本物を減らす目当てにだけ使う。
+function honnoAllyLive(rt) {
+  let n = 0;
+  for (const u of rt.army.units) {
+    if (!u.alive || u.team !== 0 || u.isPlayer || u.isStruct || u.civ || u.group?.civ || u.gone || u.dying || (u.noTarget && !u.name) || u.type === 'dummy' || u.type === 'porter') continue;
+    n++;
+  }
+  return n;
+}
+honnoji.force = (rt) => {
+  const F = rt.flags, n = !rt.G.lord && F.step >= 3;
+  if (n) return { a: Math.max(0, 500 - (F.lostA3 || 0)), a0: 500, b: Math.max(0, 13000 - (F.lostB || 0)), b0: 13000 };
+  honnoClock(rt);
+  const a = honnoAllyLive(rt);
+  F.allyLive0 = Math.max(F.allyLive0 || 0, a);
+  return { a, a0: F.allyLive0 || a, b: Math.max(0, 13000 - (F.lostB || 0)), b0: 13000, casualtiesCounted: true };
+};
 honnoji.sides = { a: { name: '織田軍', mon: 'oda' }, b: { name: '明智軍', mon: 'akechi' } };
 // 史実でこの戦にいた名のある武将（battle.js の placeFamous が、その家の隊に加える。敵は名乗り、討てば手柄）
 honnoji.famous = [];
@@ -8448,3 +8533,5 @@ honnoji.depthRealTouch = { rate: 0.008, max: 24 };
 honnoji.depthRealNoGuard = true;
 honnoji.siegeNoDrops = true;   // K432（kaito 11/20「兵もいないのに門から岩のような物が流れてくる」）：城攻め共通（siege_feel.js drop）の門の石と矢は、櫓も塀の上の守りも無い寺の表門から湧いて見えた
 honnoji.volleyHoldSafe = true;   // 四方の通りで待つ明智の備を塀の上から撃たない（siege_feel.js volley・kaito_now 2）
+// 11/20 クラウドさ（K439）：二条御所（段3）より後は、寺を囲む備を本物にしない（toNijo で片付けた通りの備を二条の場面に立て直さない）
+honnoji.depthReal = (rt) => !(rt.flags.step >= 3);
