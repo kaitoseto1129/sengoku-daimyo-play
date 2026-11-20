@@ -52,6 +52,7 @@ function put(rt, u, x, z, face) {
   u.pos.set(x, groundAt(rt.world, x, z, u.pos.y), z); u.mesh?.position.copy(u.pos);
   u.moveTo = null; u.target = null;
   if (face != null) { u.heading = face; u.facing = face; }
+  rt.cutT = rt.t;   // 11/20 クラウドせ：前夜の座の置き直しは暗転の中・章の頭だけ（act bot 28秒 信長 (-53,93)↔(-58,72) ★★24回を飛びに数えない）
 }
 
 // 本人と供を一緒に移す（本人のそばの組は置いて行かない）

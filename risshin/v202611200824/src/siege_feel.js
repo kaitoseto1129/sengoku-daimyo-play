@@ -233,6 +233,9 @@ function volley(rt, state, dt) {
     const p = state.falls.find((q) => !q.active);
     if (!p) return;
     const near = best < 100, gun = !near && (guard.type === 'gun' || Math.random() < 0.3);
+    // K432 の残り（11/20 クラウドわ）：drop を止めた後も、この塀と門の撃ち合いが十m 内の寄せ手へ石を投げ、寺の門から岩が流れて見えた（直した後の写真で t218 に石二つ）。
+    //   def.siegeNoDrops の戦（塀の上に守りの無い寺など）は石を投げず、遠い相手への矢と鉄砲だけ
+    if (near && rt.def.siegeNoDrops) continue;
     p.active = true; p.t = 0; p.source = guard; p.arrow = !near;
     p.x = wx; p.z = wz; p.y = Math.max(guard.pos.y + 1.6, rt.world.heightAt(wx, wz) + 3.5);
     p.tx = victim.pos.x; p.tz = victim.pos.z; p.ty = victim.pos.y + 0.4;

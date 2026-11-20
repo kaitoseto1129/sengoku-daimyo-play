@@ -8359,6 +8359,23 @@ const inabayama = {
         }
       }
     }
+    // 11/18 夜50-02：入口曲輪の守りの足軽が東の切岸の上 (38,-85) へ出て、塀ごしの的へも行き先 (7,-80) へも降りられず二十秒止まった（act bot 440・444秒・二回）。
+    //   段3から先、東（x 28 より東・z -70 より奥）へ出た曲輪の守りは的を捨てて入口曲輪の内へ。見えない所なら置き直し、見えている者は歩かせる
+    if ((F.step || 0) >= 3 && !(F.iriEastAt > rt.t)) {
+      F.iriEastAt = rt.t + 1;
+      for (const g of rt.army.groups) {
+        if (g.team === rt.player.u.team || gone(g) || !LOWER_KURUWA.test(g.name || '')) continue;
+        for (const u of g.units) {
+          if (!u.alive || u.gone || u.fleeing || u.dying || u.downed || !(u.pos.x > 28 && u.pos.z < -70)) continue;
+          const x = IRI.x + 6 + (u.slot % 4) * 2.5, z = IRI.z + 3 - Math.floor((u.slot % 8) / 4) * 2.5;
+          u.target = null; u.aiT = 0;
+          if (!sightPoint(rt, u.pos) && !sightPoint(rt, { x, y: rt.world.heightAt(x, z), z })) {
+            u.warpedOnce = true; u.pos.x = x; u.pos.z = z; u.pos.y = rt.world.heightAt(x, z); u.mesh?.position.copy(u.pos);
+            if (u.mv) u.mv.x = u.mv.z = 0; u.moveTo = null;
+          } else u.moveTo = { x, z };
+        }
+      }
+    }
     // 11/18 クラウドせ：入口曲輪・中枢曲輪の段は、段の仕組み（b_depth）が味方の隊の行き先を段の場所の脇 (-4,-88) へ直に替え（attack）、
     //   藤吉郎の手が木戸の外 (15,-59)・西の斜面 (-37,-47) から塀ごしに真っすぐ寄って重なり止まった。行き先が替わったら、
     //   居る所に近い折れから道（TSUKE_ALL）を通って、行き先に近い折れまで列で上げる（着けば attack に戻る）
