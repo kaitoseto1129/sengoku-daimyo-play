@@ -209,6 +209,8 @@ export async function openChrome({ width = 1600, height = 900, port = 9400 + Mat
       });
     }
     await send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: false });
+    // K388・K475：戦の前の話は『出陣する』を押すまで待つ。道具（bot・写真・見張り）は押さずに進める（MANUAL_DEPART=1 で人と同じく待つ）
+    if (process.env.MANUAL_DEPART !== '1') await send('Page.addScriptToEvaluateOnNewDocument', { source: 'window.__autoDepart = 1;' });
     // TOUCH=1：iPad の真似（指の当たり・iPad の UA）。画面の決まりを iPad の大きさで照らす時だけ（11/18 クラウド11・K374）
     if (process.env.TOUCH === '1') {
       await send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
