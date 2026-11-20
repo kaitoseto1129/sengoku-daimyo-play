@@ -8,7 +8,7 @@ import { realFromLight } from './depth_reserve.js';
 import { ST } from './army_depth.js';
 import { noFakeOn } from './world_army_scene.js';
 import { isTouch } from './touch.js';
-import { blockLook } from './fujin_place.js';
+import { blockLook, fujinFor } from './fujin_place.js';
 import { nobori } from './props.js';
 
 export function depthRealTick(rt, enemyGroup, allyGroup) {
@@ -47,7 +47,7 @@ export function depthRealTick(rt, enemyGroup, allyGroup) {
     if (live >= cap - (team === 1 ? 0 : 40)) { capFull = true; return false; }
     try {
       const n = realFromLight(rt, { x, z, w: Math.max(10, Math.min(30, Math.sqrt(men) * 1.2)), count: men, facing, team,
-        look: { flag, armor }, min: isTouch ? 5 : 8 }, enemyGroup, allyGroup, isTouch ? (TT?.rate ?? 0.02) : 0.12, isTouch ? (TT?.max ?? 9) : 36, name, null);
+        look: { flag, armor }, min: isTouch ? 5 : 8, noGuard: !!rt.def.depthRealNoGuard }, enemyGroup, allyGroup, isTouch ? (TT?.rate ?? 0.02) : 0.12, isTouch ? (TT?.max ?? 9) : 36, name, null);
       if (!n) { S.m.set(key, null); return true; }
       n._fjN = name; S.m.set(key, n); live += n.count || 0; made++;
       if (team === 1 && rt.def.depthRealDmgMult != null) n.dmgMult = rt.def.depthRealDmgMult;   // 11/17 K358 iMac n-kiba：戦ごとに本物にした遠くの敵の備の打ち込みを、共通の待つ備（新手 0.45〜0.5）と揃えられる
@@ -81,7 +81,8 @@ export function depthRealTick(rt, enemyGroup, allyGroup) {
   //   自分で本物を出す備（fieldButai の realMax・本物がいる備）・敵味方の分からない物
   const why = {};   // 確かめ用（thickness.mjs の dbg.dreal）：入れ物を除いた訳の数
   if (typeof window !== 'undefined') window.__dRealDbg = { n: E ? E.length : 0, fj: !!rt.flags._fj, why };
-  if (E && rt.def.emptyReal !== false && !rt.def.fujinOwn && !(rt.flags._fj)) for (const e of E) {
+  // 11/19 係（天王寺レベルの軍勢）：布陣の表が足すだけの備（表の withEmpty＝設楽原の柵の内・本能寺の通り）の戦は、入れ物の本物も前のとおり立てる
+  if (E && rt.def.emptyReal !== false && !rt.def.fujinOwn && !(rt.flags._fj && !fujinFor(rt)?.withEmpty)) for (const e of E) {
     const { g, A, o } = e;
     const x = (A.cx || 0) + (A.off?.x || 0), z = (A.cz || 0) + (A.off?.z || 0);
     const r = S.m.get(e);

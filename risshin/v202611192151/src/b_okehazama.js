@@ -2983,7 +2983,23 @@ html:root body #hud:has(#h-prog[data-battle="okehazama"]):has(#intro:not([hidden
     depthReserve(rt, { active: (r) => r.phase === 'assault' && !F.victory && !r.over && !F.ending,
       enemy: { limit: 12, make: (r, at) => enemyGroup(r, { fixed: true, noGuard: true, faction: 'imagawa', formation: 'yari', spacing: 1.5, width: 18, anchor: at, facing: FIELD_TURN, morale: 85, aggro: 15, seekRange: 22, order: 'hold' }, [{ type: 'samurai', n: 6 }, { type: 'ashigaru', n: 22 }]) },
       allyBandMin: 20, allyDist: 42,
-      ally: { limit: 6, make: (r, at) => allyGroup(r, { fixed: true, fullStrength: true, noGuard: true, name: '織田の新手', anchor: at, facing: Math.PI + FIELD_TURN, formation: 'yari', order: 'hold', noRout: true, morale: 100, aggro: 15, seekRange: 16 }, [{ type: 'samurai', n: 4 }, { type: 'ashigaru', n: 16 }]) } });
+      // 11/20 クラウドか：味方の新手 六→十二組（六組を出し切った三百六十秒の後、本人の周りの味方が九人まで痩せた）
+      ally: { limit: 12, make: (r, at) => allyGroup(r, { fixed: true, fullStrength: true, noGuard: true, name: '織田の新手', anchor: at, facing: Math.PI + FIELD_TURN, formation: 'yari', order: 'hold', noRout: true, morale: 100, aggro: 15, seekRange: 16 }, [{ type: 'samurai', n: 4 }, { type: 'ashigaru', n: 16 }]) } });
+    // 11/20 クラウドか（kaito_now 3 主人公が一人にならない）：突撃の後半（480秒）、出た織田の新手と攻める組が六十〜百五十 m 後ろで今川の備と斬り合い続け、
+    //   本人の三十 m 内の味方 1・敵 36 になっていた（描かずの数え 携帯）。二十八 m より離れた味方の攻める組は、二秒ごとに陣を本人の十二 m 脇（来た側）へ寄せ、本人に一番近い敵を狙わせる
+    if (rt.phase === 'assault' && !F.victory && !F.ending && !rt.over && rt.t >= (F.okeNearT || 0) && rt.player.u.alive) {
+      F.okeNearT = rt.t + 2;
+      const me = rt.player.u, P = me.pos;
+      let foe = null, fd = 45;
+      for (const u of rt.army.units) { if (!u.alive || u.gone || u.team === me.team || u.fleeing || u.noTarget || u.woundOut) continue; const d = Math.hypot(u.pos.x - P.x, u.pos.z - P.z); if (d < fd) { fd = d; foe = u; } }
+      for (const g of rt.army.groups) {
+        if (g.team !== me.team || g.isPlayerSquad || g.routed || g.stay || g.order !== 'attack' || !g.count || /本陣/.test(g.name || '')) continue;
+        const c = g.center();
+        const d = Math.hypot(c.x - P.x, c.z - P.z); if (d <= 28) continue;
+        g.anchor = { x: P.x + (c.x - P.x) / d * 12, z: P.z + (c.z - P.z) / d * 12 }; g.dest = null; g.path = null; g.onArrive = null;
+        if (foe) g.focus = foe;
+      }
+    }
     quietOtherFlags(rt, F.victory ? F.returnGroup : rt.phase === 'assault' && F.entered ? null : rt.hostGroup);
     const combatTask = rt.phase === 'assault' && !!F.entered && !F.victory && !rt.over && !F.ending &&
       !retreatRequired(rt) && !rt.dodgeGuide && !(rt.hud.retreatGuide?.active && rt.hud.retreatGuide.valid);

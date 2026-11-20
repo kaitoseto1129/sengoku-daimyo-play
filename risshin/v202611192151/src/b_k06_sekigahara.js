@@ -1388,6 +1388,16 @@ html:root body #hud:has(#h-prog[data-battle="k06_sekigahara"]) #center-call .cc 
         if (stuck) { const c = g.center(); g.anchor = { x: c.x, z: c.z }; g.dest = null; g.path = null; g.onArrive = null; g.aggro = 14; g.seekRange = 20; for (const u of g.units) u._k06t = 0; }
       }
     }
+    // 11/20 クラウドさ（kaito_now 3 天王寺の出来に・本人が一人にならない）：段4〜5で本人の主の井伊の手・鉄砲衆が宇喜多の前の持ち場に残り、
+    //   本人が宇喜多へ寄ると六十歩離れていた（描かずの数え 220秒 鉄砲衆の芯まで60m・三十歩内0）。四十歩より離れたら、槍を合わせたまま陣を本人の方へ六割寄せる（二秒ごと）
+    if ((F.step === 4 || F.step === 5) && !F.ending && rt.t >= (F.iiNearT || 0)) {
+      F.iiNearT = rt.t + 2;
+      const P = rt.player.u.pos;
+      for (const g of [F.ii, F.iiGun]) if (alive(g) && g.order === 'attack') {
+        const c = g.center();
+        if (Math.hypot(c.x - P.x, c.z - P.z) > 40) { g.anchor = { x: c.x + (P.x - c.x) * 0.6, z: c.z + (P.z - c.z) * 0.6 }; g.dest = null; g.path = null; g.onArrive = null; }
+      }
+    }
     splitFront(rt, F);
     // 11/18 夜50-20：藤堂・京極の隊の侍が平塚の前の行き先 (-363,153) の十三歩手前で味方に詰まり、move のまま二十秒止まった（act bot 388秒）。
     //   右翼の味方の手は、行き先の二十歩内まで来たら着いたと見て、その場で槍を合わせる（二秒ごと）

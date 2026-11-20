@@ -1,13 +1,12 @@
-// 天王寺・岡山の重さ（11/18 クラウド kaito2 持ち主・連絡帳 11/19 06:10「生きた兵2124・一コマ60ms・目安の八倍」）。
-//   兵の数は減らさない（K266 ほめた戦・K285 見せかけ無し）。手取川（tedorigawa/yasumi.js）と同じ手で、本人から遠く持ち場に立つだけの組を
-//   敵味方とも休ませる（units.js の idleSkip。体の形は場から外し、携帯は遠景の束（updateImpostors）が同じ場所に描く）。
-//   携帯（MEM_TIGHT）だけ：携帯は二十八m より先の兵を束で描くので形を外しても同じ姿。パソコンは束にしないので休ませない。
+// 遠くで持ち場に立つだけの組を休ませる共通の手（11/19 係・kaito「天王寺レベルの軍勢」：天王寺の k15/yasumi.js を全戦で使える形に）。
+//   兵の数は減らさない（K285 見せかけ無し）。携帯（MEM_TIGHT）だけ：携帯は二十八m より先の兵を遠景の束（units.js updateImpostors）で描くので、
+//   体の形を場から外しても同じ姿。パソコンは束にしないので休ませない。
 //   休ませる組：本人の組でない・崩れていない・持ち場で待つ（hold・yari）・動いていない・持ち場が本人から六十m より遠い・五十m 内に相手の兵がいない。
 //   兵：名の無い・馬に乗らない・旗持ちでない・狙いも打ち込みも無い・本人から五十八m より遠い兵だけ。敵が寄る・本人が近づく・組が動けば〇・五秒で起こす。
-//   ?k15park=0 で切る（前後の比べ用）
-import { MEM_TIGHT } from '../settings.js';
+//   o.only(g)：休ませてよい組を絞る（布陣の表の idleFar の戦は、表が立てた備 g._fjR だけ。戦の筋の組には触らない）。?k15park=0 で切る（前後の比べ用）
+import { MEM_TIGHT } from './settings.js';
 
-export function k15IdleFar(rt) {
+export function idleFarTick(rt, o = {}) {
   if (!MEM_TIGHT) return;
   const F = rt.flags;
   if ((F._kykT || 0) > rt.t) return;
@@ -19,8 +18,9 @@ export function k15IdleFar(rt) {
   let n = 0;
   for (const g of A.groups) {
     if (!g.units || !g.units.length) continue;
+    if (o.only && !o.only(g) && !g.units.some((u) => u._kyk)) continue;
     let idle = !off && !g.isPlayerSquad && !g.routed && (g.order === 'hold' || g.order === 'yari') && !g.marching &&
-      (g.anchorSpeed || 0) < 0.1 && !!g.anchor && Math.hypot(g.anchor.x - P.x, g.anchor.z - P.z) > 60;
+      (g.anchorSpeed || 0) < 0.1 && !!g.anchor && Math.hypot(g.anchor.x - P.x, g.anchor.z - P.z) > 60 && (!o.only || o.only(g));
     if (idle && A.foeNear(g, 50)) idle = false;
     for (const u of g.units) {
       if (u.idleSkip && !u._kyk) continue;   // 共通の idle_park が休ませた兵はそちらに任せる

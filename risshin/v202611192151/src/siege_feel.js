@@ -222,6 +222,9 @@ function volley(rt, state, dt) {
       const ux = u.pos.x - wx, uz = u.pos.z - wz, d = ux * ux + uz * uz;
       if (u.team === team) { if (d < 64 && (!guard || u.pos.y > guard.pos.y)) guard = u; return; }
       if (d < 16 || d >= best || Math.random() < 0.35) return;
+      // 11/20 クラウドす（kaito_now 2 本能寺：南の通りの光秀の備十八人が始まり七秒に塀の上の石と矢でまとめて倒れ、通りが空になっていた）：
+      //   def.volleyHoldSafe の戦では、持ち場で待つ（hold）備は撃たない（寄せて来る組だけを撃つ）
+      if (rt.def.volleyHoldSafe && u.group && u.group.order === 'hold' && !u.isPlayer) return;
       best = d; victim = u;
     });
     if (!guard || !victim) continue;

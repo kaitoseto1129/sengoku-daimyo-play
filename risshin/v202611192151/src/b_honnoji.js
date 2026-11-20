@@ -23,6 +23,8 @@ import { buildTera, teraTick, breakNear, hallAt, TERA, inTera, GATES, CLIMB, PT,
 import { flagTexture } from './textures.js';
 import { RANKS } from './state.js';
 import { S as SETTINGS } from './settings.js';
+import { isTouch } from './touch.js';
+import { fujinRealN } from './fujin_layout.js';
 import { sfx } from './audio.js';
 import { makeWeapon, poseArms, buildHorse, horseStyleFor } from './units.js';
 import { FL, addDeck, groundAt } from './floors.js';
@@ -336,7 +338,9 @@ function honnoStreetReserve(rt) {
     //   寺の外に立つ組の持ち場が寺の内なら、そのたび通りへ戻す
     const inside = g.anchor && inTera(g.anchor.x, g.anchor.z, 3);
     if (g._honnoStreet && !inside) continue;
-    if (!inside && onTownStreet(c.x, c.z, 2)) { g._honnoStreet = true; continue; }
+    // 11/20 クラウドわ：立てた備の兵は寺の南の外 (-88,160) から歩いて来るので、来る途中の真ん中で見ると通りの外と見なされ、持ち場が南の町家の裏 (-81,152) へ移されていた。
+    //   持ち場が初めから通りの上なら、そのまま（兵はそこへ歩く）
+    if (!inside && (onTownStreet(c.x, c.z, 2) || g.anchor && onTownStreet(g.anchor.x, g.anchor.z, 2))) { g._honnoStreet = true; continue; }
     let sx = null, sd = 40;
     for (const v of STREET_X) { const d = Math.abs(c.x - v); if (d < sd && !inTera(v, c.z, 3)) { sd = d; sx = v; } }
     if (sx == null) continue;
@@ -362,7 +366,9 @@ function honnoFarWall(rt) {
   if (rt.t < (F.hnFwAt || 0)) return;
   F.hnFwAt = rt.t + 2;
   for (const g of rt.army.groups) {
-    if (g.team !== 1 || !g._fjN || g.depthFree || g.order !== 'hold' || g.routed || !g.count || !g.anchor) continue;
+    // 11/20 クラウドわ：通りに立てた備（_honnoStreet）は除く。遅れて歩いて来る数人の真ん中（塀ぎわ (-103,104)）へ持ち場を移し、それが寺の内と見なされて
+    //   honnoStreetReserve が表門の前の通り (-81,113) へ運び、南の通りの光秀の備が門の前で本人の組に斬られて五十秒で0人になっていた
+    if (g.team !== 1 || !g._fjN || g.depthFree || g._honnoStreet || g.order !== 'hold' || g.routed || !g.count || !g.anchor) continue;
     const us = g.units.filter((u) => u.alive && !u.gone && !u.isPlayer);
     if (us.length < 3) continue;
     // 散らしが一人ずつ横へ動かすので、組の真ん中でなく兵ごとに見る：持ち場から十二歩より遠く、八秒で持ち場へ一歩半も近づいていない兵
@@ -3279,6 +3285,8 @@ function teraResume(def, rt, ph) {
   }
 }
 const honnoji = {
+  // 11/19 係（天王寺レベルの軍勢）：パソコンは四方の通りの明智の布陣の表（fujin_layout.js）の分を上限に足す＝寺の内の新手・通りの立て直しの空きは前と同じ。携帯は今まで（既定 250）
+  realCap: isTouch ? 250 : 250 + fujinRealN('honnoji'),
   goals5: (rt) => rt.G.lord
     ? (STAGES.honnoji || []).slice(0, 2).map(([text], k) => ({ kind: 'stage', k, text, sec: 900,
       check: (q) => (q.over && honnoWon(q)) || (stageNow(q)?.i ?? 0) > k }))
@@ -8356,3 +8364,7 @@ honnoji.botDbg = (b) => { const F = b.flags; if (F.hp === 6) { const u = b.playe
 // 11/19 クラウドさ（kaito_now 2「寺の四方の通りを明智の本物の兵で埋める」）：携帯は備ごとに 9 人で、四方の通りが数人ずつにしか見えなかった。
 //   携帯も備ごとに史料の 0.8%・24 人まで（六つの備で百四十余り。本物の上限 250 は同じ・寺の中の兵の枠は先に取る）
 honnoji.depthRealTouch = { rate: 0.008, max: 24 };
+// 11/20 クラウドわ（kaito_now 2）：寺を囲む通りの備は初めから通りに居る。見える所に湧かせない共通の出し方（guardSpawn）が南の通りの光秀の備を
+//   町家の列の裏 (-88,160) へずらし、兵が家の列に詰まって重なり（描かずの記録 15秒 重なり23組）、持ち場も家の裏へ移されていた。通りの持ち場にそのまま立てる
+honnoji.depthRealNoGuard = true;
+honnoji.volleyHoldSafe = true;   // 四方の通りで待つ明智の備を塀の上から撃たない（siege_feel.js volley・kaito_now 2）

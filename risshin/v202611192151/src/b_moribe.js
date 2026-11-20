@@ -4553,8 +4553,9 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
     // 11/4 jin（AV7・AP16）：柴田・森・河村は馬上で、それぞれ旗本の侍三人に守られる。
     // 三手は楡俣川の南岸に並び、遊び手と同じ流れを渡る。柴田・本備・森の備は勝ち戦の芯なので、
     // 兵は討たれても隊ごとの総崩れはしない（右手の小勢は崩れうる）。
-    rt.flags.A = allyGroup(rt, { name: '柴田の前備', fixed: true, anchor: { x: 34, z: 94 }, facing: Math.PI, aggro: 12, morale: 100, noRout: true, fullStrength: true, fleeDir: { x: 0, z: 1 }, formation: 'yari', yariRanks: 3 }, [{ type: 'ashigaru', n: 9 }, { type: 'samurai', n: 1, o: { name: '源八', invuln: true } }, { type: 'samurai', n: 1, o: { name: '前田利家', invuln: true } }, { type: 'busho', n: 1, o: { name: '柴田勝家', invuln: true, horse: true } }, { type: 'samurai', n: 3 }]);
-    rt.flags.B = allyGroup(rt, { name: '本備', fixed: true, anchor: { x: -22, z: 116 }, facing: Math.PI, aggro: 12, morale: 100, noRout: true, fullStrength: true, fleeDir: { x: 0, z: 1 }, formation: 'yari', yariRanks: 3 }, [{ type: 'ashigaru', n: 6 }, { type: 'bow', n: 1 }, { type: 'samurai', n: 2 }]);
+    // 11/20 kaito_now 3（森部を天王寺の出来に）：六十秒で本人の六十 m 内の味方が五十人ほどに痩せ、主人公の周りが薄い。南岸の四手の足軽を各三〜五人足す（合わせて十七人・携帯の上限二百七十に収まる）。
+    rt.flags.A = allyGroup(rt, { name: '柴田の前備', fixed: true, anchor: { x: 34, z: 94 }, facing: Math.PI, aggro: 12, morale: 100, noRout: true, fullStrength: true, fleeDir: { x: 0, z: 1 }, formation: 'yari', yariRanks: 3 }, [{ type: 'ashigaru', n: 14 }, { type: 'samurai', n: 1, o: { name: '源八', invuln: true } }, { type: 'samurai', n: 1, o: { name: '前田利家', invuln: true } }, { type: 'busho', n: 1, o: { name: '柴田勝家', invuln: true, horse: true } }, { type: 'samurai', n: 3 }]);
+    rt.flags.B = allyGroup(rt, { name: '本備', fixed: true, anchor: { x: -22, z: 116 }, facing: Math.PI, aggro: 12, morale: 100, noRout: true, fullStrength: true, fleeDir: { x: 0, z: 1 }, formation: 'yari', yariRanks: 3 }, [{ type: 'ashigaru', n: 11 }, { type: 'bow', n: 1 }, { type: 'samurai', n: 2 }]);
     // 上役の源八は戦の後に城下で昇進を告げる。この戦では討たれない。
     rt.flags.moribeOfficer = rt.flags.A.units.find((u) => u.name === '源八');
     // 11/6 fixc（十一-4 森部の芯）：勘当の又左衛門は、自分の組のすぐそば（柴田の前備）で足立六兵衛と槍を合わせる。
@@ -4562,8 +4563,8 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
     // 小勢が横に広がりすぎず、槍の前線へ合流する（細かな隊の位置は復元）。
     // 右手は津島衆（公記：津島の服部平左衛門が長井甲斐守を、恒河久蔵が日比野下野守を、河村久五郎が神戸将監を討つ）。
     //   佐久間信盛は森部の記事に名が無い。三人は徒の侍で、馬上の将にしない。
-    rt.flags.R3 = allyGroup(rt, { name: '津島衆', fixed: true, anchor: { x: 52, z: 104 }, facing: Math.PI, aggro: 10, morale: 100, noRout: false, fullStrength: true, fleeDir: { x: 0, z: 1 }, formation: 'yari', yariRanks: 3 }, [{ type: 'ashigaru', n: 5 }, { type: 'samurai', n: 1, o: { name: '河村久五郎', invuln: true } }, { type: 'samurai', n: 1, o: { name: '服部平左衛門', invuln: true } }, { type: 'samurai', n: 1, o: { name: '恒河久蔵', invuln: true } }, { type: 'samurai', n: 1 }]);
-    rt.flags.Y = allyGroup(rt, { name: '森の横備え', fixed: true, anchor: { x: -48, z: 108 }, facing: Math.PI, aggro: 10, morale: 100, noRout: true, fullStrength: true, fleeDir: { x: 0, z: 1 }, formation: 'yari', yariRanks: 3 }, [{ type: 'ashigaru', n: 7 }, { type: 'busho', n: 1, o: { name: '森可成', invuln: true, horse: true } }, { type: 'samurai', n: 3 }]);
+    rt.flags.R3 = allyGroup(rt, { name: '津島衆', fixed: true, anchor: { x: 52, z: 104 }, facing: Math.PI, aggro: 10, morale: 100, noRout: false, fullStrength: true, fleeDir: { x: 0, z: 1 }, formation: 'yari', yariRanks: 3 }, [{ type: 'ashigaru', n: 8 }, { type: 'samurai', n: 1, o: { name: '河村久五郎', invuln: true } }, { type: 'samurai', n: 1, o: { name: '服部平左衛門', invuln: true } }, { type: 'samurai', n: 1, o: { name: '恒河久蔵', invuln: true } }, { type: 'samurai', n: 1 }]);
+    rt.flags.Y = allyGroup(rt, { name: '森の横備え', fixed: true, anchor: { x: -48, z: 108 }, facing: Math.PI, aggro: 10, morale: 100, noRout: true, fullStrength: true, fleeDir: { x: 0, z: 1 }, formation: 'yari', yariRanks: 3 }, [{ type: 'ashigaru', n: 11 }, { type: 'busho', n: 1, o: { name: '森可成', invuln: true, horse: true } }, { type: 'samurai', n: 3 }]);
     // 斎藤の先手は北岸の畦へ寄せ、渡る織田勢へ矢を射かけてから槍で受ける（弓の数は復元）。
     // 渡り口の正面に同じ先手を寄せ、印だけを追って野を歩く時間を短くする。
     rt.flags.V = enemyGroup(rt, { faction: 'saito', name: '斎藤の先手', fixed: true, anchor: { x: 40, z: 60 }, facing: 0, fleeDir: { x: -0.2, z: -1 }, speed: 2.1, aggro: 5, noRout: false, formation: 'yari', yariRanks: 3 }, [{ type: 'ashigaru', n: 34 }, { type: 'bow', n: 3 }, { type: 'samurai', n: 3 }]);

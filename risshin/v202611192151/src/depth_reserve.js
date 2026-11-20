@@ -251,7 +251,7 @@ export function realFromLight(rt, o, enemyGroup, allyGroup, scale = 0.12, max = 
   // 11/17 クラウド kaito2：置き場を戦場の端（moveLim）の内へ収める（山中城：遠くの備が z=280 に置かれ、93秒で端の 236 へ一息に引き戻され「兵が戦場の外に出た・一息で飛んだ」）
   // 隊の並びの幅（最大 30m）の半分と奥行きも内へ（端ぎりぎりに置くと並びの外の者が端で押し戻され一点に重なった・一宮 25秒 (55,-170)）
   { const lim = (rt.world?.def?.moveLim || rt.def?.moveLim || 176) - 12 - Math.max(8, Math.min(30, (o.w || 20) * 0.6)) / 2; o = { ...o, x: Math.max(-lim, Math.min(lim, o.x)), z: Math.max(-lim, Math.min(lim, o.z)) }; }
-  const m = fromTpl(T, n, { x: o.x, z: o.z }, name, { width: Math.max(8, Math.min(30, (o.w || 20) * 0.6)), facing: o.facing || 0, formation: T.o.formation || 'yari', stay: true, fixed: true, noRout: true, morale: 100, aggro: 15, seekRange: 16, ...(o.team === 1 ? {} : { fullStrength: true }) });
+  const m = fromTpl(T, n, { x: o.x, z: o.z }, name, { width: Math.max(8, Math.min(30, (o.w || 20) * 0.6)), facing: o.facing || 0, formation: T.o.formation || 'yari', stay: true, fixed: true, noRout: true, morale: 100, aggro: 15, seekRange: 16, ...(o.noGuard ? { noGuard: true } : {}), ...(o.team === 1 ? {} : { fullStrength: true }) });   // o.noGuard：見えない所へずらさず持ち場に立てる（本能寺の通りの備 11/20）
   // 布陣図の名（K287）：その列の大名・将の名を 名のある武将として一人ずつ付ける（真上・遠くでも頭の上に名が出る。同じ名は一つ）
   if (o.look) m.list = m.list.map((e) => ({ ...e, o: { ...(e.o || {}), ...o.look } }));   // 表の旗・具足の色（fujin_table.js）
   // 11/16 MacBook天王寺-厚み（K293・K315）：表の行が騎馬の割合（cav 0〜1）を持つ時だけ、その分の侍・足軽を騎馬に替える（fromTpl は待つ備を徒にする。布陣の騎馬の塊「真田の騎馬」が徒だった）

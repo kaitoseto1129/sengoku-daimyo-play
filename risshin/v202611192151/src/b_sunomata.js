@@ -5422,7 +5422,7 @@ const sunomata = {
     // 藤吉郎の本陣が塀の外の敵を行き先に持ったまま床几の周りで20秒立つ（報告8件）。砦の内に脅しが無い間は据える。
     if (F.tk && F.tk.count && !F.tk.routed && F.tk.order === 'attack' && !(inN >= 1 && threat)) F.tk.order = 'hold';
     for (const g of [F.tk, F.ally, F.ally2]) {
-      if (!g || !g.count || g.routed || g.order !== 'hold') continue;
+      if (!g || !g.count || g.routed || g.order !== 'hold' || g._sunoEsc) continue;   // 舟着きへ出た川並衆（sunomata/hakobi.js escort）は柵の内へ呼ばない
       if (inN >= 1 && threat) {
         if (!g._sunoHome) {
           g._sunoHome = { x: g.anchor.x, z: g.anchor.z };

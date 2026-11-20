@@ -6983,6 +6983,23 @@ const inabayama = {
     K.noPursue = true;
     // 11/8 critic60 一5：味方の後続も間を空けずに同じ道へ（一人で登らせない）
     if (F.shiba && !gone(F.shiba)) rt.after(1.5, () => { if (!rt.over && !F.ending && F.step === 3 && !gone(F.shiba)) { march(F.shiba, [...NANA, [OTE_IN.x, OTE_IN.z]], 'attack'); F.shiba.followColumnRoad = true; F.shiba.noPursue = true; F.shiba.speed = 4.2; } });
+    // 11/20 クラウドか kaito_now 3（主人公が一人にならない）：付け入りの登りで、森・坂井・佐久間の本物の組が麓 (-36〜-7,0〜2) に残り、
+    //   四百五十秒の大手の木戸の手前で本人の三十 m 内の味方が四人・六十 m 内が十三人になっていた（敵は三十 m 内に二十三）。
+    //   麓に残る三つの手も、柴田の後から間を空けて同じ七曲りを登らせる（道の一番近い角から。逃げる城兵を道の外へ追わない）
+    [4, 8, 12].forEach((dl, k) => rt.after(dl, () => {
+      if (rt.over || F.ending || F.step !== 3) return;
+      const re = [/森可成/, /坂井政尚/, /佐久間信盛/][k];
+      for (const q of rt.army.groups) {
+        if (q.team !== rt.player.u.team || !re.test(q.name || '') || gone(q) || q._tsukeUp) continue;
+        const us = q.units.filter((u) => u.alive && !u.gone); if (us.length < 2) continue;
+        let x = 0, z = 0; for (const u of us) { x += u.pos.x; z += u.pos.z; } x /= us.length; z /= us.length;
+        let i0 = 0, bd = Infinity; for (let i = 0; i < NANA.length; i++) { const d = Math.hypot(NANA[i][0] - x, NANA[i][1] - z); if (d < bd) { bd = d; i0 = i; } }
+        if (bd > 60) continue;
+        q._tsukeUp = true;
+        march(q, [...NANA.slice(i0), [OTE_IN.x, OTE_IN.z]], 'attack', 4.2);
+        q.followColumnRoad = true; q.noPursue = true; q.noFrontline = true; q.stay = false;
+      }
+    }));
     rt.say(officer(rt), '城兵が崩れた！　七曲りを逃げ上るぞ。背に付いて登れ、木戸を閉めさせるな！', 4);
     rt.banner('付け入り', '坂を上り、大手の木戸へ進め');
     this.nextObj(rt, '坂を上り、門へ行く');
@@ -6995,6 +7012,42 @@ const inabayama = {
   },
   tsukeTick(rt) {
     const F = rt.flags, p = rt.player.u.pos;
+    // 11/20 クラウドか kaito_now 3：登りの列（藤吉郎・柴田・麓から続く手）は隊の速さで歩き、駆け上る本人に木戸の前で六十 m 遅れた。
+    //   本人から十四 m より遅れた兵だけ、追いつく間の駆けの上限を上げる（戸次川と同じ u._catchRun。近づけば元へ）
+    if (rt.t >= (F.tsukeCatchAt || 0)) {
+      F.tsukeCatchAt = rt.t + 0.5;
+      const P = rt.player.u, climb = rt.army.groups.filter((q) => (q === F.kino || q === F.shiba || q._tsukeUp) && !gone(q));
+      for (const q of climb) for (const u of q.units) {
+        if (!u.alive || u.mounted) continue;
+        const d = Math.hypot(u.pos.x - P.pos.x, u.pos.z - P.pos.z);
+        u._catchRun = d > 28 ? 6.8 : d > 14 ? 6.0 : 0;
+        if (u._catchRun) { if (u._run0 == null) u._run0 = u.run; u.run = Math.max(u._run0 || 0, u._catchRun); } else if (u._run0 != null) { u.run = u._run0; u._run0 = null; }
+      }
+    }
+    // 11/20 クラウドし kaito_now 3：木戸を抜けた後（入口曲輪・中枢曲輪の段）、登りの列（藤吉郎・柴田・麓から続く手）は
+    //   行き先が木戸の内 (OTE_IN) のまま止まり、入口曲輪へ上がった本人の三十 m 内の味方が〇〜八人になった（か の残り）。
+    //   三秒ごとに、本人の居る道の点まで同じ道（TSUKE_ALL）を続けて登らせる（本人より先へは出さない・本人から十六 m 内の手は今のまま）
+    if (F.k15Nino === 'on' && rt.t >= (F.ninoFollowAt || 0)) {
+      F.ninoFollowAt = rt.t + 3;
+      const P = rt.player.u, iP = nearestWay(rt, P.pos, TSUKE_ALL);
+      for (const q of rt.army.groups) {
+        if (!(q === F.kino || q === F.shiba || q._tsukeUp) || gone(q) || q.team !== P.team) continue;
+        const us = q.units.filter((u) => u.alive && !u.gone && !u.fleeing); if (!us.length) continue;
+        let x = 0, y = 0, z = 0; for (const u of us) { x += u.pos.x; y += u.pos.y; z += u.pos.z; } x /= us.length; y /= us.length; z /= us.length;
+        if (Math.hypot(x - P.pos.x, z - P.pos.z) < 16) continue;
+        const iG = nearestWay(rt, { x, y, z }, TSUKE_ALL);
+        // 道の点まで着いても本人が曲輪の中（道の外）なら、三十〜六十 m に溜まった（前の直しの測り）。同じ段（高さの差三 m 内）なら本人の八 m 手前を持ち場に
+        if (iG >= iP && q.order !== 'path') {
+          const d = Math.hypot(x - P.pos.x, z - P.pos.z), ax = P.pos.x + (x - P.pos.x) * 8 / d, az = P.pos.z + (z - P.pos.z) * 8 / d;
+          if (Math.abs(rt.world.heightAt(ax, az) - P.pos.y) < 3) { q.anchor = { x: ax, z: az }; q.order = 'attack'; }
+          continue;
+        }
+        if (iG >= iP || q._ninoFollowI === iP) continue;
+        q._ninoFollowI = iP;
+        march(q, TSUKE_ALL.slice(iG, iP + 1), 'attack', 4.4);
+        q.followColumnRoad = true; q.noPursue = true;
+      }
+    }
     // 木戸を抜けた後は二ノ門の任務が道を案内する。七曲りへ引き戻さない。
     if (F.k15Nino === 'on') return;
     // 七歩手前で印を次へ移すと、折れの内側の切岸へ直進させてしまう。
@@ -8353,6 +8406,10 @@ const inabayama = {
       }
     }
     if (F.step === 3 && F.tsuke) this.tsukeTick(rt);
+    else if (F.tsuke && !F.tsukeRunBack) {   // 11/20 クラウドか：付け入りの追いつく駆けを、段が替わったら元へ
+      F.tsukeRunBack = true;
+      for (const q of rt.army.groups) for (const u of q.units) if (u._run0 != null) { u.run = u._run0; u._run0 = null; u._catchRun = 0; }
+    }
     else if (F.step === 3) {
       inabaClimbClash(rt);
       if (F.climbFriends && rt.t >= (F.pressureAt || 0)) pressureTick(rt, '裏道', CLIMB_NO_CHASE, F.climbFriends, '藤吉郎の列と次の曲がり角へ進め。近い守兵を仲間と退けよ');

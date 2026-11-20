@@ -1,7 +1,7 @@
 import { enemyGroup, allyGroup } from './bhelp.js';
 import { autoReserve, engageNear, unstackAfterOver } from './depth_reserve.js';
 import { sceneBeats } from './scene_beats.js';
-import { fujinTick } from './fujin_place.js';
+import { fujinTick, fujinIdleFar } from './fujin_place.js';
 import { depthRealTick } from './depth_real.js';
 import { idleParkTick } from './idle_park.js';
 import { noboriForestTick } from './nobori_forest.js';
@@ -2893,7 +2893,7 @@ export class Battle {
     this.dangerTick(dt);
     if (!this.over && !this.pacingExpired) runScriptOrders(this, this.def.update, dt);
     if (this.over) { try { unstackAfterOver(this); } catch (e) { /* 終幕の散らしが出来なくても終わりの画は進む */ } }
-    if (!this.over && !this.pacingExpired) { try { fujinTick(this, enemyGroup, allyGroup); depthRealTick(this, enemyGroup, allyGroup); idleParkTick(this); autoReserve(this, enemyGroup, allyGroup); engageNear(this); } catch (e) { /* 待つ備が作れなくても戦は進む */ }
+    if (!this.over && !this.pacingExpired) { try { fujinTick(this, enemyGroup, allyGroup); depthRealTick(this, enemyGroup, allyGroup); idleParkTick(this); fujinIdleFar(this); autoReserve(this, enemyGroup, allyGroup); engageNear(this); } catch (e) { /* 待つ備が作れなくても戦は進む */ }
       try { sceneBeats(this, enemyGroup, allyGroup); } catch (e) { /* 場面が作れなくても戦は進む（K306） */ }
       try { noboriForestTick(this, dt); } catch (e) { /* 幟が立てられなくても戦は進む（幟の林・nobori_forest.js） */ } }
     battlePacingTick(this);
