@@ -1,5 +1,6 @@
 import { setCssVar, $, setClass, singleBattleGuide, dismountFirst, recovering, retreatRequired, guidanceEnded, travelSignPriority, rescueTarget, combatTask, taskLabel, leanHud, monIcon, dropSprite } from "./hud_common.js";
 import { VIEW } from "./viewport.js";
+import { steadyPoint, steadyHeadY } from "./steady_screen.js";
 import { isTouch, touchMovePoint } from "./touch.js";
 import { S } from "./settings.js";
 import { currentObjective, navigationEnemy, taskText } from "./mission_guide.js";
@@ -908,10 +909,12 @@ export class HudOverlay {
       if (!(ally ? sightUnit(rt, u) : sightScreenUnit(rt, u))) continue;
       // 敵の札は実際の頭に合わせる。背丈や馬の高さで別の兵へずらさない。
       const head = !rt.def.positionPersonGuide && (selected || missionEnemy) && !ally && u.human?.root.visible && u.human.bones?.Head;
-      if (head) { head.getWorldPosition(this.tmpV); this.tmpV.y += .35; }
+      if (head) { head.getWorldPosition(this.tmpV); this.tmpV.y = steadyHeadY(u, this.tmpV.y) + .35; }
       else this.tmpV.set(u.pos.x, u.pos.y + (u.mounted ? 3.3 : rt.def.bodyHeightGuides ? (u.bodyHeight ?? 1.72) + .3 : 2.35), u.pos.z);
       this.tmpV.project(rt.camera);
       const s = { x: (this.tmpV.x * .5 + .5) * W, y: (-this.tmpV.y * .5 + .5) * H, behind: this.tmpV.z > 1 || this.tmpV.z < -1 };
+      // 名札・棒の点も小さな上下は止める（field_signs の名札と同じ。kaito_now 1）
+      if (!s.behind) steadyPoint(u._steadyTag || (u._steadyTag = {}), s.x, s.y, s);
       if (s.behind || !selected && (s.x < 0 || s.x > W || s.y < 0 || s.y > H)) continue;
       // 札や指の丸の上には描かない（重ねて読めなくしない）
       const blocked = (this.rectsAll || []).some((r) => s.x > r.left - 20 && s.x < r.right + 20 && s.y > r.top - 16 && s.y < r.bottom + 4);

@@ -5,7 +5,7 @@ import { isTouch } from "./touch.js";
 import { localClear } from "./army_local_way.js";
 import { cameraWallBlocked, sightScreenUnit, sightPoint } from "./battle_sight.js";
 import { S } from "./settings.js";
-import { steadyPoint } from "./steady_screen.js";
+import { steadyPoint, steadyHeadY } from "./steady_screen.js";
 
 export class HudDestination {
 
@@ -549,12 +549,26 @@ export class HudDestination {
         this.tmpV.project(rt.camera);
         if (this.tmpV.z < -1 || this.tmpV.z > 1) return null;
         const x = (this.tmpV.x * .5 + .5) * W, y = (-this.tmpV.y * .5 + .5) * H;
-        if (name === 'Head') { headX = x; headY = y; }
+        if (name === 'Head') {
+          // 頭の高さは足もとからの高さをならした値で測る（歩み・打ち込みで頭上の印が上下しない。kaito_now 1）
+          this.tmpV.unproject(rt.camera);
+          this.tmpV.y = steadyHeadY(u, this.tmpV.y);
+          this.tmpV.project(rt.camera);
+          headX = (this.tmpV.x * .5 + .5) * W; headY = (-this.tmpV.y * .5 + .5) * H;
+          left = Math.min(left, x); right = Math.max(right, x); bottom = Math.max(bottom, y); count++;
+          continue;
+        }
         left = Math.min(left, x); right = Math.max(right, x);
-        top = Math.min(top, y); bottom = Math.max(bottom, y); count++;
+        // 手・腕を上げた時に枠の上が跳ねないよう、上は頭で決める（下の頭の印・ピンが上下しない）
+        if (!/Arm|Hand/.test(name)) top = Math.min(top, y);
+        bottom = Math.max(bottom, y); count++;
       }
+      if (headY !== null) top = Math.min(top, headY);
       if (count >= 3 && bottom > top) {
-        const padding = Math.max(4, (bottom - top) * .12);
+        // 余白は足もとと頭の間（ならした高さ）で決め、手足の広がりで上下しない
+        this.tmpV.set(u.pos.x, u.pos.y, u.pos.z).project(rt.camera);
+        const feetY = (-this.tmpV.y * .5 + .5) * H;
+        const padding = Math.max(4, ((headY !== null && feetY > headY ? feetY - headY : bottom - top)) * .12);
         frame.left = left - padding; frame.right = right + padding;
         frame.top = top - padding * 1.5; frame.bottom = bottom + padding;
         frame.cx = headX ?? (left + right) / 2; frame.headY = headY === null ? frame.top : headY - padding * 1.5;
@@ -569,7 +583,7 @@ export class HudDestination {
     if (head) {
       // 描画を間引いた骨も更新し、会話と戦う相手の印を実際の頭にそろえる。
       head.updateWorldMatrix(true, false);
-      head.getWorldPosition(this.tmpV); this.tmpV.y += positionOnly ? .12 : .35;
+      head.getWorldPosition(this.tmpV); this.tmpV.y = steadyHeadY(u, this.tmpV.y) + (positionOnly ? .12 : .35);
       // 会話相手の描画を間引いても、頭上の印は現在の本人から離さない。
       if (u.mesh) {
         this.tmpV.x += u.pos.x - u.mesh.position.x;

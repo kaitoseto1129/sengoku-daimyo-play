@@ -857,7 +857,7 @@ export class Hud {
     setClass(ch, 'charged', p.chargeT > 0.7);
     // 武器は左下の命の札にまとめ、短い名と押せる枠、選択のチェックで示す。
     {
-      const list = rt.def.noWeaponBar ? [] : typeof p.weaponList === 'function' ? p.weaponList() : null;   // K358：戦の無い段（静かな城下）は武器の札を出さない
+      const list = rt.def.noWeaponBar || rt.flags?.beforeWar ? [] : typeof p.weaponList === 'function' ? p.weaponList() : null;   // K358：戦の無い段（静かな城下）は武器の札を出さない
       let box = this.wpnBox;
       if (!box) {
         const bl = [document.getElementById('jk-vit'), document.querySelector('#hud .bl')].find((e) => e && e.offsetParent);   // 見えている自分の札（今は #jk-vit。古い .bl は隠れている）

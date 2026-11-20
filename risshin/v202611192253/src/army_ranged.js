@@ -253,6 +253,9 @@ export const ArmyRanged = {
     // 有効射程はおよそ50m、届くのは100mほど（史実の目安）。50mを越えた分だけ、さらに弾が散る（高い所はこの境が少し遠くなる）
     const over = Math.max(0, d - (50 + Math.max(-12, Math.min(18, elev * 1.3))));
     if (over > 0) sig *= 1 + over / 50 * 1.5;
+    // 11/19 kaito「自分が鉄砲を撃っても、射撃の精度が低い」：本人の照準で撃つ一発（launch）は兵の散りでなく、狙いの合った筒の散りにする。
+    //   五十歩で〇・二m、一町（百歩）で〇・四七m ほど（止まった的なら五十歩で八割強、一町で四割強）。敵の鉄砲の散りは変えない
+    if (launch && u.isPlayer) sig = (0.06 + d * 0.003) * (elev > 0 ? Math.max(0.75, 1 - Math.min(elev, 14) * 0.018) : 1 + Math.min(-elev, 14) * 0.025) * (1 + over / 50 * 0.3);
     // 撃ち手の前に硝煙が溜まっていると的が見えにくく、弾が散る（凪の日の一斉射撃の後）
     if (this.smokes && this.smokes.length) {
       const mx2 = u.pos.x + (targetPos.x - u.pos.x) * Math.min(1, 6 / Math.max(6, d)), mz2 = u.pos.z + (targetPos.z - u.pos.z) * Math.min(1, 6 / Math.max(6, d));
@@ -266,12 +269,15 @@ export const ArmyRanged = {
     let sideBias = 0, heightBias = 0;
     if (launch && u.isPlayer) {
       // 筒先から照準の向きへ飛ぶ弾。遠いほど落ち、旗と同じ風下へ流れる。
-      const dx = t.pos.x - mx, dz = t.pos.z - mz, hd = Math.hypot(dx, dz) || 1;
+      // 11/19 kaito「鉄砲の精度が低い」：照準の向き（launch）は rangedVelocity が肩越しの決まった筒先（u.aimFrom）から組む。
+      //   ずれは同じ所から量る（筒の形の筒先から量ると、狙いが合っていても横へ〇・五〜一m 外れていた）
+      const of = u.aimFrom && u.aimFrom.t === this.time ? u.aimFrom : null, ox = of ? of.x : mx, oz = of ? of.z : mz, oy = of ? of.y : my;
+      const dx = t.pos.x - ox, dz = t.pos.z - oz, hd = Math.hypot(dx, dz) || 1;
       const along = (launch.x * dx + launch.z * dz) / hd;
       const flight = hd / Math.max(1, along), tt = flight * flight;
       const wx = WIND_STATE.dirX * WIND_STATE.gust * 0.08, wz = WIND_STATE.dirZ * WIND_STATE.gust * 0.08;
       sideBias = ((launch.x * flight + wx * tt * 0.5 - dx) * dz - (launch.z * flight + wz * tt * 0.5 - dz) * dx) / hd;
-      heightBias = my + launch.y * flight - (t.pos.y + (t.mounted ? RIDE.y : 0) + 1.2);
+      heightBias = oy + launch.y * flight - (t.pos.y + (t.mounted ? RIDE.y : 0) + 1.2);
     }
     // 弾の散りを一度だけ決め、その筋に最初に入る体で止める。誤射を扱う戦は味方にも当たる。
     const radius = Math.sqrt(-2 * Math.log(Math.max(1e-6, Math.random()))) * sig;

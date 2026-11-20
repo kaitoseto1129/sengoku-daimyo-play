@@ -50,7 +50,7 @@ export function start(rt, ctx) {
     rt.unmark('aneNomura');
     const p = rt.player.u.pos;
     const from = { x: p.x - 26, z: p.z - 18 };
-    const g = ctx.enemyGroup(rt, { faction: 'azai', name: '遠藤直経の手', anchor: from, facing: Math.PI, fleeDir: ctx.AZAI_FLEE, aggro: 8, width: 8, morale: 100, noRout: true, speed: 3.6 },
+    const g = ctx.enemyGroup(rt, { faction: 'azai', name: '遠藤直経の手', anchor: from, facing: Math.PI, fleeDir: ctx.AZAI_FLEE, aggro: 24, width: 8, morale: 100, noRout: true, speed: 3.6 },
       // 11/18 夜50-16（act bot 0930：追い討ちの末に遠藤の手七人に囲まれ、四割の一太刀でも674秒で倒れた）：首を提げて紛れ込む小勢なので、供は侍一・足軽二に
       ctx.dress([{ type: 'busho', n: 1, o: { name: '遠藤直経', hat: 'kabuto', haori: 0 } }, { type: 'samurai', n: 1 }, { type: 'ashigaru', n: 2 }], ctx.AZAI));
     S.g = g; S.u = g.units.find((u) => u.name === '遠藤直経') || g.units[0];

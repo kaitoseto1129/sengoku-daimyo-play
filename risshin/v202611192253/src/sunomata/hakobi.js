@@ -80,6 +80,7 @@ function back(rt) {
   const F = rt.flags, v = F.s15, C = v.C;
   if (v.backT) return;
   v.backT = rt.t;
+  escortHome(rt);
   sfx('taiko', 0.6);
   rt.say('木下藤吉郎', v.reserveSupply
     ? '荷が遅れておる。砦の予備材で普請を続ける。南門から戻れ！'
@@ -109,6 +110,7 @@ function done(rt) {
   const F = rt.flags, v = F.s15;
   if (v.hakobiDone) return;
   v.hakobiDone = true; v.ph = null;
+  escortHome(rt);
   rt.unmark('s15dock'); rt.unmark('s15raid');
   if (v.raid) { v.raid.noRout = false; v.raid.morale = 0; }
   if (F.wk) { F.wk.order = 'move'; F.wk.dest = { x: -6, z: -10 }; F.wk.onArrive = (g) => { g.order = 'hold'; g.anchor = { x: -6, z: -10 }; }; }
@@ -126,9 +128,36 @@ function done(rt) {
   rt.after(3, () => v.then?.());
 }
 
+// 11/20 クラウドさ（kaito_now 3「主人公が一人にならない」）：運びの段、本人は手勢と人足だけで岸の舟着きへ出て、
+//   柵の兵は全部砦に残り、本人の三十 m 内の味方が八十四→二十八人に痩せた。舟着きの持ち場の蜂須賀の川並衆（十人）が
+//   人足と一緒に南門から岸の道を通って舟着きへ行き、荷下ろしの間は岸に槍を並べ、人足の帰りと一緒に東の柵へ戻る。
+//   本人を追い回さない（北の葦まで出ると柵の外で寄せ手に削られ、後の段の東の柵が空いた）。
+function escort(rt) {
+  const F = rt.flags, v = F.s15, g = F.ally2, C = v.C;
+  if (v.esc || !g || !g.count || g.routed || !C || !v.dock) return;
+  // 人足と同じ時（運びの始めの二秒）に南門を出る。本人が門を出るのを待つと、舟着きに着く前に荷下ろしが済んだ
+  if (rt.t - (v.hakobiT ?? rt.t) < 2) return;
+  v.esc = 1; v.escHome = { x: g.anchor.x, z: g.anchor.z }; v.escAggro = g.aggro; g._sunoHome = null; g._sunoEsc = true;
+  // 道の間は打ち掛からない（柵の内から敵へ向かって北東の角に詰まった）。岸に着いてから槍を合わせる
+  const D = { x: v.dock.x * 0.85 + 3, z: v.dock.z * 0.85 - 5 };
+  g.order = 'path'; g.pathIdx = 0; g.speed = 3; g.noAI = true;
+  g.path = [[0, C.FORT - 5], ...KISHI_ROAD.slice(0, -1), [D.x, D.z]];
+  g.onArrive = (q) => { q.order = 'hold'; q.noAI = false; q.aggro = 9; q.anchor = D; q.facing = Math.atan2(D.x, D.z); v.esc = 2; };
+}
+function escortHome(rt) {
+  const F = rt.flags, v = F.s15, g = F.ally2, C = v.C;
+  if (!v.esc || v.esc === 3 || !g || !g.count || g.routed) return;
+  v.esc = 3; g.aggro = v.escAggro ?? 5; g.noAI = true;
+  const H = v.escHome, c = g.center();
+  g.order = 'path'; g.pathIdx = 0; g.speed = 2.4;
+  g.path = Math.abs(c.x) < C.FORT && Math.abs(c.z) < C.FORT ? [[H.x, H.z]] : [...KISHI_ROAD.slice(0, -1).reverse(), [0, C.FORT - 5], [H.x, H.z]];
+  g.onArrive = (q) => { q.order = 'hold'; q.noAI = false; q._sunoEsc = false; q.anchor = { x: H.x, z: H.z }; q.facing = Math.PI / 2; };
+}
+
 export function tick(rt) {
   const F = rt.flags, v = F.s15;
   if (v.hakobiDone || rt.over || F.ending || !ready(rt.player.u)) return;
+  escort(rt);
   // 倒れた人足や、荷を届けた人足を追い続けて物見が止まらないようにする。
   if (v.raid && !v.raid.routed && v.raid.units.some(ready)) {
     const target = !v.wkHome && F.wk?.units.find(ready);
