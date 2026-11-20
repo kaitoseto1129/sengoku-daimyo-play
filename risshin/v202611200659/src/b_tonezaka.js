@@ -3272,6 +3272,8 @@ const tonezaka = {
       const e = ROAD[6], q = ROAD[5], d = Math.hypot(q[0] - e[0], q[1] - e[1]) || 1;
       march(F.late, [[e[0] + (q[0] - e[0]) / d * 9, e[1] + (q[1] - e[1]) / d * 9]]);
     }
+    // 11/20 クラウドミ三：羽柴の手が段2の終点で止まり、段3の間ずっと馬廻・勝家と重なった（act bot 316秒・5人・重なり6組）。峠口の手前、道の脇へ進める
+    if (F.hashiba?.count) march(F.hashiba, [xz(roadX(-118) + 8, -118)]);
     followChase(rt, -112);
     // 山崎・龍興の旗本を実際に討ち終えてから進む。段の切替で命を零にしない。
     if (!F.fallTold) {

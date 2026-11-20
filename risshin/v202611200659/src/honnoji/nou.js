@@ -7,7 +7,7 @@
 // 舞台・柱・屋根・鏡板は基本形（鏡板の松はキャンバスで描く）。
 // ======================================================================
 import { evPerson, evRemove } from '../b_ev6.js';
-import { groundAt, addDeck } from '../floors.js';
+import { groundAt, addDeck, FL } from '../floors.js';
 import { kagaribi } from '../props.js';
 import { sfx } from '../audio.js';
 import * as THREE from 'three';
@@ -41,7 +41,7 @@ function pine() {
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
 }
 
-// 舞台を建てる（一度だけ。翌朝も残す）。篝火と毛氈は返す物の off で片付ける
+// 舞台を建てる（一度だけ）。篝火と毛氈は返す物の off で片付ける。舞台そのものは夜明けの暗転で nohStageClear が片付ける（K421）
 export function nohStage(rt) {
   const F = rt.flags, T = THREE, W = rt.world;
   const y0 = groundAt(W, S.x, S.z, 0), yF = y0 + FLOOR;
@@ -87,10 +87,12 @@ export function nohStage(rt) {
     rt.scene.add(grp);
     F.nohStage = grp;
     // 床の当たり（上で人が立つ・座る）
-    addDeck({ x0: S.x - HALF, x1: S.x + HALF, z0: S.z - HALF, z1: S.z + HALF, y: yF, name: '能舞台' });
-    addDeck({ x0: S.x - HALF, x1: S.x + HALF, z0: BACK.z0, z1: BACK.z1, y: yF, name: '能舞台の後座' });
-    addDeck({ x0: JI.x0, x1: JI.x1, z0: S.z - HALF, z1: S.z + HALF, y: yF, name: '地謡座' });
-    addDeck({ x0: HASHI.x0, x1: HASHI.x1, z0: HASHI.z - 1, z1: HASHI.z + 1, y: yF, name: '橋掛り' });
+    F.nohDecks = [
+      addDeck({ x0: S.x - HALF, x1: S.x + HALF, z0: S.z - HALF, z1: S.z + HALF, y: yF, name: '能舞台' }),
+      addDeck({ x0: S.x - HALF, x1: S.x + HALF, z0: BACK.z0, z1: BACK.z1, y: yF, name: '能舞台の後座' }),
+      addDeck({ x0: JI.x0, x1: JI.x1, z0: S.z - HALF, z1: S.z + HALF, y: yF, name: '地謡座' }),
+      addDeck({ x0: HASHI.x0, x1: HASHI.x1, z0: HASHI.z - 1, z1: HASHI.z + 1, y: yF, name: '橋掛り' }),
+    ];
   }
   // 篝火二つ（舞台の前の両脇）と観る座の毛氈
   const extra = new THREE.Group(); extra.name = '能の篝火と毛氈';
@@ -107,6 +109,19 @@ export function nohStage(rt) {
   }
   rt.scene.add(extra);
   return { yF, off: () => { rt.scene.remove(extra); for (const f of fires) W.removeFire?.(f); } };
+}
+
+// K421（11/20 kaito「戦になっても本能寺の中に能舞台が残っている。戦では片付ける」）：
+//   前夜の能は一夜の催し。夜明けの暗転の中で舞台と床の当たりを消す（床は id が並びの番号なので抜かず、どこにも当たらない形にする）
+export function nohStageClear(rt) {
+  const F = rt.flags;
+  if (F.nohStage) {
+    rt.scene.remove(F.nohStage);
+    F.nohStage.traverse((o) => { o.geometry?.dispose?.(); if (o.material?.map) o.material.map.dispose(); o.material?.dispose?.(); });
+    F.nohStage = null;
+  }
+  for (const id of F.nohDecks || []) { const d = FL.decks[id]; if (d && d.name && /能舞台|地謡座|橋掛り/.test(d.name)) { d.pad = -1e9; d.y = -1e3; } }
+  F.nohDecks = null;
 }
 
 function place(rt, u, x, z, y, face) {

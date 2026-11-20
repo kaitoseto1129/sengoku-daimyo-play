@@ -12,7 +12,7 @@ import { evPerson, evRemove } from '../b_ev6.js';
 import { groundAt } from '../floors.js';
 import { sfx, playMusic } from '../audio.js';
 import * as THREE from 'three';
-import { nohStage, playNoh, NOH_SEATS } from './nou.js';
+import { nohStage, nohStageClear, playNoh, NOH_SEATS } from './nou.js';
 
 // 広間（x −57〜−49・z 83.2〜95）。入口は南の廊下。上座は北の奥（推定の座の並び）
 const NB_SEAT = { x: -53, z: 93.2 };           // 上座の信長（南を向く）
@@ -52,6 +52,7 @@ function put(rt, u, x, z, face) {
   u.pos.set(x, groundAt(rt.world, x, z, u.pos.y), z); u.mesh?.position.copy(u.pos);
   u.moveTo = null; u.target = null;
   if (face != null) { u.heading = face; u.facing = face; }
+  rt.cutT = rt.t;   // 11/20 クラウドせ：前夜の座の置き直しは暗転の中・章の頭だけ（act bot 28秒 信長 (-53,93)↔(-58,72) ★★24回を飛びに数えない）
 }
 
 // 本人と供を一緒に移す（本人のそばの組は置いて行かない）
@@ -178,6 +179,7 @@ function start(rt, done) {
     // 11/19 kaito「急に画面全体の色が変わる」：画面を一コマで消さず、黒へゆっくり落とし、黒の間に元へ戻す（客は帰り、信長と小姓は居室へ、本人は寝床）
     //   要件21：黒の間は静か→遠くで鉄砲一つ→間→明けて目が覚める（もう一つ）。黒の真ん中に時刻（kaito「何分（何時間）後という表記」）
     k15Dark(rt, () => {
+      nohStageClear(rt);   // K421：戦の朝には能舞台を残さない
       for (const g of guests) evRemove(rt, g);
       if (nb?.alive) { delete nb.jinchu; if (nbAnchor) { nbG.anchor = nbAnchor; nbG.facing = nbFace; put(rt, nb, nbAnchor.x, nbAnchor.z, nbFace); } }
       if (kosho) { if (F.ran) delete F.ran.jinchu; if (koAnchor) { kosho.anchor = koAnchor; kosho.facing = koFace; } kosho.units.forEach((u) => { if (u.alive) put(rt, u, koAnchor.x + (Math.random() - 0.5) * 2, koAnchor.z + (Math.random() - 0.5) * 2); }); }

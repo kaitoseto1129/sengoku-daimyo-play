@@ -284,6 +284,7 @@ export function unBlue(c) {
 }
 const NOBLUE_SKIP = new Set(['skin', 'face', 'tier', 'vi', 'flag', 'standard', 'mon', 'kacchu']);
 const _noBlueKacchu = new Map();   // 武将の具足の表は形の使い回しの鍵なので、直した写しも一人一つに保つ
+const NEAR_FLAG_THIN = !(typeof location !== 'undefined' && /[?&]nearflag=0/.test(location.search));
 function allyNoBlue(look, deep = true) {
   for (const k in look) {
     // 仙石家伝来具足の紺糸威は、本人の鉢の指定がある時だけ保つ。
@@ -1952,6 +1953,16 @@ export class Army {
         if (u.flag) u.flag.visible = (dist < 110 || this.world.ohView) && !(u.group && u.group.hideFlags);   // 引きの視点（world.ohView・K106）は遠い戦線の旗も
         // 11/19 クラウド山崎：戦が nearAllyFlagHide（m）を決めた時は、カメラの間近の味方の指物・幟を描かない（手前の幟の林が画面の三分の一を塞いだ）
         if (u.flag && u.flag.visible && this.world.def.nearAllyFlagHide && u.team === 0 && !u.isStandard && !u.isUma && u.camD < this.world.def.nearAllyFlagHide) u.flag.visible = false;
+        // 11/20 iMac 足軽の係・長（kaito 11/19「幟が兵の前を壁のように塞ぐ」の本題は本人の視点の近さ）：全戦で、カメラの六m内に入った幟・隊旗（flagScale 1.8 以上）は
+        //   布の幅を巻いた幟のように細くし（六m で元の幅・三m で一割半）、二・七m より内は布を描かない。兵の体・竿を持つ手・並の指物はそのまま。
+        //   本人の組は幟を負わない（spawnSteps）ので、塞ぐのは隣の備の幟持ち。持ち場は動かさず、カメラに近い時の布だけ細くする。?nearflag=0 で前
+        if (u.flag && NEAR_FLAG_THIN && (u.look?.flagScale || 1) >= 1.8 && !u.isStandard && !u.isUma) {
+          const sx0 = u._flagSx0 ?? (u._flagSx0 = u.flag.scale.x), d = u.camD ?? dist;
+          if (d < 6) {
+            if (d < 2.7) u.flag.visible = false;
+            else { const k = Math.max(0.15, (d - 3) / 3); if (Math.abs(u.flag.scale.x - sx0 * k) > 0.01) { u.flag.scale.x = sx0 * k; u.flag.updateMatrix(); } }
+          } else if (u.flag.scale.x !== sx0) { u.flag.scale.x = sx0; u.flag.updateMatrix(); }
+        }
       }
       // 画面の外にいる兵は手足の動きを省く
       const detailWake = u.qualityWasOffscreen && !u.offscreen;

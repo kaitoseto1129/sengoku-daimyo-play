@@ -49,25 +49,30 @@ function start(rt, K, done) {
   }
   // 11/18 09:40 持ち主 クラウド（act bot 0931・0933：戦が964〜1081秒・指示書の本能寺8〜9分）：二つの波の守る長さ 35→28秒（数と重さはそのまま）
   // 11/18 17:20 持ち主 クラウド（act bot 1710：872秒・段5 が183秒）：二つの波 28→22秒（数と重さはそのまま）
-  const route = (goal) => {
+  // 11/20 クラウドし K438「『上様の横』のピンが一か所に固定されている。上様に付いて動く」：行き先は関数でも渡せ、毎回の今の点で道を引く
+  const route = (goal0) => {
     let nextScan = -1;
+    const pt = typeof goal0 === 'function' ? goal0 : () => goal0;
+    let goal = pt();
     return {
       limit: 20,   // 11/18 クラウド（本能寺の持ち主・長さ）：最後の間の段が232秒。歩く上限 60→35→20（御殿の内の短い道）・守る 45→35秒
       guide: () => {
-        if (rt.t >= nextScan) { nextScan = rt.t + 0.5; K.guardGuide(rt, goal); }
+        if (rt.t >= nextScan) { nextScan = rt.t + 0.5; goal = pt(); K.guardGuide(rt, goal); }
         return F.guardGuide;
       },
-      canArrive: () => K.guardClear(rt, goal.x, goal.z),
+      canArrive: () => { goal = pt(); return K.guardClear(rt, goal.x, goal.z); },
     };
   };
   const hiroma = PT.hiroma, hikae = PT.hikae;
   // 広間が既に燃えていれば、控えの間で受ける。火の中へ戻る任務にしない。
   const post = F.heatZone ? hikae : hiroma, place = F.heatZone ? '控えの間' : '広間';
   K.nbSet(rt, 'E', { at: { ...post } });
+  // 上様が生きて御殿の内にいる間は、上様の今の居場所を「上様の横」にする（持ち場から十二歩より離れたら持ち場の点）
+  const nbAt = () => { const u = F.nb; return u?.alive && u.pos && Math.hypot(u.pos.x - post.x, u.pos.z - post.z) < 12 ? { x: u.pos.x, z: u.pos.z } : post; };
   rt.banner('上様と並んで', `小袖の信長が、自ら槍を取って${place}に立つ`);
   k15Scenes(rt, [
     [1, () => K.say(rt, '織田信長', 'そこの者、わしの横に付け。一人も奥へ通すな', 4)],
-  ], () => k15Go(rt, 'sg-hiroma', post, 4, `${place}で、上様の横に付け`, '上様の横', () => {
+  ], () => k15Go(rt, 'sg-hiroma', nbAt, 4, `${place}で、上様の横に付け`, '上様の横', () => {
     // 東壁へ斜めに突っ込まず、北の廊下と襖の開口から座敷へ入る。
     const entryX = F.heatZone ? -62 : -54;
     // 11/19 クラウドし K380（要件書26「御殿内部でも敵が入ってくる。廊下・襖・煙・炎。明智兵が一人・二人ずつ入る」）：
@@ -90,7 +95,7 @@ function start(rt, K, done) {
       ], done, stop));
       }, route(hikae));
     }, stop));
-  }, route(post)), stop);
+  }, route(nbAt)), stop);
 }
 
 // 11/19 クラウドし K380 要件書26：明智兵を廊下の口から一人・二人ずつ入れ、入れた全部を一つの敵として数える（k15Track と同じ終わり方）。

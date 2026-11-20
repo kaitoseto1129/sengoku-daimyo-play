@@ -216,8 +216,9 @@ export class HudCards {
   // 敵印。枠は初回に確保し、毎コマは頭の位置だけ更新する。
   enemyTriangleSigns(rt) {
     const me = rt.player.u;
+    // K422（kaito 11/20 本能寺「明智の兵に赤い三角が出ていない」）：行き先のピンを出す戦では▼が全部消えていた。def.enemyTrianglesWithPin の戦はピンと併せて出す
     // 敵の▼は field_signs.js の一つの形に任せる（頭上に固定。字の▼を毎コマ見え隠れさせない。kaito 10/23）。
-    const on = (!pinGuideOn(rt) || rt.def.keepBattleSigns) && rt.def.enemyTriangleSigns && me.alive && !rt.over && !rt.choice &&
+    const on = (!pinGuideOn(rt) || rt.def.keepBattleSigns || rt.def.enemyTrianglesWithPin) && rt.def.enemyTriangleSigns && me.alive && !rt.over && !rt.choice &&
       !this.introWaiting && !rt.player.camShot && !this.bigmap && !this.root.classList.contains('photo');
     if (!this.enemyTriangles) {
       if (!on) return;

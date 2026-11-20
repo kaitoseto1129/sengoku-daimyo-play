@@ -113,7 +113,8 @@ function horseHairGeometry(mesh, body, walk) {
         // 首の中ほどが長く、き甲と耳の際は短い。房ごとに長さを揃えない
         // 11/20 imac/look-cavalry 二回目：房の裾が一列に揃い、一枚の板を切り抜いた鋸の歯に見えた。房ごとの長さの幅を広げ（±3割）、
         //   裾ほど前後へ流し、外の房は首から離して浮かせる（木曽馬・御崎馬の鬣は太い毛が束で不揃いに垂れる。docs/cavalry_look_1119.md）
-        const L = (0.12 + 0.15 * Math.sin(Math.PI * Math.min(1, f * 1.1)) + 0.07 * rnd(k * 3 + layer)) * [1, 0.92, 0.7][layer] * (0.88 + 0.24 * rnd(k * 17 + layer * 5 + 2));   // 11/20 六回目：長さの幅が広いと、長い房の細い先だけが裾の下へ飛び出し、駆け足の横から首に鋸の歯が並んだ。幅を ±12% に戻す
+        const wk0 = Math.max(0, 1 - f / 0.22);   // き甲の際は長さを揃える（七回目）
+        const L = (0.12 + 0.15 * Math.sin(Math.PI * Math.min(1, f * 1.1)) + 0.07 * rnd(k * 3 + layer) * (1 - wk0)) * [1, 0.92, 0.7][layer] * (1 + (0.24 * rnd(k * 17 + layer * 5 + 2) - 0.12) * (1 - wk0));   // 11/20 六回目：長さの幅が広いと、長い房の細い先だけが裾の下へ飛び出し、駆け足の横から首に鋸の歯が並んだ。幅を ±12% に戻す
         const tipZ = (rnd(k * 23 + layer * 7) - 0.5) * 0.03, tipOut = 0.004 + 0.01 * rnd(k * 29 + layer * 3);   // 五回目：浮かせ過ぎた外の房が日を受けて白い歯に見えたので控えめに
         const w = 0.06 + 0.015 * rnd(k * 7 + layer);
         const base = P.length / 3;
@@ -121,13 +122,14 @@ function horseHairGeometry(mesh, body, walk) {
         for (let j = 0; j <= ROWS; j++) {
           const t = j / ROWS;
           const y = c.p.y + (j === 0 ? 0.03 : 0.018) - L * t;
-          const z = c.p.z - L * t * 0.18 + (rnd(k * 11 + j) - 0.5) * 0.008 - (rnd(k * 5 + layer) - 0.5) * 0.05 * t + (layer === 1 ? 0.014 : 0) + tipZ * t * t;
+          const z = c.p.z - L * t * 0.18 + (rnd(k * 11 + j) - 0.5) * 0.008 - (rnd(k * 5 + layer) - 0.5) * 0.05 * t + (layer === 1 ? 0.014 : 0) + tipZ * t * t * (1 - wk0);
           const sx = sideX(y, z, side);
           if (sx !== null) xo = Math.max(xo, sx * side - c.p.x * side + 0.008 + 0.028 * t + layer * 0.012 + layer * tipOut * t * t);
           // 峰の上は向こう側から少し被せ、隙間を見せない
           const x = c.p.x + side * (j === 0 ? -0.024 + layer * 0.01 : xo);
           // 裾は細る（板の四角い端を見せない）
-          const ww = w * (1 - 0.45 * Math.pow(t, 4)) * (1 + 0.2 * Math.sin(t * Math.PI));   // 11/20 五回目：毛先を尖らせ過ぎると、駆け足の横からの写真で首に白い鋸の歯が並んで見えた。裾の幅を残して房を重ねる   // 毛先は細って尖る（裾を四角い板の端にしない）
+          const wk = Math.max(0, 1 - f / 0.22);   // 七回目：き甲の際の短い房は、裾を細らせず幅を広げて重ね、房の間の切れ込みを見せない
+          const ww = w * (1 + 0.6 * wk) * (1 - 0.45 * (1 - wk) * Math.pow(t, 4)) * (1 + 0.2 * Math.sin(t * Math.PI));   // 11/20 五回目：毛先を尖らせ過ぎると、駆け足の横からの写真で首に白い鋸の歯が並んで見えた。裾の幅を残して房を重ねる   // 毛先は細って尖る（裾を四角い板の端にしない）
           for (const s of [-1, 1]) put(new THREE.Vector3(x, y, z).addScaledVector(dir, s * ww * 0.5), [(s + 1) / 2, t], sk);
           if (j) { const a = base + (j - 1) * 2; quad(a, a + 1, a + 2, a + 3); }
         }

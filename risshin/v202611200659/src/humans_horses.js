@@ -317,7 +317,7 @@ function applyProxy(h) {
   }
 }
 // 今の形の馬に、骨の入った馬を付ける・外す
-function attachReal(h) {
+function attachReal(h, u = null) {
   const H = h.userData.horse;
   if (!H.real) H.real = HR.pool.pop() || makeRealHorse();
   const R = H.real;
@@ -328,6 +328,10 @@ function attachReal(h) {
   // 付けたコマのうちに姿勢を合わせる（立ち姿のまま一コマ出ないように）
   R.yaw = undefined; R.prev = H.speed || 0; R.oneK = H.dead ? 'death' : null; R.oneT = H.dead ? H.deadT : 0; R.flinch = 0;
   driveHorse(h, 0, H.speed || 0);
+  // 11/20 imac/look-cavalry 七回目：骨入りの馬は使い回す（HR.pool）。鐙・力革・手綱の置き場は前の持ち主の最後の形（倒れた馬なら地面の高さ）のまま残り、
+  //   付けた兵が「画面の外」の扱いの間は置き直されない（humans_runtime.js は画面の外の馬の馬具を飛ばす）ので、立っている馬の足もとに鐙が落ち、手綱が地面を這って写った。
+  //   付けたコマのうちに一度、今の馬と乗り手に合わせて置く
+  placeHorseExtras(h, u);
 }
 function detachReal(h) {
   const H = h.userData.horse, R = H.real;
@@ -413,7 +417,7 @@ function updateHorses(rt) {
     if (horsesOn.has(h)) continue;
     if (madeHorses >= 2 && !h.userData.horse.real) continue;   // 一コマに作るのは二頭まで（一コマが重くならないよう）
     if (!HR.pool.length) madeHorses++;
-    attachReal(h); horsesOn.add(h);
+    attachReal(h, want.get(h)); horsesOn.add(h);
   }
   return want;
 }
