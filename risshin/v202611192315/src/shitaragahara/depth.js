@@ -2,23 +2,24 @@
 //   柵の際の鉄砲と寄せの最前は本物の兵と既存の軽い列が受け持つ。この表は奥の層（大将の備・本陣・後詰）を兵数の比で置く。
 //   K265 11/15 iMac：備の重みは、戦の中の将の陣・幟（b_shitaragahara.js の CHAUSU・IEYASU・KATSUYORI・ALLIED/REAR/TAKEDA_POSTS）の20後ろに置く。
 //   前は同じ将が陣と備の二か所に居た（信長 230m・家康 131m・勝頼 100m 離れて二人）。茶臼山・弾正山・才ノ神は標高の丘の上の陣に合わせた。
+//   11/19 kaito「後詰めの備ももっとちゃんと前に」：織田・徳川の備は柵の後ろ（x−40〜−120）へ寄せた（大久保は柵の外 x40 から柵の内へ）。
 //   どの備も動かない（hold）。勝ち負け・本物の兵の数には入らない。ゲームの1は実の約2m（mpu 2）。
 const E = Math.PI / 2, Wd = -Math.PI / 2;
 export const DEPTH_SHITARA = {
   byMen: true,
   A: { name: '織田・徳川', facing: E, honjin: { x: -486, z: -100 }, mpu: 2, formation: '方円', terrain: 'plain', flag: 'oda', armor: 0x1f1e1c, uma: 'kasa', openAt: 99999, attrition: 0,
     sonae: [
-      { id: 'sakuma', layer: 'ichi', wing: 'left', men: 3000, taisho: '佐久間信盛', flag: 'sakuma', hold: true, at: { x: -48, z: -440 } },
-      { id: 'hashiba', layer: 'ni', wing: 'left', men: 2500, taisho: '羽柴秀吉', flag: 'toyotomi', hold: true, at: { x: -320, z: -320 } },
-      { id: 'takigawa', layer: 'ni', wing: 'center', men: 2500, taisho: '滝川一益', flag: 'takigawa', hold: true, at: { x: -75, z: -340 } },
-      { id: 'niwa', layer: 'ni', wing: 'center', men: 2500, taisho: '丹羽長秀', flag: 'sujikai', hold: true, at: { x: -260, z: -230 } },
-      { id: 'nobutada', layer: 'yobi', wing: 'left', men: 4000, taisho: '織田信忠', flag: 'oda', hold: true, at: { x: -260, z: -420 } },
+      { id: 'sakuma', layer: 'ichi', wing: 'left', men: 3000, taisho: '佐久間信盛', flag: 'sakuma', hold: true, at: { x: -74, z: -430 } },
+      { id: 'hashiba', layer: 'ni', wing: 'left', men: 2500, taisho: '羽柴秀吉', flag: 'toyotomi', hold: true, at: { x: -74, z: -250 } },
+      { id: 'takigawa', layer: 'ni', wing: 'center', men: 2500, taisho: '滝川一益', flag: 'takigawa', hold: true, at: { x: -74, z: -340 } },
+      { id: 'niwa', layer: 'ni', wing: 'center', men: 2500, taisho: '丹羽長秀', flag: 'sujikai', hold: true, at: { x: -74, z: -175 } },
+      { id: 'nobutada', layer: 'yobi', wing: 'left', men: 4000, taisho: '織田信忠', flag: 'oda', hold: true, at: { x: -100, z: -420 } },
       { id: 'nobunaga', layer: 'honjin', wing: 'center', men: 6000, taisho: '織田信長', flag: 'oda', hold: true, at: { x: -506, z: -100 } },
-      { id: 'gozume', layer: 'gozume', wing: 'center', men: 4000, taisho: '', flag: 'oda', hold: true, at: { x: -430, z: 120 } },
-      { id: 'okubo', layer: 'sakite', wing: 'right', men: 500, taisho: '大久保忠世', flag: 'okubo', hold: true, at: { x: 40, z: 410 } },
-      { id: 'tokuMae', layer: 'ni', wing: 'right', men: 3500, taisho: '本多忠勝', flag: 'honda', hold: true, at: { x: -85, z: 440 } },
-      { id: 'ieyasu', layer: 'hatamoto', wing: 'right', men: 3000, taisho: '徳川家康', flag: 'tokugawa', hold: true, at: { x: -100, z: 350 } },
-      { id: 'nobuyasu', layer: 'gozume', wing: 'right', men: 1000, taisho: '松平信康', flag: 'tokugawa', hold: true, at: { x: -250, z: 450 } },
+      { id: 'gozume', layer: 'gozume', wing: 'center', men: 4000, taisho: '', flag: 'oda', hold: true, at: { x: -120, z: 120 } },
+      { id: 'okubo', layer: 'sakite', wing: 'right', men: 500, taisho: '大久保忠世', flag: 'okubo', hold: true, at: { x: -40, z: 380 } },
+      { id: 'tokuMae', layer: 'ni', wing: 'right', men: 3500, taisho: '本多忠勝', flag: 'honda', hold: true, at: { x: -40, z: 440 } },
+      { id: 'ieyasu', layer: 'hatamoto', wing: 'right', men: 3000, taisho: '徳川家康', flag: 'tokugawa', hold: true, at: { x: -40, z: 300 } },
+      { id: 'nobuyasu', layer: 'gozume', wing: 'right', men: 1000, taisho: '松平信康', flag: 'tokugawa', hold: true, at: { x: -80, z: 450 } },
     ] },
   B: { name: '武田', facing: Wd, honjin: { x: 430, z: 10 }, mpu: 2, formation: '鶴翼', terrain: 'plain', flag: 'takeda', armor: 0x2e2822, openAt: 99999, attrition: 0,
     sonae: [

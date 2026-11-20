@@ -42,7 +42,7 @@ const BAND_RING = [[10, -4], [10, 4], [2, -10], [2, 10], [-9, -7], [-9, 7]];   /
 const FORD = { x: 20, w: 22 };               // 浅瀬（川の中ほどの x と幅の半分）
 const FORD2 = { x: -70, w: 12 };
 const RIVER_Z = 0;
-const RIVER = [[-270, 6], [-150, -3], [-40, 2], [60, -2], [170, 4], [270, -2]];
+const RIVER = [[-360, 8], [-270, 6], [-150, -3], [-40, 2], [60, -2], [170, 4], [270, -2], [360, 1]];   // 11/19 係：地形を広げた（groundHalf 340）ので川も端まで
 const CASTLE = { x: 70, z: -150 };           // 鶴賀城（尾根の上の主郭）
 const FORT_R = 17;                           // 主郭（東西四十 m・南北二十五 m ほどを低い土塁で囲む）
 const GATE_A = Math.PI * 1.25;               // 虎口の向き（南西＝浅瀬からの道の側）
@@ -296,9 +296,9 @@ const t06_hetsugi = {
     noFake: true,   // 11/13 K285（kaito「本物の兵しか映したらいけない」）：絵だけの兵を作らない。映る兵は全員 戦の中の本物
     seed: 15861,
     time: 'dusk',
-    groundHalf: 260,
+    groundHalf: 340,   // 11/19 係（kaito 11/19「地形をもっと大きく、軍勢が入るように。あそこは狭い」）：260→340（布陣図の島津の奥 z−218・豊臣の陣 x−214 の外に余白）
     battleViewDistance: 140,   // 川向こうの島津の陣と鶴賀城の尾根が霞に消えないように
-    moveLim: 248,
+    moveLim: 320,   // 11/19 係：248→320（両軍の備が並べる広さ。表の備が端で押し戻されない）
     noFoeNear: true,         // 敵の後詰めを本人の近くへ寄せない（見せかけの軍勢で囲まない。AQ の 6）
     autumn: true,            // 師走：枯れ草の河原
     // 11/8 八1：つぎはぎの四角と丸い石の模様が一面に貼り付いた。まだらの土は使わない
@@ -611,10 +611,11 @@ const t06_hetsugi = {
       for (const g of [F.nobu, F.sen, F.sogo, F.tsune]) if (live(g)) g.speed = 3.4;
       if (live(F.mine)) F.mine.speed = 3.8;
       // 11/7 九2：伊集院の先手は丘で立っているだけで、当たる前に退いていた。先手は河原へ下りて四国の衆と本当に槍を合わせる
-      this.go(B.ijuin, { x: 26, z: -50 }, 2.6, { charge: true });
-      this.go(B.sen, { x: 46, z: -52 }, 3.4, { charge: true });
-      this.go(B.nobu, { x: 16, z: -50 }, 3.4, { charge: true });
-      this.go(B.sogo, { x: 54, z: -46 }, 3.2, { charge: true });   // 11/8 二2：十河の備は本人から見える所（右の三十 m 余り）
+      // 11/19 係（kaito 11/19「渡った後は一旦陣を敷く。そこへ島津の先手が来て、それをやっつける」）：四国の衆は渡った岸の陣の列（z−42 前後）で構え、先手がその列まで寄せて来る
+      this.go(B.ijuin, { x: 24, z: -44 }, 2.6, { charge: true });
+      this.go(B.sen, { x: 46, z: -44 }, 3.4);
+      this.go(B.nobu, { x: 16, z: -42 }, 3.4);
+      this.go(B.sogo, { x: 54, z: -38 }, 3.2);   // 11/8 二2：十河の備は本人から見える所（右の三十 m 余り）
       // 11/19 クラウド持ち主（act bot POSLOG）：本人が先に北岸で先手と向き合うと渡りの順（crossLeg）が三で切れ、元親の備が南の岸 (-4,112) に残った。
       //   「元親を退かせろ」の▼が二百 m 南の川向こうを指し、本人は六十秒立ち尽くしていた。かかれの下知で元親も北岸の浅瀬の口の後ろへ渡らせる
       if (F.s1 && (F.s1.crossLeg || 0) < 4) { F.s1.crossLeg = 4; this.go(B.moto, { x: 4, z: -30 }, 2.6); }
@@ -776,7 +777,9 @@ const t06_hetsugi = {
       const c = g.center();
       g.order = 'hold'; g.dest = null; g.focus = null; g.aggro = 0; g.seekRange = 0; g.anchor = { x: c.x, z: c.z }; g.facing = Math.PI;
     }
-    rt.after(0.8, () => rt.say('手勢の侍', '……止まった？', 2.4));
+    // 11/19 係（kaito 11/19「勝ったと思ったら追い打ちをするが、『罠かもしれない、追撃やめろ』の声。そうしたら一気に全部囲まれる」）
+    rt.say('長宗我部元親', '待て、罠かもしれぬ。追うな！', 2.6);
+    rt.after(2.8, () => rt.say('手勢の侍', '……止まった？', 2.4));
     // 一人ずつ振り返る（組の頭から、間を置いて）
     let k = 0;
     for (const g of bands) for (const u of g.units) {

@@ -255,7 +255,7 @@ export const ArmyRanged = {
     if (over > 0) sig *= 1 + over / 50 * 1.5;
     // 11/19 kaito「自分が鉄砲を撃っても、射撃の精度が低い」：本人の照準で撃つ一発（launch）は兵の散りでなく、狙いの合った筒の散りにする。
     //   五十歩で〇・二m、一町（百歩）で〇・四七m ほど（止まった的なら五十歩で八割強、一町で四割強）。敵の鉄砲の散りは変えない
-    if (launch && u.isPlayer) sig = (0.06 + d * 0.003) * (elev > 0 ? Math.max(0.75, 1 - Math.min(elev, 14) * 0.018) : 1 + Math.min(-elev, 14) * 0.025) * (1 + over / 50 * 0.3);
+    if (launch && u.isPlayer) sig = (0.025 + d * 0.0012) * (elev > 0 ? Math.max(0.75, 1 - Math.min(elev, 14) * 0.018) : 1 + Math.min(-elev, 14) * 0.025) * (1 + over / 50 * 0.3);
     // 撃ち手の前に硝煙が溜まっていると的が見えにくく、弾が散る（凪の日の一斉射撃の後）
     if (this.smokes && this.smokes.length) {
       const mx2 = u.pos.x + (targetPos.x - u.pos.x) * Math.min(1, 6 / Math.max(6, d)), mz2 = u.pos.z + (targetPos.z - u.pos.z) * Math.min(1, 6 / Math.max(6, d));
