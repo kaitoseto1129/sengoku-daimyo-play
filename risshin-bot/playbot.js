@@ -657,10 +657,46 @@ function shitaraGate(route, z) {
   for (const g of route.gates) if (Math.abs(g - z) < Math.abs(gz - z)) gz = g;
   return gz + route.offset;
 }
+function shitaraGateI(route, z) { let b = 0; for (let i = 1; i < route.gates.length; i++) if (Math.abs(route.gates[i] - z) < Math.abs(route.gates[b] - z)) b = i; return b; }
+// 柵の帯の中の居場所：0＝一の柵の外、1＝一と二の柵の間、2＝二と三の柵の間、3＝三の柵の奥（b_shitaragahara.js shZone と同じ）
+function shitaraZone(route, x, gi, z) {
+  if (x > route.rows[0][gi] + 0.8) return 0;
+  if (x > route.rows[1][gi] + 0.8) return 1;
+  if (x > route.rows[2][gi] + 0.8) return 2;
+  const d = z - route.gates[gi];
+  return d > 9.6 && d < 22.2 && (x > route.baf[gi] + 0.6 || x > route.baf[gi] - 1.5 && d > 19) ? 3 : 4;
+}
+// 居場所の違う行き先へ一歩：口へ揃える → 口を抜けて隣の筋の真ん中へ。同じ居場所なら何もせず false（4＝奥、3＝三の柵の口と蔀の柵の間）
+function shitaraHop(p, inp, route, pos, t, gi) {
+  const zp = shitaraZone(route, pos.x, gi, pos.z), zt = shitaraZone(route, t.x, gi, t.z);
+  if (zp === zt) return false;
+  const inw = zt > zp, c = route.gates[gi] + route.cross[inw ? zp : zp - 1];
+  const laneX = (z) => (z === 0 ? Math.max(t.x, route.rows[0][gi] + 2.5) : z === 4 ? Math.min(t.x, route.baf[gi] - 2.5) : route.lanes[z][gi]);
+  if (Math.abs(pos.z - c) > 0.8) {
+    if (zp === 4 && pos.x > route.baf[gi] - 1.5) goTo(p, inp, route.baf[gi] - 2.5, pos.z, 0.5);   // 蔀の柵をかすめないよう先に西へ離れる
+    else if (zp === 3 && pos.x < route.lanes[3][gi] - 0.7) goTo(p, inp, route.lanes[3][gi], pos.z, 0.4);   // 蔀の北の端を回った所からは、先に真東の筋へ入る
+    else goTo(p, inp, zp === 0 || zp === 4 ? pos.x : route.lanes[zp][gi], c, 0.5);
+  } else goTo(p, inp, laneX(inw ? zp + 1 : zp - 1), c, 0.5);
+  return true;
+}
 // 近い虎口から柵と土塁の後ろへ出て、南北へ移る。遠い虎口へ柵を横切らない。
 function shitaraPost(b, inp, post) {
   const p = b.player, pos = p.u.pos, route = b.flags.fenceRoute;
   if (!route) { goTo(p, inp, post.x, post.z, 1.5); return; }
+  // 11/19・11/20 iMac：設楽原は三つの口を階段にずらした（route.cross＝一・二・三の柵を抜ける z）。柵をまたぐ時は口を順に抜ける
+  if (route.rows) {
+    const gi = shitaraGateI(route, pos.z), qi = shitaraGateI(route, post.z), zp = shitaraZone(route, pos.x, gi, pos.z), zq = shitaraZone(route, post.x, qi, post.z);
+    const dz = Math.abs(pos.z - post.z);
+    if (zp === 4) {
+      // 奥の道：行き先の口の奥（蔀の柵の北の端）の前まで南北へ移ってから入る
+      const cz = zq === 4 ? post.z : route.gates[qi] + route.cross[3];
+      if (zq === 4 ? dz <= 8 : Math.abs(pos.z - cz) <= 0.8) { if (zq === 4) goTo(p, inp, post.x, post.z, 1.5); else shitaraHop(p, inp, route, pos, post, qi); }
+      else goTo(p, inp, Math.min(pos.x, route.rearX), cz, 0.5);
+    } else if (gi === qi && dz <= 30) {
+      if (zp === zq) goTo(p, inp, post.x, post.z, 1.5); else shitaraHop(p, inp, route, pos, post, gi);
+    } else shitaraHop(p, inp, route, pos, { x: route.rearX, z: pos.z }, gi);   // 遠い持ち場へは奥の道へ出てから
+    return;
+  }
   if (pos.x > route.rearX + 0.8 && (Math.abs(pos.z - post.z) > 8 || pos.x > post.x + 1.5)) {
     const gz = shitaraGate(route, pos.z);
     if (Math.abs(pos.z - gz) > 0.8) goTo(p, inp, pos.x, gz, 0.5);
@@ -719,6 +755,11 @@ function shitaraBrain(b, inp) {
   const route = F.fenceRoute;
   if (route && u.pos.x < route.frontX - 0.5) {
     const gz = shitaraGate(route, u.pos.z);
+    // 11/19・11/20 iMac：口は階段。一の柵の外へ出るまで、口を順に抜ける
+    if (route.rows) {
+      const gi = shitaraGateI(route, u.pos.z);
+      if (shitaraHop(p, inp, route, u.pos, { x: route.frontX, z: u.pos.z }, gi)) return;
+    }
     if (Math.abs(u.pos.z - gz) > 0.8) goTo(p, inp, u.pos.x, gz, 0.5);
     else goTo(p, inp, route.frontX, gz, 0.5);
     return;
