@@ -63,10 +63,11 @@ const _cv2 = new THREE.Vector3();
 const _ch = new THREE.Vector3();
 const _cy = new THREE.Vector3(0, 1, 0);
 // 采配を仕舞い、刀を戻す（人をやめる時も）
-function cmdOff(h) { if (h.saihai) h.saihai.visible = false; if (h.cmdHid) { h.cmdHid = false; if (h.u.wpn) h.u.wpn.visible = true; } }
+// 11/20 クラウドか（K412 kaito「前夜に棒や槍を持つ者がいる。蘭丸・力丸が采配のような物を持っている」）：u.noWpn（本能寺の前夜）の間は采配も出さず、仕舞う時に刀・槍も戻さない
+function cmdOff(h) { if (h.saihai) h.saihai.visible = false; if (h.cmdHid) { h.cmdHid = false; if (h.u.wpn && !h.u.noWpn) h.u.wpn.visible = true; } }
 function cmdPose(h, B, dt, time, w, engaged) {
   const u = h.u;
-  if (u.isPlayer || w !== 'sword' || !isNamed(h.look) || h.far) { cmdOff(h); return false; }
+  if (u.isPlayer || u.noWpn || w !== 'sword' || !isNamed(h.look) || h.far) { cmdOff(h); return false; }
   // 敵が近い（7m）か、打ち合っている時だけ刀を抜く（遠くの敵を狙っているだけなら采配のまま）
   const tg = lookTarget(u, _tgt2) ? _tgt2 : null, near = !!tg && Math.hypot(tg.x - u.pos.x, tg.z - u.pos.z) < 7;
   const calm = !near && !u.atk && !u.pAtk && !u.swing && !(u.guard || u.guardFlash > 0 || u.guarding > 0) && !(u.stagger > 0.3);
