@@ -5309,6 +5309,14 @@ const mitsukuri = {
   update(rt, dt) {
     const F = rt.flags;
     depthTick(rt, dt);   // 15分の構成の段（mitsukuri/）
+    // 11/20 ラ三（act bot 312秒 inside「崩れた部隊が、また戦っている」六角の小勢・城将の旗本 flee）：
+    //   崩れて退く組の取り残しも、逃げの印を付けて斬り合いをやめさせる（有岡と同じ）。
+    for (const g of rt.army.groups) {
+      if (!g.routed || g.order !== 'flee' || g.team !== 1) continue;
+      for (const u of g.units) if (u.alive && !u.gone && !u.isPlayer && !u.fleeing && !u.noTarget && (u.target || u.atk)) {
+        u.fleeing = true; u.routIn = 0; u.target = null; u.atk = null; u.swing = null; u.bind = null; u.charging = false;
+      }
+    }
     mkK26Waves(rt);
     // 11/19 クラウド k365-26（司令塔：寄せの強さ）：守りの組の aggro が二〜八で、本人が十歩先にいても打って出ず、味方の列が先に斬り尽くした（act bot 突き8・本人の討ち取り5〜9）。
     //   本人の二十五歩内に兵のいる敵の組だけ、寄せの強さ（aggro 14・seekRange 20）を上げる（一秒ごと・一度上げたら戻さない）。数・刃・固さは変えない

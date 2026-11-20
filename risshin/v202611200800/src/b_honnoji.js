@@ -391,6 +391,25 @@ function honnoFarWall(rt) {
     g.facing = Math.atan2(ax, az);
   }
 }
+// 11/20 クラウドか（K436）：御殿の段で裏門へ落ちる女房衆（被衣）。上様と本人が御殿へ着く前（p6 の初め）から、
+//   控えの間の西の奥 (-67〜-69, 89) に立って控えさせる。目の前に急に湧かせない。
+function honnoNyoboWait(rt) {
+  const F = rt.flags;
+  if (F.nyobo) return F.nyobo;
+  const from = { x: -68, z: 89.2 };
+  const g = allyGroup(rt, { fixed: true, fullStrength: true, name: '落ちる女房衆', anchor: from, facing: Math.PI / 2, formation: 'column', colW: 2,
+    speed: 1.6, aggro: 0, civ: true, noRout: true, arriveNoncombat: true },
+    [[0x8a3a3e, 0x3a2420], [0xc9bfa6, 0x6a2a2a], [0x5a4a6e, 0x2a231c], [0xa0624a, 0x30251c]].map(([col, obi]) =>
+      ({ type: 'ashigaru', n: 1, o: { flag: null, weapon: 'none', kosode: 1, kosodeCol: col, obi, cloth: col, hat: 'none', kazuki: 0xd8d0bc, armor: 0x3a342a, invuln: true } })));
+  if (!g) return null;
+  F.nyobo = g;
+  g.noAI = true; g.order = 'hold';
+  g.units.forEach((u, i) => {
+    u.noTarget = true; u.dmg = 0; u.civ = true;
+    u.pos.x = from.x - (i / 2 | 0) * 1.1; u.pos.z = from.z - 0.5 + (i % 2) * 1.0; u.pos.y = rt.world.heightAt(u.pos.x, u.pos.z); u.heading = Math.PI / 2;
+  });
+  return g;
+}
 // 11/19 クラウドし（K380 段1〜3・要件書3「周辺に小姓・女房衆」）：朝の表庭に女房衆が二人、宿坊の前で立ち話をしている（本人の正面・門への道の南）。
 //   鬨の声（P2）で宿坊の戸口へ小走りに入って消える（敵も味方も狙わない・着物の色は推定。御殿の段の落ちる女房衆とは別の二人）
 function honnoMorningWomen(rt) {
@@ -987,6 +1006,10 @@ function honnoPressure(rt) {
         Math.abs(u.pos.y - p.y) < 3 && Math.hypot(u.pos.x - p.x, u.pos.z - p.z) <= 16) nearby++;
   }
   if (alive + 4 > 240 || nearby + 4 > (goten ? 10 : 14)) return;
+  // 11/20 K439（kaito「敵が際限なく来て終わらない。信長の最期まで締まった流れに」）：静けさの度に四人ずつ足す追手は、段ごとに組の数を限る
+  //   （御殿・縁は三組＝十二人、本堂は六組）。台本の各口の波は残し、討ち払えば静かになって次の段（上様の最期）へ進む。クラウドさ
+  const fk = F.hp + '/' + (F.k15stage || ''), fc = F.followCnt || (F.followCnt = {});
+  if ((fc[fk] || 0) >= (goten || enQuick ? 3 : 6)) return;
   const routes = F.hp <= 5 ? [HONDO_PRESSURE_PATH] : F.hp === 6
     ? (F.mv ? [MOVES[F.mv].pts] : []) : Object.values(GOTEN_IN);
   for (const route of routes) for (let i = 1; i < route.length; i++) {
@@ -997,7 +1020,7 @@ function honnoPressure(rt) {
       if (d < 6 || d > 10 || !inTera(x, z) || !patrolClear(rt, x - 0.4, z) || !patrolClear(rt, x + 0.4, z) ||
           !patrolClear(rt, x - 0.4, z - 1.4) || !patrolClear(rt, x + 0.4, z - 1.4)) continue;
       const g = akechi(rt, '寺内へ続く明智の追手', [[x, z], [p.x, p.z]], goten ? [uS(1), uA(3)] : [uA(4)], { entered: true, player: true, dmg: goten ? 1.2 : enQuick ? 0.6 : 1 });
-      if (g) F.honnoQuiet = 0;
+      if (g) { F.honnoQuiet = 0; fc[fk] = (fc[fk] || 0) + 1; }
       return;
     }
   }
@@ -1358,6 +1381,40 @@ const NB_GATE_PATH = [[-67, 89], [-62, 89], [-62, 82.2], [-52, 82.2], [-52, 80],
 // 目の前に敵がいる時、布が無い時、傷が浅い時は縛らない。一撃の重さはそのまま。
 // 段の切れ目：馬廻・小姓衆が自分の前の寄せ手へ斬り込み、数歩押し返す（兵は減らさない）。
 // 押された兵は一瞬よろめき、狙いを外す。その間に上様と次の場へ移り、布を巻く。
+// 11/20 クラウドし（K430・kaito「味方が20人ほどになったら、小姓たちはその場で戦って時を稼ぎ、主人公と2〜3人が上様を奥へ連れて行く」）：
+//   寺の供（小姓・馬廻・持ち場）が二十人まで減ったら一度だけ、蘭丸と力丸の二人を上様に残し、ほかの小姓はその場に踏みとどまる組に分ける。
+//   馬廻もその場で構え、後の段で上様の後ろへ付け直さない（F.k430Stay）。残る組は F.posts に入れ、供の数え・守りの重さは今までどおり。
+function honnoK430(rt, NB) {
+  const F = rt.flags;
+  if (F.k430 || F.ending || rt.over || rt.G.lord || !NB?.alive || F.hp < 3 || F.hp > 6 || gone(F.kosho)) return;
+  if ((F.k430Ck = (F.k430Ck || 0) - 1) > 0) return;
+  F.k430Ck = 20;
+  let ally = 0;
+  for (const g of [F.kosho, F.uma, ...(F.posts || [])]) if (g) for (const u of g.units) if (u.alive) ally++;
+  if (ally > 20) return;
+  F.k430 = true;
+  const keep = new Set(['森蘭丸', '森力丸']);
+  const stay = F.kosho.units.filter((u) => u.alive && !keep.has(u.name));
+  if (stay.length) {
+    const c = { x: 0, z: 0 };
+    for (const u of stay) { c.x += u.pos.x / stay.length; c.z += u.pos.z / stay.length; }
+    const g = rt.army.addGroup({ team: 0, faction: F.kosho.faction, name: '踏みとどまる小姓衆', order: 'hold', anchor: c, facing: F.kosho.facing || 0, formation: 'line', width: 3, aggro: 12, noRout: true });
+    g.historicalOrders = true; g.hideFlags = true; g.defMult = 1; g.dmgMult = F.kosho.dmgMult;
+    for (const u of stay) {
+      F.kosho.units.splice(F.kosho.units.indexOf(u), 1);
+      u.group = g; u.slot = g.units.length; g.units.push(u); u.moveTo = null; u.aiT = 0;
+    }
+    for (let i = 0; i < F.kosho.units.length; i++) F.kosho.units[i].slot = i;
+    g.leader = g.units[0]; g.initial = g.units.length;
+    F.kosho.initial = F.kosho.units.length;
+    (F.posts ||= []).push(g);
+    F.k430G = g;
+  }
+  if (!gone(F.uma)) { F.uma.order = 'hold'; F.uma.anchor = { ...(F.uma.center?.() || F.uma.anchor) }; F.uma.aggro = 12; F.k430Stay = true; }
+  const who = stay.find((u) => u.name)?.name || '小姓';
+  honnoSay(rt, who, `ここはわれらが食い止める！　${nm(rt)}、上様を奥へお連れせよ！`, 3.4);
+  rt.after(3.6, () => { if (!F.ending && !rt.over) honnoSay(rt, '森蘭丸', '……かたじけない。上様、こちらへ！', 2.8); });
+}
 function pushBack(rt, r, who, text) {
   const u = rt.player.u;
   let n = 0;
@@ -2072,7 +2129,9 @@ function honnoSurround(rt, dt) {
   // 11/17 kaito（K352）「味方は甲冑を着ていない・敵は甲冑で守りが強い、その差が分からない・敵が七百減るのに味方は十人」：供の守りを減り具合で二十五倍まで上げていたのをやめ、
   //   寝間着・小袖の供は甲冑の明智勢より脆く（傷を一・二五倍）、打つ力も具足に阻まれて六割に（due は下の使いのため残す）
   void due;
-  for (const g of [F.kosho, F.uma, ...(F.posts || [])]) if (g) { g.defMult = 1; g.dmgMult = Math.min(g.dmgMult ?? 1, 0.75); }   // 守り0.8・打つ力0.6では供が先に尽き、本人が一人で囲まれて act bot が四回続けて討たれた
+  // 11/20 クラウドし（K429）：数の札が本物の数になったので、本物の味方が時計の目当て（初めの数×時計の割合）より三人より少なければ、供の傷を半分に（縁の段で六十三→十三と、時計の四十二より早く尽き、表門に七人だけ残った）
+  const liveA = honnoAllyLive(rt), thinA = liveA < Math.round((F.kinjuShown ?? 100) * (F.allyLive0 || 100) / 100) - 3;
+  for (const g of [F.kosho, F.uma, ...(F.posts || [])]) if (g) { g.defMult = thinA ? 2 : 1; g.dmgMult = Math.min(g.dmgMult ?? 1, 0.75); }   // 守り0.8・打つ力0.6では供が先に尽き、本人が一人で囲まれて act bot が四回続けて討たれた
   // 囲みの寄せ手が増えた分、上様が一太刀で崩れないように（上様を狙う台本の寄せ手は、これまでどおり手傷を負わせる）
   if (F.nbG && F.nb?.alive) F.nbG.defMult = F.nb.hp < F.nb.maxHp * 0.5 ? 10 : 4;
   // 鉄砲・矢は defMult を通らない。囲みの最中は上様の傷の進みを七分ほどに均す（離れて任せきりにすれば、それでも深手になる）
@@ -2124,6 +2183,9 @@ function honnoSurround(rt, dt) {
   // 火の回る回廊（kairo）も、中庭と渡り廊下の口へ来る台本の二波が相手。補充が重なると背から八十余の傷を受け、
   //   退いて巻く間も追われて倒れた（11/16 クラウドし act bot 1736：kyoto の段 394秒）。11/16 クラウドす。
   // 11/18 K358（司令塔：倒れる段の敵を減らす）：⑤本堂の内でも密度の補充を重ねない（act bot が⑤で毎回倒れた。台本の『本堂へ踏み込む侍』と流し込みが相手）
+  // 11/20 K439 クラウドさ：最後の御殿（7）も台本の五波と限りある追手だけが相手（囲みの補充が尽きず『際限なく来る』になっていた）。
+  //   表門（3）の補充は十二組まで（尽きれば門の外の人垣と台本の突撃だけ）
+  if (F.hp === 7 || (F.hp === 3 && (F.surK3 || 0) >= 12)) return;
   if (F.hp === 4 || F.hp === 5 || F.hp === 6 || F.k15stage === 'saigo' || F.k15stage === 'kairo' || n + 4 > want || all + 4 > want + 5 || alive + 4 > 236 || rt.t < (F.surSpawnAt || 0)) return;
   // 空いた方角を先に。同じ数なら背、左右、前の順
   const order = [2, 1, 3, 0].sort((a, b) => quad[a] - quad[b]);
@@ -2158,6 +2220,7 @@ function honnoSurround(rt, dt) {
           { entered: true, player: toMe, foe: toMe ? null : foe, role, far: 1e9, aggro: 12, seek: 26, dmg: 1.2 });
         if (!g) return;
         g.surround = true; g.honnoHp = F.hp;
+        if (F.hp === 3) F.surK3 = (F.surK3 || 0) + 1;
         rt.world.gunSmoke(x, z, 0x4a4642);
         if (qd !== 0 && rt.t - (F.surCallT ?? -99) > 8) {
           F.surCallT = rt.t;
@@ -2281,7 +2344,7 @@ function honnoFall(rt, v) {
   // 空きが尽きた時も山にしない。重なる古い亡骸は共通の片付けで武具だけ残す。
   for (let i = A.dead.length - 1; i >= 0; i--) {
     const u = A.dead[i];
-    if (u === v || u.isPlayer || u.death?.aid || !u.honnoRest) continue;
+    if (u === v || u.isPlayer || u.death?.aid || !u.honnoRest || u.name && !u.isSub) continue;   // 11/20 K440：名のある者の亡骸は重なりの片付けで消さない
     if ((v.honnoRest.x - u.honnoRest.x) ** 2 + (v.honnoRest.z - u.honnoRest.z) ** 2 < 2.4 ** 2) A.clearCorpse(i);
   }
 }
@@ -5478,7 +5541,7 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
     rt.bark('三分以内に、お堂で上様と合流しよう', true);
     const approach = F.nbSt === 'D' && F.nb.pos.z > 60 ? F.nbG.path.slice(F.nbG.pathIdx) : [];
     nbSet(rt, 'D', { pts: [...approach, [-42, 47], [-45.5, 46], [-48.5, 46], [HONDO_IN.x, HONDO_IN.z]], then: 'E' });
-    F.uma.order = 'hold'; F.uma.anchor = { x: HONDO_FRONT.x + 0.5, z: HONDO_FRONT.z }; F.uma.aggro = 7;
+    if (!F.k430Stay) { F.uma.order = 'hold'; F.uma.anchor = { x: HONDO_FRONT.x + 0.5, z: HONDO_FRONT.z }; F.uma.aggro = 7; }   // K430：踏みとどまった馬廻は付け直さない
     rt.zone('hz', HONDO_FRONT.x - 2, HONDO_FRONT.z, 6);
     const at = (s, f) => rt.after(s, () => { if (F.hp === 4 && !F.ending) f(); });
     // 11/18 クラウドし（K338②・『戦国一統』4巻 VOL.29「表庭は殺し間」）：門が破れて本堂へ退く時、表庭の左右の築地の際から明智の鉄砲が十字に撃つ。
@@ -5543,7 +5606,7 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
     bindWindow(rt, 5, 1, 6, '堂の僧');
     nbWeapon(rt, 'spear');
     nbSet(rt, 'E', { at: { x: -50.5, z: 46 } });
-    F.uma.anchor = { x: -48.5, z: 46 };
+    if (!F.k430Stay) F.uma.anchor = { x: -48.5, z: 46 };
     fireStage(rt, 3);
     const at = (s, f) => rt.after(s, () => { if (F.hp === 5 && !F.ending) f(); });
     // 北の塀がまだ崩れていなければ、先に塀を打ち崩してから入る（11/11 クラウドか：塀の外 (-65,-15) で六人が重なって止まった）
@@ -5595,6 +5658,7 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
     if (F.hp >= 6) return;
     F.hp = 6; F.pT = rt.t;
     rt.setPhase('move');
+    honnoNyoboWait(rt);   // K436：落ちる女房衆は御殿の奥に先に控えさせる（湧かせない）
     clearTeraReserve(rt);
     honnoBreath(rt);   // 11/18 司令塔の決め (a)：段の変わり目で命を半ばまで戻す
     fireStage(rt, 4);
@@ -5710,24 +5774,21 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
     rt.obj('main', '控えの間の口で上様を守り、明智勢を通すな', 'main', true);
     // 11/18 クラウドし（K338②・本から取る物：当代記・『信長を殺した男』6巻 35話「女房衆に三度『退け』と言って奥へ入る」）：
     //   御殿の段の初めに、上様が女房衆を退かせ、小袖の女房衆が北の間から渡りの道を裏門へ落ちて行く（敵も味方も狙わない・着物の色は推定）
+    // 11/20 クラウドか（K436「頭に布を巻いた者が急に湧き出す」）：前は御殿の段の二秒半後に、被衣の女房衆四人を控えの間（本人の着く所）へ
+    //   その場で生んでいた。今は御殿へ移る段（p6）の初めから控えの間の西の奥に控えさせ（honnoNyoboWait）、ここでは歩かせるだけ。
     rt.after(2.5, () => {
-      if (F.hp !== 7 || F.ending || F.nyobo) return;
+      if (F.hp !== 7 || F.ending || F.nyoboRun) return;
       nbSay(rt, '女どもは退け。……退けと申すに。裏門から落ちよ', 3);
-      const from = { x: -61, z: 89 };
-      const g = allyGroup(rt, { fixed: true, fullStrength: true, name: '落ちる女房衆', anchor: from, facing: -Math.PI / 2, formation: 'column', colW: 2,
-        speed: 1.6, aggro: 0, civ: true, noRout: true, arriveNoncombat: true },
-        [[0x8a3a3e, 0x3a2420], [0xc9bfa6, 0x6a2a2a], [0x5a4a6e, 0x2a231c], [0xa0624a, 0x30251c]].map(([col, obi]) =>
-          ({ type: 'ashigaru', n: 1, o: { flag: null, weapon: 'none', kosode: 1, kosodeCol: col, obi, cloth: col, hat: 'none', kazuki: 0xd8d0bc, armor: 0x3a342a, invuln: true } })));
+      const g = F.nyobo || honnoNyoboWait(rt);
       if (!g) return;
-      F.nyobo = g;
-      g.units.forEach((u, i) => { u.noTarget = true; u.dmg = 0; u.civ = true; u.pos.x = from.x - (i / 2 | 0) * 1.1; u.pos.z = from.z + (i % 2) * 1.1; u.pos.y = rt.world.heightAt(u.pos.x, u.pos.z); });
-      g.noAI = true; g.order = 'path'; g.path = HONNO_ESCAPE_PATHS.h8.map((q) => [q[0], q[1]]); g.pathIdx = 0;
+      F.nyoboRun = true;
+      g.noAI = true; g.order = 'path'; g.path = HONNO_ESCAPE_PATHS.h8.slice(2).map((q) => [q[0], q[1]]); g.pathIdx = 0;
       // 裏門の外へ出たら消す（西の通りの明智の備へ歩いて行かない）
       const gone2 = (q) => { q.onArrive = null; for (const u of q.units) if (u.alive && !u.gone) { try { rt.army.despawn(u); } catch (e) { /* 消せなければそのまま */ } } };
       g.onArrive = gone2; rt.after(70, () => gone2(g));   // 道で詰まっても七十秒で消す
     });
     rt.zone('gt', PT.hikae.x + 3, PT.hikae.z, 7);
-    F.uma.order = 'hold'; F.uma.anchor = { x: -55, z: 86 };
+    if (!F.k430Stay) { F.uma.order = 'hold'; F.uma.anchor = { x: -55, z: 86 }; }
     const at = (s, f) => rt.after(s, () => { if (F.hp === 7 && !F.ending && !F.k15on) f(); });
     // 廊下の北の口（障子の向こう）から、目の前へ明智の兵が踏み込んで斬りかかる
     // 御殿へ入った直後は、小姓衆が襖を立てる数秒だけ息を整えられる（布を巻くならこの間）。
@@ -5819,7 +5880,7 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
     F.okuSeen = (late) => {
       if (F.ending || rt.over || !rt.player.u.alive) return;
       const me = rt.player.u.pos;
-      if (Math.hypot(me.x - PT.oku.x, me.z - PT.oku.z) < 30) rt.player.cine = { x: PT.oku.x, z: PT.oku.z, t: 3.2, encounter: true };
+      if (Math.hypot(me.x - PT.oku.x, me.z - PT.oku.z) < 30) rt.player.cine = { x: PT.oku.x, z: PT.oku.z, t: 6, encounter: true };
       rt.banner('上様、奥の間へ', F.ranFell ? '上様が自ら戸を立てられた。戸の内に、もう声はない' : '蘭丸が戸を立てた。戸の内に、もう声はない');
       F.kosho.anchor = { ...PT.kyoshitsu };
       // 遅れて戸が立った時は、退く道を歩き抜ける間の足止めを同じだけ延ばす。
@@ -5882,7 +5943,7 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
     rt.award((t) => t.side.push('本能寺から落ちのびた'), '本能寺から落ちのびた');
     sfx('kane', 0.5);
     rt.banner('本能寺、炎上', '御殿からは、もう声が聞こえない');
-    honnoSay(rt, '', '――信長は奥へ入り、火の中で自害したと伝わる', 4);
+    if (!F.nbDeathSaid) honnoSay(rt, '', '――信長は奥へ入り、火の中で自害したと伝わる', 4);
     rt.army.play('eshout', { x: -60, z: 70 }, 1.3);
     rt.after(1.5, () => rt.bark('振り返れば、御殿の屋根が炎に包まれている。寺の内の鬨の声が、勝ち鬨に変わった'));
     rt.after(5, () => this.toNijo(rt));
@@ -6344,7 +6405,13 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
       }
       if (F.okuWordT && rt.t - F.okuWordT >= 3.4) {
         F.okuShut(); F.okuSeen(s8 - 20);
-        rt.after(1, () => F.okuNext());
+        // 11/20 クラウドし（K441「信長の最期は一番大切な場面。ゆっくり見せる。死ぬ前に次の段が出ないように順を直す」）：
+        //   戸が閉まって一秒で「裏門から落ちのびよ」が出て、上様の自害の知らせは裏門を出てから（二条の段の直前）だった。
+        //   戸が閉まった後、奥の間を六秒見せ（寄せ手は止める）、上様の最期を先に告げてから退く下知を出す。
+        F.nbDeathSaid = true;
+        if (rt.player.u.alive) holdFoes(rt, rt.player.u.pos, 30, 8, 1.2, true);
+        rt.after(2.4, () => { if (!F.ending && !rt.over) honnoSay(rt, '', '――戸の内で、上様は自ら腹を召された', 3.6); });
+        rt.after(6.2, () => F.okuNext());
         // 奥の戸を閉めてから火を放つ。退く下知と同時に奥まで燃やさない。
         rt.after(3, () => { if (!F.ending && !rt.over) { F.T.fire.ignite('goten', '信長の命の火'); blaze(rt, 'goten'); } });
       }
@@ -6355,7 +6422,7 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
       for (const p of F.okuDoors) {
         if (!p.alive || p.open === 0) continue;
         F.okuClosing = true;
-        p.want = 0;
+        p.want = 0; p.keepShut = true;
         if (p.saved) Object.assign(p.solid, p.saved);
         F.T.sliding.add(p);
       }
@@ -6706,6 +6773,7 @@ function honnoTick(def, rt, dt) {
       ? '敵の方を向こう'
       : '敵を向いて構えよう', true);
   }
+  honnoK430(rt, NB);
   // 小姓衆は信長の後ろに付く（終局では居室の口に残る）
   if (!gone(F.kosho) && !F.koshoStay && NB.alive && F.hp >= 2) {
     F.kosho.order = 'hold';
@@ -7780,7 +7848,8 @@ function honnoClock(rt) {
 function honnoToll(rt) {
   const F = rt.flags, p = rt.player.u.pos;
   if (rt.t < (F.tollAt || 0)) return;
-  const shown = F.kinjuShown ?? 100;
+  // 11/20 クラウドし（K429）：数の札は本物の兵の数（honnoji.force）。時計（百人の割合）を初めの本物の数に掛けた所まで、本物の味方を減らす
+  const shown = Math.round((F.kinjuShown ?? 100) * (F.allyLive0 || 100) / 100);
   let alive = 0, best = null, bestScore = -Infinity, bestFoe = null;
   for (const u of rt.army.units) {
     if (!u.alive || u.team !== 0 || u.isPlayer || u.isStruct || u.civ || u.noTarget || u.gone || u.dying) continue;
@@ -7790,14 +7859,32 @@ function honnoToll(rt) {
     const t = u.target?.alive && u.target.team !== 0 && Math.hypot(u.target.pos.x - u.pos.x, u.target.pos.z - u.pos.z) < 3.5 ? u.target : null;
     if (!t && d < 16) continue;
     const tier = u.group === F.kosho ? (u.name ? 0 : 1) : 2;
-    const score = tier * 100 + (t ? 30 : 0) + Math.min(d, 40);
+    const score = tier * 100 + (t ? 50 : 0) + Math.min(d, 40);   // 11/20 クラウドし（K429）：斬り合う者を先に。奥の持ち場（御殿・勝手口）で上様を待つ供を遠いからと先に倒さない
     if (score > bestScore) { bestScore = score; best = u; bestFoe = t; }
   }
-  if (!best || alive <= Math.max(6, shown + 5)) return;
-  F.tollAt = rt.t + Math.max(0.7, 2 - (alive - shown - 5) * 0.1);
+  if (!best || alive <= Math.max(6, shown)) return;
+  F.tollAt = rt.t + Math.max(0.7, 2 - (alive - shown) * 0.1);
   rt.army.kill(best, bestFoe);
 }
-honnoji.force = (rt) => { const F = rt.flags, n = !rt.G.lord && F.step >= 3; return { a: Math.max(0, n ? 500 - (F.lostA3 || 0) : Math.min(honnoClock(rt), 100 - (F.lostA || 0))), a0: n ? 500 : 100, b: Math.max(0, 13000 - (F.lostB || 0)), b0: 13000 }; };
+// 11/20 クラウドし（K429 kaito「味方の数（40何人）と見える兵が合わない。数も減らない。数字＝本物の兵にし、各所で上様を守らせる」）：
+//   寺の中の味方の数は、百人からの時計（honnoClock）を出していたので、本物の味方が六十余りの時に八十・九十六と出ていた。
+//   味方の数は、いま寺に立つ本物の味方（本人を除く）を数えて出す。満ちは戦の間に見た一番多い数。時計は honnoToll が本物を減らす目当てにだけ使う。
+function honnoAllyLive(rt) {
+  let n = 0;
+  for (const u of rt.army.units) {
+    if (!u.alive || u.team !== 0 || u.isPlayer || u.isStruct || u.civ || u.group?.civ || u.gone || u.dying || (u.noTarget && !u.name) || u.type === 'dummy' || u.type === 'porter') continue;
+    n++;
+  }
+  return n;
+}
+honnoji.force = (rt) => {
+  const F = rt.flags, n = !rt.G.lord && F.step >= 3;
+  if (n) return { a: Math.max(0, 500 - (F.lostA3 || 0)), a0: 500, b: Math.max(0, 13000 - (F.lostB || 0)), b0: 13000 };
+  honnoClock(rt);
+  const a = honnoAllyLive(rt);
+  F.allyLive0 = Math.max(F.allyLive0 || 0, a);
+  return { a, a0: F.allyLive0 || a, b: Math.max(0, 13000 - (F.lostB || 0)), b0: 13000, casualtiesCounted: true };
+};
 honnoji.sides = { a: { name: '織田軍', mon: 'oda' }, b: { name: '明智軍', mon: 'akechi' } };
 // 史実でこの戦にいた名のある武将（battle.js の placeFamous が、その家の隊に加える。敵は名乗り、討てば手柄）
 honnoji.famous = [];
@@ -8423,4 +8510,5 @@ honnoji.depthRealTouch = { rate: 0.008, max: 24 };
 // 11/20 クラウドわ（kaito_now 2）：寺を囲む通りの備は初めから通りに居る。見える所に湧かせない共通の出し方（guardSpawn）が南の通りの光秀の備を
 //   町家の列の裏 (-88,160) へずらし、兵が家の列に詰まって重なり（描かずの記録 15秒 重なり23組）、持ち場も家の裏へ移されていた。通りの持ち場にそのまま立てる
 honnoji.depthRealNoGuard = true;
+honnoji.siegeNoDrops = true;   // K432（kaito 11/20「兵もいないのに門から岩のような物が流れてくる」）：城攻め共通（siege_feel.js drop）の門の石と矢は、櫓も塀の上の守りも無い寺の表門から湧いて見えた
 honnoji.volleyHoldSafe = true;   // 四方の通りで待つ明智の備を塀の上から撃たない（siege_feel.js volley・kaito_now 2）

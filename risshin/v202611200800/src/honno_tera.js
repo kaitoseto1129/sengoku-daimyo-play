@@ -2188,6 +2188,7 @@ export function teraTick(rt, T, dt) {
     if (h.blk) h.blk.visible = h.rec.state !== 2;
     if (h.decor) h.decor.visible = h.rec.state !== 2;
   }
+  npcOpenPanels(rt, T, dt);
   if (T.sliding.size) slideTick(rt, T, dt);
   T.heatElapsed = (T.heatElapsed || 0) + dt;
   if (T.heatElapsed < 0.5) return;
@@ -2445,6 +2446,35 @@ function panelOccupied(rt, p, nextOpen) {
   if (unitInPanel(p, rt.player && rt.player.u, nextOpen)) return true;
   for (const u of rt.army.units) if (!u.isStruct && unitInPanel(p, u, nextOpen)) return true;
   return false;
+}
+// 11/20 kaito K437「扉をすり抜ける」：戸の当たりは本人だけ（段取りの道を塞がないため）で、
+//   上様・小姓・明智勢は閉じた襖・障子の中を素通りしていた。戸へ歩いて来た者は、その一枚を自分で横へ引いて通る。
+//   当たりは今までどおり本人だけ（道は変えない）。最期の間で閉めた戸（keepShut）は開けない。
+function npcOpenPanels(rt, T, dt) {
+  T.npcDoorT = (T.npcDoorT || 0) - dt;
+  if (T.npcDoorT > 0) return;
+  T.npcDoorT = 0.12;
+  for (const u of rt.army.units) {
+    if (!u.alive || u.isPlayer || u.isStruct || !u.vel) continue;
+    const vx = u.vel.x, vz = u.vel.z;
+    if (vx * vx + vz * vz < 0.09) continue;
+    const ux = u.pos.x, uz = u.pos.z;
+    for (const h of T.halls) {
+      if (ux < h.x0 - 1 || ux > h.x1 + 1 || uz < h.z0 - 1 || uz > h.z1 + 1) continue;
+      for (const p of h.panels) {
+        if (!p.alive || p.want || p.keepShut || p.open > 0.5) continue;
+        if (Math.abs(u.pos.y - p.y) > 1.2) continue;
+        const dx = ux - p.x, dz = uz - p.z;
+        const along = dx * p.ax + dz * p.az, across = dx * p.az + dz * p.ax;
+        if (Math.abs(along) > p.pw / 2 + 0.05 || Math.abs(across) > 0.75) continue;
+        // 戸へ向かって歩いている時だけ（戸に沿って歩く者や離れる者は開けない）
+        if ((vx * p.az + vz * p.ax) * across >= 0) continue;
+        if (p.stacked.some(q => q.alive && (q.want || q.open > 0))) continue;
+        p.want = 1; T.sliding.add(p);
+        if (rt.t - (T.npcDoorSnd || -9) > 0.8) { T.npcDoorSnd = rt.t; rt.army.play('wood', { x: p.faceX ?? p.x, z: p.faceZ ?? p.z }, 0.25); }
+      }
+    }
+  }
 }
 function slideTick(rt, T, dt) {
   for (const p of T.sliding) {

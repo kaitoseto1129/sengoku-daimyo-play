@@ -511,12 +511,16 @@ export const ArmyGround = {
     if (!this.dead.length || !view || !frustum) return false;
     const sphere = this._corpseSphere || (this._corpseSphere = new THREE.Sphere(new THREE.Vector3(), 3));
     const player = this.playerUnit?.pos || view;
-    let index = -1, oldest = Infinity;
-    for (let i = 0; i < this.dead.length; i++) {
+    let index = -1, oldest = Infinity, namedKept = 0;
+    for (let i = this.dead.length - 1; i >= 0; i--) {
       const u = this.dead[i];
       if (u.isPlayer || u.death?.aid) continue;
       // 11/17 K353④ kaito：名のある将（武将）の討死の亡骸は片付けない（名と「討死」の札が上に出る。field_signs.js）。数人なので重さは増えない
       if (u.type === 'busho' && u.name && !u.isSub) continue;
+      // 11/20 K440 クラウドせ（kaito「名のある武将が死んだら、名前の知らせだけでなく遺体を残す」）：busho の型でない名のある者
+      //   （本能寺の森力丸・小姓衆・安田作兵衛、侍の型で置く敵将など）も、討死の知らせを出した亡骸は数合わせで片付けない。
+      //   名のある亡骸が十二を超えた分だけ、古い順に今まで通り片付ける（重さの上限）。
+      if (u.name && !u.isSub && ++namedKept <= 12) continue;
       if (u.mounted ? u.deadT < 4 : u.death ? u.death.t < DEATH_END : u.deadT < 1) continue;
       if ((u.pos.x - view.x) ** 2 + (u.pos.z - view.z) ** 2 < 225 ||   // 10/24：画面の外なら 15m より先から片付ける
           (u.pos.x - player.x) ** 2 + (u.pos.z - player.z) ** 2 < 225) continue;
