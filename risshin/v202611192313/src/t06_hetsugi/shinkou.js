@@ -6,6 +6,7 @@
 // ======================================================================
 import { clash } from '../b_sekigahara.js';
 import { sfx } from '../audio.js';
+import { jinmaku, nobori } from '../props.js';
 
 const live = (g) => g && g.count > 0;
 
@@ -75,7 +76,19 @@ function cross(rt, K) {
     rt.after(9, () => { if (F.step === 1) { rt.army.play('volley', { x: 40, z: -78 }, 0.5); rt.say('長宗我部の侍', '……来ないぞ。', 2.2); } });
     rt.after(15, () => { if (F.step === 1) rt.say('土佐の足軽', '島津は弱気か？', 2.2); });
   });
+  // 11/19 係（kaito 11/19「戸次川を渡った後は、一旦陣を敷く感じに」）：渡った先の岸に陣幕と四国の衆の幟を立てる（当たりの無い幕・本人の渡る浅瀬の口の西）。
+  //   表の備（fujin_layout.js の t06_hetsugi の moves）はこの岸の陣の列へ浅瀬を渡って並ぶ
+  rt.after(4, () => {
+    const W = rt.world;
+    try {
+      rt.scene.add(jinmaku(W, CAMP2.x, CAMP2.z, 12, 8, 4, { mon: 'chosokabe', solid: false, gapNorth: 4 }));
+      for (const [dx, dz, k] of [[-9, 6, 'chosokabe'], [-3, 7, 'chosokabe'], [3, 7, 'chosokabe'], [9, 6, 'chosokabe'], [-9, -6, 'miyoshi'], [9, -6, 'toyotomi']]) rt.scene.add(nobori(W, CAMP2.x + dx, CAMP2.z + dz, k, 5.5));
+      for (const [x, z, k] of [[-56, -42, 'otomo'], [-12, -52, 'chosokabe'], [64, -36, 'miyoshi'], [88, -52, 'toyotomi']]) for (const dx of [-8, 0, 8]) rt.scene.add(nobori(W, x + dx, z - 4, k, 5));
+    } catch (e) { /* 飾り */ }
+  });
 }
+// 渡った先の岸の陣（元親・信親の陣幕。浅瀬の出口 (20,−24) の西四十 m・表の備の列の後ろ）
+export const CAMP2 = { x: -26, z: -32 };
 
 // ①の行き先：渡るまでは南の岸の浅瀬の口、渡れの後は北の岸
 export function pin(rt) {
@@ -132,8 +145,9 @@ export function update(rt, K) {
     if (!S.northHailed && onNorth(K, P)) {
       S.northHailed = true;
       S.northAt = rt.t;
-      F.mText = '北岸で信親の備を整えろ'; rt.obj('main', F.mText, 'main', true);
-      rt.say('長宗我部の侍', '北岸へ着いた！　後続の備を迎え、列を整えよ！', 2.8);
+      F.mText = '北岸に陣を敷け'; rt.obj('main', F.mText, 'main', true);
+      rt.say('長宗我部信親', '北岸に陣を敷け！　旗を立て、後続の備を迎えよ！', 2.8);
+      rt.after(3.4, () => { if (F.step === 1) rt.say('長宗我部の侍', '陣幕を張れ！　島津の先手が来るぞ、列を整えよ！', 2.8); });
     }
     if (S.crossLeg === 1 && (K.lightPos(B.sen).z < -14 || rt.t - S.legT > 25)) {
       S.crossLeg = 2;

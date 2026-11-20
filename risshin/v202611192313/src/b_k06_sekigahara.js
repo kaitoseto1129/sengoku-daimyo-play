@@ -1398,6 +1398,18 @@ html:root body #hud:has(#h-prog[data-battle="k06_sekigahara"]) #center-call .cc 
         if (Math.hypot(c.x - P.x, c.z - P.z) > 40) { g.anchor = { x: c.x + (P.x - c.x) * 0.6, z: c.z + (P.z - c.z) * 0.6 }; g.dest = null; g.path = null; g.onArrive = null; }
       }
     }
+    // 11/20 クラウドわ（kaito_now 3 関ヶ原・本人が一人にならない）：描かずの数え（携帯）で段8（寝返りの後 640〜880秒）は本人の三十歩内の味方が 13→1〜8人、
+    //   段10（柵の口 1080秒〜）は 1〜7人。味方は二百人余り残るのに、藤堂・京極・井伊の手は陣前の線に、黒田・加藤の手は左近の前の野に残り、本人だけが大谷の陣・柵の東の野を進んでいた。
+    //   段4〜5と同じ型で、四十歩より離れた攻めの手を本人の方へ六割寄せる（二秒ごと）。段10は本人が柵の東にいる時だけ（柵の内へ引き込まない）。小早川・脇坂は柵の東に縛るので入れない
+    if ((F.step === 8 && F.turned || F.step === 10) && !F.ending && rt.t >= (F.nearPullT || 0)) {
+      F.nearPullT = rt.t + 2;
+      const P = rt.player.u.pos;
+      const gs = F.step === 8 ? [F.todo, F.todoL, F.kyoL, F.ii, F.iiGun] : P.x > FENCE_X + 6 ? [F.kuroG, F.kato] : [];
+      for (const g of gs) if (alive(g) && g.order === 'attack') {
+        const c = g.center();
+        if (Math.hypot(c.x - P.x, c.z - P.z) > 40) { g.anchor = { x: c.x + (P.x - c.x) * 0.6, z: c.z + (P.z - c.z) * 0.6 }; g.dest = null; g.path = null; g.onArrive = null; }
+      }
+    }
     splitFront(rt, F);
     // 11/18 夜50-20：藤堂・京極の隊の侍が平塚の前の行き先 (-363,153) の十三歩手前で味方に詰まり、move のまま二十秒止まった（act bot 388秒）。
     //   右翼の味方の手は、行き先の二十歩内まで来たら着いたと見て、その場で槍を合わせる（二秒ごと）

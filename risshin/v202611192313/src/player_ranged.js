@@ -8,6 +8,9 @@ import { sfx, deafen } from './audio.js';
 import { S, reduceMotion } from './settings.js';
 import { isTouch } from './touch.js';
 import { TRAIL_N, TRAIL_MAT, _tA, _tB, findInterveningAlly, GUN_RELOAD } from './player.js';
+// 11/19 kaito「鉄砲の精度が低い」：吸い付く照準の狙う高さは、立った者の胸（1.2m）に決め打ちせず、しゃがむ・伏せる者は体の真ん中へ
+//   （持ち場で腰を落として待つ兵の頭は一m ほどで、胸の高さを狙うと頭の上を抜けていた。体の高さの決まりは army_ranged の targetTop と同じ）
+const aimY = (o, t) => { if (o.mounted) return 2.0; const h = o.bodyHeight || 1.72 * (o.mesh?.scale.y || 1); const low = o.downed || o.pinT > t ? 0.3 : o.duckT > t ? 0.55 : 1 - Math.min(1, o.idl?.sit || 0) * 0.42; return Math.min(1.2, h * low * 0.66); };
 
 const AIM_FACE = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);   // 寝かせた輪を画面に向けて立てる
 let AIM_GEO = null, AIM_MAT = null;   // 撃つ先の輪（形と材質は全戦で使い回す）
@@ -236,7 +239,7 @@ export class PlayerRanged {
       if (!o.alive || o.gone || o.noTarget || (o.team === 0 && !(o.mounted && o.horse && !o.isPlayer && !o.invuln)) || o.woundOut || o.type === 'dummy') continue;
       if (nearestEnemy && (o.team === this.u.team || o.fleeing || o.gone || o.civ)) continue;
       if (!weatherSees(this.rt.world, this.u.pos, o.pos)) continue;
-      v.set(o.pos.x - cam.position.x, o.pos.y + (o.mounted ? 2.0 : 1.2) - cam.position.y, o.pos.z - cam.position.z);
+      v.set(o.pos.x - cam.position.x, o.pos.y + aimY(o, this.rt.army.time) - cam.position.y, o.pos.z - cam.position.z);
       const d = v.length();
       if (d < 0.001 || d > maxD) continue;
       const ang = Math.acos(Math.max(-1, Math.min(1, v.dot(dir) / d)));
@@ -285,7 +288,7 @@ export class PlayerRanged {
           if (isTouch && this.weapon === 'gun') {
             const cam = rt.camera, v = this.rangedDir;
             cam.getWorldDirection(v);
-            const wantPitch = Math.atan2(o.pos.y + (o.mounted ? 2.0 : 1.2) - cam.position.y, Math.hypot(o.pos.x - cam.position.x, o.pos.z - cam.position.z));
+            const wantPitch = Math.atan2(o.pos.y + aimY(o, rt.army.time) - cam.position.y, Math.hypot(o.pos.x - cam.position.x, o.pos.z - cam.position.z));
             const viewPitch = Math.atan2(v.y, Math.hypot(v.x, v.z));
             this.pitch = Math.max(-0.5, Math.min(0.55, this.pitch + (wantPitch - viewPitch) * k));
           }
@@ -402,6 +405,7 @@ export class PlayerRanged {
     const sx = u.pos.x + Math.sin(this.yaw) * f + Math.cos(this.yaw) * r;
     const sz = u.pos.z + Math.cos(this.yaw) * f - Math.sin(this.yaw) * r;
     const sy = u.pos.y + (u.mounted ? RIDE.y : 0) + (gun ? 1.46 : 1.5);
+    if (gun) { const a = u.aimFrom || (u.aimFrom = { x: 0, y: 0, z: 0, t: -1 }); a.x = sx; a.y = sy; a.z = sz; a.t = this.rt.army.time; }   // 11/19：fireGun が狙いのずれを同じ筒先から量る
     const d = Math.max(3, Math.hypot(t.pos.x - cam.position.x, t.pos.y + 1.2 - cam.position.y, t.pos.z - cam.position.z));
     cam.getWorldDirection(v).multiplyScalar(d).add(cam.position);
     v.x -= sx; v.y -= sy; v.z -= sz;
@@ -457,6 +461,20 @@ export class PlayerRanged {
     this.bowAmmo--;
     u.dmg = 24; // 的の身分で矢の威力を変えない。
     this.rangedVelocity(t, 36);
+    // 11/19 kaito「弓もそう（命中率9割）」：狙う敵がいる時は、矢の落ちと風と的の動きを見越して胸へ射る（止まった的なら五十歩で九割ほど当たる）
+    if (t && t.alive && !t.isStruct && t.pos && t !== u) {
+      const mz = u.naka ? 0.3 : 0.6, ox = u.pos.x + Math.sin(u.heading) * mz - Math.cos(u.heading) * 0.12, oz = u.pos.z + Math.cos(u.heading) * mz + Math.sin(u.heading) * 0.12, oy = u.pos.y + (u.mounted ? RIDE.y : 0) + 1.5;
+      const W = army.windAcc ? army.windAcc(true) : { x: 0, z: 0 }, sp = 36, g = 9.8;
+      let tx = t.pos.x, tz = t.pos.z; const ty = t.pos.y + (t.mounted ? RIDE.y : 0) + 1.15;
+      for (let k = 0; k < 2; k++) {
+        const dd = Math.hypot(tx - ox, tz - oz), dy = ty - oy, disc = sp ** 4 - g * (g * dd * dd + 2 * dy * sp * sp);
+        if (disc < 0) break;
+        const ang = Math.atan((sp * sp - Math.sqrt(disc)) / (g * Math.max(0.1, dd))), T = dd / (sp * Math.cos(ang));
+        tx = t.pos.x + (t.vel?.x || 0) * T - W.x * T * T * 0.5; tz = t.pos.z + (t.vel?.z || 0) * T - W.z * T * T * 0.5;
+        if (k === 1) { const hx = (tx - ox) / Math.max(0.1, dd), hz = (tz - oz) / Math.max(0.1, dd), c = Math.cos(ang);
+          const e = 0.006; this.rangedDir.set((hx * c + (Math.random() - 0.5) * e) * sp, (Math.sin(ang) + (Math.random() - 0.5) * e) * sp, (hz * c + (Math.random() - 0.5) * e) * sp); }
+      }
+    }
     const fatigue = Math.max(0, (this.bowHold || 0) - 3), spread = Math.min(0.05, fatigue * 0.003 + Math.max(0, 0.3 - this.sta / this.maxSta) * 0.04 + Math.max(0, (this.dread || 0) - 0.55) * 0.04 + (u.armWound || 0) * 0.03);   // 腕の傷で矢が外れやすい
     if (spread > 0) { this.rangedDir.x += (Math.random() - 0.5) * 36 * spread; this.rangedDir.y += (Math.random() - 0.5) * 36 * spread; this.rangedDir.normalize().multiplyScalar(36); }
     if (!army.hooks.onPlayerArrow) army.hooks.onPlayerArrow = (victim, result) => {
