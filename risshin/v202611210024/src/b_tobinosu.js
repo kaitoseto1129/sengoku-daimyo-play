@@ -1,0 +1,2045 @@
+// ======================================================================
+// 長篠編　鳶ヶ巣山砦 夜襲（天正三年五月二十一日 夜明け）
+// 酒井忠次の別働隊が夜のうちに山を越え、長篠城を囲む武田の砦を背から突く。
+// 南の麓の森から、見張りを避けて寄せ場へ。法螺の合図で尾根に並ぶ砦を順に落とし、
+// 最後の鳶ヶ巣山砦で河窪信実を討つ。長篠城の城兵が打って出て合流すれば勝ち
+// ======================================================================
+import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { distToPolyline } from './world.js';
+import { jinmaku, nobori, hut, yagura, lookoutDeckHeight, campfire, tawara, hiraTateGeo, solidCircle } from './props.js';
+import { tabaGeo, tabaMat } from './taketaba.js';
+import { woodTex } from './nature.js';
+import { buildModel, poseArms } from './units.js';
+import { flagTexture } from './textures.js';
+import { S as SETTINGS } from './settings.js';
+import { RANKS } from './state.js';
+import { sfx } from './audio.js';
+import { moraleWord } from './hud.js';
+import { gauss, enemyGroup, allyGroup, nm, centerOf, unitPos, wallLine } from './bhelp.js';
+import { KIT, volley } from './b_nagashinojo.js';
+import { depthStart, depthTick, depthBot, rest, pick, fight, hold } from './b_depth.js';
+import { addSite } from './map_sites.js';
+import { siegeStages } from './siege_stages.js';
+import { depth as tobiDepth } from './tobinosu/depth.js';
+import { noFakeOn } from './world_army_scene.js';
+import { depthRout } from './army_depth.js';
+
+// 尾根の背（x ごとの z）。砦はこの上に並ぶ
+const ridgeZ = (x) => -38 + 5 * Math.sin(x * 0.035);
+// 砦：東から 姥ヶ懐・君ヶ伏床・中山・久間山・鳶ヶ巣山。曲輪は楕円（rx・rz）、虎口は南（攻め手の側）、
+// 虎口の内に蔀の柵を立てて、入った者を横（side の側）へ折らせる（食い違い虎口）
+const FORTS = [
+  { key: 'uba', name: '姥ヶ懐', x: 66, z: -34, rx: 10, rz: 9, side: 1 },
+  { key: 'kimi', name: '君ヶ伏床', x: 26, z: -35, rx: 12, rz: 9, side: -1 },
+  { key: 'naka', name: '中山', x: -16, z: -40, rx: 10, rz: 11, side: 1 },
+  { key: 'kuma', name: '久間山', x: -50, z: -43, rx: 9, rz: 9, side: -1 },
+  { key: 'tobi', name: '鳶ヶ巣山', x: -96, z: -40, rx: 16, rz: 14, side: 1 },
+];
+// 夜の山越えを終え、寄せ場の手前から始める。山と砦の距離は残す。
+const SPAWN = { x: 36, z: 32 };
+const YOSE = { x: 26, z: 12 };   // 寄せ場（尾根の下の窪み）
+// 別働隊の通る回り道と、見張りのいる近道。尾根の上の道
+const BYPASS = [[24, 146], [40, 128], [56, 96], [58, 62], [46, 32], [28, 16]];
+const DIRECT = [[12, 150], [14, 110], [8, 70], [16, 30], [24, 14]];
+const RIDGE = [[74, -32], [44, -32], [8, -38], [-30, -44], [-70, -42], [-100, -40]];
+// 武田の見張り（近道の上と、西の沢）
+const WATCH = [{ x: 12, z: 100 }, { x: 10, z: 62 }, { x: -20, z: 40 }];
+const SEE = 14;   // 見張りに気づかれる間合い
+
+function baseH(x, z) {
+  let h = 1.2 * Math.sin(x * 0.045 + 1) * Math.cos(z * 0.038) + 0.7 * Math.sin(x * 0.09 + z * 0.06);
+  // 南の麓から尾根へ、だんだん上る
+  h += Math.max(0, Math.min(1, (150 - z) / 170)) * 8;
+  // 尾根と、北の川への下り
+  const zc = ridgeZ(x);
+  h += 16 * Math.exp(-((z - zc) ** 2) / 900);
+  h -= Math.max(0, zc - 20 - z) * 0.15;
+  // 鳶ヶ巣山の峰は一段高い。東西の山で谷を囲む
+  h += 6 * gauss(x, z, -96, -40, 900) + 10 * gauss(x, z, 140, 40, 2600) + 12 * gauss(x, z, -140, 70, 3000) + 5 * gauss(x, z, 120, -40, 1500);
+  return h;
+}
+// 砦の寸法：r は平均の半径、g は木戸の半分の幅、ga・gb は虎口と搦手の開き（角度）、zg は木戸の線、zw は蔀の柵の線、h は曲輪の高さ
+for (const f of FORTS) {
+  f.r = (f.rx + f.rz) / 2;
+  f.g = f.key === 'tobi' ? 2.8 : 2.4;
+  f.ga = Math.asin(f.g / f.rx); f.gb = Math.asin(1.5 / f.rx);
+  f.zg = f.z + f.rz * Math.cos(f.ga);
+  f.zw = f.z + f.rz - 4.4;
+  f.h = baseH(f.x, f.z) + 0.4;
+}
+const sm = (t) => { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); };
+// 曲輪の縁からの距離（外が正）
+const edgeOf = (f, x, z) => (Math.hypot((x - f.x) / f.rx, (z - f.z) / f.rz) - 1) * f.r;
+// 砦の地形：尾根を削った平らな曲輪、縁に土塁、その外に切岸と空堀。虎口と搦手の前は土橋で渡る
+function fortHeight(f, x, z, hNat) {
+  const dE = edgeOf(f, x, z);
+  if (dE > 16) return hNat;
+  const a = Math.abs(Math.atan2(x - f.x, z - f.z));
+  const bridge = dE > -3 && (a < f.ga + 0.12 || a > Math.PI - f.gb - 0.12);
+  let rel;
+  if (bridge) rel = 0;
+  else if (dE < -0.6) rel = 1.3 * sm((dE + 2.6) / 2);            // 土塁の内の斜面
+  else if (dE < 0.8) rel = 1.3;                                   // 土塁の上（柵が立つ）
+  else if (dE < 3.4) rel = 1.3 - 3.9 * sm((dE - 0.8) / 2.6);      // 切岸
+  else if (dE < 6) rel = -2.6;                                    // 空堀の底
+  else rel = -2.6 + 2 * sm((dE - 6) / 2.5);                       // 堀の外の縁
+  const k = dE < 8.5 ? 1 : 1 - sm((dE - 8.5) / 7.5);
+  return hNat * (1 - k) + (f.h + rel) * k;
+}
+
+// ---- 砦の形（Three.js の基本形を組み合わせ、砦ごとに一つにまとめる） ----
+let WOOD = null;
+const woodMat = () => WOOD || (WOOD = new THREE.MeshStandardMaterial({ vertexColors: true, map: woodTex(), roughness: 0.9, metalness: 0 }));
+const vary = (hex, k) => new THREE.Color(hex).multiplyScalar(0.84 + (((k * 7919) % 37) / 37) * 0.32).getHex();
+function paint(geo, hex) {
+  const g = geo.index ? geo.toNonIndexed() : geo;
+  const c = new THREE.Color(hex), n = g.attributes.position.count, a = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) { a[i * 3] = c.r; a[i * 3 + 1] = c.g; a[i * 3 + 2] = c.b; }
+  g.setAttribute('color', new THREE.BufferAttribute(a, 3));
+  return g;
+}
+const UP = new THREE.Vector3(0, 1, 0);
+// 二点を結ぶ丸太
+function beam(P, ax, ay, az, bx, by, bz, r, hex, seg = 5) {
+  const d = new THREE.Vector3(bx - ax, by - ay, bz - az);
+  const g = new THREE.CylinderGeometry(r * 0.85, r, d.length(), seg, 1, true);
+  g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(UP, d.normalize()));
+  g.translate((ax + bx) / 2, (ay + by) / 2, (az + bz) / 2);
+  P.push(paint(g, hex));
+}
+function box(P, w, h, d, x, y, z, ry, hex) {
+  const g = new THREE.BoxGeometry(w, h, d);
+  if (ry) g.rotateY(ry);
+  g.translate(x, y, z);
+  P.push(paint(g, hex));
+}
+function mergedMesh(P, x = 0, y = 0, z = 0) {
+  const m = new THREE.Mesh(mergeGeometries(P), woodMat());
+  P.forEach(g => g.dispose());
+  m.position.set(x, y, z);
+  m.castShadow = true; m.receiveShadow = true;
+  return m;
+}
+// 縄の細部だけ近くで描く。砦ごとに結合し、離れたら丸太の輪郭だけ残す。
+function nearLashings(rt, P, x, z) {
+  if (!P.length) return;
+  const y = rt.world.heightAt(x, z), lod = new THREE.LOD();
+  lod.position.set(x, y, z);
+  lod.addLevel(mergedMesh(P, -x, -y, -z), 0);
+  lod.addLevel(new THREE.Group(), 55);
+  rt.scene.add(lod);
+}
+// 土塁の乱杭柵。高では隙間から横木が見える細い杭を並べる。当たりは従来の線。
+function palisadeLine(W, P, pts, h, ties) {
+  let k = 0;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const [ax, az] = pts[i], [bx, bz] = pts[i + 1];
+    const high = true;
+    const len = Math.hypot(bx - ax, bz - az), n = Math.max(1, Math.round(len / (high ? .46 : .3)));
+    const ya = W.heightAt(ax, az), yb = W.heightAt(bx, bz);
+    for (let j = 0; j < n; j++, k++) {
+      const t = (j + 0.5) / n, x = ax + (bx - ax) * t, z = az + (bz - az) * t, y = W.heightAt(x, z);
+      const hh = h * (0.9 + ((k * 37) % 10) / 45);
+      const col = vary(high ? 0x766651 : 0x6b5238, k), r = high ? .075 : .11;
+      const c = new THREE.CylinderGeometry(r, r + .02, hh + 0.5, 5, 1, true); c.translate(x, y + hh / 2 - 0.25, z); P.push(paint(c, col));
+      const tip = new THREE.ConeGeometry(r, 0.34, 5, 1, true); tip.translate(x, y + hh + 0.17, z); P.push(paint(tip, vary(0x8a6d4a, k)));
+      if (high && ties && j % 3 === 0) {
+        // 横木との結び目。縄を杭の表裏へ回し、正面で交差させる。
+        // 三本ごとに留め、近景用の縄を砦ごとに一つへ結合する。
+        const tx = (bx - ax) / len, tz = (bz - az) / len, nx = -tz, nz = tx;
+        for (const yy of [.45, h - .45]) {
+          const ry = ya + (yb - ya) * t + yy;
+          for (const s of [-1, 1]) {
+            beam(ties, x - tx * .115 + nx * .13, ry - s * .085, z - tz * .115 + nz * .13,
+              x + tx * .115 + nx * .13, ry + s * .085, z + tz * .115 + nz * .13, .017, 0xa18c65, 4);
+            beam(ties, x + tx * s * .115 - nx * .1, ry, z + tz * s * .115 - nz * .1,
+              x + tx * s * .115 + nx * .14, ry, z + tz * s * .115 + nz * .14, .017, 0x8b7754, 4);
+          }
+        }
+      }
+    }
+    for (const r of [0.45, h - 0.45]) beam(P, ax, ya + r, az, bx, yb + r, bz, 0.06, 0x4e3a28, 4);
+  }
+}
+// 尾根の砦と砦の間：南の肩（下の谷から見える所）に乱杭柵を連ね、その前に篝火を並べる。
+// 尾根の背は丸く、背の上の物は谷から隠れるので肩に置く。当たりは付けない（尾根の道と木戸の前は通る）。形は一つにまとめる。
+function ridgeLine(rt) {
+  const W = rt.world, P = [], order = [...FORTS].sort((a, b) => b.x - a.x);
+  let k = 0; const glowG = [];
+  for (let i = 0; i < order.length - 1; i++) {
+    const a = order[i], b = order[i + 1];
+    const x0 = a.x - a.rx - 2.5, x1 = b.x + b.rx + 2.5;
+    if (x0 - x1 < 6) continue;
+    const n = Math.max(2, Math.round((x0 - x1) / 5)), pts = [];
+    for (let j = 0; j <= n; j++) { const x = x0 + (x1 - x0) * (j / n); pts.push([x, ridgeZ(x) + 13 + Math.sin(x * 0.21) * 0.6]); }
+    palisadeLine(W, P, pts, 2.1, null);
+    // 篝火：柵の前に十二歩ほどおき（谷から火の列に見える大きさ）
+    const nf = Math.max(1, Math.round((x0 - x1) / 12));
+    for (let j = 1; j <= nf; j++) {
+      const x = x0 + (x1 - x0) * (j / (nf + 1)), z = ridgeZ(x) + 14.6;
+      kagaribi(P, W, x, z); W.addFire(x, z, { torch: true, size: 1.6, h: 1.55 }); k++;
+      // 遠くから点でなく火の玉に見える、炎のまわりの大きな光の暈（十字の板）と、地面の照り返し
+      const gy = W.heightAt(x, z);
+      for (const ry of [0, Math.PI / 2]) { const q = new THREE.PlaneGeometry(9, 11); q.rotateY(ry); q.translate(x, gy + 2.6, z); glowG.push(q); }
+      const pool = new THREE.CircleGeometry(9, 16); pool.rotateX(-Math.PI / 2); pool.translate(x, gy + 0.08, z); glowG.push(pool);
+    }
+  }
+  if (glowG.length) {
+    const c = document.createElement('canvas'); c.width = c.height = 64;
+    const g = c.getContext('2d'), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    gr.addColorStop(0, 'rgba(255,236,170,0.95)'); gr.addColorStop(0.18, 'rgba(255,170,70,0.75)'); gr.addColorStop(0.5, 'rgba(255,110,30,0.28)'); gr.addColorStop(1, 'rgba(255,80,20,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
+    const gm = new THREE.Mesh(mergeGeometries(glowG), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false, opacity: 1 }));
+    glowG.forEach((q) => q.dispose()); gm.renderOrder = 4; gm.frustumCulled = false; rt.scene.add(gm);
+  }
+  if (P.length) rt.scene.add(mergedMesh(P));
+  return k;
+}
+// 寄せ場の下の杉の林：まっすぐな赤茶の幹と、高い所に暗い葉の塊。足もとに下草。
+// 寄せ場への見通し（始めの所から尾根の方）と道は空ける。幹には押し戻しの当たり。
+function cedarWood(rt) {
+  const W = rt.world, at = new THREE.Object3D(), col = new THREE.Color();
+  const trunkG = new THREE.CylinderGeometry(0.2, 0.34, 16, 6); trunkG.translate(0, 8, 0);
+  const cones = [];
+  for (let k = 0; k < 4; k++) { const c = new THREE.ConeGeometry(1.9 - k * 0.38, 3.2, 7); c.translate(0, 9.5 + k * 2.1, 0); cones.push(c); }
+  const crownG = mergeGeometries(cones); cones.forEach((c) => c.dispose());
+  const grassParts = [];
+  for (let k = 0; k < 5; k++) { const b = new THREE.BoxGeometry(0.05, 0.55, 0.01); b.translate(0, 0.27, 0); b.rotateZ(0.5 - k * 0.25); b.rotateY(k * 1.3); grassParts.push(b); }
+  const grassG = mergeGeometries(grassParts); grassParts.forEach((b) => b.dispose());
+  const NT = 80, NG = 220;
+  const trunks = new THREE.InstancedMesh(trunkG, new THREE.MeshLambertMaterial({ color: 0xffffff }), NT);
+  const crowns = new THREE.InstancedMesh(crownG, new THREE.MeshLambertMaterial({ color: 0xffffff }), NT);
+  const grass = new THREE.InstancedMesh(grassG, new THREE.MeshLambertMaterial({ color: 0xffffff, side: THREE.DoubleSide }), NG);
+  const view = [[SPAWN.x, SPAWN.z], [YOSE.x, YOSE.z]];
+  const free = (x, z, pad) => distToPolyline(x, z, BYPASS) > 4 + pad && distToPolyline(x, z, DIRECT) > 4 + pad && distToPolyline(x, z, view) > 5 + pad &&
+    Math.hypot(x - YOSE.x, z - YOSE.z) > 16 && WATCH.every((w) => Math.hypot(x - w.x, z - w.z) > 7);
+  let nt = 0, ng = 0;
+  for (let i = 0; nt < NT && i < 600; i++) {
+    const a = i * 2.39996, r = 7 + Math.sqrt(i / 600) * 30;
+    const x = SPAWN.x + 4 + Math.cos(a) * r, z = SPAWN.z + 10 + Math.sin(a) * r * 0.9;
+    if (!free(x, z, 0)) continue;
+    const s = 0.8 + 0.35 * Math.abs(Math.sin(i * 3.7)), y = W.heightAt(x, z) - 0.3;
+    at.position.set(x, y, z); at.rotation.set(0, i, 0); at.scale.set(s, s * (0.9 + 0.2 * Math.abs(Math.sin(i * 1.3))), s); at.updateMatrix();
+    trunks.setMatrixAt(nt, at.matrix); crowns.setMatrixAt(nt, at.matrix);
+    col.setHex(i % 3 ? 0x5a3a28 : 0x4a3224); trunks.setColorAt(nt, col);
+    col.setHex(i % 2 ? 0x1f2c22 : 0x243326); crowns.setColorAt(nt, col);
+    solidCircle(x, z, 0.35 * s);
+    nt++;
+  }
+  for (let i = 0; ng < NG && i < 900; i++) {
+    const a = i * 2.39996, r = 2.5 + Math.sqrt(i / 900) * 32;
+    const x = SPAWN.x + 4 + Math.cos(a) * r, z = SPAWN.z + 8 + Math.sin(a) * r * 0.9;
+    if (!free(x, z, -2.5)) continue;
+    const s = 0.7 + 0.6 * Math.abs(Math.sin(i * 5.1));
+    at.position.set(x, W.heightAt(x, z) - 0.03, z); at.rotation.set(0, i * 0.7, 0); at.scale.set(s, s, s); at.updateMatrix();
+    grass.setMatrixAt(ng, at.matrix);
+    col.setHex(i % 3 ? 0x3e4a2c : 0x4a5232); grass.setColorAt(ng, col);
+    ng++;
+  }
+  trunks.count = crowns.count = nt; grass.count = ng;
+  trunks.castShadow = crowns.castShadow = true;
+  rt.scene.add(trunks, crowns, grass);
+}
+// 高い物見櫓（上に物見の兵）
+function tallYagura(W, x, z, H = 7.4, gallery = false) {
+  H = lookoutDeckHeight();
+  const grp = new THREE.Group();
+  if (true) {
+    const tower = yagura(W, x, z, { team: 1, mon: 'takeda', height: H, fieldFrame: true, fieldGallery: gallery, fieldDetail: true, fieldLashings: true, barkPosts: true, boarded: false });
+    tower.position.set(0, 0, 0); grp.add(tower);
+  } else {
+    const P = [];
+    for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) beam(P, sx * 1.55, -0.3, sz * 1.55, sx * 1.15, H, sz * 1.15, 0.13, 0x5a4430, 6);
+    // 貫（横木）と筋交い
+    for (const yy of [2.2, 4.8]) {
+      const w = 1.55 - (0.4 * yy) / H;
+      for (const [ax, az, bx, bz] of [[-1, -1, 1, -1], [-1, 1, 1, 1], [-1, -1, -1, 1], [1, -1, 1, 1]]) beam(P, ax * w, yy, az * w, bx * w, yy, bz * w, 0.06, 0x5a4430, 4);
+    }
+    for (const [ax, az, bx, bz] of [[-1, -1, 1, -1], [-1, 1, 1, 1], [-1, -1, -1, 1], [1, -1, 1, 1]]) beam(P, ax * 1.45, 0.4, az * 1.45, bx * 1.2, H - 0.8, bz * 1.2, 0.045, 0x4e3a28, 4);
+    box(P, 3.2, 0.16, 3.2, 0, H, 0, 0, 0x6b5238);
+    // 板の囲い（梯子の口だけ半分）
+    box(P, 3.2, 1.0, 0.07, 0, H + 0.55, -1.58, 0, 0x6e5a40);
+    box(P, 0.07, 1.0, 3.2, -1.58, H + 0.55, 0, 0, 0x6e5a40);
+    box(P, 0.07, 1.0, 3.2, 1.58, H + 0.55, 0, 0, 0x6e5a40);
+    box(P, 1.6, 1.0, 0.07, -0.8, H + 0.55, 1.58, 0, 0x6e5a40);
+    // 屋根を支える柱と、板葺きの寄棟
+    for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) beam(P, sx * 1.45, H, sz * 1.45, sx * 1.45, H + 2.2, sz * 1.45, 0.06, 0x5a4430, 4);
+    const roof = new THREE.ConeGeometry(2.7, 1.3, 4); roof.rotateY(Math.PI / 4); roof.translate(0, H + 2.8, 0); P.push(paint(roof, 0x4a3e30));
+    // 梯子
+    for (const lx of [0.45, 0.95]) beam(P, lx, 0, 2.3, lx, H, 1.6, 0.04, 0x5a4430, 4);
+    for (let r = 0; r < 11; r++) { const t = (r + 0.5) / 11; box(P, 0.55, 0.05, 0.06, 0.7, t * H, 2.3 - 0.7 * t, 0, 0x6b5238); }
+    grp.add(mergedMesh(P));
+  }
+  grp.position.set(x, W.heightAt(x, z), z);
+  // 物見の兵（弓を持って南を見張る）
+  const u = {};
+  const man = buildModel(u, { armor: 0x3a2622, lace: 0x7a2a1c, hat: 'jingasa', sode: false, pole: false, flag: null, weapon: 'bow', skin: 0xa87f5c, horo: 0 });
+  u.lookWeapon = 'bow'; poseArms(u);
+  if (gallery) {
+    // 写真の張り出し床で物見をする。上段中央の梯子口ではなく、東の通路に立つ。
+    // 手すりの内に足を置き、弓と視線は柵の外へ向ける。兵の追加はしない。
+    man.position.set(1.48, H * .68 + .05, 0);
+    man.rotation.y = Math.PI / 2;
+  } else man.position.set(0.3, H + 0.08, 0.6);
+  man.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+  grp.add(man);
+  grp.userData.lookout = man;
+  grp.userData.H = H;
+  return grp;
+}
+// 竹束：青竹を束ね、縄で二か所を縛る（弓・鉄砲の楯）
+function takataba(P, W, x, z, k) {
+  const y = W.heightAt(x, z);
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 7) * Math.PI * 2, rr = i === 7 ? 0 : 0.2;
+    const c = new THREE.CylinderGeometry(0.06, 0.065, 2.0, 5, 1, true); c.translate(x + Math.cos(a) * rr, y + 0.95, z + Math.sin(a) * rr); P.push(paint(c, vary(0x7e7c44, k * 8 + i)));
+  }
+  for (const yy of [0.5, 1.5]) { const b = new THREE.CylinderGeometry(0.29, 0.29, 0.07, 8, 1, true); b.translate(x, y + yy, z); P.push(paint(b, 0x4a3a22)); }
+}
+// 篝火の台：三本の脚に鉄の籠
+function kagaribi(P, W, x, z) {
+  const y = W.heightAt(x, z);
+  for (let i = 0; i < 3; i++) { const a = (i / 3) * Math.PI * 2; beam(P, x + Math.cos(a) * 0.45, y, z + Math.sin(a) * 0.45, x, y + 1.35, z, 0.035, 0x2e2620, 4); }
+  const c = new THREE.CylinderGeometry(0.28, 0.18, 0.3, 7, 1, true); c.translate(x, y + 1.45, z); P.push(paint(c, 0x1e1c1a));
+}
+
+// この戦だけの据え物。共有の竹束・平盾を複製描画し、遠い竹束は四角い束に戻す。
+let FAR_TABA = null, FIELD_SHIELD = null;
+// 写真の置楯の褪せた木肌と、土に接する裾の黒ずみ。共有の楯は変えず、形を一度だけ複製する。
+function fieldShieldGeo() {
+  if (FIELD_SHIELD) return FIELD_SHIELD;
+  // 根元に分割のある黄木地の楯を使い、泥色を板の上まで補間させない。
+  // 黒い二本の横帯・裏桟・控え・傷は残す。共有の形や材質へは書き込まない。
+  FIELD_SHIELD = hiraTateGeo('field', true).clone();
+  const p = FIELD_SHIELD.attributes.position, colors = FIELD_SHIELD.attributes.color;
+  for (let i = 0; i < p.count; i++) {
+    const fade = sm((p.getY(i) - .4) / 1.2);
+    colors.setXYZ(i, colors.getX(i) * (1 + fade * .08),
+      colors.getY(i) * (1 + fade * .09), colors.getZ(i) * (1 + fade * .06));
+  }
+  colors.needsUpdate = true;
+  return FIELD_SHIELD;
+}
+function fieldScreens(rt, bamboo, shields) {
+  const W = rt.world, matrix = new THREE.Matrix4(), turn = new THREE.Matrix4();
+  const instances = (geo, mat, points, shadow, feet = []) => {
+    const mesh = new THREE.InstancedMesh(geo, mat, points.length);
+    points.forEach(([x, z, rot = 0], i) => {
+      // 斜面でも竹束の控えと置楯の琵琶枝を土へ埋めない。同じ足場を設置時だけ調べる。
+      const c = Math.cos(rot), s = Math.sin(rot);
+      let y = W.heightAt(x, z);
+      for (const [fx, fz, fy] of feet) y = Math.max(y,
+        W.heightAt(x + fx * c + fz * s, z - fx * s + fz * c) - fy);
+      matrix.makeTranslation(x, y, z); turn.makeRotationY(rot);
+      matrix.multiply(turn); mesh.setMatrixAt(i, matrix);
+    });
+    mesh.castShadow = shadow; mesh.receiveShadow = true;
+    return mesh;
+  };
+  if (bamboo.length) {
+    if (!FAR_TABA) {
+      const P = [];
+      for (let i = 0; i < 4; i++) {
+        box(P, .4, 1.76, .34, (i - 1.5) * .46, .88, 0, 0, 0x888b4b);
+        for (const y of [.27, .84, 1.43]) box(P, .43, .065, .38, (i - 1.5) * .46, y, 0, 0, 0xb6a071);
+      }
+      // 遠景でも背面の三角の控えを残す。近景の竹束と同じ足位置・横桟。
+      for (const y of [.3, 1.4]) box(P, 1.85, .075, .09, 0, y, .25, 0, 0x72644d);
+      for (const x of [-.69, .69]) beam(P, x, -.008, 1.34, x, 1.248, .24, .04, 0x72644d);
+      FAR_TABA = mergeGeometries(P); P.forEach(g => g.dispose());
+    }
+    const feet = [[-.9, -.15, 0], [.9, -.15, 0], [-.69, 1.34, -.008], [.69, 1.34, -.008]];
+    const lod = new THREE.LOD();
+    // 写真の細竹を詰めた束は近景だけ。中距離は七本、遠景は従来の角形へ戻す。
+    // 四束の幅・三段の縄・控えの足位置は全段でそろえる。
+    lod.addLevel(instances(tabaGeo(false, false, false, true), tabaMat(), bamboo, true, feet), 0);
+    lod.addLevel(instances(tabaGeo(), tabaMat(), bamboo, false, feet), 38);
+    lod.addLevel(instances(FAR_TABA, tabaMat(), bamboo, false, feet), 75);
+    // 結合した世界座標の中心で距離を測る。頂点と当たりの場所は動かさない。
+    const cx = bamboo.reduce((sum, p) => sum + p[0], 0) / bamboo.length;
+    const cz = bamboo.reduce((sum, p) => sum + p[1], 0) / bamboo.length, cy = W.heightAt(cx, cz);
+    lod.position.set(cx, cy, cz); lod.levels.forEach(level => level.object.position.set(-cx, -cy, -cz));
+    // K365 クラウド36（全戦の測り直し・鳶ヶ巣 135〜144 秒）：竹束のすぐ後ろでカメラが止まり、束ごしに本人が八秒隠れた。
+    //   竹束を目線の当たりにし、束の手前へ寄せる（形・材質・体の当たりは変えない）
+    lod.levels.forEach(level => { level.object.userData.camBlock = true; });
+    rt.scene.add(lod);
+  }
+  if (shields.length) {
+    const tate = instances(fieldShieldGeo(), woodMat(), shields, true, [[-.27, 0, 0], [.27, 0, 0], [0, -.64, -.02]]);
+    tate.userData.camBlock = true;   // 置楯も竹束と同じく目線の当たりに（K365）
+    rt.scene.add(tate);
+  }
+}
+
+// 有海村の囲み陣。馬防柵は山砦に増設せず、谷の控えの両翼へ置く。
+function valleyCamp(rt) {
+  const W = rt.world, P = [], ties = [], bamboo = [], shields = [];
+  rt.scene.add(jinmaku(W, -78, -102, 14, 8, 6, { mon: 'takeda', solid: false, contour: true }));
+  for (const side of [-1, 1]) {
+    const ax = -78 + side * 10, bx = -78 + side * 19, z = -97;
+    for (let i = 0; i <= 6; i++) {
+      const x = ax + (bx - ax) * i / 6, y = W.heightAt(x, z);
+      beam(P, x, y - .2, z, x, y + 2.1, z, .09, 0x71604a);
+      if (i % 2 === 0) beam(P, x, W.heightAt(x, z - 1.3), z - 1.3, x, y + 1.45, z, .055, 0x60513e);
+      // 切り口は木肌より明るく、下端は土で暗くする。杭の天端を開いた筒にしない。
+      const end = new THREE.CircleGeometry(.0765, 5); end.rotateX(-Math.PI / 2);
+      end.translate(x, y + 2.101, z); P.push(paint(end, vary(0x9a8866, i)));
+      beam(P, x, y - .16, z, x, y + .2, z, .092, 0x514936);
+      for (const yy of [.55, 1.15, 1.75]) {
+        // 横木との仕口を角材で覆わず、二巻きの藁縄と正面の締め縄にする。
+        for (const dy of [-.035, .035]) {
+          const rope = new THREE.CylinderGeometry(.15, .15, .032, 6, 1, true);
+          rope.translate(x, y + yy + dy, z + .04); ties.push(paint(rope, 0x9b8962));
+        }
+        for (const sd of [-1, 1]) beam(ties,
+          x - .09, y + yy - sd * .09, z + .174,
+          x + .09, y + yy + sd * .09, z + .174, .016, 0x897653, 4);
+      }
+    }
+    // 横木は杭ごとに継ぐ。各杭の地面と同じ高さを通し、縄から浮かせない。
+    for (let i = 0; i < 6; i++) {
+      const x0 = ax + (bx - ax) * i / 6, x1 = ax + (bx - ax) * (i + 1) / 6;
+      const y0 = W.heightAt(x0, z), y1 = W.heightAt(x1, z);
+      for (const yy of [.55, 1.15, 1.75]) beam(P, x0, y0 + yy, z + .1, x1, y1 + yy, z + .1, .065, vary(0x79674e, Math.floor(i / 2)));
+    }
+    for (let i = 0; i < 3; i++) bamboo.push([-78 + side * (9 + i * 1.9), -100, Math.PI]);
+    // 板塀のようにつなげず、写真の二枚一組の置楯を間隔を空けて据える。
+    for (let i = 0; i < 8; i++) shields.push([-78 + side * (4 + Math.floor(i / 2) * 1.5 + (i % 2) * .54), -96.5, 0]);
+    for (let i = 0; i < 4; i++) rt.scene.add(nobori(W, -78 + side * (9 + i * 2.1), -107, 'takeda', 5.5));
+  }
+  fieldScreens(rt, bamboo, shields);
+  nearLashings(rt, ties, -78, -97);
+  rt.scene.add(mergedMesh(P));
+}
+
+// 長篠城の正面だけ板塀と板葺きの木戸にする。山砦の乱杭柵や共有の城部品は変えない。
+function castleFront(rt) {
+  const W = rt.world, fine = [], coarse = [];
+  // 写真の板塀は薄い板屋根で天端を覆う。棟から両軒へ流し、板の隙間と褪せは近景だけ。
+  // 二つの斜面を同じ結合形へ入れるので、塀一枚ごとの描画は増やさない。
+  const coping = (P, x0, x1, y0, y1, seed) => {
+    const detailed = P === fine, width = x1 - x0;
+    for (const side of [-1, 1]) {
+      const g = new THREE.BoxGeometry(width - (detailed ? .008 : 0), .055, .52);
+      g.rotateX(side * .4);
+      const p = g.attributes.position;
+      for (let v = 0; v < p.count; v++) p.setY(v, p.getY(v) +
+        (p.getX(v) / width + .5) * (y1 - y0));
+      g.computeVertexNormals();
+      g.translate((x0 + x1) / 2, y0 + 2.15, -158 + side * .24);
+      P.push(paint(g, detailed ? vary(0x85765d, seed + (side > 0 ? 0 : 7)) : 0x85765d));
+    }
+  };
+  for (const [ax, bx] of [[-124, -99], [-91, -64]]) {
+    const n = Math.ceil((bx - ax) / .38), step = (bx - ax) / n;
+    for (let i = 0; i < n; i++) {
+      const x = ax + (i + .5) * step, y = W.heightAt(x, -158);
+      const bottom = .035 * (i % 3);
+      // 写真の板塀は天端が揃い、根元だけが雨泥で暗い。細い隙間で板の厚みを見せる。
+      box(fine, step - .009, 2.1 - bottom, .09, x, y + (2.1 + bottom) / 2, -158, 0, vary(0x7b7060, i));
+      box(fine, step - .012, .26, .006, x, y + .16 + bottom, -157.952, 0, vary(0x514b3d, i));
+      coping(fine, ax + i * step, ax + (i + 1) * step,
+        W.heightAt(ax + i * step, -158), W.heightAt(ax + (i + 1) * step, -158), i);
+      if (i % 5 === 0 || i === n - 1) {
+        beam(fine, x, y - .2, -158.08, x, y + 2.24, -158.08, .085, 0x625642);
+      }
+    }
+    // 横桟と笠木は地形の折れに追従。遠景は板の分割を省き、同じ高さの塀へ戻す。
+    const spans = Math.ceil((bx - ax) / 2);
+    for (let i = 0; i < spans; i++) {
+      const x0 = ax + (bx - ax) * i / spans, x1 = ax + (bx - ax) * (i + 1) / spans;
+      const y0 = W.heightAt(x0, -158), y1 = W.heightAt(x1, -158);
+      for (const yy of [.45, 1.65, 2.13]) beam(fine, x0, y0 + yy, -158.09, x1, y1 + yy, -158.09,
+        yy > 2 ? .075 : .05, 0x5e5342, 4);
+      const g = new THREE.BoxGeometry(x1 - x0, 2.1, .1), p = g.attributes.position;
+      for (let v = 0; v < p.count; v++) p.setY(v, p.getY(v) +
+        (p.getX(v) / (x1 - x0) + .5) * (y1 - y0));
+      g.translate((x0 + x1) / 2, y0 + 1.05, -158); coarse.push(paint(g, 0x796d5b));
+      coping(coarse, x0, x1, y0, y1, i);
+      // 棟押さえは遠景にも残す。柱頭と笠木が屋根の下を支える高さにそろえる。
+      for (const P of [fine, coarse]) beam(P, x0, y0 + 2.27, -158,
+        x1, y1 + 2.27, -158, .045, 0x5e5342, 4);
+    }
+  }
+  const y = W.heightAt(-95, -158);
+  for (const P of [fine, coarse]) {
+    // 開口八メートルは保つ。石垣や瓦を足さず、控え柱で薄い切妻の板屋根を支える。
+    for (const x of [-99, -91]) {
+      for (const z of [-158.65, -157.35]) beam(P, x, W.heightAt(x, z) - .2, z, x, y + 3.3, z, .14, 0x62513e);
+      beam(P, x, y + 3.15, -159.05, x, y + 3.15, -156.95, .12, 0x71604a);
+    }
+    beam(P, -100, y + 3.1, -158, -90, y + 3.1, -158, .14, 0x71604a);
+    for (const side of [-1, 1]) {
+      const n = P === fine ? 22 : 1, width = 10 / n;
+      for (let i = 0; i < n; i++) {
+        const roof = new THREE.BoxGeometry(width - (P === fine ? .009 : 0), .09, 1.48);
+        roof.rotateX(side * .45);
+        roof.translate(-100 + (i + .5) * width, y + 3.51, -158 + side * .64);
+        P.push(paint(roof, P === fine ? vary(0x81735b, i + (side > 0 ? 0 : 7)) : 0x81735b));
+      }
+      beam(P, -100.1, y + 3.28, -158 + side * 1.25, -89.9, y + 3.28, -158 + side * 1.25, .055, 0x5d513e);
+    }
+    beam(P, -100.1, y + 3.88, -158, -89.9, y + 3.88, -158, .085, 0x5d513e);
+  }
+  const lod = new THREE.LOD();
+  lod.position.set(-94, y, -158);
+  for (const [P, distance] of [[fine, 0], [coarse, 70]]) {
+    const mesh = mergedMesh(P, 94, -y, 158);
+    mesh.userData.camBlock = true;
+    mesh.castShadow = distance === 0;
+    lod.addLevel(mesh, distance);
+  }
+  rt.scene.add(lod);
+}
+
+// 砦を建てる：柵（当たりあり）・木戸・蔀・逆茂木・乱杭・竹束・櫓・小屋・俵・篝火・旗
+function buildFort(rt, f) {
+  const W = rt.world;
+  addSite(rt, 'fort', f.x, f.z);
+  const P = [], high = true;
+  const ring = (a, out = 0) => [f.x + Math.sin(a) * (f.rx + out), f.z + Math.cos(a) * (f.rz + out)];
+  const arc = (a0, a1) => { const n = Math.max(2, Math.ceil(((a1 - a0) * f.r) / 3.5)); return Array.from({ length: n + 1 }, (_, i) => ring(a0 + ((a1 - a0) * i) / n)); };
+  const east = arc(f.ga, Math.PI - f.gb), west = arc(Math.PI + f.gb, Math.PI * 2 - f.ga);
+  // 蔀の柵：虎口の内に立て、side の側だけ通れる
+  const hw = f.rx * Math.sqrt(Math.max(0, 1 - ((f.zw - f.z) / f.rz) ** 2));
+  const shito = [[f.x - f.side * (hw + 0.3), f.zw], [f.x + f.side * (f.g + 0.8), f.zw]];
+  const opt = { team: 1, hp: 99999, segLen: 999, name: '砦の柵', mesh: () => new THREE.Group() };
+  f.walls = [...wallLine(rt, east, opt), ...wallLine(rt, west, opt), ...wallLine(rt, shito, opt)];
+  // 柵と木戸は別にまとめ、カメラがめり込まないよう当たりを調べる相手にする
+  const PP = [], ties = [];
+  palisadeLine(W, PP, east, 2.5, ties); palisadeLine(W, PP, west, 2.5, ties); palisadeLine(W, PP, shito, 2.1, ties);
+  nearLashings(rt, ties, f.x, f.z);
+  // 木戸：太い門柱に冠木と小さな板屋根。扉は合図のあと、味方が破る
+  const yg = W.heightAt(f.x, f.zg);
+  for (const sx of [-1, 1]) beam(PP, f.x + sx * f.g, yg - 0.5, f.zg, f.x + sx * f.g, yg + 3.5, f.zg, 0.2, 0x5a4430, 7);
+  beam(PP, f.x - f.g - 0.7, yg + 3.25, f.zg, f.x + f.g + 0.7, yg + 3.25, f.zg, 0.17, 0x4e3a28, 6);
+  for (const sd of [1, -1]) {
+    const n = high ? 12 : 1, width = (f.g * 2 + 1.1) / n;
+    for (let i = 0; i < n; i++) {
+      // 棟から軒へ流れる薄板。継ぎ目と板ごとの褪せを残す。
+      const r = new THREE.BoxGeometry(width - (high ? .012 : 0), .08, .8);
+      r.rotateX(sd * .5);
+      r.translate(f.x - f.g - .55 + (i + .5) * width, yg + 3.58, f.zg + sd * .34);
+      PP.push(paint(r, high ? vary(0x796d59, i + (sd > 0 ? 0 : 13)) : 0x4a3e30));
+    }
+    if (high) beam(PP, f.x - f.g - .62, yg + 3.5, f.zg + sd * .52,
+      f.x + f.g + .62, yg + 3.5, f.zg + sd * .52, .045, 0x514738, 4);
+  }
+  if (high) beam(PP, f.x - f.g - .62, yg + 3.82, f.zg,
+    f.x + f.g + .62, yg + 3.82, f.zg, .065, 0x5e503f, 5);
+  const pal = mergedMesh(PP);
+  pal.userData.camBlock = true;
+  rt.scene.add(pal);
+  // 木戸の外の篝火の台（火は setup で灯す）
+  for (const sx of [-1, 1]) kagaribi(P, W, f.x + sx * (f.g + 0.9), f.zg + 1.2);
+  f.doors = [-1, 1].map((sx) => {
+    const L = [];
+    const width = f.g - .12;
+    if (high) {
+      // 一枚の面だった扉を縦板に分ける。下端は泥と雨で黒ずむ。
+      const n = Math.ceil(width / .3), step = width / n;
+      for (let i = 0; i < n; i++) {
+        const x = -sx * width / 2 - width / 2 + (i + .5) * step;
+        box(L, step - .009, 2.5, .1, x, 1.3, 0, 0, vary(0x7a6a52, i + (sx > 0 ? 5 : 0)));
+        for (const side of [-1, 1]) box(L, step - .012, .22 + (i % 3) * .045, .005,
+          x, .16, side * .052, 0, vary(0x504735, i));
+      }
+    } else box(L, width, 2.5, .1, -sx * width / 2, 1.3, 0, 0, 0x6e5438);
+    for (const yy of [0.5, 1.3, 2.1]) box(L, f.g - 0.2, 0.12, 0.08, (-sx * (f.g - 0.12)) / 2, yy, -0.08, 0, 0x4e3a28);
+    const m = mergedMesh(L, f.x + sx * (f.g - 0.05), yg - 0.05, f.zg);
+    rt.scene.add(m);
+    return m;
+  });
+  f.gate = rt.army.addStruct({ seg: [f.x - f.g, f.zg, f.x + f.g, f.zg], nx: 0, nz: 1, hp: 240, maxHp: 240, team: 1, name: `${f.name}の木戸`, gate: true, fort: f });
+  // 逆茂木：堀の外の縁に、尖った枝を外へ向けて並べる（土橋の前は空ける）
+  const sw = 8.8;
+  for (let a = 0, k = 0; a < Math.PI * 2; a += 2.3 / (f.r + sw), k++) {
+    const aa = Math.abs(((a + Math.PI) % (Math.PI * 2)) - Math.PI);
+    if (aa < f.ga + 0.3 || aa > Math.PI - f.gb - 0.25) continue;
+    const [x, z] = ring(a, sw), y = W.heightAt(x, z);
+    const tx = Math.cos(a), tz = -Math.sin(a), nx = Math.sin(a), nz = Math.cos(a);
+    beam(P, x - tx * 1.1, y + 0.25, z - tz * 1.1, x + tx * 1.1, y + 0.3, z + tz * 1.1, 0.1, 0x4a3a2a, 5);
+    for (let b = 0; b < 5; b++) {
+      const o = (b - 2) * 0.45, j = ((k * 13 + b * 7) % 10) / 10;
+      const bx = x + tx * o, bz = z + tz * o;
+      beam(P, bx, y + 0.3, bz, bx + nx * (1.2 + j * 0.5) + tx * (j - 0.5) * 0.5, y + 0.9 + j * 0.5, bz + nz * (1.2 + j * 0.5) + tz * (j - 0.5) * 0.5, 0.035, vary(0x5a4634, k + b), 4);
+    }
+  }
+  // 乱杭：堀の底と切岸に、斜めに打ち込んだ杭（攻め手の側を中心に）
+  for (let a = -1.9, k = 0; a < 1.9; a += 1.5 / f.r, k++) {
+    if (Math.abs(a) < f.ga + 0.25) continue;
+    const off = 3.8 + ((k * 7) % 5) * 0.45;
+    const [x, z] = ring(a, off), y = W.heightAt(x, z);
+    const lean = ((k * 11) % 7 - 3) * 0.08;
+    beam(P, x, y - 0.3, z, x + Math.sin(a) * 0.5 + lean, y + 1.2 + ((k * 5) % 4) * 0.12, z + Math.cos(a) * 0.5, 0.06, vary(0x55432f, k), 4);
+  }
+  // 竹束：土塁の内、虎口の左右と攻め手の側に
+  let tk = 0;
+  const bamboo = [], shields = [];
+  for (const a of [f.ga + 0.3, f.ga + 0.65, f.ga + 1.0]) for (const s of [-1, 1]) {
+    const [x, z] = ring(s * a, -2.3);
+    if (high) bamboo.push([x, z, s * a + Math.PI]);
+    else takataba(P, W, x, z, tk++);
+  }
+  if (high) {
+    // 虎口を空け、柵の内側に置楯を二枚ずつ据える。組の間は約半歩あける。
+    for (const side of [-1, 1]) for (let i = 0; i < 4; i++) {
+      const a = side * (f.ga + .4 + Math.floor(i / 2) * .22 + (i % 2) * .065), [x, z] = ring(a, -1.1);
+      shields.push([x, z, a]);
+    }
+    fieldScreens(rt, bamboo, shields);
+  }
+  // 篝火（台と火）：枡の隅と曲輪の中
+  const fires = [[f.x - f.side * (f.g + 1.6), f.zg - 1.4], [f.x - f.side * 2.5, f.z + 0.5]];
+  for (const [x, z] of fires) { kagaribi(P, W, x, z); W.addFire(x, z, { torch: true, h: 1.55 }); }
+  rt.scene.add(mergedMesh(P));
+  // 物見櫓（火をかける櫓）と、小屋・俵・旗
+  f.yx = f.x - f.side * f.rx * 0.5; f.yz = f.z + f.rz * 0.05;
+  // 本陣の物見だけ、楯囲いの下に張り出し床と手すりを設ける（写真の井楼）。
+  // 南の梯子口は共有の床部品でも開いており、ほかの山砦は簡素な骨組みを保つ。
+  f.yagura = tallYagura(W, f.yx, f.yz, f.key === 'tobi' ? 8.4 : 7.4, high && f.key === 'tobi');
+  rt.scene.add(f.yagura);
+  // 写真の裏方小屋に合わせ、石置きの灰色屋根から押さえ木の茶褐色の板葺きへ。
+  rt.scene.add(hut(W, f.x + f.side * f.rx * 0.3, f.z - f.rz * 0.45, 5.5, 3.6, 0.1, { roof: 0x5a4c3a, ita: high, boardRoof: high, weatheredBoards: high, minka: !high }));
+  rt.scene.add(tawara(W, f.x - f.side * f.rx * 0.15, f.z - f.rz * 0.6, 0.4, 6));
+  rt.scene.add(campfire(W, f.x + f.side, f.z - 1.5));
+  W.addFire(f.x + f.side, f.z - 1.5);
+  // 写真のように同じ紋の幟を両翼で揃える。虎口と井楼の梯子前を空ける。
+  // 武田菱四本と風林火山一本の内訳は保ち、後ろの一本は小屋の反対側へ。
+  const flags = high
+    ? [[1.1, 'takeda'], [1.4, 'takeda'], [-1.1, 'takeda'], [-1.4, 'takeda'], [-f.side * 2.65, 'furin']]
+    : [[.62, 'takeda'], [-.62, 'takeda'], [1.7, 'furin'], [-1.7, 'takeda'], [2.7, 'takeda']];
+  for (const [a, k] of flags) { const [x, z] = ring(a, high ? -1.5 : -3.2); rt.scene.add(nobori(W, x, z, k, f.key === 'tobi' ? 6 : 5)); }
+  if (f.key === 'tobi') {
+    // 本陣：陣幕と大将の小屋、もう一つの櫓、兵糧の俵を多めに
+    rt.scene.add(jinmaku(W, f.x - 1, f.z - 3, 11, 8, 4, high ? { mon: 'takeda', contour: true } : {}));
+    rt.scene.add(hut(W, f.x - f.side * 2, f.z - f.rz * 0.72, 7, 4, -0.1, { roof: 0x5a4c3a, ita: high, boardRoof: high, weatheredBoards: high, minka: !high }));
+    rt.scene.add(tawara(W, f.x + f.side * f.rx * 0.55, f.z + 1, -0.3, 6), tawara(W, f.x + f.side * f.rx * 0.5, f.z + 3, 0.5, 5));
+    const y2 = tallYagura(W, f.x + f.side * f.rx * 0.6, f.z - f.rz * 0.3, 7.4);
+    rt.scene.add(y2);
+    for (const [x, z, k] of [[f.x - 5, f.z - 7, 'furin'], [f.x + 3, f.z - 7, 'takeda'], [f.x - 6, f.z + 1, 'takeda'], [f.x + 4, f.z + 1, 'furin']]) rt.scene.add(nobori(W, x, z, k, 6.5));
+  }
+}
+// 木戸が破れた（扉が開いて傾く）
+function openGate(rt, f) {
+  if (f.gateOpen) return;
+  f.gateOpen = true;
+  if (rt.flags.fi >= 0 && rt.flags.forts[rt.flags.fi] === f) { rt.unzone('hikae'); rt.unmark('hikae'); }
+  if (f.gate.alive) { f.gate.alive = false; f.gate.hp = 0; }
+  f.doors[0].rotation.y = 1.75;
+  f.doors[1].rotation.y = -0.95; f.doors[1].rotation.z = 0.28;
+}
+
+// 夜明け前の暗さ（兵と旗が見分けられるくらいに、青く明るめ）と、夜明けの色
+const LOOK = {
+  night: { sky: 0x364054, fog: 0x2f3747, sun: 0xa8b8d8, sunI: 0.58, hs: 0x8a9ab8, hg: 0x2e2e30, hI: 1.5, top: 0x1c2438, glow: 0.08, dir: [0.9, 0.12, -0.3], mount: 0x181c24 },
+  dawn: { sky: 0x86808c, fog: 0x76727e, sun: 0xffc48a, sunI: 1.15, hs: 0xa8a4b6, hg: 0x3a3028, hI: 1.0, top: 0x4a5470, glow: 0.2, dir: [1, 0.1, -0.25], mount: 0x2a2826 },
+};
+function applyLook(rt, key) {
+  const W = rt.world;
+  rt.flags.look = key;
+  if (key === 'morning') {
+    W.setTime('day');
+    // 朝日はまだ低い
+    W.sunOffset.set(90, 45, -25).normalize().multiplyScalar(120);
+    W.skyMat.uniforms.sunDir.value.set(90, 45, -25).normalize();
+    W.updateEnv();
+    return;
+  }
+  W.setTime('dusk');
+  const L = LOOK[key];
+  W.scene.background.set(L.sky);
+  W.scene.fog.color.set(L.fog);
+  W.sun.color.set(L.sun); W.sun.intensity = L.sunI;
+  W.hemi.color.set(L.hs); W.hemi.groundColor.set(L.hg); W.hemi.intensity = L.hI; W.baseHemi = L.hI;
+  W.sunOffset.set(...L.dir).normalize().multiplyScalar(120);
+  const U = W.skyMat.uniforms;
+  U.top.value.set(L.top); U.bottom.value.set(L.fog);
+  U.sunDir.value.set(...L.dir).normalize(); U.sunCol.value.set(L.sun);
+  U.glowK.value = L.glow; U.cover.value = 0.35;
+  W.mountMats.forEach((m, k) => { const far = m.color.clone().set(L.mount); m.color.set(L.fog).lerp(far, [0.78, 0.52, 0.3][k]); });
+  W.updateEnv();
+}
+
+// 砦の中か（k だけ内へ寄せて測る）
+const inFort = (p, f, k = 0) => edgeOf(f, p.x, p.z) < -k;
+// 蔀の柵の外側（虎口と蔀の間の枡）にいるか
+const inCourt = (p, f) => inFort(p, f) && p.z > f.zw - 0.2;
+// 砦の外から中へ：木戸の前へ回り、木戸が閉まっていれば破り、枡で横へ折れて曲輪へ
+function entryWp(f, p, arrival = 0.6) {
+  const dx = p.x - f.x, dz = p.z - f.z;
+  if (inCourt(p, f)) {
+    // 蔀の向こうへ斜めに進むと柵に当たる。枡の中で脇へ寄せてから曲輪へ入る。
+    // 兵の到着幅を丸ごと足すと、小さい砦では曲がり角が外柵の向こうに出る。
+    // 蔀の端をよける幅を残し、曲がり角は外柵の内側に収める。
+    const ex = f.x + f.side * (f.g + 3 + Math.min(arrival, 0.6));
+    return { x: ex, z: Math.abs(p.x - ex) > arrival ? f.zw + 1.2 : f.zw - 3 };
+  }
+  if (dz > 0 && Math.abs(dx) < f.g * 1.3 && p.z < f.zg + 6) {
+    // 木戸の端へ斜めに寄ると柵に引っかかる。外で正面へ寄せてから、中央を通る。
+    // 兵の到着幅より少し広く測り、正面へ寄せる途中で止まったままにしない。
+    if (Math.abs(dx) > Math.max(0.8, arrival + 0.2)) return { x: f.x, z: f.zg + 2 };
+    return { x: f.x, z: f.zg - 2 };
+  }
+  if (dz < f.rz * 0.3) return { x: f.x + Math.sign(dx || 1) * (f.rx + 11), z: f.z + f.rz * 0.7 };
+  return { x: f.x + Math.max(-f.g, Math.min(f.g, dx)) * 0.5, z: f.zg + 4 };
+}
+// 曲輪の中から外へ：蔀の脇を抜けて枡へ、木戸から出る
+const LIVE = { forts: null };   // いま遊んでいる戦の砦（木戸・落ち）
+function exitWp(f, p) {
+  const ex = f.x + f.side * (f.g + 2.6);
+  // 11/18 クラウド kaito2（16:46 act bot）：曲輪の北の小屋（下の砦の飾りの hut・5.5×3.6）が抜け道の筋に掛かり、北にいた兵が小屋の角へ真っすぐ歩いて止まった（姥ヶ懐 66,-40）。小屋の脇を回る
+  if (f.key !== 'tobi') {
+    const hx = f.x + f.side * f.rx * 0.3, hz = f.z - f.rz * 0.45, rel = f.side * (p.x - hx);
+    if (p.z < hz + 1.8 && p.z > f.z - f.rz - 1) {
+      // 11/18 クラウド kaito2（20:31 POSLOG）：小屋の脇の外から真っすぐ南へ出る筋に兵糧の俵（当たり 1.1×1.8）があり、三の槍組の一人が姥ヶ懐の俵の角 (65,-40) に百四十秒止まった。
+      //   俵の北にいれば、まず俵の小屋と逆の脇へ寄ってから南へ
+      const tx = f.x - f.side * f.rx * 0.15, tz = f.z - f.rz * 0.6;
+      // 11/19 クラウド kaito2（act bot 0256 POSLOG 202〜380秒）：馬上の殿が中山の俵の北 (-19,-46) で百八十秒止まった＝寄せ先 (-19.4) が着きの幅 0.8 の内で「着いた」のに、俵の筋（1.7）の内のまま。寄せ先を筋の外 2.6 へ
+      if (Math.abs(p.x - tx) < 1.7 && p.z < tz + 1.2) return { x: tx - f.side * 2.6, z: p.z };
+      if (rel > 3.2 || rel < -3.6) return { x: p.x, z: hz + 3 };   // 小屋の脇の外：そのまま南へ
+      return { x: tx - f.side * 1.9, z: Math.min(p.z, hz - 2.2) };   // 小屋の北：内側（曲輪の中ほど）の脇へ（俵のさらに外）
+    }
+  }
+  if (p.z < f.zw - 0.2) return Math.abs(p.x - ex) > 1.2 ? { x: ex, z: f.zw - 2 } : { x: ex, z: f.zw + 1.6 };
+  // 11/18 クラウド kaito2（20:03 POSLOG）：枡の中の脇（木戸の柱の内側 62.9,-26.6）から木戸の外へ斜めに出ようとして、別の手の一人が姥ヶ懐の木戸の柱に当たり百八十秒止まった。
+  //   入る時（entryWp）と同じく、まず枡の中で木戸の真ん中へ寄ってから真っすぐ出る
+  // 11/18 クラウド kaito2（20:45 act bot）：蔀の際（zw のすぐ外）から真ん中へ寄る行き先が蔀の線の上に落ち、蔀の内へ戻っては横へ出るを繰り返し、
+  //   足軽の本人が中山の枡の脇 (-12,-34)〜(-14,-41) で百三十秒行き来し、鳶ヶ巣山の斬り合いに出なかった。行き先は枡の中ほど（蔀から一歩半）より外へ
+  if (Math.abs(p.x - f.x) > Math.max(0.8, f.g - 1.2) && p.z < f.zg + 0.5) return { x: f.x, z: Math.max(f.zw + 1.4, Math.min(p.z, f.zg - 1.5)) };
+  return { x: f.x, z: f.zg + 3 };
+}
+// 11/18 クラウド kaito2（19:51 POSLOG）：攻め口の道の返す点は、共通の側（army_think.js・units.js の遠景）で兵ごとに「ひまわりの種」の並び（1.1×√番号 m）に散らされる。
+//   木戸から出る・入る通り道の点まで四〜六歩ずらされ、点が曲輪の中に落ちた兵は着いたまま動かなかった（先手の一人が中山の曲輪 (-18,-36) に百六十秒・別の手の一人が姥ヶ懐の口 (63,-27) に三百五十秒）。
+//   通り道の点はずらしの分を先に引いて返し、兵がその点そのものへ歩くようにする
+function exact(u, w) {
+  if (!w || w.isStruct) return w;
+  const m = Math.max(0, u.slot || 0) + 1, a = m * 2.39996, r = 1.1 * Math.sqrt(m);
+  return { x: w.x - Math.sin(a) * r, z: w.z - Math.cos(a) * r };
+}
+function fortRoute(rt, f) {
+  const route = fortRoute0(rt, f);
+  return (u) => { const w = route(u); return w && w._way ? exact(u, w) : w; };
+}
+const way = (w) => { w._way = true; return w; };
+// 供回りの道：本人と柵の内外が違えば、今いる砦の木戸から出る・本人のいる砦の木戸から入る。同じ側なら本人のそば
+function escortRoute(rt) {
+  return (u) => {
+    const p = rt.player.u.pos;
+    // 11/21 クラウド（act bot 0347 足軽 348秒：合流の段で供回りの侍が鳶ヶ巣山の幕の北の裏 (-99,-48) から表の木戸の筋 (-89,-48) へ向かい二十秒止まった）
+    //   → 本人が鳶ヶ巣山の北（搦手の側）の外にいれば、表の木戸でなく本人へ向かわせ、搦手から出る道は moveWay に任せる
+    const T = rt.flags.forts?.[4];
+    if (T && inFort(u.pos, T, -0.4) && !inFort(p, T, -0.4) && p.z < T.z) return { x: p.x, z: p.z };
+    for (const q of rt.flags.forts || []) if (inFort(u.pos, q, -0.4) && !inFort(p, q, -0.4)) return exact(u, way(exitWp(q, u.pos)));
+    for (const q of rt.flags.forts || []) if (inFort(p, q, -0.4) && !inFort(u.pos, q, -0.4)) return q.gate.alive ? q.gate : entryWp(q, u.pos, 1.6);
+    return { x: p.x, z: p.z };
+  };
+}
+function fortRoute0(rt, f) {
+  return (u) => {
+    // 前に落とした砦の中にいれば、まずその砦の木戸から出る（柵の内側に張り付いて止まらないように）
+    for (const q of rt.flags.forts || []) if (q !== f && inFort(u.pos, q, -0.4)) return way(exitWp(q, u.pos));
+    if (inFort(u.pos, f, 0.6) && !inCourt(u.pos, f)) {
+      // 曲輪から柵の向こうの敵へ直進させない。届く敵がいなければ、その場で次の下知を待つ。
+      // 全員を砦の中心へ寄せると、敵を追えない兵が一点に重なって止まる。
+      const e = rt.army.nearestEnemy(u, f.r * 2.2, (o) => !o.fleeing && inFort(o.pos, f) &&
+        !inCourt(o.pos, f) && !rt.army.wallBetween(u.pos, -1, o.pos));
+      // 11/18 クラウド kaito2：十五人が同じ一人の敵の足元へ寄り、虎口の内で一点に重なった（act bot 106〜111秒・8組）。兵ごとに敵の周りの別の向きから寄る
+      // 敵がいなければ、虎口に詰まったまま止まらず、曲輪の中へ兵ごとの持ち場へ散る（act bot 106秒・三の槍組15人が口の内で重なった）
+      let a = (u.id * 2.39996) % (Math.PI * 2);
+      if (!e) return { x: f.x + Math.sin(a) * f.rx * 0.45, z: f.z + Math.cos(a) * f.rz * 0.45 };
+      // 11/18 クラウド kaito2（14:45 POSLOG）：信実の周りを味方が輪に囲み、本人は五歩手前で人の壁に止まり一度も突けず、首は味方討ちになった。
+      //   本人が十二歩内なら、信実の本人の側（左右六十度）は空けて寄る
+      const pu = rt.player?.u;
+      if (e === rt.flags.nobuzane && pu && Math.hypot(pu.pos.x - e.pos.x, pu.pos.z - e.pos.z) < 12) {
+        const pa = Math.atan2(pu.pos.x - e.pos.x, pu.pos.z - e.pos.z);
+        const da = Math.atan2(Math.sin(a - pa), Math.cos(a - pa));
+        if (Math.abs(da) < 1.05) a = pa + Math.sign(da || 1) * (1.05 + Math.abs(da) * 1.9);
+      }
+      return { x: e.pos.x + Math.sin(a) * 1.3, z: e.pos.z + Math.cos(a) * 1.3 };
+    }
+    // 閉じた木戸の前では、木戸を打ち破る
+    if (f.gate.alive && !inFort(u.pos, f) && Math.abs(u.pos.x - f.x) < f.g + 1.5 && u.pos.z > f.zg && u.pos.z < f.zg + 5) return f.gate;
+    return entryWp(f, u.pos, 1.6);   // 入る道は今のまま散らす（一点に寄せると木戸の前で重なる）
+  };
+}
+
+// 軽い作りの大軍を動かす（夜明けとともに尾根へ寄せていく「別の手」）
+function moveHost(rt, h, dt) {
+  if (!h.go) return;
+  // K285 noFake：空の入れ物は形が無いので、置き場を一度だけ寄せる（本物の備はその置き場に付いて歩く）
+  if (noFakeOn(rt.world.def)) { if (!h.sent) { h.sent = true; h.m.moveTo(h.x1, h.z1, h.dur); } return; }
+  h.t = Math.min(1, h.t + dt / h.dur);
+  const k = h.t * h.t * (3 - 2 * h.t);
+  const x = h.x0 + (h.x1 - h.x0) * k, z = h.z0 + (h.z1 - h.z0) * k;
+  h.m.position.set(x - h.x0, rt.world.heightAt(x, z) - rt.world.heightAt(h.x0, h.z0), z - h.z0);
+}
+
+export const tobinosu = {
+  noCouriers: true,   // 夜の忍び寄りに伝令の騎馬は走らない
+  spawn: { x: SPAWN.x, z: SPAWN.z, heading: Math.PI },
+  quietArmyCalls: true,   // K358（検品 11/17）：守る戦・忍ぶ戦で備ひとつの崩れに「味方が追撃に移った」の字が浮いた
+  depth: tobiDepth,   // 尾根の砦の裏の武田の備と酒井の本隊（docs/fujin/tobinosu.md）
+  // 姥ヶ懐で連続被弾し一分ほどで倒れたため、ふつうの近接傷は一度に命の五分の一まで、以後の許容量は一秒に二分五厘ずつ戻す。
+  meleeGrace: { rate: 0.025, burst: 0.2, interval: 2.5 },
+  world: {
+    noFake: true,   // 11/18 クラウド kaito2（K285・持ち主の残り②）：南の森の後続（F.hosts）と尾根の向こうの武田（F.takedaFar）が絵だけの兵 4500〜5300 人だった。空の入れ物にし、本人の近くに来た物から本物の備を立てる（depth_real.js）
+    playerAtkMax: 3,   // 11/10 クラウド：act の bot が一〜二分で足軽の槍を四方から浴びて倒れた。同時に打ち込むのを三人まで（共通は四人）
+    seed: 75,
+    muddy: 0.3,
+    time: 'dusk',
+    // 11/19 クラウド kaito2（物差し⑥「夜明け前なのに地面が昼のように明るい」）：時刻は dusk のまま夜の色を当てるので、共通の明るさの下限（static_light.js）が
+    //   夕の物差しで半球光を 1.15→2.4 へ持ち上げていた。鳶ノ巣は下限を外し、夜の半球光を LOOK.night で決める（夜明け・朝は下限に掛からない明るさ）
+    noLightFloor: true,
+    mist: true,
+    fogFar: 210,
+    paths: [BYPASS, DIRECT, RIDGE],
+    // 11/18 クラウド kaito2（16:40 act bot）：合流の段で、久間山の曲輪に残った味方の足軽が北西の谷の行き先へ真っすぐ歩き、柵に当たって動けなかった（-49,-48・間に塀）。
+    //   味方が手前の四つの砦の中にいて行き先が外なら、まず木戸から出る（鳶ヶ巣山は搦手から出るので除く）
+    moveWay(army, u, want) {
+      if (u.team !== 0 || u.isPlayer) return want;
+      for (let i = 0; i < 4; i++) {
+        const f = FORTS[i];
+        if (inFort(u.pos, f, -0.4) && !inFort(want, f, -0.4)) return exitWp(f, u.pos);
+        // 11/19 クラウド kaito2（act bot 0609・355秒）：合流の段で三の槍組の二人が中山の曲輪の北 (-16,-47) から、枡の中の行き先 (-11,-30)・(-19,-32) へ
+        //   蔀の柵越しに真っすぐ歩き二十秒止まった（行き先が曲輪の内と見なされ、上の出口の決まりが掛からない）。蔀の内から枡へ行くなら、出る時と同じ脇の筋を通る
+        if (inFort(u.pos, f, -0.4) && u.pos.z < f.zw - 0.2 && want.z > f.zw + 0.3) return exitWp(f, u.pos);
+      }
+      // 16:54 act bot：信実の陣幕（11×8・南だけ口）の中にいた味方が、北東の行き先へ真っすぐ歩いて幕に当たり止まった（-92,-44）。幕の南の口から出て、東の脇を回る
+      const T = FORTS[4], jx = T.x - 1, jz = T.z - 3, ux = u.pos.x - jx, uz = u.pos.z - jz;
+      const wIn = Math.abs(want.x - jx) < 5.5 && Math.abs(want.z - jz) < 4;
+      // 11/18 クラウド kaito2（19:32 act bot）：合流の段で、鳶ヶ巣山の南の持ち場（塀へ撃つ所）にいた鉄砲衆が、北の谷の行き先へ曲輪を突っ切って真っすぐ歩き、
+      //   南の切岸と塀に当たって二十秒止まった（-95,-14・敵が遠く歩けず）。南から北の外へ行くなら、破れた木戸から入り、曲輪を抜けて搦手から出る（本人の bot と同じ道）
+      // 11/19 クラウド kaito2（act bot 0631・449秒）：合流の段で後続の槍組が鳶ヶ巣山の曲輪の中 (-87,-38) から、西の外の行き先 (-113,-50) へ西の塀越しに真っすぐ歩き二十秒止まった
+    //   （行き先が搦手の線より南で「北の外」と見なさず、塀の外へ出る道が無かった）。曲輪の北半分の外（横の外も）へ行くなら、搦手から出る
+    const tIn = inFort(u.pos, T, -0.4), wNorth = want.z < (tIn ? T.z : T.z - T.rz + 1) && Math.abs(want.x - T.x) < T.rx + 16 && !inFort(want, T, -0.4);
+      const TL = LIVE.forts?.[4];
+      if (wNorth && TL && !(TL.gate && TL.gate.alive)) {
+        if (inCourt(u.pos, T)) return { x: T.x + T.side * (T.g + 2.6), z: T.zw - 3 };
+        if (!tIn && u.pos.z > T.z && Math.abs(u.pos.x - T.x) < T.rx + 12) return entryWp(T, u.pos, 1.0);
+      }
+      if (Math.abs(ux) < 5.6 && Math.abs(uz) < 4.1 && !wIn) return { x: jx, z: jz + 5.8 };
+      // 11/21 クラウド（act bot 0342 信長で出陣 306秒：合流の段で二の槍組十二人が幕の東の脇 (-89,-44) で一点に重なって止まった＝皆が同じ一点 (jx+8.4) へ寄った）
+      //   → 幕の東の脇の筋は幅があるので、兵ごとに横へ一歩ずつ散らして通す（幕の東の端 jx+5.5 と曲輪の東の塀の間に収める）
+      if (tIn && wNorth && Math.abs(ux) < 10 && uz > -5.4 && !(Math.abs(ux) < 7.2 && uz > -4.8)) return { x: jx + 8.4 + ((u.id | 0) % 5 - 2) * 0.9, z: jz - 6.8 };
+      if (tIn && wNorth && ux > 3 && u.pos.z > T.z - T.rz + 2.4 && !(Math.abs(ux) < 7.2 && uz > -4.8)) return { x: jx + 6, z: T.z - T.rz + 0.9 };
+      if (!wIn && want.z < jz - 4 && uz > -4.8 && Math.abs(ux) < 7.2 && tIn) return ux < 0 && uz < 4.6 ? { x: u.pos.x, z: jz + 5.8 } : { x: jx + 8.4, z: u.pos.z };
+      if (!wIn && want.z > jz + 4 && uz < 4.1 && uz > -7 && Math.abs(ux) < 7.2) return { x: jx + (ux < -5.6 ? -8.4 : 8.4), z: u.pos.z };   // 北から南へ：幕の脇へ
+      if (tIn && wNorth && (Math.abs(u.pos.x - T.x) > 1.2 || u.pos.z > T.z - T.rz + 2)) return { x: T.x, z: T.z - T.rz + 0.5 };   // 搦手の口へ
+      return want;
+    },
+    height(x, z) {
+      const h = baseH(x, z);
+      // いちばん近い砦の地形だけを当てる
+      let best = null, bd = 16;
+      for (const f of FORTS) { const d = edgeOf(f, x, z); if (d < bd) { bd = d; best = f; } }
+      return best ? fortHeight(best, x, z, h) : h;
+    },
+    tint(x, z, h, c) {
+      // 曲輪の中は踏み固めた土、土塁と堀は掘り返した土
+      for (const f of FORTS) {
+        const d = edgeOf(f, x, z);
+        if (d < -2.6) c.setRGB(c.r * 0.7 + 0.1, c.g * 0.66 + 0.08, c.b * 0.6 + 0.05);
+        else if (d < 7.5) c.setRGB(c.r * 0.45 + 0.17, c.g * 0.42 + 0.13, c.b * 0.4 + 0.08);
+      }
+      // 尾根の背は岩がちで、草が薄い
+      if (Math.abs(z - ridgeZ(x)) < 12) c.setRGB(c.r * 0.9 + 0.03, c.g * 0.88 + 0.02, c.b * 0.85 + 0.02);
+    },
+    clear: (x, z) => FORTS.some((f) => edgeOf(f, x, z) < 14) || Math.hypot(x - YOSE.x, z - YOSE.z) < 16 ||
+      Math.hypot(x - SPAWN.x - 6, z - SPAWN.z) < 12 || WATCH.some((w) => Math.hypot(x - w.x, z - w.z) < 6) || Math.hypot(x - 124, z + 80) < 34 ||
+      (Math.abs(x + 78) < 22 && Math.abs(z + 102) < 12 || x > -126 && x < -62 && z < -156),
+    streams: [{ pts: [[-180, -104], [-110, -120], [-40, -114], [40, -122], [110, -112], [180, -126]], w: 4, depth: 2.2 }],
+    trees: 760,
+    tufts: 3600,
+    // 南の山肌は深い森。尾根の背と北の谷は疎ら
+    treeDensity: (x, z) => (Math.abs(z - ridgeZ(x)) < 14 ? 0.12 : z < ridgeZ(x) ? 0.3 : distToPolyline(x, z, DIRECT) < 6 ? 0.2 : 1),
+    groves: [{ x: 50, z: 52, r: 13, n: 26 },   // 11/19 クラウド kaito2（物差し⑥）：(40,40) の木立が出だしのカメラ (36,36) の真上に掛かり、杉の幹と枝が画の三分の一を塞いだ（raycast で 35,29 の木立の一本）。出だしの後ろへ寄せる
+      { x: 0, z: 30, r: 12, n: 18 }, { x: 70, z: 110, r: 16, n: 26 }, { x: -40, z: 110, r: 16, n: 24 }, { x: -60, z: 10, r: 12, n: 16 }],
+  },
+
+  setup(rt) {
+    const W = rt.world;
+    const F = rt.flags;
+    // 夜の山道に伝令の騎馬は走らない
+    // （伝令の騎馬は noCouriers で作らない。古い作りで渡された時だけ片付ける）
+    for (const c of rt.couriers || []) rt.scene.remove(c.m);
+    if (rt.couriers) rt.couriers.length = 0;
+    applyLook(rt, 'night');
+
+    // ---- 砦 ----
+    F.forts = FORTS.map((f) => ({ ...f, def: [], fallen: false, burned: false }));
+    LIVE.forts = F.forts;   // moveWay（世界の側）から木戸の破れを見る
+    // 篝火の灯りは四つまでなので、最初に攻める姥ヶ懐と、最後の鳶ヶ巣山に先に付ける
+    const fireOrder = [0, 4, 1, 2, 3];
+    for (const i of fireOrder) {
+      const f = F.forts[i];
+      for (const s of [-1, 1]) W.addFire(f.x + s * (f.g + 0.9), f.zg + 1.2, { torch: true, h: 1.6 });
+    }
+    for (const f of F.forts) buildFort(rt, f);
+    ridgeLine(rt);
+    cedarWood(rt);
+    // 守兵：槍の組と弓の組。鳶ヶ巣山には河窪信実
+    const guard = (f, list, o = {}) => {
+      // 槍組が自動で弓・鉄砲に替わると、虎口の射手が増え、控え場まで撃たれる。射撃は別に置いた組だけに任せる。
+      list = list.map((e) => e.type === 'ashigaru' ? { ...e, o: { ...e.o, keep: true } } : e);
+      // 野戦用の打って出・回り込みで持ち場を動かすと、蔀の柵へ隊ごと押し寄せて詰まる。
+      // 隊の下知は砦の筋書きが受け持ち、兵ごとの迎撃・射撃・敗走はそのまま続ける。
+      // 11/18 クラウド：大軍の寄せ（mass_assault）が前線の緩み（relax）で noAI の守兵まで「かかれ」に替え、久間山の七人が柵の角へ一点に詰まった（act bot 3回）。砦の守兵は寄せに入れない
+      const g = enemyGroup(rt, { faction: 'takeda', name: `${f.name}の守兵`, anchor: { x: f.x, z: f.z + 3 }, facing: 0, fleeDir: { x: 0, z: -1 }, noAI: true, noFrontline: true, aggro: 9, width: 5, morale: 90, defMult: 0.9, dmgMult: 0.35, ...o }, list);   // K358：寝込みを襲われた守兵（act bot が二つ目の砦の守兵に囲まれ3回とも倒れた）
+      f.def.push(g);
+      // 柵の内から撃つ弓・鉄砲は、木戸の前の坂まで。控え場（木戸から二十歩余り）には届かない
+      for (const u of g.units) if (u.type === 'bow' || u.type === 'gun') u.range = u.type === 'bow' ? 21 : 28;   // K358：夜明け前の薄明かり。坂の下の酒井の陣（手当ての場）までは届かない
+      return g;
+    };
+    for (const f of F.forts.slice(0, 3)) {
+      // 11/18 cloud-07 の見回り（姥ヶ懐の守兵が55秒に砦の内 (60,-30) で一点に重なる）：十人を五歩の幅に詰めず、曲輪の幅いっぱいの八歩に並べる
+      // 11/21 クラウド（act bot 毎回「斬り合う相手が少なくて退屈・6〜7分で3〜4人」）：手前の三つの砦の本隊を足軽九→十二に（味方の槍組が先に刈り尽くさないよう厚く）
+      guard(f, [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 12 }], { width: 8 });
+      guard(f, [{ type: 'bow', n: 3 }, ...(f.key === 'naka' ? [{ type: 'gun', n: 1 }] : [])], { anchor: { x: f.x - f.side * 2, z: f.z - 3 }, width: 5, aggro: 12 });
+      // 11/18 クラウド kaito2：act bot「斬り合う相手が少なくて退屈・5分で3人」・一戦322秒。寝小屋から起き出した奥の守り（侍二・槍五）が、小屋の裏の奥の曲輪で踏みとどまる（小屋の上に置くと七人が一点に重なった）
+      guard(f, [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 5 }], { anchor: { x: f.x + f.side, z: f.z - f.rz * 0.78 }, width: 8, morale: 75, aggro: 11 });
+    }
+    guard(F.forts[3], [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 8 }], { morale: 80, width: 8 });
+    const T = F.forts[4];
+    // 口を固める槍の組、奥の弓・鉄砲、陣幕の前に河窪信実と旗本（組を持たない身なら、守りを少し薄く）
+    const solo = !RANKS[rt.G.rank].squad;
+    guard(T, [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 12 }], { anchor: { x: T.x + 2, z: T.z + 5 }, width: 7, morale: 100, defMult: 1.4 });
+    guard(T, [{ type: 'bow', n: solo ? 2 : 3 }, ...(solo ? [] : [{ type: 'gun', n: 1 }])], { anchor: { x: T.x + 4, z: T.z - 6 }, width: 6, aggro: 12 });
+    const hq = guard(T, [{ type: 'busho', n: 1, o: { name: '河窪信実', flag: 'takeda' } }, { type: 'samurai', n: 1 }], { anchor: { x: T.x - 1, z: T.z - 2 }, width: 4, morale: 100, noRout: true, defMult: 1.3, aggro: 6 });
+    F.nobuzane = hq.units[0];
+    F.nobuzane.hp = F.nobuzane.maxHp = 230;
+    F.nobuzane.dmg = 12;
+    // 11/18 クラウド kaito2（持ち主の残り③）：act bot の毎回、信実を味方の兵が先に討ち、本人の首にならなかった。
+    //   味方の刃は通さず、本人の一撃だけで討てる（army_combat.js：invuln は本人の手傷で generalWounded→名のある敵は討ち取り）。長引けば七十五秒で味方が討つ（下の fortT）
+    F.nobuzane.invuln = true;
+    F.hq = hq;
+    // 11/19 クラウド kaito2（act bot 0141・信長で出陣 346秒で倒れた）：殿が信実へ向かう鳶ヶ巣山の曲輪 (-88,-50) で守兵の侍に十秒で三太刀（23ずつ）浴び、命120→22。
+    //   殿は馬廻りに囲まれて戦う身。鳶ヶ巣山の守りの刃が殿に当たる時だけ六割に（味方との斬り合い・弓鉄砲・足軽の版は変えない）
+    if (rt.G.lord) for (const g of T.def) { g.dmgMultPlayer = (g.dmgMult ?? 1) * 0.6; g.dmgMultPlayerMelee = true; }
+    // 段の決まり（siege_stages.js・docs/siege_honjin_spec_1107.md 5・13章）：姥ヶ懐 → 君ヶ伏床 → 中山 → 久間山 → 鳶ヶ巣山。今の砦の守りだけが打って出る
+    F.stages = siegeStages(rt, F.forts.map((f, i) => ({
+      groups: f.def, at: { x: f.x, z: f.z + 3 }, done: i < 4 ? () => f.fallen : () => false,
+      report: i < 4 ? `${f.name}の柵、まだ破れませぬ！` : undefined, reportAfter: 90,
+    })), { runner: '使番' });
+
+    // ---- 武田の見張り（赤い輪の内に入ると見つかる） ----
+    F.watch = WATCH.map((w, i) => {
+      const g = enemyGroup(rt, { faction: 'takeda', name: '見張り', anchor: { x: w.x, z: w.z }, facing: i === 2 ? 1.2 : 0.2, fleeDir: { x: 0, z: -1 }, aggro: 6, width: 3, morale: 70 },
+        [{ type: 'ashigaru', n: 3, o: { flag: null } }]);
+      rt.scene.add(campfire(W, w.x + 1.5, w.z - 1.5));
+      W.addFire(w.x + 1.5, w.z - 1.5, { h: 0.1 });
+      g.home = w;
+      // 11/18 クラウド17（40秒の写真：回り道を進む本人へ、まだ気づいていない見張りが30m 持ち場を離れて斬りかかり、露見の札も出なかった）：
+      //   見つかる（赤い輪・砦に近づく・見張りが斬られる）までは焚き火の前に留まる。共通の本人寄せ・近い敵へ出るは使わない（scriptWatch）
+      g.order = 'hold'; g.noEngage = true; g.scriptWatch = true; g.stay = true;
+      //   同じ通し：回り道を進む酒井の旗本の輪（taisho_guard）が見張りの横を通る時に斬りかかり、5秒で露見していた→ 見つかるまでは味方の狙いの外（noTarget）
+      for (const q of g.units) q.noTarget = true;
+      g.ringM = rt.ring(w.x, w.z, SEE, 0xd8341c, 0.4);
+      rt.marker('watch' + i, w, '武田の見張り', { red: true });
+      return g;
+    });
+
+    // ---- 味方：酒井忠次の別働隊（回り道を縦に並んで進む） ----
+    // 虎口へ入る槍組は兵種を保つ。自動で弓・鉄砲が混ざると、遠い敵を狙って道順へ戻らず止まる。射撃は別の鉄砲衆が受け持つ。
+    const col = [
+      { name: '先手の槍組', z: 128, list: [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 14, o: { keep: true } }], fac: 'tokugawa', to: [8, 18] },
+      { name: '酒井隊', z: 138, list: [{ type: 'busho', n: 1, o: { name: '酒井忠次', invuln: true, flag: 'katabami' } }, { type: 'samurai', n: 6, o: { flag: 'katabami' } }], fac: 'tokugawa', to: [28, 26] },
+      { name: '織田の鉄砲衆', z: 148, list: [{ type: 'gun', n: 10 }], fac: 'oda', to: [40, 26], gun: true },
+      { name: '二の槍組', z: 158, list: [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 14, o: { flag: 'katabami', keep: true } }], fac: 'tokugawa', to: [46, 16] },
+      { name: '織田の鉄砲衆', z: 166, list: [{ type: 'gun', n: 10 }], fac: 'oda', to: [14, 28], gun: true },
+      { name: '三の槍組', z: 174, list: [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 14, o: { keep: true } }], fac: 'tokugawa', to: [0, 26] },
+    ];
+    // 11/19 クラウド kaito2（物差し⑥「四千の別働隊なのに出だしの画に味方が一人も映らない」）：列の起き場を行き先の十二歩後ろ→五歩後ろへ。
+    //   本人 (36,32)・カメラ (36,36) より後ろ（z 38）にいた酒井隊・鉄砲衆が、出だしから本人の脇と前に並ぶ
+    F.col = col.map((c) => {
+      const g = allyGroup(rt, { faction: c.fac, name: c.name, anchor: { x: c.to[0], z: c.to[1] + 5 }, facing: Math.PI, formation: 'column', spacing: 1.4, order: 'path', speed: 2.9, noRout: true, aggro: 6, morale: 100, dmgMult: c.gun ? 0.5 : 0.85, fleeDir: { x: 0, z: 1 } }, c.list);
+      g.path = [c.to];
+      g.gun = !!c.gun;
+      // 鉄砲は合図まで火蓋を切らない（夜の山で撃てば見つかる）
+      if (g.gun) { g.fire = false; g.holdFire = true; }
+      g.onArrive = (gg) => { gg.arrived = true; gg.order = 'hold'; gg.formation = 'line'; gg.facing = Math.PI; gg.anchor = { x: c.to[0], z: c.to[1] }; };
+      return g;
+    });
+    F.sakaiG = F.col[1];
+    F.sakai = F.col[1].units[0];
+    F.spears = F.col.filter((g) => !g.gun && g !== F.sakaiG);
+    F.guns = F.col.filter((g) => g.gun);
+    // 久間山へ回る別の手（尾根の下の森に潜む）
+    F.kumaHand = allyGroup(rt, { faction: 'tokugawa', name: '別の手', anchor: { x: -50, z: 16 }, facing: Math.PI, noRout: true, aggro: 5, dmgMult: 0.6 }, [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 14 }]);
+
+    // 自分の組（組頭候補から）
+    const n = RANKS[rt.G.rank].squad;
+    if (n) rt.makeSquad({ x: SPAWN.x + 1, z: SPAWN.z + 4 }, Math.PI, [{ kind: 'spear', n }]);
+
+    // ---- 大軍に見せる：森に潜む別働隊の後続と、尾根の向こうの武田、長篠城 ----
+    // 写真の槍ぶすまのように指物の間から槍と陣笠を見せる。兵数・隊列の幅と奥行は保つ。
+    // 家紋は酒井の片喰・徳川の葵・武田菱など、各隊へ渡されたものをそのまま使う。
+    const DA = (x, z, w, d, count, facing, armor, flag, seed, kind) => kind === 'spear'
+      ? W.addDistantArmy({ x, z, w, d, count, facing, armor, flagTex: flagTexture(flag), mon: flag, seed, kind,
+        spearScale: 1.08, flagRate: .5 })
+      : KIT.farHost(rt, x, z, w, d, count, facing, armor, flag, seed, kind);
+    F.hosts = [
+      [60, 150, 34, 222, 'katabami', -20, 70, 'spear'], [-10, 168, 24, 220, 'tokugawa', 14, 88, 'spear'], [84, 96, 34, 190, 'tokugawa', 92, 0, 'mixed'],
+      [-44, 92, 36, 200, 'oda', -30, 18, 'mixed'], [-70, 60, 28, 180, 'tokugawa', -118, -8, 'spear'], [96, 150, 38, 160, 'katabami', 70, 40, 'spear'],
+    ].map(([x, z, d, c, f, x1, z1, kind], i) => {
+      const m = DA(x, z, 12, d, c, Math.PI, f === 'oda' ? 0x2a2622 : 0x24221f, f, 71 + i, kind);
+      return { m, x0: x, z0: z, x1, z1, t: 0, dur: 40 + i * 6, go: false };
+    });
+    // 尾根の向こう：砦の後詰と、長篠城を囲む武田の陣（北の谷を向いて並ぶ）
+    F.takedaFar = [[10, -82, 40, 120, 'takeda', 'spear'], [-78, -86, 30, 100, 'furin', 'mixed'], [-20, -150, 90, 260, 'takeda', 'spear'], [40, -160, 60, 180, 'furin', 'cavalry'], [-120, -130, 50, 200, 'takeda', 'cavalry']]
+      .map(([x, z, w, c, k, kind], i) => DA(x, z, w, 10, kind === 'cavalry' ? 240 : c, Math.PI, 0x3a2622, k, 81 + i, kind));
+    valleyCamp(rt);
+    // 遠景の村（北の谷の東の外れ。夜明けに炊事の煙）
+    KIT.farVillage(rt, 124, -80, { rot: Math.PI / 2, n: 5, fields: 6, seed: 13 });
+    // 長篠城（北の崖の上）：城兵の旗
+    DA(-95, -170, 40, 6, 70, 0, 0x24221f, 'okudaira', 85);
+    if (true) {
+      // 三河の土の城。石垣・天守を足さず、乱杭柵と板葺きの小屋、奥平の井楼で囲む。
+      const P = [], ties = [];
+      palisadeLine(W, P, [[-124, -158], [-124, -179], [-64, -179], [-64, -158]], 2.1, ties);
+      nearLashings(rt, ties, -94, -168);
+      rt.scene.add(mergedMesh(P));
+      castleFront(rt);
+      for (const [x, z] of [[-118, -168], [-70, -170]]) rt.scene.add(yagura(W, x, z, { team: 0, mon: 'okudaira', boarded: true }));
+      for (const x of [-108, -85]) rt.scene.add(hut(W, x, -174, 7, 4, Math.PI / 2, { ita: true, boardRoof: true, weatheredBoards: true, minka: false, solid: false }));
+    } else rt.scene.add(yagura(W, -118, -168), yagura(W, -70, -170));
+    for (const x of [-110, -96, -82]) rt.scene.add(nobori(W, x, -164, 'okudaira', 6));
+
+    rt.setPhase('march');
+    F.fallen = 0; F.burned = 0; F.ek = 0; F.ak = 0;
+    rt.obj('yose', 'すぐ先の寄せ場へ、声を立てずに寄れ', 'main');
+    rt.obj('stealth', '見張りに見つからずに寄せよ', 'side');
+    // 11/19 クラウド17（はじめての中学生の bot 二回：66〜77秒、印が77〜81m 先のまま三十秒迷う。印が寄せ場へ真っすぐ向き、
+    //   回り道（BYPASS＝見張りの篝火を避けて尾根の東を回る道）と違う向きを指していた）：印は回り道の次の点に立て、着くたびに先へ送る
+    rt.marker('yose', () => {
+      const p = rt.player?.u?.pos;
+      if (!p) return YOSE;
+      // 着いた点（六m 内）は飛ばして次へ送る（点の上で印が動かず、着いて六秒なにも起きなかった・11/19 中学生の bot 114・136秒）
+      const B = BYPASS.slice(1);
+      for (let k = 0; k < B.length; k++) { const [x, z] = B[k]; if (z < p.z - 1 && Math.hypot(x - p.x, z - p.z) > 6) {
+        // 11/19 クラウド17（中学生の bot 30・36秒：道筋の点に着いても六秒なにも起きない）：点を一つ越えるたびに、組頭が次の向きを一言（8秒に一度まで）
+        const F0 = rt.flags; if (F0.wpK !== k) { if (F0.wpK != null && !(F0.wpSayT > rt.t)) { F0.wpSayT = rt.t + 8; rt.say('組頭', k >= B.length - 1 ? 'あの窪みが寄せ場じゃ。もう一息' : '次の木立まで、身を低くして進め', 2.2); } F0.wpK = k; }
+        return { x, z }; } }
+      return YOSE;
+    }, '寄せ場');
+    rt.zone('yose', YOSE.x, YOSE.z, 12);
+    rt.say('酒井忠次', `${nm(rt)}、山を越えて砦の背に着いた。すぐ先で組を揃えよ`, 5);
+    rt.say('酒井忠次', '不意を突くため、声を立てるな。すぐ先の窪みで合図を待て', 5.5);
+    // K-Simple（kaito 10/23）：号令の名や赤い輪の説明の字は出さない。赤い輪そのものと組頭の台詞で分からせる
+    if (n) rt.say('組頭', '皆、離れずついて参れ。見張りの篝火には寄るな', 4.5);
+  },
+
+  // 見つかった：見張りが声を上げ、砦が目を覚ます
+  detect(rt, why) {
+    const F = rt.flags;
+    if (F.detected || F.signal) return;
+    F.detected = true;
+    for (const g of F.watch || []) { for (const q of g.units) q.noTarget = false; g.noEngage = false; g.scriptWatch = false; g.stay = false; if (g.count) { g.order = 'attack'; g.seekRange = 30; } }
+    rt.objFail('stealth');
+    rt.banner('夜討ち、露見', why);
+    rt.say('見張り', '敵じゃ！　夜討ちじゃあ！', 2.5);
+    const p = rt.player.u.pos;
+    rt.army.play('eshout', p, 2);
+    rt.after(0.8, () => sfx('taiko', 0.8));
+    for (const f of F.forts) for (const g of f.def) { g.morale = Math.min(100, g.morale + 10); g.aggro += 3; }
+    rt.after(2.5, () => {
+      rt.say('酒井忠次', 'ええい、気づかれたか！　待ってはおれぬ、法螺を吹け！', 3.5);
+      rt.after(2.5, () => this.signal(rt));
+    });
+  },
+
+  // 法螺の合図：一斉に砦へ
+  signal(rt) {
+    const F = rt.flags;
+    if (F.signal) return;
+    F.signal = rt.t;
+    rt.setPhase('assault');
+    // 11/19 クラウド17（中学生の bot 二回：落とした君ヶ伏床の曲輪の中 (25,-36) から次の砦の印へ真っすぐ出ようとして柵に当たり、
+    //   「進めない」「4/5 のまま三十秒、印は52〜64m 先」）：落ちた砦の中にいる間は、その砦の木戸の外への道筋に印を立てる
+    rt.marker('fortExit', () => {
+      const q = rt.player?.u?.pos;
+      if (!q || rt.phase !== 'assault') return null;
+      const f = F.forts.find((o, k) => o.fallen && k !== F.fi && inFort(q, o));
+      if (!f) { F.exitStall = null; return null; }
+      // 11/19 クラウド17（中学生の bot 113秒：出口の点に着いても印が同じ所に残り六秒なにも起きない）：点の三m 内に四秒いれば、
+      //   組頭が木戸を指して呼び、印を木戸の外（曲輪の外の四m 先）へ送る
+      const w = exitWp(f, q), S0 = F.exitStall;
+      if (Math.hypot(w.x - q.x, w.z - q.z) < 3) {
+        if (!S0 || S0.f !== f) F.exitStall = { f, t: rt.t };
+        else if (rt.t - S0.t > 4 && !S0.said) { S0.said = true; rt.say('組頭', `${f.name}の木戸はこちらじゃ！　続け！`, 2.4); }
+      } else if (S0 && !S0.said) F.exitStall = null;
+      if (F.exitStall?.said) return { x: f.x, z: f.zg + 4 };   // 虎口（木戸）の外
+      return w;
+    }, '砦の木戸', { h: 1.5 });
+    // 合図の後は見張りも普通の敵（見つからずに寄せた時・信長で出陣の時も、狙いの外のまま残さない）
+    for (const g of F.watch || []) { for (const q of g.units) q.noTarget = false; g.noEngage = false; g.scriptWatch = false; g.stay = false; }
+    sfx('horagai', 1);
+    // 11/18 クラウド k365-cloud-17（質の照らし：200秒に本人が砦の柵の外を一人で回り、そばに味方がいない）：
+    //   寄せの間は本物の『酒井の供回り』十二人が本人の左右に並んで付き従う（本人の組が無い足軽の時も、塊の中で寄せる）
+    if (!rt.G.lord) {
+      const P0 = rt.player.u.pos;
+      F.escortG = allyGroup(rt, { faction: 'tokugawa', name: '酒井の供回り', anchor: { x: P0.x, z: P0.z }, facing: Math.PI, width: 10, aggro: 6, seekRange: 10, noRout: true, order: 'hold', formation: 'line', morale: 100, dmgMult: 0.6, fleeDir: { x: 0, z: 1 } },
+        [{ type: 'samurai', n: 1, o: { flag: 'katabami' } }, { type: 'ashigaru', n: 11, o: { flag: 'katabami', keep: true } }]);
+      F.escortG.defMult = 2;
+    }
+    rt.after(0.4, () => sfx('taiko', 1));
+    applyLook(rt, 'dawn');
+    rt.banner('法螺の合図', '夜が白む。一斉に砦へかかる');
+    rt.say('酒井忠次', '今ぞ！　砦へかかれ！　鉄砲衆、放て！', 3.5);
+    rt.say('遠くの声', '砦へかかれ！', 2.5);
+    if (rt.squad.length) rt.say('組頭', '砦の口へ！　組の者、続け！', 3);
+    // 間に合わなかった寄せ場の任務
+    if (!F.yoseDone) { if (F.detected) rt.objRemove('yose'); else rt.objFail('yose'); rt.unmark('yose'); rt.unzone('yose'); }
+    if (!F.detected) {
+      rt.objDone('stealth');
+      rt.award((t) => t.side.push('見つからずに寄せた'), '副任務：見つからずに寄せた');
+    }
+    rt.objDone('wait'); rt.objRemove('wait');
+    rt.after(5, () => { rt.objRemove('yose'); if (!F.detected) rt.objRemove('stealth'); });
+    // 見張りは砦へ逃げ込む
+    F.watch.forEach((g, i) => { rt.unmark('watch' + i); rt.scene.remove(g.ringM); if (g.count) { g.noRout = false; g.morale = 0; } });
+    // 列が着いていなければ、そのまま寄せ場へ急がせる
+    for (const g of F.col) if (!g.arrived) { g.speed = 4; g.formation = 'loose'; }
+    // 森の大軍も尾根へ
+    for (const h of F.hosts) h.go = true;
+    // 別の手は少し遅れて久間山へかかる
+    rt.after(40, () => { const K = F.kumaHand; F.forts[3].assaultAt = rt.t; K.order = 'assault'; K.assault = fortRoute(rt, F.forts[3]); K.speed = 3; K.formation = 'loose'; });
+    for (const g of F.guns) { g.fire = true; g.holdFire = false; }
+    F.fortsTxt = !rt.G.lord && (rt.G.rank || 0) >= 3 ? '先手の一手を預かり、尾根の砦を落とせ' : '尾根の砦を落とせ';   // 足軽大将ほどの者は、砦の攻め口の一手を預かる
+    rt.obj('forts', `${F.fortsTxt}（0/5）`, 'main');
+    if (F.fortsTxt !== '尾根の砦を落とせ') rt.after(3, () => rt.say('酒井忠次', `${nm(rt)}、その方は先手の一手じゃ。組を率いて砦の口を破れ`, 3.5));
+    rt.obj('burn', '落とした砦の櫓に火をかけよ（0/3）', 'side');
+    this.attackFort(rt, 0);
+    // 最初の一斉射撃
+    rt.after(1.2, () => {
+      const f = F.forts[0];
+      for (let i = 0; i < 8; i++) rt.army.smoke(f.x - 14 + i * 4, rt.world.heightAt(f.x, f.z + f.rz + 18) + 1.4, f.z + f.rz + 18, 0, -1);
+      rt.army.play('gun', { x: f.x, z: f.z + f.rz + 18 }, 1.5);
+      rt.banner('一斉射', '鉄砲衆が、寝込みの砦へ揃えて放つ');
+      for (const g of f.def) g.morale = Math.max(10, g.morale - 22);
+    });
+  },
+
+  attackFort(rt, i) {
+    const F = rt.flags;
+    const f = F.forts[i];
+    F.fi = i;
+    F.fortT = rt.t;
+    F.noVolley = true;   // 11/18 クラウド：寝込みを襲われた砦。塀からの石と矢の連射（siege_feel）で、固まって寄せる槍組四十人が十人の守兵に二十七秒で二百発を浴びて倒れていた。木戸の上の石だけ残す
+    f.assaultAt = rt.t;
+    rt.marker('fort', { x: f.x, z: f.z }, () => `${f.name}砦・${moraleWord(Math.max(...f.def.map((g) => (g.count ? g.morale : 0))))}`, { red: true });
+    rt.marker('mouth', { x: f.x, z: f.zg + 1 }, () => (f.gate.alive ? `${f.name}の木戸（味方が破る）` : `${f.name}の虎口`), { h: 2 });
+    rt.objProgress('forts', `いま：${f.name}砦`);
+    // 11/18 クラウド kaito2（17:49 act bot）：久間山を落とした別の手が、その後も久間山へ寄せる下知のまま曲輪の南 (-51,-38) に二人残り、
+    //   鳶ヶ巣山を攻める間じゅう百六十秒「敵を前に止まった」。鳶ヶ巣山へは槍組と一緒に寄せる
+    if (f.key === 'tobi' && F.kumaHand && F.kumaHand.count > 0 && !F.spears.includes(F.kumaHand)) F.spears.push(F.kumaHand);
+    // 待機中の弓は射程の設定より遠く、六十歩まで射上げる。半径五歩の控え場全体を木戸から六十歩より外へ置く。
+    f.waitAt = { x: f.x + 3, z: f.zg + 70 };
+    if (f.gate.alive) {
+      rt.zone('hikae', f.waitAt.x, f.waitAt.z, 5);
+      rt.marker('hikae', f.waitAt, '控え場（矢の届かぬ所）', { h: 1.5 });
+      rt.after(i === 0 ? 4 : 2, () => { if (f.gate.alive) rt.say('酒井忠次', '控え場で組をそろえよ。木戸が破れたら、一気に入れ！', 4.5); });
+    }
+    // K358：四千の別働隊。前の砦で槍組が減っていれば、森の後続から新しい槍組を出して入れ替える（二つ目の砦から本人一人で入っていた）
+    if (i > 0 && F.spears.reduce((a, g) => a + g.count, 0) < 20) {
+      const c = F.sakaiG.center();
+      F.spears.push(allyGroup(rt, { faction: 'tokugawa', name: '後続の槍組', anchor: { x: c.x, z: c.z + 8 }, facing: Math.PI, noRout: true, aggro: 6, morale: 100, dmgMult: 0.85, fleeDir: { x: 0, z: 1 } },
+        [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 14, o: { flag: 'katabami', keep: true } }]));
+      rt.say('酒井忠次', '後ろの槍組、前へ！　入れ替われ！', 3);
+    }
+    for (const g of F.spears) {
+      g.defMult = 2.5;   // K358：寝込みの守兵の叩きは揃いが悪い。槍組は口で一度に二十人余り討たれ（叩きの拍子が揃う）、砦が落ちずに止まっていた
+      g.order = 'assault'; g.assault = fortRoute(rt, f); g.formation = 'loose'; g.speed = 3.6;
+      for (const u of g.units) u.aiT = Math.random() * 0.6;
+    }
+    // 11/18 クラウド kaito2（18:02 act bot）：鳶ヶ巣山の段で、鉄砲衆が塀の内の敵へ寄ろうとして曲輪の東の斜面 (-78,-31)・(-86,-18) で二十秒止まった。
+    //   鳶ヶ巣山（土塁の高い大きな曲輪）では持ち場に立って塀へ撃つ（寄せるのは槍組）
+    F.guns.forEach((g, k) => { g.order = f.key === 'tobi' ? 'hold' : 'attack'; g.seekRange = 34; g.formation = 'line'; g.anchor = { x: f.x + (k ? 10 : -10), z: f.z + f.rz + 15 }; g.facing = Math.PI; });
+    const S = F.sakaiG;
+    S.order = 'move'; S.dest = { x: f.x + 5, z: f.z + f.rz + 12 }; S.speed = 3.2;
+    S.onArrive = (g) => { g.order = 'hold'; g.facing = Math.PI; };
+    // 夜明け前から五つの砦を続けて攻める長い戦：組頭候補までの時は、砦の守兵の打ち込みを少し軽く（寝込みを襲われた守兵）
+    for (const g of f.def) { g.aggro = 12; if (!g._soft) {   // K358：身分に関わらず（足軽大将・信長で出陣でも act bot が3回とも倒れた）
+        g._soft = true; g.dmgMult = (g.dmgMult || 1) * 0.8; } }
+    if (i > 0) rt.after(7, () => { if (F.fi === i && !f.fallen) volley(rt, F.guns, { who: '酒井忠次', waitLine: '', line: `鉄砲衆、${f.name}の塀へ放て！　崩れた所へ槍を入れよ`, r: 60, hit: 16 }); });
+    if (f.key === 'naka' && !F.kumaCav) {
+      F.kumaCav = true;
+      rt.after(10, () => {
+        if (f.fallen) return;
+        const c = enemyGroup(rt, { faction: 'takeda', name: '武田の騎馬の後詰', anchor: { x: f.x - 26, z: -92 }, facing: 0, order: 'attack', seekRange: 70, aggro: 14, width: 8, morale: 85, fleeDir: { x: 0, z: -1 }, dmgMult: 0.45, speed: 3.2 },
+          [{ type: 'samurai', n: 1, o: { horse: true, hat: 'kabuto_m' } }, { type: 'cavalry', n: 5 }]);
+        KIT.backOf(rt, c, { flag: 'takeda', armor: 0x3a2622, kind: 'cavalry', w: 22, depth: 14, count: 140, gap: 4, seed: 97, stop: () => c.center().z > -70 });
+        rt.banner('武田の騎馬', '谷の向こうから、砦の後詰が駆け上がる');
+        rt.say('酒井忠次', '騎馬じゃ！　柵を背に槍を立てよ。細道で一騎ずつ落とせ！', 4.5);
+        rt.marker('kcav', centerOf(c), () => `武田の騎馬・${moraleWord(c.morale)}`, { red: true, group: c });
+        F.cav = c;
+        // 判断：騎馬をどう受けるか（時間切れは柵を背に受ける）
+        rt.after(2, () => rt.choose('武田の騎馬が谷から駆け上がる。どう受ける？', [
+          { label: '砦の柵を背に、槍を立てて受ける', note: '堅い。騎馬の勢いを殺せる。手柄は並' },
+          { label: '騎馬の横へ回り込んで突く', note: '崩せば大手柄。踏まれやすい' },
+        ], (k) => {
+          F.cavSide = k === 1;
+          if (k === 0) { c.dmgMult = 0.45; rt.say('酒井忠次', 'よし、槍を立てよ！　馬は槍の穂先へは突っ込めぬ', 3); }
+          else rt.say('酒井忠次', '横じゃ、横を突け！　馬は横へは曲がれぬ', 3);
+        }, 14));
+        rt.after(90, () => { if (c.count && !c.routed) { c.noRout = false; c.morale = 0; F.cavLate = true; } rt.unmark('kcav'); });
+      });
+    }
+    if (f.key === 'tobi') {
+      // 最後の砦は旗本が固い。味方は遠巻きに撃ち、口で押し合う
+      for (const g of F.guns) g.dmgMult = 0.25;
+      for (const g of F.spears) g.dmgMult = rt.squad.length ? 0.45 : 0.6;
+      rt.obj('nobuzane', '鳶ヶ巣山砦の河窪信実を討て', 'main');
+      rt.marker('nobu', unitPos(F.nobuzane), '河窪信実', { red: true });
+      applyLook(rt, 'morning');
+    }
+  },
+
+  fortFell(rt, i, byOthers) {
+    const F = rt.flags;
+    const f = F.forts[i];
+    if (f.fallen) return;
+    f.fallen = true;
+    F.fallen++;
+    try { const D = F.depth && F.depth.B; if (D) depthRout(D, 'f_' + (f.key || FORTS[i].key)); } catch (e) { /* 無くても進む */ }   // 砦の裏の備も崩れる
+    openGate(rt, f);
+    // 砦を一つ落とすごとに、次の砦へ向かう間に息を整え、傷を縛る（五つの砦を続けて攻める長い夜明け。組頭候補まで）
+    { const u = rt.player.u; if (u.hp < u.maxHp * 0.7 && rt.player.treatWounds(0.3)) rt.bark('砦を落とした。息を整え、傷を縛った'); }
+    f.yagura.userData.lookout.visible = false;
+    for (const g of f.def) if (g.count) { g.noRout = false; g.morale = 0; }
+    // 櫓の実兵は共通の仕組みで別に作られる。落ちた砦の射手も守兵とともに北へ退かせる。
+    // 11/18 クラウド kaito2（14:50 POSLOG）：櫓の足場が柵の際にあると置き場が砦の外に測られ、落ちた君ヶ伏床の櫓に射手が二人残った（hold）。柵の外三歩まで含めて退かせる
+    //   rt.perch は最後に作った城の櫓だけを持つ（ほかの櫓の守りが漏れた）。名で拾う組も合わせて見る
+    const towerGs = new Set([...(rt.perch?.posts || []).map((q) => q.group), ...rt.army.groups.filter((g) => /物見櫓の守り|隅櫓の守り|櫓門の守り/.test(g.name || ''))]);
+    for (const g of towerGs) {
+      // 11/18 クラウド kaito2（15:48 POSLOG）：落ちた中山の際（柵の外五〜六歩）の物見櫓の射手二人が残って撃ち、足軽の bot が (-23,-25) で避ける横歩きを八十秒続け鳶ヶ巣山へ向かわなかった。柵の外十二歩まで退かせる
+      if (!g || g.team !== 1 || !inFort(g.anchor, f, -12)) continue;
+      g.fire = false; g.holdFire = true;
+      g.noRout = false; g.morale = 0; g.order = 'flee'; g.fleeDir = { x: 0, z: -1 }; g.fleeSet = true;
+      for (const u of g.units) if (u.alive) { u.target = null; u.atk = null; u.swing = null; u.aiT = 0; }
+    }
+    rt.obj('forts', `${F.fortsTxt || '尾根の砦を落とせ'}（${F.fallen}/5）`, 'main');
+    if (f.key !== 'tobi') rt.banner(`${f.name}砦、落ちたり`, byOthers ? '別の手が攻め落とした' : `残る砦 ${5 - F.fallen}`);
+    sfx('horagai', 0.6);
+    rt.army.play('eshout', { x: f.x, z: f.z }, 1.6);
+    if (byOthers) {
+      rt.say('伝令', `${f.name}、別手が攻め落とし申した！`, 3.5);
+      this.burn(rt, i, false);
+      return;
+    }
+    rt.unmark('fort'); rt.unmark('mouth'); rt.unzone('hikae'); rt.unmark('hikae');
+    // 櫓に火をかける
+    // 11/18 クラウド kaito2（POSLOG 2104・2109）：櫓の南は柵に近く、届く内でも一番近い札が「柵を引き倒す」になり（歩きが塞がると柵は先に立つ）、E を押しても火がかからず四十秒立った。届く内なら火の札を先に出す
+    rt.addInteract('burn' + i, { x: f.yx, z: f.yz + 1.8 }, '櫓に火をかける', () => this.burn(rt, i, true), { r: 3.6, hold: 1.5, prio: 12 });
+    // 11/19 クラウド kaito2（ledger 1314・POSLOG 2256・2301）：馬上の殿は馬の体と回りの大きさで櫓の脚と柵の間に寄り切れず、
+    //   櫓の東の脇 (-17,-39) で札の外に止まって三十秒焼けなかった。馬上の時だけ届きを一歩広げる（徒歩は三歩半のまま）
+    { const bi = rt.interacts[rt.interacts.length - 1]; Object.defineProperty(bi, 'r', { get: () => (rt.player?.mounted ? 4.8 : 3.6), configurable: true }); }
+    rt.marker('yagura' + i, { x: f.yx, z: f.yz, y: rt.world.heightAt(f.yx, f.yz) + f.yagura.userData.H }, '櫓（火をかける）', { h: 1 });
+    rt.after(60, () => { if (!f.burned) { this.burn(rt, i, false); rt.bark(`${f.name}の櫓に、味方が火をかけた`); } });
+  },
+
+  burn(rt, i, mine) {
+    const F = rt.flags;
+    const f = F.forts[i];
+    if (f.burned) return;
+    f.burned = true;
+    rt.uninteract('burn' + i);
+    rt.unmark('yagura' + i);
+    const W = rt.world;
+    const H = f.yagura.userData.H;
+    f.yagura.userData.lookout.visible = false;
+    f.fires = [W.addFire(f.yx, f.yz, { h: H - 0.4 }), W.addFire(f.yx + 0.7, f.yz - 0.5, { h: H + 0.8 }), W.addFire(f.yx - 0.6, f.yz + 0.4, { h: 0.3 })];
+    f.burnT = 0;
+    sfx('wood', 0.8);
+    if (mine && F.burned < 3) {
+      F.burned++;
+      rt.objProgress('burn', '');
+      rt.obj('burn', `落とした砦の櫓に火をかけよ（${Math.min(3, F.burned)}/3）`, 'side');
+      rt.bark(`${f.name}の櫓に火をかけた`);
+      if (F.burned === 3) {
+        rt.objDone('burn');
+        rt.award((t) => t.side.push('砦の櫓を焼いた'), '副任務：砦の櫓を焼いた');
+        rt.say('酒井忠次', '櫓が燃えれば、長篠の城からも見えよう。ようやった', 3);
+      }
+    }
+  },
+
+  update(rt, dt) {
+    const F = rt.flags;
+    const p = rt.player.u.pos;
+    // 酒井の供回りは二秒ごとに本人の横へ持ち場を移す（背に置くとカメラの後ろに隠れる）
+    if (F.escortG && F.escortG.count && !F.escortG.routed && rt.t > (F.escortT || 0)) {
+      F.escortT = rt.t + 2;
+      F.escortG.anchor = { x: p.x, z: p.z - 1 }; F.escortG.dest = null;
+      // 11/18 クラウド kaito2（20:36 act bot）：本人が砦の木戸を出入りすると、供回りは柵の向こうの持ち場へ真っすぐ歩き、
+      //   君ヶ伏床の枡 (25,-29)・曲輪の東 (37,-31) で二十秒止まった。本人と柵の内外が違う間は、木戸を通る道（攻め口の道と同じ）で追う
+      const split = F.escortG.units.some((u) => u.alive && !u.fleeing && F.forts.some((q) => inFort(u.pos, q, -0.4) !== inFort(p, q, -0.4)));
+      if (split) { F.escortG.order = 'assault'; F.escortG.assault = F.escortRoute || (F.escortRoute = escortRoute(rt)); F.escortG.speed = 4; }
+      else F.escortG.order = 'hold';
+    }
+    // 櫓の実兵は setup の後に作られる。守兵と同じ射程にし、離れた砦や控え場まで撃たせない。
+    if (!F.perchRangeSet && rt.perch?.started) {
+      for (const post of rt.perch.posts) {
+        const g = post.group;
+        if (!g || g.team !== 1 || !F.forts.some((f) => inFort(g.anchor, f))) continue;
+        for (const u of g.units) if (u.type === 'bow' || u.type === 'gun') u.range = u.type === 'bow' ? 21 : 28;
+        g.dmgMult = Math.min(g.dmgMult || 1, 0.5);   // K358：夜明けの薄明かりの櫓の矢は当たりが浅い
+      }
+      F.perchRangeSet = true;
+    }
+    for (const h of F.hosts) moveHost(rt, h, dt);
+    KIT.backTick(rt);
+    // 燃える櫓：煙を上げ、しばらくして傾き崩れる
+    for (const f of F.forts) {
+      if (!f.fires) continue;
+      f.burnT += dt;
+      f.smokeT = (f.smokeT || 0) - dt;
+      if (f.smokeT <= 0) { f.smokeT = 2.2; rt.army.smoke(f.yx, rt.world.heightAt(f.yx, f.yz) + f.yagura.userData.H + 1.5, f.yz, 0, 0); }
+      if (f.burnT > 22 && f.burnT < 26) {
+        const k = (f.burnT - 22) / 4;
+        f.yagura.rotation.z = 0.45 * k * k;
+        f.yagura.position.y = rt.world.heightAt(f.yx, f.yz) - 1.2 * k;
+        for (const fr of f.fires.slice(0, 2)) fr.base -= dt * 1.1;
+      }
+    }
+    if (rt.phase === 'march' || rt.phase === 'wait') this.approach(rt, dt);
+    if (rt.phase === 'assault') this.assault(rt, dt);
+    if (rt.phase === 'relief') this.relief(rt, dt);
+    if (F.dpOn) depthTick(rt, dt);
+  },
+
+  approach(rt, dt) {
+    const F = rt.flags;
+    const p = rt.player.u.pos;
+    // 見張り：自分か組の者が赤い輪に入れば見つかる
+    const who = [rt.player.u, ...rt.squad.filter((s) => s.alive)];
+    for (const g of F.watch) {
+      if (!g.count || F.detected) continue;
+      const w = g.home;
+      if (g.units.some((q) => !q.alive || q.hp < (q._hp0 ??= q.hp) - 0.5)) { this.detect(rt, '見張りに斬りかかった'); continue; }
+      if (who.some((u) => Math.hypot(u.pos.x - w.x, u.pos.z - w.z) < SEE)) {
+        g.order = 'attack'; g.seekRange = 30; g.morale = 100;
+        this.detect(rt, '見張りに気づかれた');
+      }
+      // 近づきかけたら知らせる
+      const d = Math.hypot(p.x - w.x, p.z - w.z);
+      if (d < SEE + 8 && !F.nearWarn) { F.nearWarn = true; rt.bark('見張りが近い！　赤い輪に入るな', true); rt.after(15, () => { F.nearWarn = false; }); }
+    }
+    // 砦に近づきすぎても見つかる
+    if (!F.detected && F.forts.some((f) => Math.hypot(p.x - f.x, p.z - f.z) < f.r + 16)) this.detect(rt, '砦の番兵に気づかれた');
+    // 寄せ場
+    // 11/19 クラウド17（はじめての中学生の bot：74秒、印が81m 先のまま三十秒、何をすればよいか分からない）：回り道を歩く間、
+    //   二十五秒ごとに組頭が道を一言で示す（字の札は足さず台詞で。8秒に一度の決まりの内）
+    if (!F.yoseDone && !F.detected) {
+      const pd0 = Math.hypot(p.x - YOSE.x, p.z - YOSE.z);
+      if (pd0 > 25 && rt.t > (F.marchSayT ?? 25)) {
+        F.marchSayT = rt.t + 25; F.marchSayK = (F.marchSayK || 0) + 1;
+        const L = ['寄せ場は尾根の下の窪み。篝火には寄らず、山の背を下りなされ', '声を立てるな。旗の印の方へ、このまま静かに', 'もう少しじゃ。窪みで皆が揃うのを待つ'];
+        rt.say('組頭', L[(F.marchSayK - 1) % L.length], 3.5);
+      }
+    }
+    if (!F.yoseDone) {
+      const alive = rt.squad.filter((s) => s.alive);
+      const near = alive.filter((s) => Math.hypot(s.pos.x - YOSE.x, s.pos.z - YOSE.z) < 15).length;
+      const pd = Math.hypot(p.x - YOSE.x, p.z - YOSE.z);
+      const ok = pd < 12 && near >= Math.ceil(alive.length * 0.6);
+      rt.objProgress('yose', pd < 12 && !ok ? '組が揃っていない' : '');
+      // 11/19 クラウド17（中学生の bot 67秒：寄せ場に着いても組が揃わず、六秒なにも起きない＝三木の蔵と同じ手で、着いたら絵で起きる）：
+      //   寄せ場で組を待って四秒たてば、組頭が呼び、遅れた者が窪みへ駆けて来る（離れた者から順に走らせる。数は変えない）
+      if (pd < 12 && !ok) {
+        F.yoseWaitT = (F.yoseWaitT || 0) + dt;
+        if (F.yoseWaitT > 4 && !F.yoseCalled) {
+          F.yoseCalled = true;
+          rt.say('組頭', '皆、窪みへ集まれ！　声は立てるな！', 2.6);
+          for (const g of rt.squadGroups || []) { g.order = 'follow'; g.speed = Math.max(g.speed || 0, 4.6); }
+          for (const u of alive) if (Math.hypot(u.pos.x - YOSE.x, u.pos.z - YOSE.z) >= 15) { u.moveTo = { x: YOSE.x + (Math.random() - 0.5) * 6, z: YOSE.z + 3 + Math.random() * 4 }; u.aiT = Math.max(u.aiT || 0, 2); }
+        }
+      } else F.yoseWaitT = 0;
+      if (ok) {
+        F.yoseDone = true;
+        rt.setPhase('wait');
+        rt.objDone('yose'); rt.unmark('yose'); rt.unzone('yose');
+        rt.obj('wait', '法螺の合図まで仕掛けるな', 'order');
+        rt.say('酒井忠次', 'ここが寄せ場じゃ。組を揃えて待て。法螺が鳴るまで、音を立てるな', 4.5);
+        if (rt.squad.length) rt.say('', '号令で組に「待て」。合図のあとは「突撃」', 4.5);
+      }
+    }
+    // 合図：列が寄せ場に揃い、しばらく息を整えてから（遅れても三分半で鳴る）
+    const arrived = F.col.every((g) => g.arrived);
+    if (arrived && !F.colAt) F.colAt = rt.t;
+    if (!F.signal && !F.detected && ((F.yoseDone && F.colAt && rt.t - Math.max(F.colAt, F.waitFrom || 0) > 12) || rt.t > 170)) this.signal(rt);
+    if (rt.phase === 'wait' && !F.waitFrom) F.waitFrom = rt.t;
+    if (rt.phase === 'wait') rt.objProgress('wait', arrived ? 'まもなく夜が明ける' : '後続の列を待っている');
+  },
+
+  assault(rt, dt) {
+    this.unstick(rt);   // 11/19 クラウド17（中学生の bot 296・336秒：攻めの段にも三の槍組・鉄砲衆が号令 move のまま一点に重なって止まった）
+    // 11/19 クラウド17（中学生の bot：櫓の印に着いても長押しを知らず六秒なにも起きない。三木の蔵と同じ手＝着いたら絵で何か起きる）：
+    //   落とした砦の櫓の札の届く内（五m）に本人が四秒いて火をかけなければ、組頭が松明で火をかける（本人の手柄に数える）
+    { const Fz = rt.flags, P0 = rt.player?.u?.pos;
+      if (P0) for (let i = 0; i < (Fz.forts || []).length; i++) {
+        const f = Fz.forts[i];
+        if (!f.fallen || f.burned || f.yx == null) continue;
+        const near = Math.hypot(P0.x - f.yx, P0.z - (f.yz + 1.8)) < 5;
+        f._nearT = near ? (f._nearT || 0) + dt : 0;
+        if (f._nearT > 4) { f._nearT = 0; rt.say('組頭', '松明をこれへ！　櫓に火をかけまする！', 2.6); this.burn(rt, i, true); }
+      } }
+    const F = rt.flags;
+    const f = F.forts[F.fi];
+    const gone = (g) => g.count === 0 || g.routed;
+    // 木戸は、寄せてしばらくすれば丸太で打ち破る（柵越しの揉み合いで長引かないように）
+    for (const q of F.forts) {
+      // 11/18 クラウド：槍組が木戸の前に固まって二十秒余り石と矢を浴び、四十人が守兵を一人も討てずに倒れた。五人が木戸に取り付けば五秒で破る
+      if (q.assaultAt && q.gate.alive) {
+        let n = 0;
+        for (const g of F.spears) if (g.count) for (const u of g.units) if (u.alive && Math.hypot(u.pos.x - q.x, u.pos.z - q.zg) < 7) n++;
+        q.ramT = n >= 5 ? (q.ramT || 0) + dt : Math.max(0, (q.ramT || 0) - dt);
+        if (n >= 5 && !q.ramSaid) { q.ramSaid = true; rt.say('組頭', '丸太を当てよ！　木戸を打ち破れ！', 3); }
+      }
+      if (q.assaultAt && q.gate.alive && (rt.t - q.assaultAt > 24 || q.ramT > 5)) {
+        rt.army.damage(q.gate, 99999, null);
+        rt.army.play('knock', { x: q.x, z: q.zg }, 1.5);
+      }
+    }
+    // 騎馬を崩した手柄（横へ回った時は大手柄）
+    if (F.cav && !F.cavDone && (F.cav.count === 0 || F.cav.routed)) {
+      F.cavDone = true; rt.unmark('kcav');
+      if (!F.cavLate) {
+        if (F.cavSide) rt.award((t) => { t.special = { label: '武田の騎馬の横を突いて崩した', pts: 15 }; }, '武田の騎馬の横を突いた');
+        else rt.award((t) => t.side.push('武田の騎馬を槍で受け止めた'), '武田の騎馬を受け止めた');
+        rt.say('酒井忠次', '騎馬が谷へ逃げるぞ！　ようやった', 3);
+      }
+    }
+    // 久間山は別の手が攻める（落ちれば知らせが来る）
+    const K = F.forts[3];
+    if (!K.fallen && K.def.every(gone)) this.fortFell(rt, 3, true);
+    // 11/18 クラウド kaito2（17:55 act bot）：久間山を先に落とした別の手が、中山の段の間ずっと久間山の曲輪 (-51,-37) に残り「敵を前に止まった」。
+    //   落とした後は槍組に加わり、いま攻めている砦へ寄せる（尾根を東から巻き上げる）
+    const KH = F.kumaHand;
+    if (K.fallen && KH && KH.count > 0 && !F.spears.includes(KH) && f && !f.fallen && F.fi !== 3) {
+      F.spears.push(KH); KH.order = 'assault'; KH.assault = fortRoute(rt, f); KH.formation = 'loose'; KH.speed = 3.6; KH.defMult = 2.5;
+    }
+    // いまの砦：守兵が崩れるか討たれれば落ちる。残り僅かなら逃げ出す。長引けば崩れる
+    if (f && !f.fallen && f.key !== 'tobi') {
+      const left = f.def.reduce((a, g) => a + (gone(g) ? 0 : g.count), 0);
+      if (left <= 2 || rt.t - F.fortT > 60) for (const g of f.def) { g.noRout = false; g.morale = Math.min(g.morale, 10); }
+      // K358：さらに長引けば、残りの守兵は搦手から落ちていく（槍組が口で討たれ続け、砦が落ちずに止まっていた）
+      if (rt.t - F.fortT > 80) for (const g of f.def) if (!gone(g)) { g.morale = 0; g.routed = true; }
+      if (f.def.every(gone)) {
+        this.fortFell(rt, F.fi);
+        const next = F.fi === 2 ? 4 : F.fi + 1;
+        if (F.fi === 2 && !K.fallen) rt.after(3, () => { if (!K.fallen) this.fortFell(rt, 3, true); });
+        const nf = F.forts[next];
+        rt.after(F.fi === 2 ? 8 : 5, () => {
+          rt.say('酒井忠次', next === 4 ? '残るは鳶ヶ巣山！　河窪信実の首、挙げよ！' : `次は${nf.name}じゃ！　息をつかせるな！`, 3.5);
+          this.attackFort(rt, next);
+        });
+        F.fi = -1;
+      }
+    }
+    // 鳶ヶ巣山：河窪信実が討たれるか、守兵が崩れれば落ちる
+    const T = F.forts[4];
+    if (F.fi === 4 && !T.fallen) {
+      const N = F.nobuzane;
+      const outer = T.def.filter((g) => g !== F.hq).every(gone);
+      // 11/18 クラウド：口の槍組と弓が百秒落ちず、act bot が控え場で66秒なにも起きなかった。四十秒で外の守りが揺らぎ、五十五秒で搦手へ落ちる（信実と旗本は残る）
+      // 11/18 クラウド kaito2（POSLOG）：鳶ヶ巣山の時計は四つ目の砦が落ちた時から回り、櫓を焼いて九十歩を歩く間に外の守りが崩れ信実が味方に討たれた（本人は八十〜九十歩手前）。
+      // 時計は本人が砦の六十歩内に来た時から回す（来なければ百二十秒後から）
+      // 11/18 クラウド kaito2（08:57 POSLOG）：本人が久間山の残りの守兵と道で斬り合う間に七十秒が過ぎ、五十歩手前で信実が味方に討たれた。来なければの待ちは百二十秒
+      if (!F.tobiT0 && (rt.distTo({ x: T.x, z: T.z }) < 60 || rt.t - F.fortT > 120)) F.tobiT0 = rt.t;
+      const dt4 = F.tobiT0 ? rt.t - F.tobiT0 : 0;
+      if (dt4 > 40) for (const g of T.def) if (g !== F.hq && !gone(g)) { g.noRout = false; g.morale = Math.min(g.morale, dt4 > 55 ? 0 : 10); if (dt4 > 55) g.routed = true; }
+      // 11/19 クラウド kaito2（act bot 0701・371秒）：崩れた外の守り十一人が北へ真っすぐ逃げ、陣幕の北の大将の小屋（-98,-50）の角 (-94,-48) で一点に重なった。
+      //   逃げ道は本人の bot と同じ筋＝幕の南を回って東の脇を北へ、小屋の東から搦手の口を抜けて谷へ
+      if (dt4 > 55 && !F.tobiFleePath) {
+        F.tobiFleePath = true;
+        const jx = T.x - 1, jz = T.z - 3, out = [[jx + 6, T.z - T.rz + 0.9], [T.x, T.z - T.rz + 0.5], [T.x, T.z - T.rz - 18]];
+        for (const g of T.def) if (g !== F.hq) for (const u of g.units) {
+          if (!u.alive || !inFort(u.pos, T, -1)) continue;
+          const ux = u.pos.x - jx, uz = u.pos.z - jz;
+          u.fleePathIdx = 0;
+          u.fleePath = uz < -4.1 || ux > 5.6 ? [[jx + 8.4, Math.min(u.pos.z, jz - 6.8)], ...out] : [[jx, jz + 5.8], [jx + 8.4, jz + 5.8], [jx + 8.4, jz - 6.8], ...out];
+          if (uz < -4.1 && ux < 3) u.fleePath.shift();   // 小屋の東の脇より西の北側は、小屋の南の際を東へ
+          if (uz < -4.1 && ux < 3) u.fleePath.unshift([jx + 6, jz - 5.2]);
+        }
+      }
+      // 守りが尽きて長引けば、信実は味方の手に討たれる（本人が首を挙げる間を残す）
+      // 11/18 クラウド kaito2：信実は陣幕の前で待つだけで、act bot は毎回 20〜90m 手前で七十五秒の味方討ちになった。外の守りが尽きれば、信実と旗本が自ら打って出る（史実も討ち死に）
+      if (N.alive && outer && !F.hqOut && (rt.distTo(N.pos) < 50 || dt4 > 45)) {
+        F.hqOut = true; F.hq.aggro = 3;   // 11/18 クラウド kaito2（14:58 POSLOG）：狙う間合い三十では曲輪の味方と斬り合い始め、陣幕の脇（-94,-47）から虎口へ歩まず、本人は柵の向こうで二十五歩待った。歩む間は間合いを狭め、着いてから広げる
+        // 11/18 クラウド kaito2（08:50）：打って出ても持ち場は陣幕の前のままで、本人との間が 15〜29m から縮まず首は味方討ちになった。
+        //   旗本ごと虎口の内の際（枡形の奥）まで歩み出て、木戸から入る本人と正面で向き合う
+        //   （持ち場の書き換えだけでは止まったまま＝act bot 08:55 で -97,-47 から動かず。歩む下知で移す）
+        // 11/18 クラウド kaito2（09:04 POSLOG）：殿の bot は信実の十九歩手前で物見櫓の守りに撃たれ続け、手傷で退く間に首が味方討ちになった。外の守りが尽きれば、櫓の射手も搦手へ落ちる（ほかの砦の落ちる時と同じ）
+        for (const post of rt.perch?.posts || []) {
+          const g = post.group;
+          if (!g || g.team !== 1 || !inFort(g.anchor, T)) continue;
+          g.fire = false; g.holdFire = true; g.noRout = false; g.morale = 0; g.order = 'flee'; g.fleeDir = { x: 0, z: -1 }; g.fleeSet = true;
+          for (const u of g.units) if (u.alive) { u.target = null; u.atk = null; u.swing = null; u.aiT = 0; }
+        }
+        // 11/19 クラウド kaito2（act bot 0751 POSLOG）：信実と旗本は陣幕の北の裏 (-94,-47) にいて、虎口の内へ真っすぐ歩むと幕の北の壁に当たり、打って出たまま五十秒動かず味方討ちになった（殿は虎口の外三十五歩で待ったまま）。
+        //   幕の東の脇（俵との間）を回って南へ出る
+        const jx = T.x - 1, jz = T.z - 3, ns = N.pos.z < jz + 4;
+        F.hq.anchor = { x: N.pos.x, z: N.pos.z };
+        //   打って出るようになり、足軽の本人が信実と旗本の侍に挟まれ一太刀六十を浴びて倒れた（act bot 0803）。旗本の刃が本人に当たる時だけ六割に（殿の版と同じ）
+        if (!rt.G.lord) { F.hq.dmgMultPlayer = (F.hq.dmgMult ?? 1) * 0.6; F.hq.dmgMultPlayerMelee = true; }
+        F.hq.order = 'path'; F.hq.pathIdx = 0; F.hq.speed = 2.6;
+        F.hq.path = ns ? [[jx + 6.8, Math.min(N.pos.z, jz - 5.6)], [jx + 6.8, jz + 6.4], [T.x, T.zw - 2.5]] : [[T.x, T.zw - 2.5]];
+        F.hq.onArrive = (g) => { g.order = 'hold'; g.facing = 0; g.anchor = { x: T.x, z: T.zw - 2.5 }; g.aggro = 12; };
+        rt.say('河窪信実', '信玄が弟、河窪信実なり！　この首、取ってみよ！', 3.5);
+      }
+      // 本人が信実の三十歩内で戦っている間は、味方討ちを待つ（act bot が7〜18m まで来て味方に首を取られた）
+      // 11/18 クラウド kaito2（09:04）：一度でも三十歩内に来たら待ちを保つ版は、殿の act bot が虎口で手傷のまま留まり倒れた（失敗）。今のまま
+      const near = rt.distTo(N.pos) < 30;
+      // 11/18 クラウド kaito2（14:40 POSLOG）：本人が信実と打ち合い、手傷を負わせている（345→315）最中に百十秒の味方討ちになった。本人が十二歩内で一太刀でも入れていれば百五十秒まで待つ
+      const duel = near && rt.distTo(N.pos) < 12 && N.hp < N.maxHp;
+      if (duel) F.tobiDuelT = rt.t;
+      const hold = near && (duel || rt.t - (F.tobiDuelT ?? -99) < 6);
+      if (N.alive && outer && dt4 > (hold ? 150 : near ? 110 : 75)) rt.army.kill(N, null);
+      if (!N.alive || T.def.every(gone) || dt4 > (hold ? 170 : near ? 130 : 100)) {
+        if (N.alive) rt.army.kill(N, null);
+        this.tobiFell(rt);
+      }
+    }
+    // 見張りの残り（崩れて逃げる）は数に入れない
+  },
+
+  tobiFell(rt) {
+    const F = rt.flags;
+    const T = F.forts[4];
+    this.fortFell(rt, 4);
+    rt.unmark('fort'); rt.unmark('mouth'); rt.unmark('nobu');
+    rt.objDone('forts'); rt.objDone('nobuzane');
+    rt.after(4, () => { for (const id of ['forts', 'nobuzane', 'yose', 'stealth']) rt.objRemove(id); });
+    rt.banner('鳶ヶ巣山、落ちる', '河窪信実、討死');
+    // K358：五つの砦が落ちたら、櫓の射手も降りて逃げる（追い討ちの段で見えない櫓から射られ続け、act bot が倒れた）
+    for (const post of rt.perch?.posts || []) { const g = post.group; if (g && g.team === 1) for (const u of g.units) if (u.alive) rt.army.despawn(u); }
+    rt.award((t) => { t.c.capture++; }, '鳶ヶ巣山砦を落とした');
+    rt.say('酒井忠次', '鳶ヶ巣山、落ちたぞ！　勝鬨を上げよ！', 3.5);
+    rt.army.celebrate(0);
+    // 尾根の向こうの武田勢が退き始める
+    F.takedaFar.forEach((m, i) => {
+      if (i < 2) rt.after(1 + i * 2, () => m.rout({ hideAfter: 40 }));   // 砦の後詰は崩れて散る
+      else rt.after(i * 2, () => m.advance(28, 28));                    // 長篠城の囲みは北の谷の向こうへ引く
+    });
+    this.deep(rt, () => this.reliefStart(rt));
+  },
+
+  // 段を重ねる（b_depth.js）：鳶ヶ巣山が落ちた後、谷の有海村の武田の陣と、向き直る武田の殿
+  deep(rt, then) {
+    const F = rt.flags;
+    if (F.dpDone) return;
+    F.dpDone = true;
+    // K358：信長で出陣と同じく、追い討ちの段組みは使わず城兵との合流へ（足軽の形で一戦が15分を越え、見えない新手の矢で act bot が倒れ続けた）。段組み（tbSteps）は残す
+    if (rt.G.lord || !tobinosu.deepChase) { then(); return; }
+    F.dpOn = true;
+    rt.setPhase('chase');
+    depthStart(rt, tbCtx(rt), tbSteps(), () => { F.dpOn = false; rt.after(3, () => { const q = rt.objectives.find((x) => x.id === 'dp'); if (q && q.state) rt.objRemove('dp'); }); then(); });
+  },
+
+  reliefStart(rt) {
+    const F = rt.flags;
+    const T = F.forts[4];
+    rt.setPhase('relief');
+    F.reliefT = rt.t;
+    // 11/18 クラウド：合流の段になっても焼き残しの櫓の印が残り、act bot（と人）が谷と逆の櫓へ歩いて何も起きなかった（408秒）。
+    // 史実でも別働隊は砦に火を放った：残りの櫓は酒井の兵が焼き、印を消して合流へ向かわせる（数えは本人の分だけ）
+    for (let i = 0; i < F.forts.length; i++) if (F.forts[i].fallen && !F.forts[i].burned) this.burn(rt, i, false);
+    if ((F.burned || 0) < 3) rt.objRemove('burn');
+    // K358：砦が落ちたら、残った守兵は北の谷へ逃げ散る（合流の道で十人余りが本人を囲み、act bot が倒れた）
+    for (const f of F.forts) for (const g of f.def) if (g.count) for (const u of g.units) if (u.alive && !u.name) rt.army.despawn(u);   // 崩れにしても組み付いて来たので、残りは谷の向こうへ去らせる（砦が早く落ちる分、残兵が多い）
+    rt.after(6, () => {
+      sfx('taiko', 0.9);
+      rt.banner('長篠城の城兵、打って出る', '奥平の旗が北の谷を渡ってくる');
+      const g = allyGroup(rt, { faction: 'tokugawa', name: '長篠城の城兵', anchor: { x: -96, z: -150 }, facing: 0, order: 'move', speed: 3.4, noRout: true, aggro: 8, formation: 'loose' },
+        [{ type: 'busho', n: 1, o: { name: '奥平信昌', invuln: true, flag: 'okudaira' } }, { type: 'samurai', n: 3, o: { flag: 'okudaira' } }, { type: 'ashigaru', n: 14, o: { flag: 'okudaira' } }]);
+      g.dest = { x: T.x + 4, z: T.z - T.rz - 12 };
+      g.onArrive = (gg) => { gg.order = 'hold'; gg.arrived = true; };
+      F.garrison = g;
+      // 検品 11/17（iMac・454秒）：合流の道を本人がひとりで森と尾根を下っていた（散歩）。酒井の槍組と鉄砲衆も搦手から谷へ下り、城兵を迎える塊として本人と一緒に歩く
+      if (F.spears.reduce((a, q) => a + q.count, 0) < 20) {   // 砦の口で槍組が減り切っていれば、森の後続を本人の脇から出して一緒に下らせる
+        const pp = rt.player.u.pos;
+        F.spears.push(allyGroup(rt, { faction: 'tokugawa', name: '後続の槍組', anchor: { x: pp.x + 6, z: pp.z + 6 }, facing: 0, noRout: true, aggro: 6, morale: 100, fleeDir: { x: 0, z: 1 } },
+          [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 16, o: { flag: 'katabami', keep: true } }]));
+      }
+      [...F.spears, ...F.guns].filter((q) => q.count && !q.routed).forEach((q, k) => {
+        q.order = 'move'; q.formation = 'loose'; q.speed = 3.2; q.noRout = true; q.assault = null;
+        // 11/18 クラウド kaito2（20:00 POSLOG）：四つ目からの組は二列目（z+7・+14）に置かれ、行き先が鳶ヶ巣山の曲輪の北の中（信実の陣幕の西 -104,-48）に落ちた。
+        //   曲輪の東の味方が陣幕に当たって七十秒止まった（-90,-41・敵が遠く歩けず）。二列目は作らず、曲輪の北の外の一列を左右へ伸ばす
+        const xo = k < 3 ? ((k % 3) - 1) * 9 : (k % 2 ? 1 : -1) * (18 + Math.floor((k - 3) / 2) * 9);
+        q.dest = { x: g.dest.x + xo, z: Math.min(g.dest.z + 10, T.z - T.rz - 3) };
+        q.onArrive = (gg) => { gg.order = 'hold'; gg.facing = Math.PI; };
+      });
+      KIT.backOf(rt, g, { flag: 'okudaira', armor: 0x24221f, kind: 'spear', w: 14, depth: 8, count: 80, seed: 93 });
+      // 11/18 クラウド kaito2（act bot の「斬り合う相手が少なくて退屈・6分で2人」・持ち主の残り）：史実では砦の下の武田の陣（有海村へ続く谷の陣）の留守の兵が、
+      //   打って出た城兵と山を下る酒井の手に挟まれて討たれた。陣幕の前に本物の留守の兵（十四人・弱め・崩れやすい）を置き、合流の道で挟み撃ちにする
+      // 11/18 クラウド kaito2（22:45 act bot 四本とも「斬り合う相手が少なくて退屈・6〜9分で2〜5人」）：留守の兵を十四→二十三人に厚くし、
+      //   城兵の打ち込みを弱めて（下の dmgMult）、本人が着く前に城兵だけで刈り終えないようにする（前の砦の守兵は討ち尽くしているので重さは同じ）
+      if (!F.rearCamp) {
+        F.rearCamp = enemyGroup(rt, { faction: 'takeda', name: '谷の陣の留守の兵', anchor: { x: -84, z: -94 }, facing: 0, fleeDir: { x: 1, z: -1 }, aggro: 14, width: 10, morale: 60, dmgMult: 0.3, defMult: 0.8 },
+          [{ type: 'samurai', n: 3, o: { flag: 'takeda' } }, { type: 'ashigaru', n: 20, o: { flag: 'takeda' } }]);
+        // 11/18 クラウド kaito2（23:13 の残り「合流の段の本人の討ち取りが0〜2」）：本人が着く前に留守の兵が崩れて逃げていた。
+        //   本人が二十歩内に来るまでは崩れない（relief で noRout を外す）
+        F.rearCamp.noRout = true;
+        // 11/19 クラウド kaito2（act bot 0643〜0648 の五戦：合流の段の本人の討ち取り 0・2・0・0・0、味方の討ち取り 50〜99）：本人が着く前に、
+        //   城兵と槍組だけで留守の兵を刈り終えていた。本人が二十歩内に来るまでは味方の刃を半分ほどに受け（defMult 2.2）、着いたら元の 0.8 へ戻す
+        //   11/19 クラウド kaito2（act bot 0736・0745・0805）：殿の版では留守の兵が長く残り、殿が谷の陣の際で打たれて倒れる回が半分に増えた。殿の版は元の 0.8 のまま
+        F.rearCamp.defMult = rt.G.lord ? 0.8 : 2.2;
+        // 11/19 クラウド kaito2（act bot 0335-2）：信長で出陣の殿が谷の陣で留守の兵と、寄ってきた遠くの備（武田の谷の陣の本物）に囲まれ 363秒で倒れた（受けた傷 195・各78）。
+        //   殿は馬廻りに守られる身。谷の陣の刃が殿に当たる時だけ六割に（鳶ヶ巣山の守りと同じ。足軽の版・味方との斬り合いは変えない）
+        if (rt.G.lord) { F.rearCamp.dmgMultPlayer = (F.rearCamp.dmgMult ?? 1) * 0.6; F.rearCamp.dmgMultPlayerMelee = true; }
+        // 11/19 クラウド kaito2（act bot 0346 POSLOG 265〜310秒）：殿が城兵へ向かう道で谷の陣の二十歩の際を通り、留守の兵十八人が一度に打ちかかって倒れた。
+        //   殿の版では、城兵が谷の陣へ打ちかかる（campPush）まで留守の兵は陣幕の前を守る（陣の内の寝込みの兵。挟みの形は城兵と揃ってから）
+        if (rt.G.lord) { F.rearCamp.order = 'hold'; F.rearCamp.seekRange = 7; F.rearCamp.aggro = 7; }
+        // 11/21 クラウド kaito2（act bot 0447・0452 POSLOG・信長で出陣）：殿の版でも留守の兵は共通の敵の頭に「かかれ」へ替えられ、陣幕の前 (-84,-94) から
+        //   久間山の南の切岸 (-45,-53) まで四十m 余り駆け上がり、殿は久間山の空堀の外の縁 (-67,-47) で三十秒進めず、討ち取り0のまま陣が崩れた。
+        //   殿の版では隊の下知を筋書きが受け持つ（noAI・砦の守兵と同じ）。兵ごとの迎え撃ちはそのまま、陣幕の前の開けた所で挟み撃ちになる
+        if (rt.G.lord) { F.rearCamp.noAI = true; F.rearCamp.noFrontline = true; }
+      }
+      rt.obj('join', '打って出た長篠城の城兵と合流せよ', 'main');
+      rt.marker('join', centerOf(g), '長篠城の城兵（奥平）');
+      rt.say('酒井忠次', `${nm(rt)}、城兵を迎えよ！　搦手（北の口）から出て、谷へ下れ`, 4);
+    });
+  },
+
+  // 11/19 クラウド17：味方の隊が行き先を持ったまま八秒動かなければ、その場で横に開いて構える（攻めの段・合流の段）
+  unstick(rt) {
+    const F = rt.flags;
+    if (!(F.stuckT > rt.t)) {
+      F.stuckT = rt.t + 2;
+      //   隊列の組（F.col）だけでなく、後続の槍組など合流の段の味方の隊すべて（本人の組・使番は除く）
+      for (const q of rt.army.groups) {
+        if (q.team !== 0 || q.isPlayerSquad || q === F.escortG || !q.count || (q.order !== 'move' && q.order !== 'path') || !q.dest) continue;
+        const qc = q.center();
+        const far = Math.hypot(q.dest.x - qc.x, q.dest.z - qc.z) > 4;
+        const moved = q._stk ? Math.hypot(qc.x - q._stk.x, qc.z - q._stk.z) : 9;
+        if (far && moved < 1.5) q._stkN = (q._stkN || 0) + 1; else q._stkN = 0;
+        q._stk = { x: qc.x, z: qc.z };
+        if (q._stkN >= 4) { q._stkN = 0; q.order = 'hold'; q.dest = null; q.anchor = { x: qc.x, z: qc.z }; q.formation = 'line'; q.width = Math.max(q.width || 0, 10); }
+      }
+    }
+  },
+
+  relief(rt, dt) {
+    const F = rt.flags;
+    const p = rt.player.u.pos;
+    const g = F.garrison;
+    if (!g || F.ending) return;
+    // 11/19 クラウド17（中学生の bot 二回：合流の段 361・421秒に、織田の鉄砲衆六人が号令 move のまま (-95,-48) 辺りで一点に重なって止まる★★。
+    //   行き先が信実の陣幕・曲輪の柵の向こうに落ち、歩けずに押し合っていた）：味方の隊が行き先を持ったまま八秒動かなければ、その場で横に開いて構える
+    this.unstick(rt);
+    const c = g.center();
+    const d = Math.hypot(c.x - p.x, c.z - p.z);
+    if (d < 40 && !F.okuSaid) { F.okuSaid = true; rt.say('奥平信昌', '酒井殿の手の者か！　よう来てくだされた。城はまだ持っておるぞ！', 4); }
+    // 谷の陣の留守の兵（F.rearCamp）が残る間は、挟み撃ちを先に（赤い印で見せる）。九十秒で打ち切る
+    const R = F.rearCamp, camp = R && R.count > 0 && !R.routed;
+    // 11/19 クラウド17（act bot 1000 信長で出陣 360秒：殿が手当てへ退く間も、谷の陣の留守の兵が三〜四歩の間合いで追い続けて三十秒斬り、倒れた）：
+    //   殿の版では、留守の兵は陣幕の前の持ち場（anchor）から十八m より先へは追わない（陣の留守を守る兵。退く殿を野まで追わない）
+    if (rt.G.lord && camp && !(F.rcLeashT > rt.t)) {
+      F.rcLeashT = rt.t + 0.5;
+      const A = R.anchor;
+      //   （11/19 13:30 中学生の bot：城兵との斬り合いへ出た留守の兵まで毎秒持ち場へ戻され、攻めの下知とぶつかって (-44,-50) に十五人重なった→ 殿を追う者だけ戻す）
+      const PU = rt.player.u;
+      for (const u of R.units) if (u.alive && !u.fleeing && (u.target === PU || u.atk?.target === PU || u.swing?.target === PU) && Math.hypot(u.pos.x - A.x, u.pos.z - A.z) > 18) {
+        u.target = null; u.atk = null; u.swing = null; u.bind = null; u.moveTo = { x: A.x, z: A.z }; u.aiT = Math.max(u.aiT || 0, 1.2);
+      }
+    }
+    // 11/19 クラウド17（はじめての中学生の bot 信長で出陣 358秒：谷の陣の近くで本物になった『遠くの備』が退く殿を囲んで追い、倒れた）：
+    //   殿の版では、遠くの備も持ち場（anchor）から二十五m より先へは退く殿を追わない
+    if (rt.G.lord && !(F.farLeashT > rt.t)) {
+      F.farLeashT = rt.t + 0.5;
+      for (const fg of rt.army.groups) if (fg.team === 1 && fg.name === '遠くの備' && fg.anchor) {
+        const A = fg.anchor;
+        const PU = rt.player.u;
+        for (const u of fg.units) if (u.alive && !u.fleeing && (u.target === PU || u.atk?.target === PU || u.swing?.target === PU) && Math.hypot(u.pos.x - A.x, u.pos.z - A.z) > 25) {
+          u.target = null; u.atk = null; u.swing = null; u.bind = null; u.moveTo = { x: A.x, z: A.z }; u.aiT = Math.max(u.aiT || 0, 1.2);
+        }
+      }
+    }
+    // 11/19 クラウド kaito2（act bot 0335-2）：谷の陣の近くで本物になった遠くの備も、殿に当たる刃は六割に（一秒に一度だけ見る）
+    if (rt.G.lord && !(F.farSoftT > rt.t)) {
+      F.farSoftT = rt.t + 1;
+      for (const fg of rt.army.groups) if (fg.team === 1 && fg.name === '遠くの備' && fg.dmgMultPlayer == null) { fg.dmgMultPlayer = (fg.dmgMult ?? 1) * 0.6; fg.dmgMultPlayerMelee = true; }
+    }
+    // 11/19 クラウド kaito2（act bot 0038・0041 POSLOG）：信長で出陣では殿が二十五歩まで来た所で七十五秒の打ち切りが来て崩れが許され、
+    //   城兵と槍組に押されて一度に逃げ散り、殿の討ち取りは0のままだった。本人が二十歩内に来てから二十秒は崩れず斬り合う（打ち切りは百十秒）
+    if (R && R.noRout && R.count > 0) {
+      const rc = R.center();
+      if (!F.campNearT && Math.hypot(rc.x - p.x, rc.z - p.z) < 20) { F.campNearT = rt.t; R.defMult = 0.8; }
+      if ((F.campNearT && rt.t - F.campNearT > 20) || rt.t - F.reliefT > 110) { R.noRout = false; R.defMult = 0.8; R.morale = Math.max(R.morale, 45); }   // 着いた途端に崩れないよう、気の残りを少し戻す
+    }
+    if (camp && !F.campSaid && d < 60) { F.campSaid = true; rt.marker('camp', centerOf(R), '', { red: true }); rt.say('酒井忠次', '谷の陣に武田の留守がおる！　城兵と挟んで討ち取れ！', 3.5); }
+    if (F.campSaid && !camp && !F.campGone) {
+      F.campGone = true; rt.unmark('camp');
+      // 11/21 クラウド（act bot 0334 信長で出陣：谷の陣が崩れた後、campPush で外した城兵のピンが戻らず、殿が (-65,-65) で行き先なく止まり、
+      //   合流が打ち切り（〔済〕なし）で終わった）→ 谷の陣が崩れたら、城兵のピンを戻して合流へ導く
+      if (F.campPush) rt.marker('join', centerOf(g), '長篠城の城兵（奥平）');
+    }
+    // 11/18 クラウド kaito2（18:37 act bot）：城兵の印に着いても、留守の兵が残る間は六秒何も起きなかった。着いたら印を谷の陣へ移し、城兵も一緒に打ちかかる
+    if (camp && d < 16 && !F.campPush) {
+      F.campPush = true;
+      rt.unmark('join'); rt.marker('camp', centerOf(R), '', { red: true });
+      const rc = R.center();
+      g.order = 'attack'; g.seekRange = Math.hypot(rc.x - c.x, rc.z - c.z) + 12; g.arrived = false; g.dmgMult = 0.5;
+      // 殿の版：城兵が打ちかかっても、留守の兵は陣幕の前で迎える（11/19 0358 POSLOG：打って出させると殿へ十六人と遠くの備六人が一度に寄り、
+      //   一太刀の床（命の二割五分）で十三秒に命120→24 で倒れた）。陣の前の刃の届く所だけ打ち合う
+      if (rt.G.lord) { R.seekRange = 9; R.aggro = 9; }
+      rt.say('奥平信昌', '共に谷の陣を討ち払え！　背を断て！', 3.5);
+    }
+    // 11/19 クラウド kaito2（act bot 0033・POSLOG）：本人が谷の陣に着いて留守の兵十三人と斬り合い始めた所（段に入って六十秒余り）で、
+    //   九十秒の打ち切りが来て戦が終わり、合流の段の討ち取りが1だった。本人が谷の陣の二十五歩内で斬り合う間は、百四十秒まで待つ
+    const fighting = camp && (() => { const rc = R.center(); return Math.hypot(rc.x - p.x, rc.z - p.z) < 25; })();
+    if ((d < (F.campPush ? 30 : 16) && !camp) || rt.t - F.reliefT > (fighting ? 140 : 90)) {   // 合流は歩くだけの間なので、長く待たせない
+      F.ending = true;
+      rt.unmark('join'); rt.unmark('camp');
+      rt.tracker.main = true;
+      if (d < (F.campPush ? 30 : 16)) rt.objDone('join'); else rt.objRemove('join');
+      rt.award((t) => { t.main = true; }, '長篠城の囲みを解いた');
+      rt.banner('長篠城の囲み、解ける', '鳶ヶ巣山の戦、終わる');
+      rt.say('酒井忠次', 'これで武田は背を断たれた。設楽原の殿へ、急ぎ知らせよ！', 4);
+      sfx('horagai', 0.8);
+      rt.finish({}, 10);
+    }
+  },
+
+  onStructDestroyed(rt, s) {
+    if (!s.gate) return;
+    openGate(rt, s.fort);
+    sfx('wood', 1);
+    rt.bark(`${s.fort.name}の木戸を打ち破った！　押し込め！`);
+  },
+  onKill(rt, v, k) {
+    const F = rt.flags;
+    if (v.team === 1) F.ek++; else F.ak++;
+    KIT.carrion(rt, v);
+    if (v === F.nobuzane) {
+      rt.unmark('nobu');
+      for (const g of F.forts[4].def) { g.noRout = false; g.morale -= 40; }
+      if (k && (k.isPlayer || k.isSub)) {
+        rt.award((t) => { t.special = { label: '河窪信実を討つ', pts: 25 }; }, '河窪信実を討った');
+        rt.say('酒井忠次', `${nm(rt)}の組が河窪信実を討ったぞ！　あっぱれじゃ！`, 3.5);
+      } else rt.say('遠くの声', '河窪信実、討ち取ったりぃーっ！', 3);
+    }
+  },
+  onPlayerHit(rt, t) {
+    const F = rt.flags;
+    if (!F.signal && t.team === 1 && !F.earlyHit) {
+      F.earlyHit = true;
+      if (!F.detected) rt.violation('合図の前に仕掛けた', ['酒井忠次', '静まれ！　声を立てるな、合図を待て！']);
+      this.detect(rt, '合図の前に仕掛けた');
+    }
+  },
+  onSquadCommand(rt, id) {
+    const F = rt.flags;
+    if (!F.signal && !F.detected && !F.early && (id === 'attack' || id === 'focus')) {
+      F.early = true;
+      rt.violation('合図の前に突撃を命じた', ['酒井忠次', '待て！　まだじゃ、法螺を待て！']);
+    }
+  },
+  onFinish(rt) {
+    const R = rt.G.rel.sakai;
+    if (!R) return;
+    if (rt.tracker.main) { R.trust += 10; R.like += 8; }
+    if (!rt.flags.detected) R.trust += 4;
+  },
+};
+
+// ---------------- 一つの戦を濃くする段（b_depth.js） ----------------
+// 砦を落とした後：谷の有海村には長篠城を囲んでいた武田の陣が残り、退く兵をまとめて向き直る。一つの波は数百の武田勢が後ろに付く
+const uS = (n) => ({ type: 'samurai', n }), uA = (n) => ({ type: 'ashigaru', n }), uB = (n) => ({ type: 'bow', n }), uC = (n) => ({ type: 'cavalry', n });
+const HIr = (rt) => !rt.G.lord && (rt.G.rank || 0) >= 3;
+function tbCtx(rt) {
+  const F = rt.flags, T = FORTS[4];
+  return { faction: 'takeda', flag: 'takeda', armor: 0x3a2622, dmg: 0.42, mass: 220,   // K358：五つの砦の後の追い討ち。打ち込みを軽く（act bot が段の終わりで矢と侍に削られ倒れた）
+    friends: () => [...F.spears, F.sakaiG].filter((g) => g && g.count && !g.routed),
+    botSteer: (b, inp) => {
+      // 砦の中にいて段の的が外なら、まず木戸から出る（柵に突っかからない）
+      const u = b.player.u, D = b.flags.dp, q = D && D.cur && D.cur.goal, f = b.flags.forts[4];
+      if (!q || !inFort(u.pos, f) || inFort(q, f)) return;
+      const w = exitWp(f, u.pos);
+      b.player.yaw = Math.atan2(w.x - u.pos.x, w.z - u.pos.z); inp.k.add('KeyW');
+    },
+    aid: { name: '酒井の手の後続', faction: 'tokugawa', flag: 'katabami', list: [uS(1), uA(9)] }, aidSaid: '酒井の手の後続が加わった' };
+}
+function tbSteps() {
+  return [
+    rest({ dur: 8, heal: 0.35, bark: '鳶ヶ巣山の北の口で、組を寄せ直す（手傷を縛った）', say: [['酒井忠次', '鳶ヶ巣山は落ちた。……じゃが見よ、谷の有海村に、長篠城を囲んでいた武田の陣が残っておる'], ['足軽', '砦を取り返しに、こちらへ向かってくる……！']] }),
+    pick({ title: '谷の有海村に、武田の陣が残る。どうする？',
+      options: [{ label: '尾根の下で構え、寄せる武田勢を待ち受ける', note: '尾根を背に受ける。手柄は並' }, { label: '谷へ攻め下り、有海村の陣を焼く', note: '大手柄。陣の兵が大勢で向かってくる' }],
+      on: (rt, m, i) => { m.down = i === 1; rt.say('酒井忠次', i === 1 ? 'よし、攻め下れ！　陣に火をかければ、設楽原の武田にも煙が見える' : '坂の上で受けよ。高みを捨てるな', 3.5); } }),
+    hold({ skip: (rt, m) => m.down, at: { x: -92, z: -66 }, dur: 52, r: 13, title: '尾根の下', sub: '砦を取り返しに、武田勢が谷から上がってくる', label: '尾根の下', obj: (rt) => (HIr(rt) ? '預かった一手を尾根の下に並べ、寄せる武田勢を防げ' : '尾根の下で、寄せる武田勢を防げ'),
+      waves: [
+        { t: 4, say: ['足軽', '来た！　谷から、どっと上がってくる！'], foes: () => [{ name: '砦を取り返しに来た武田勢', from: { x: -76, z: -100 }, list: [uS(2), uA(12)], mass: 300, noRout: 18 }] },
+        { t: 28, say: ['酒井忠次', '騎馬じゃ！　槍を立てよ、坂の上から突き落とせ！'], foes: () => [{ name: '武田の騎馬', from: { x: -118, z: -96 }, list: [uS(1), uC(5)], mass: 140, kind: 'cavalry' }] },
+        { t: 46, say: ['足軽', '東の沢からも来る！'], foes: () => [{ name: '沢を上がる武田勢', from: { x: -56, z: -86 }, list: [uS(1), uA(12)], mass: 200 }] },
+      ],
+      reward: '尾根の下で武田勢を防いだ', lost: ['酒井忠次', '押し込まれたか……砦の柵まで下がれ！'] }),
+    fight({ skip: (rt, m) => !m.down, at: { x: -84, z: -94 }, title: '有海村', sub: '長篠城を囲んでいた武田の陣。陣の兵が向き直る', obj: (rt) => (HIr(rt) ? '預かった一手で有海村の武田の陣を崩せ' : '有海村の武田の陣を崩せ'),
+      say: [['酒井忠次', '陣幕の前の槍を崩せば、陣は総崩れじゃ。鉄砲衆、先に放て！', 4]],
+      foes: () => [{ name: '有海村の武田勢', from: { x: -66, z: -108 }, list: [uS(3), uA(13)], mass: 340 }],
+      later: [{ t: 36, title: '横槍', sub: '谷の西から、武田の騎馬', say: ['足軽', '西から騎馬じゃ！'], foes: () => [{ name: '谷の騎馬', from: { x: -120, z: -104 }, list: [uS(1), uC(5)], mass: 140, kind: 'cavalry' }] }],
+      max: 140, reward: (t) => { t.special = { label: '有海村の武田の陣を崩した', pts: 15 }; }, rewardLabel: '有海村の武田の陣を崩した',
+      onEnd: (rt, m, won) => { if (won) for (const [x, z] of [[-70, -110], [-60, -104], [-78, -114]]) rt.world.addFire(x, z, { h: 1.6, size: 2.2 }); } }),
+    // K358：武田の殿の段（休み・選ぶ・斬り合い）は外した。五つの砦の後の追い討ちが長く、一戦が11分を越えていた
+    hold({ at: { x: -94, z: -98 }, dur: 40, r: 12, title: '谷の渡し', sub: '長篠城の城兵が川を渡ってくる。渡し場を守る', label: '谷の渡し',
+      say: [['酒井忠次', '長篠城の城兵が打って出るぞ！　渡し場を守れ。城兵が渡りきるまで、武田を寄せるな', 4.5]],
+      obj: (rt) => (HIr(rt) ? '預かった一手で谷の渡し場を守り、長篠城の城兵を迎えよ' : '谷の渡し場を守り、長篠城の城兵を迎えよ'),
+      waves: [
+        { t: 4, say: ['足軽', '退き遅れた武田勢が、渡しへ寄せてくる！'], foes: () => [{ name: '退き遅れた武田勢', from: { x: -62, z: -102 }, list: [uS(2), uA(11)], mass: 240 }] },
+        { t: 26, say: ['酒井忠次', '騎馬じゃ！　渡しの前で槍を立てよ！'], foes: () => [{ name: '谷の西の騎馬', from: { x: -130, z: -96 }, list: [uS(1), uC(5)], mass: 140, kind: 'cavalry' }] },
+      ],
+      reward: '谷の渡し場を守った' }),
+  ];
+}
+
+// 両軍の総勢（別働隊 およそ四千、砦の武田 千ほど）。落ちた砦の数と討たれた兵で減らす
+tobinosu.force = (rt) => {
+  const F = rt.flags;
+  const b = Math.max(0, Math.round(1000 - (F.fallen || 0) * 170 - (F.ek || 0) * 4));
+  return { a: 4000 - (F.ak || 0) * 20, a0: 4000, b: F.ending ? Math.min(b, 60) : b, b0: 1000 };
+};
+tobinosu.sides = { a: { name: '酒井忠次の別働隊', mon: 'katabami' }, b: { name: '武田軍（砦の守兵）', mon: 'takeda' } };
+tobinosu.date = (rt) => `天正三年五月二十一日　夏・${{ night: '夜明け前', dawn: '夜明け', morning: '朝' }[rt.flags.look] || '夜明け前'}`;
+tobinosu.history = '天正三年五月二十日の軍議で、酒井忠次は長篠城を囲む鳶ヶ巣山の砦を背から突く策を進言した。信長はその場では退けたが、あとで忠次を呼んでこれを許し、自らの鉄砲衆を付けて送り出したと伝わる。別働隊はおよそ四千、夜のうちに山を越え、夜明けとともに砦を次々に落とした。守将の河窪信実（信玄の弟）は討ち死にし、長篠城の囲みは解けた。背を断たれた武田勢は、設楽原で前へ出ることになる。';
+
+// 行軍と待ちを飛ばす（二度目以降の人が、同じ山道を歩かされないように）
+tobinosu.canSkip = (rt) => (rt.phase === 'march' && !rt.flags.detected ? '寄せ場まで進む' : rt.phase === 'wait' && !rt.flags.signal ? '合図まで待つ' : '');
+tobinosu.skip = (rt) => {
+  const F = rt.flags;
+  if (rt.phase === 'march') {
+    for (const g of F.col) {
+      const end = g.path[g.path.length - 1];
+      g.anchor = { x: end[0], z: end[1] };
+      g.pathIdx = g.path.length;
+      g.formation = 'line'; g.facing = Math.PI;
+      g.units.forEach((u, i) => { const q = g.slotPos(i, g.initial); u.pos.x = q.x; u.pos.z = q.z; });
+      if (g.onArrive) { const f = g.onArrive; g.onArrive = null; f(g); }
+    }
+    const u = rt.player.u;
+    u.pos.x = YOSE.x; u.pos.z = YOSE.z + 2;
+    rt.squad.forEach((s, i) => { s.pos.x = YOSE.x - 3 + (i % 3) * 1.6; s.pos.z = YOSE.z + 6 + Math.floor(i / 3) * 1.6; });
+    for (const g of rt.squadGroups) g.anchor = { x: YOSE.x, z: YOSE.z + 6 };
+    rt.player.camInit = false;
+    rt.say('', '――見張りの篝火を横目に、夜の山を半刻ほど進んだ', 3);
+  } else if (rt.phase === 'wait') F.colAt = F.waitFrom = rt.t - 13;
+};
+
+// bot の遊び方：回り道を通って寄せ場へ。合図で砦へ、口から入って守兵を突く。落ちた砦の櫓は焼く。最後は城兵のもとへ
+// 11/21 クラウド kaito2（act bot 0442 POSLOG・信長で出陣）：合流の段で殿が谷の陣の留守の兵へ向かうと、前を行く城兵と槍組の塊（四十余）の真後ろに付き、
+//   (-71,-58)〜(-67,-55) で三十秒ほとんど進まず、討ち取り0のまま留守の兵が崩れた（毎回「斬り合う相手が少なくて退屈」）。
+//   殿の版の合流の段では、前三歩半の内に味方が二人以上いれば、その塊の薄い側へ斜めに回り込んで脇から当たる
+const crowdSteer = (b, p, u) => {
+  if (!b.G.lord || b.phase !== 'relief') return;
+  const fx = Math.sin(p.yaw), fz = Math.cos(p.yaw);
+  let cx = 0, cz = 0, n = 0;
+  for (const a of b.army.units) {
+    if (!a.alive || a.team !== 0 || a === u) continue;
+    const dx = a.pos.x - u.pos.x, dz = a.pos.z - u.pos.z, d = Math.hypot(dx, dz);
+    if (d > 3.5 || d < 0.01 || (dx * fx + dz * fz) / d < 0.5) continue;
+    cx += dx; cz += dz; n++;
+  }
+  if (n >= 2) p.yaw += (fx * cz - fz * cx > 0 ? 1 : -1) * 0.9;
+};
+tobinosu.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
+  const p = b.player, u = p.u, F = b.flags;
+  tobiLive = b;
+  inp.k.delete('KeyW'); inp.k.delete('KeyE');
+  inp.guardHold = false;
+  if (!u.alive) return;
+  if (F.dpOn) { depthBot(b, inp, goTo); return; }
+  // K358：深手なら酒井の本陣の内へ下がって手当てしてから戻る（素直な遊び手の真似。退かずに櫓の矢で削られ3回とも倒れた）
+  if (u.hp < u.maxHp * (tobiDuel(b) && !F.botRest ? 0.35 : 0.6)) F.botRest = true; else if (u.hp > u.maxHp * 0.85) F.botRest = false;   // 手当て済みでも八割五分まで戻るまで下がる
+  if (b.phase !== 'march' && b.phase !== 'wait' && F.botRest && F.sakaiG && F.sakaiG.count) {
+    inp.leftPressed = false; inp.guardHold = true;
+    if (p.treatmentReady && p.treatmentLeft > 0) { inp.k.add('KeyE'); return; }
+    const inF = F.forts.find((o) => inFort(u.pos, o));
+    if (inF) { const w = exitWp(inF, u.pos); goTo(p, inp, w.x, w.z, 0.8); return; }
+    const c = F.sakaiG.center();
+    if (Math.hypot(c.x - u.pos.x, c.z + 8 - u.pos.z) > 2.5) goTo(p, inp, c.x, c.z + 8, 1.5);
+    return;
+  }
+  const sq = b.squadGroups[0];
+  const cmd = (key) => { if (!(b.botCmdT > b.t)) { inp.e.add(key); b.botCmdT = b.t + 2; } };
+  if (b.phase === 'march' || b.phase === 'wait') {
+    if (sq && b.phase === 'march' && sq.order !== 'follow') cmd('KeyZ');
+    if (b.phase === 'march') {
+      // 回り道の点を順にたどる
+      const wp = [...BYPASS.slice(1), [YOSE.x, YOSE.z]];
+      F.botWp = F.botWp || 0;
+      const q = wp[Math.min(F.botWp, wp.length - 1)];
+      if (Math.hypot(q[0] - u.pos.x, q[1] - u.pos.z) < 4 && F.botWp < wp.length - 1) F.botWp++;
+      goTo(p, inp, q[0], q[1], 2);
+    } else {
+      goTo(p, inp, YOSE.x, YOSE.z, 3);
+      if (sq && sq.order !== 'hold') cmd('KeyX');
+    }
+    return;
+  }
+  // 戦い：近くの敵へ（柵越しの敵は追わない）
+  const f = F.fi >= 0 ? F.forts[F.fi] : null;
+  const zone = (q) => (!f || !inFort(q, f) ? 0 : inCourt(q, f) ? 1 : 2);
+  const same = (o) => zone(o.pos) === zone(u.pos) || Math.hypot(o.pos.x - u.pos.x, o.pos.z - u.pos.z) < 3;
+  // 11/18 クラウド kaito2（14:31 POSLOG）：信実の二〜六歩まで来ても、近くの旗本へ向き直り、囲みを嫌って退き続け（dp避）、首は百十秒の味方討ちになった。
+  //   打って出た信実が十二歩内なら、信実だけを相手に受けと突きを分けて打ち合う（退きは深手の時だけ＝botNoCover）
+  const N = F.nobuzane;
+  if (tobiDuel(b)) {
+    const a = strikeTarget(b, 3.2);
+    const t = a && a !== N && (a.atk?.target === u || a.swing?.target === u) ? a : N;
+    const d = Math.hypot(t.pos.x - u.pos.x, t.pos.z - u.pos.z);
+    p.yaw = Math.atan2(t.pos.x - u.pos.x, t.pos.z - u.pos.z);
+    if (d > (p.weapon === 'sword' ? 1.6 : 2.4)) inp.k.add('KeyW');
+    patientStrike(p, inp, t, d);
+    return;
+  }
+  // 11/18 クラウド kaito2（14:50 POSLOG）：殿の bot が落とした君ヶ伏床の櫓の下で、物見櫓の上の射手（高さが三歩より上）を相手に二十五秒立ち止まり、火をかけなかった。届かない高さの敵は追わない
+  // 11/18 クラウド kaito2（22:13 POSLOG）：馬上の殿が槍組より先に鳶ヶ巣山へ駆け、虎口の際の敵を追って口の東 (-88,-29) で守兵十五人に囲まれ倒れた。
+  //   殿は味方の槍組が六人曲輪に入るまで、虎口の十八歩内の敵を追わず、口の十四歩内に来ていたら外の下知の場へ下がる
+  const lordHold = !!(b.G.lord && f && f.key === 'tobi' && !inFort(u.pos, f) && (F.spears.reduce((a, g) => a + g.units.filter((s) => s.alive && inFort(s.pos, f)).length, 0) < 6 ||
+    f.def.reduce((a, g) => a + g.units.filter((s) => s.alive && !s.fleeing && inFort(s.pos, f)).length, 0) >= 10));   // 11/19：曲輪の内の守兵が十人を切るまでも（0047 で倒れた）
+  const nearMouth = (q) => Math.hypot(q.x - f.x, q.z - f.zg) < 18;
+  const e = b.army.nearestEnemy(u, 16, (o) => !o.fleeing && same(o) && Math.abs(o.pos.y - u.pos.y) < 3 && !b.army.wallBetween(u.pos, -1, o.pos) && !(lordHold && nearMouth(o.pos) && Math.hypot(o.pos.x - u.pos.x, o.pos.z - u.pos.z) > 3));
+  if (lordHold && !e && Math.hypot(u.pos.x - f.x, u.pos.z - f.zg) < 14) { goTo(p, inp, f.x, f.zg + 28, 2); return; }
+  // 11/19 クラウド kaito2（act bot 0132 POSLOG 204〜227秒）：殿が中山の櫓の札の届く内 (-19,-39) にいるのに、十六歩内の武田の騎馬の後詰へ向き直って W を押し続け、
+  //   二十五秒以上その場で止まって火をかけなかった（「印に着いて六秒何も起きない」「前へ進めない」★★）。札の届く内で刃の敵が五歩より遠ければ、先に火をかける（一歩半の長押し）
+  { const it0 = b.nearestInteract(); if (it0 && it0.id.startsWith('burn') && (!e || Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z) > 5)) { inp.k.add('KeyE'); return; } }
+  // 11/18 クラウド kaito2（18:32 act bot）：信長で出陣の組は鉄砲衆。鉄砲の組への「かかれ」は構え・放ての切り替えなので、敵を見るたびに二秒おきに押して構えと放てを行き来していた（号令の輪 11回）。鉄砲の組には押さない
+  if (sq && !b.squadGroups.every((g) => g.kind === 'gun' && g.count > 0) && b.phase === 'assault' && e && sq.order !== 'attack') cmd('KeyC');
+  if (sq && !e && (sq.order === 'attack' || sq.order === 'hold')) cmd('KeyZ');
+  if (e) {
+    const d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
+    p.yaw = Math.atan2(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
+    if (d > 12) crowdSteer(b, p, u);
+    if (d > 2.4) inp.k.add('KeyW');
+    if (d < 3.2 && Math.random() < 0.5) inp.leftPressed = true;
+    inp.guardHold = (b.army.threats || []).length > 0 && Math.random() < 0.6;
+    return;
+  }
+  // 落ちた砦の櫓が近ければ焼く
+  const it = b.nearestInteract();
+  if (it && it.id.startsWith('burn')) { inp.k.add('KeyE'); return; }
+  const bi = F.forts.findIndex((q, k) => q.fallen && !q.burned && b.interacts.some((x) => x.id === 'burn' + k) && Math.hypot(q.x - u.pos.x, q.z - u.pos.z) < 45);
+  let tgt = null;
+  if (bi >= 0) { const q = F.forts[bi]; tgt = { f: q, x: q.yx, z: q.yz + 1.8 }; }
+  else if (b.phase === 'relief' && F.garrison) {
+    const T = F.forts[4];
+    const c = F.garrison.center();
+    // 砦の中なら搦手（北の口）から出る
+    // 11/18 クラウド kaito2（16:3x POSLOG）：信実の陣幕（11×8・南だけ口）の中から搦手へ真っすぐ向かい、北の幕に当たって八十秒止まった（-95,-46）。
+    //   幕の中なら南の口から出て、東の脇（櫓の脚の手前）を回り、小屋の北と柵の間を通って搦手へ
+    const jx = T.x - 1, jz = T.z - 3, ux = u.pos.x - jx, uz = u.pos.z - jz;
+    if (inFort(u.pos, T, -1) && !inCourt(u.pos, T) && Math.abs(ux) < 5.6 && Math.abs(uz) < 4.1) tgt = { x: jx, z: jz + 5.8 };
+    else if (inFort(u.pos, T, -1) && !inCourt(u.pos, T) && Math.abs(ux) < 7.2 && uz > -4.8) tgt = ux < 0 && uz < 4.6 ? { x: u.pos.x, z: jz + 5.8 } : { x: jx + 8.4, z: u.pos.z };   // 西の脇なら、まず幕の南へ
+    else if (inFort(u.pos, T, -1) && !inCourt(u.pos, T) && Math.abs(ux) < 10 && uz > -5.4) tgt = { x: jx + 8.4, z: jz - 6.8 };   // 着きの幅一歩で次へ移れるよう、行き先は決まりの線より一歩半先
+    else if (inFort(u.pos, T, -1) && !inCourt(u.pos, T) && ux > 3 && u.pos.z > T.z - T.rz + 2.4) tgt = { x: jx + 6, z: T.z - T.rz + 0.9 };
+    else if (inFort(u.pos, T, -1) && !inCourt(u.pos, T) && (Math.abs(u.pos.x - T.x) > 1.2 || u.pos.z > T.z - T.rz + 2)) tgt = { x: T.x, z: T.z - T.rz + 0.5 };
+    else if (inCourt(u.pos, T)) tgt = { x: T.x + T.side * (T.g + 2.6), z: T.zw - 3 };
+    else if (F.campPush && F.rearCamp && F.rearCamp.count > 0 && !F.rearCamp.routed) {
+      const rc = F.rearCamp.center(); tgt = { x: rc.x, z: rc.z };
+      // 11/19 クラウド kaito2（act bot 0312）：馬上の殿が味方より先に一人で谷の陣へ駆け込み、留守の兵十余に囲まれ 385秒で倒れた。殿は味方が五人、陣の十五歩内に来るまで十二歩手前で下知する
+      if (b.G.lord && b.army.units.filter((a) => a.alive && a.team === 0 && a !== u && !a.fleeing && Math.hypot(a.pos.x - rc.x, a.pos.z - rc.z) < 15).length < 5) {
+        const dx = u.pos.x - rc.x, dz = u.pos.z - rc.z, L = Math.hypot(dx, dz) || 1;
+        if (L < 14) tgt = { x: rc.x + dx / L * 12, z: rc.z + dz / L * 12 };
+      }
+    }
+    else tgt = { x: c.x, z: c.z };
+    // 11/19 クラウド kaito2（act bot 0248 POSLOG 300〜378秒）：殿は虎口の外で下知していたので、合流の段に入ると虎口の外 (-95,-12) から谷の城兵へ真っすぐ向かい、
+    //   木戸の前の柵に当たって八十秒動けなかった（合流の段の討ち取り0）。曲輪の外の表側にいて行き先が曲輪の向こうなら、木戸から枡を通って入る（中に入れば上の搦手への道）
+    // 11/21 クラウド kaito2（act bot 0452 POSLOG 425〜524秒・足軽）：合流の段で本人が鳶ヶ巣山の表の木戸の前 (-93,-25) で、同じ木戸へ寄る鉄砲衆と槍組の塊（寄り三〜六人）に挟まれ九十秒動けなかった。
+    //   木戸の六歩内に味方が六人以上いれば、曲輪の東の外（空堀の外の縁より先 T.x+rx+12）を回って北の谷へ下る（久間山との間の尾根の背は歩ける）
+    const ex = T.x + T.rx + 12;
+    if (!inFort(u.pos, T, -1) && !F.botAround && u.pos.z > T.zg - 1 && tgt.z < T.z &&
+      b.army.units.filter((a) => a.alive && a.team === 0 && a !== u && Math.hypot(a.pos.x - T.x, a.pos.z - T.zg - 2) < 6).length >= 6) F.botAround = true;
+    if (F.botAround && !inFort(u.pos, T, -1) && u.pos.z > T.z - T.rz - 4 && tgt.z < T.z) {
+      if (u.pos.x < ex - 2) goTo(p, inp, ex, Math.max(u.pos.z, T.zg + 10), 1.5); else goTo(p, inp, ex, T.z - T.rz - 8, 1.5);
+      return;
+    }
+    if (!inFort(u.pos, T, -1) && u.pos.z > T.zg - 1 && tgt.z < T.z) { const w = entryWp(T, u.pos, 0.4); goTo(p, inp, w.x, w.z, 0.4); return; }
+    goTo(p, inp, tgt.x, tgt.z, 1);
+    if (!inFort(u.pos, T, -1)) crowdSteer(b, p, u);
+    return;
+  } else if (f && f.key === 'tobi' && F.hqOut && F.nobuzane && F.nobuzane.alive &&
+    // 11/18 クラウド kaito2（19:49・20:07 act bot）：殿の bot が、槍組が中山・久間山から来る前に打って出た信実へ一人で向かい、曲輪の守兵十五人に囲まれて倒れた（2回／7）。
+    //   殿は味方の槍組が六人曲輪に入るまで虎口の外で下知する（足軽は今のまま）
+    (!b.G.lord || F.spears.reduce((a, g) => a + g.units.filter((s) => s.alive && inFort(s.pos, f)).length, 0) >= 6)) {
+    // 11/18 クラウド kaito2（POSLOG）：信実が打って出ても、殿は七十歩の控え場・足軽は遠くで待ち、首は味方討ちになった。打って出たら信実へ向かう
+    tgt = { f, x: F.nobuzane.pos.x, z: F.nobuzane.pos.z };
+  } else if (f) {
+    // 木戸が破れるまで、また鳶ヶ巣山では味方の槍組が取り付くまで、虎口の前で待つ
+    const inside = F.spears.reduce((a, g) => a + g.units.filter((s) => s.alive && inFort(s.pos, f)).length, 0);
+    F.botGateT = F.botGateT || {};
+    if (!f.gate.alive && F.botGateT[F.fi] == null) F.botGateT[F.fi] = b.t;
+    // 11/18 クラウド kaito2（POSLOG）：鳶ヶ巣山では味方の槍組が六人入らず、本人が虎口の外で七十秒待つ間に信実が味方に討たれた。木戸が破れて二十秒たてば入る
+    // 11/19 クラウド kaito2（act bot 0047・POSLOG）：信長で出陣の殿が、槍組が六人入った途端に鳶ヶ巣山の曲輪の真ん中へ入り、守兵二十余に囲まれて 331秒で倒れた（hp120→20 を二十秒）。
+    //   殿は鳶ヶ巣山では、曲輪の内に立つ守兵が十人を切るまで虎口の外で下知する
+    const stand = f.key === 'tobi' && b.G.lord ? f.def.reduce((a, g) => a + g.units.filter((s) => s.alive && !s.fleeing && inFort(s.pos, f)).length, 0) : 0;
+    const wait = f.gate.alive || (inside < 6 && (b.G.lord || b.t - F.botGateT[F.fi] < 20)) || stand >= 10;   // 殿は今のまま（入ると倒れた）   // K358：味方の槍組が六人入るまで待つ（一人で入ると守兵十一人に囲まれて倒れた。長引けば砦は 140 秒で落ちる）   // K358：味方の槍組が六人入るまで待つ（12秒で一人で入り、守兵十一人に囲まれて倒れた）
+    // 11/18 クラウド kaito2（POSLOG）：木戸が破れても七十歩の控え場で待つ間に砦が落ち、足軽の本人が一度も斬り合わなかった。足軽（殿でない時）は木戸が破れたら虎口の外六歩まで詰める（殿は今のまま：詰めると鳶ヶ巣山の口で倒れた）
+    const near = !f.gate.alive && { x: f.x, z: f.zg + (b.G.lord ? 28 : 6) };   // 殿は虎口の外二十八歩（矢の届く際）まで寄って下知（七十歩の控え場では信実の首に間に合わなかった）
+    tgt = !wait ? { f, x: f.x, z: f.z } : near || f.waitAt;
+  }
+  if (!tgt) return;
+  // 別の砦の中にいれば、まず木戸から出る
+  const here = F.forts.find((o) => inFort(u.pos, o) && o !== tgt.f);
+  if (here) { const w = exitWp(here, u.pos); goTo(p, inp, w.x, w.z, 0.8); return; }
+  // 砦の外から中へは、木戸を通り、枡で折れて入る
+  const q = tgt.f;
+  // 枡の折れ角は横の残りが 0.6 未満で次へ進む。手前 0.8 で止めると、同じ角を目指したまま動けなくなる。
+  if (q && (!inFort(u.pos, q, 0.4) || inCourt(u.pos, q))) { const w = entryWp(q, u.pos); goTo(p, inp, w.x, w.z, 0.4); return; }
+  goTo(p, inp, tgt.x, tgt.z, 1.5);
+};
+// 打って出た信実が十二歩内で、間に柵が無いか
+function tobiDuel(b) {
+  const F = b.flags, N = F.nobuzane, u = b.player.u;
+  return !!(F.hqOut && N && N.alive && Math.abs(N.pos.y - u.pos.y) < 3 && Math.hypot(N.pos.x - u.pos.x, N.pos.z - u.pos.z) < 12 && !b.army.wallBetween(u.pos, -1, N.pos));
+}
+// 信実と打ち合う間は、深手（三割五分未満）まで退かない（囲みを嫌って退くと、首が味方討ちになる＝playbot.js survive の botDuel）
+// 11/21 クラウド kaito2（act bot 0452 POSLOG・信長で出陣）：殿が谷の陣の留守の兵の三歩内まで来ても、囲みを嫌う共通の退き（dp避）に頭を取られ、命116/120 のまま一太刀も振らずに陣が崩れた。
+//   殿の版の合流の段で、味方が八人以上谷の陣の十五歩内で打ち合う間は、命の六割までは退かずに留守の兵と打ち合う（その先は共通の退き）
+const lordCampFight = (b) => {
+  const F = b.flags, u = b.player.u, R = F.rearCamp;
+  if (!b.G.lord || b.phase !== 'relief' || !R || !R.count || R.routed || u.hp < u.maxHp * 0.6) return false;
+  const rc = R.center();
+  if (Math.hypot(u.pos.x - rc.x, u.pos.z - rc.z) > 16) return false;
+  let n = 0;
+  for (const a of b.army.units) if (a.alive && a.team === 0 && a !== u && !a.fleeing && Math.hypot(a.pos.x - rc.x, a.pos.z - rc.z) < 15 && ++n >= 8) return true;
+  return false;
+};
+tobinosu.botDuel = (b) => tobiDuel(b) || lordCampFight(b);
+// 信実と打ち合う間は、射手を避ける横歩き（cover）にも頭を取られない（14:41 殿の bot が信実の二歩前で避けるばかりで一度も突かなかった）
+let tobiLive = null;
+Object.defineProperty(tobinosu, 'botDefendsFort', { get() {
+  const b = tobiLive;
+  // 殿の版は def の写し（getter ごと写す copyDef）で遊ぶ事があるので、同じ戦の頭かで見る
+  if (!(b && b.def && b.def.botBrain === tobinosu.botBrain && !b.over && b.player?.u?.alive)) return false;
+  const u = b.player.u, F = b.flags;
+  if (tobiDuel(b) && u.hp > u.maxHp * 0.3) return true;
+  // 11/18 クラウド kaito2（15:32 act bot）：殿の bot が打って出た信実へ向かう途中、鳶ヶ巣山の曲輪で守兵に囲まれ、退くばかりで一度も突かずに倒れた（突き0・足軽の突き137）。
+  //   信実が打って出た後、鳶ヶ巣山の中では命の半分までは退かず、目の前の守兵と打ち合う（その先は共通の退き）
+  return !!(F.hqOut && F.forts && inFort(u.pos, F.forts[4], -2) && u.hp > u.maxHp * 0.5);
+} });
+// 11/18 クラウド kaito2（POSLOG 2133・2156）：信長で出陣の bot が姥ヶ懐の櫓の下 (64,-31) で火の札が出て釦も見えているのに、四十秒「長押し」が一度も始まらなかった。
+//   戦の頭は E を押すが、後から避けの足（cover）が E を消して横へ歩かせていた。近くに刃の敵がいない時、火の札の届く内では避けを休む（櫓の射手は落ちた砦では退いている）
+const tobiBurning = (b) => { const it = b.nearestInteract(); return !!it && it.id.startsWith('burn') && !b.army.nearestEnemy(b.player.u, 6, (o) => !o.fleeing && !o.isStruct && Math.abs(o.pos.y - b.player.u.pos.y) < 3); };
+tobinosu.botNoCover = (b) => (tobiDuel(b) || tobiBurning(b) || lordCampFight(b)) && b.player.u.hp > b.player.u.maxHp * 0.4;
+// 11/19 クラウド kaito2（act bot 0056・0103 POSLOG）：殿の版で君ヶ伏床の櫓の札の届く内 (30,-32) に四十五秒立っても火がかからなかった。
+//   味方の将の危うさ（「この人を守れ」の十二秒）や退きの案内の間は火の長押しの札が隠れる共通の決まりのため。落ちた砦の櫓は、刃の敵が六歩内におらず囲まれていなければ焼ける
+tobinosu.fireWorkAllowed = (b, it) => it.id.startsWith('burn') && b.player.u.alive && !b.player.u.mobbed && b.player.u.hp >= b.player.u.maxHp * 0.3 &&
+  !b.army.nearestEnemy(b.player.u, 6, (o) => !o.fleeing && !o.isStruct && Math.abs(o.pos.y - b.player.u.pos.y) < 3);
+tobinosu.fireRescueAllowed = (b, it) => tobinosu.fireWorkAllowed(b, it);
+// 11/19 クラウド kaito2（act bot 0234 POSLOG 半秒刻み 213〜233秒）：殿が中山の櫓の札の届く内 (-16,-37・4.6/4.8) に二十秒立ち、作業札は出ているのに長押しが一度も始まらず、櫓は味方が焼いた。
+//   戦の頭は E を押していたが、後から act の癖（十歩内で本人を狙う敵へ向き直り E を離す・playbot.js 1716行）が消していた。癖の後で効く舵で、刃の敵が五歩内にいない間は火の長押しを続ける
+tobinosu.botSteer = (b, inp) => {
+  const u = b.player.u, F = b.flags;
+  if (!u.alive || F.dpOn || F.botRest || tobiDuel(b) || u.hp < u.maxHp * 0.3) return;
+  const it = b.nearestInteract();
+  if (!it || !it.id.startsWith('burn')) return;
+  if (b.army.nearestEnemy(u, 5, (o) => !o.fleeing && !o.isStruct && Math.abs(o.pos.y - u.pos.y) < 3)) return;
+  for (const k of ['KeyW', 'KeyS', 'KeyA', 'KeyD']) inp.k.delete(k);
+  inp.leftPressed = false; inp.chargeHold = false; inp.runHeld = false;
+  inp.k.add('KeyE');
+};
+// 11/19 クラウド kaito2（act bot 0452〜0456・信長で出陣）：命が満ち（120/120）血も止まっているのに、手足の浅い傷（woundSlow・armWound）だけで
+//   退きの案内（retreatGuide・retreat-priority）が百七十秒から終わりまで出続け、「こっちへにげる」の矢印と退き場が櫓・虎口の案内を押しのけた。
+//   止血の後の手足の傷だけでは退かせない（出血・命三割の深手は今のまま）。有岡・比叡山・稲葉山・伊賀と同じ決まり
+tobinosu.retreatForLimbWounds = false;
