@@ -2496,6 +2496,9 @@ async function playPersona(game, spec, aud, c) {
   rep.loadMs = Math.round(performance.now() - tClick);
   const b = game.battle;
   if (!b || b === previousBattle || !document.getElementById('loading').hidden) { rep.errors.push('新しい戦の読み込みが終わらなかった' + (game.lastError ? '（' + String(game.lastError).split('\n').slice(0, 2).join(' ').slice(0, 200) + '）' : '')); return rep; }
+  // 11/21 クラウド（杭瀬川の持ち主・K582 の関所）：K481 で戦の片付け（dispose）が持ち物を外すようになり、負けの札→結果へ進んで戦が片付くと
+  //   b.tracker が null で bot が落ちた（記録が「0秒・任務失敗」と「途中で打ち切り」の二行に割れた）。片付けの始めに終わりの記録に要る物を写し、輪の後で戻す
+  const keepEnd = {}; b.cleanupTasks?.add(() => { for (const k of ['tracker', 'result', 'objectives', 'stats', 'army', 'player', '_trace']) keepEnd[k] = b[k]; });
   await wait(300);
   // 見渡し中は本番の入力が消される。飛ばす釦を押し、見渡しを閉じてから戦を進める。
   if (game.deployment) {
@@ -2649,6 +2652,8 @@ async function playPersona(game, spec, aud, c) {
   const prof = { brain: 0, pad: 0, tf: 0, upd: 0, eye: 0 };
   const tLoop = performance.now();
   let lastYield = tLoop;
+  // 11/21 クラウド 木津川口（K582 の関所）：勝ちの写真を待つ間に戦が片付く（dispose が中身を null にする）と、下の記録で b.tracker が無く落ち、勝った戦が「0秒・任務失敗」になっていた。中身の参照を先に取り、片付いた後は戻して読む
+  const keepB = { tracker: b.tracker, squad: b.squad, stats: b.stats, flags: b.flags, def: b.def, player: b.player, _trace: b._trace, result: b.result };
   try {
     while (game.battle === b && !b.ended && t < cap && performance.now() < BUDGET_END.t) {
       // 早送り中に題の札が開いても、本番と同じく出陣してから操作する。
@@ -2728,6 +2733,7 @@ async function playPersona(game, spec, aud, c) {
         if (go) { if (!pad.tap(go, '結果へ進む（負けの札）')) go.click(); retryT = -1; }
       } else retryT = -1;
       // 勝ち負けが決まった所（終わりの演出の前）を一枚
+      if (b.result) keepB.result = b.result;
       if (b.over && !overShot) { overShot = true; const f = await shot(game, `${name}・勝ち負けが決まった所`); if (f) rep.shots.push({ label: '勝ち負けが決まった所', file: f }); }
       // 写真：困った事を見つけた時・山場・歴史好きの見回し
       if (c.shotQ.length) { const it = c.shotQ.shift(); if (!it.shot) { it.shot = await shot(game, it.title); } }
@@ -2756,12 +2762,14 @@ async function playPersona(game, spec, aud, c) {
     }
   } catch (e) { rep.errors.push(String(e && e.stack || e).split('\n').slice(0, 3).join(' ')); }
   window.removeEventListener('error', onErr);
+  if (b.disposed) for (const k in keepB) if (b[k] == null && keepB[k] != null) b[k] = keepB[k];
   pad.releaseAll();
   if (!overShot) { const sE = await shot(game, `${name}・終わり近く`); if (sE) rep.shots.push({ label: '終わり近く', file: sE }); }
   rep.stepMs = +(stepMs / Math.max(1, frames)).toFixed(1);
   rep.prof = Object.entries(prof).map(([k, v]) => `${k} ${(v / Math.max(1, frames)).toFixed(1)}`).join('・');
   rep.realSec = Math.round((performance.now() - tLoop) / 1000);
   b.update = step;
+  for (const k in keepEnd) if (b[k] == null) b[k] = keepEnd[k];   // 片付いた戦にも終わりの記録の分だけ戻す（上の keepEnd）
   rep.timeout = t >= cap && !b.over;
   if (performance.now() >= BUDGET_END.t && !b.over) { rep.cut = true; rep.note = '戦の任務とは別に、試験全体の持ち時間が尽きた'; rep.battle += '（試験の持ち時間で打ち切り）'; }
   rep.named = aud.endCheck(b, rep.timeout && cap >= 1260);
