@@ -2076,7 +2076,9 @@ function watchStep(b, dt, c) {
     // 11/18 クラウド 三木：戦の決めた印が今は無く、戦が自前のピン（missionPin）で行き先を示している時は、そのピンを行き先と見る。
     //   飢えの段（蔵へ俵を確かめに行く）で、ずっと立つ道しるべ「浅瀬」を行き先と取り違え、渡るだけで「着いて何も起きない」と数えていた。
     const gmk = gid && b.markers.find((m) => m.id === gid);
-    const mpin = !gmk && gid && b.def.missionPin?.(b);
+    // 11/21 木津川口の持ち主：戦の決めた印（guideMarker）を持たず自前のピンだけで行き先を示す戦（木津川口）も、そのピンを行き先と見る。
+    //   無いと印の並びの先頭（甲板にずっと立つ名札「九鬼嘉隆」）を行き先と取り違え、狭い甲板で十m 内に居るだけで「着いて何も起きない」と数えた（act bot 236秒 火の段）
+    const mpin = !gmk && (gid || !b.def.guideMarker) && b.def.missionPin?.(b);
     const mk = gmk || (mpin && Number.isFinite(mpin.x) ? { id: 'pin', label: '行き先', pos: { x: mpin.x, z: mpin.z } } : null) || b.markers.find((m) => !m.red) || b.markers[0];
     const mp = mk ? (typeof mk.pos === 'function' ? mk.pos() : mk.pos) : null;
     const mkLab = mk ? String((typeof mk.label === 'function' ? mk.label() : mk.label) || mk.id || '印') : '';

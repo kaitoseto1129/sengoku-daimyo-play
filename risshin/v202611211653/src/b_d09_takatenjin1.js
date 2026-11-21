@@ -1,0 +1,82 @@
+// 武田編 九戦目「高天神城の戦い（一）」（天正二年〔1574〕五月〜六月）。軽い型（light_battle.js）（K563・docs/chapter_takeda.md・クラウド k365-cloud-41）
+//   史実：信玄の死の翌年、勝頼は二万余で遠江の高天神城を囲んだ。城は東西二つの峰に曲輪を並べた堅い山城で、信玄も落とせなかった。
+//   武田は井楼を組み、堂の尾曲輪・西の丸へ攻め上がって水の手と曲輪を一つずつ奪った。家康の後詰は来ず（信長の援軍は間に合わず）、
+//   城将 小笠原信興（長忠）は六月十七日に開城した。勝頼は「父の落とせなかった城を落とした」と名を上げた（『信長公記』『三河物語』・掛川市の高天神城跡の案内）。
+//   主人公は勝頼の寄せ手の足軽。高天神（二）d12 と同じ城（攻めと守りが入れ替わる）。
+// 11/21 cloud-41：cloud-08 が 07:45 に取り札に書いたが、どの枝にも作りが無かったので司令塔の頼みで作った（連絡帳に一行）
+import { withCastle } from './light_castle.js';
+import { TAKATENJIN_D09 } from './castles/takatenjin.js';
+import { lightBattle, uS, uA, uG, uB, busho } from './light_battle.js';
+import { isEn, addEn } from './i18n.js';
+if (isEn()) import('./i18n_en_takeda.js').then((m) => addEn(m.default)).catch(() => {});   // K516 英語の時だけ武田編の字の表を読む
+
+const TAKEDA = { flag: 'takeda', armor: 0x502b24 };
+const TOKU = { flag: 'tokugawa', armor: 0x2a2622 };
+const SPAWN = { x: 0, z: 150 };                   // 寄せ手の陣（城の北の麓）
+const OTE = { x: 6, z: 96 };                      // 大手の口（追手門の下）
+const SEIRO = { x: -26, z: 58 };                  // 井楼を組んだ堂の尾曲輪の下
+const NISHI = { x: -14, z: 18 };                  // 西の丸（西の峰）
+const HONMARU = { x: 18, z: -18 };                // 本丸（東の峰）
+
+// 11/21 クラウド35（K563 ③の質）：高天神城の縄張りを置く（castles/takatenjin.js の TAKATENJIN_D09・出所 docs/battle_refs/takatenjin.md）。門・櫓・館は遠景の軽い形（本物の門は閉じて寄せ手と城兵の行き来を塞いだので使わない）
+export const d09_takatenjin1 = withCastle(lightBattle({
+  id: 'd09_takatenjin1',
+  date: '天正二年（1574）六月　遠江国 高天神城',
+  intro: '信玄公も落とせなかった高天神城。勝頼様の二万が囲んで一月。井楼を組み、曲輪を一つずつ奪い、徳川の後詰が来る前に落とす。',
+  history: '天正二年（1574）、武田勝頼は二万余で遠江の高天神城を囲んだ。父の信玄も落とせなかった堅い山城である。武田は井楼を組んで曲輪を一つずつ奪い、家康の後詰は間に合わなかった。城将の小笠原信興は六月十七日に城を明け渡し、勝頼は名を上げた。',
+  sides: { a: { name: '武田勝頼の寄せ手', mon: 'takeda', faction: 'takeda' }, b: { name: '小笠原信興の城兵', mon: 'tokugawa', faction: 'tokugawa' } },
+  force: { a: 20000, b: 1000 },
+  allyLook: TAKEDA, foeLook: TOKU,
+  friendsSend: 1,   // 段の始めに攻めに出す味方の組は本人に近い一組だけ（全部出すと本人より先に討ち切る）
+  minutes: 6,
+  spawn: { x: SPAWN.x, z: SPAWN.z, heading: Math.PI },   // 南（−z）の城を向く
+  world: {
+    seed: 1574, time: 'day', fogFar: 320,
+    hills: [[-14, 14, 46, 22], [20, -20, 44, 26], [-60, 80, 60, 10], [80, 60, 60, 12], [0, -110, 80, 16]],
+    trees: 620, tufts: 2000,
+  },
+  allies: [
+    { name: '武田勝頼の旗本', at: { x: SPAWN.x + 14, z: SPAWN.z + 18 }, fixed: true, list: [busho('武田勝頼'), uS(6), uA(12)] },
+    { name: '穴山信君の手', at: { x: SPAWN.x - 14, z: SPAWN.z - 4 }, list: [uS(3), uA(16)] },
+    { name: '寄せ手の組', at: { x: SPAWN.x + 10, z: SPAWN.z - 6 }, list: [uS(2), uA(16)] },
+    { name: '鉄砲衆', at: { x: SPAWN.x - 4, z: SPAWN.z + 6 }, list: [uS(1), uG(8)] },
+  ],
+  steps: [
+    { kind: 'rest', dur: 10, heal: 0, say: [
+      ['武田勝頼', '父上の落とせなかった城じゃ。わしが落とす', 3.2],
+      ['組頭', '井楼から城の中が見える。曲輪を一つずつ取るぞ', 3]] },
+    { kind: 'fight', at: OTE, obj: '大手の口の城兵を崩し、坂の下を取る', title: '大手の口', sub: '追手門の下に城兵が槍を揃える',
+      say: [['城兵', '武田を坂へ寄せるな！', 2.6]],
+      foes: [{ name: '大手の守り', from: { x: OTE.x, z: OTE.z - 12 }, list: [uS(3), uA(22), uB(4)] }],
+      reward: '大手の口を取った' },
+    // 11/21 cloud-41（章の通し）：大手の口で命三割になったまま井楼の受けへ入り92秒で倒れた回がある。段の間に手当て（敵は変えず）
+    { kind: 'rest', dur: 8, heal: 0.5, say: [['組頭', '大手の口は取った。傷を縛れ、井楼の下へ回るぞ', 2.8]] },
+    { kind: 'hold', at: SEIRO, label: '井楼の下', obj: '井楼の下で、打って出た城兵から井楼を守る', r: 14, dur: 70,
+      title: '井楼', sub: '城兵が井楼を焼きに打って出る',
+      say: [['組頭', '井楼を焼かれるな！　ここで受けよ！', 3]],
+      waves: [
+        { t: 6, say: ['城兵', '井楼に火をかけよ！'], foes: [{ name: '堂の尾の打って出', from: { x: SEIRO.x + 4, z: SEIRO.z - 26 }, list: [uS(4), uA(19)] }] },
+        { t: 32, say: ['物見', '横の谷から弓！'], foes: [{ name: '谷の弓', from: { x: SEIRO.x - 18, z: SEIRO.z - 20 }, list: [uB(8)] }] },
+        { t: 52, say: ['組頭', '二の手が来る！　槍を下ろすな！'], foes: [{ name: '堂の尾の二の手', from: { x: SEIRO.x + 14, z: SEIRO.z - 24 }, list: [uS(3), uA(16)] }] }],
+      reward: '井楼を守り抜いた' },
+    // 11/21 cloud-41（章の通し）：通しの本人が井楼の受けで深手を負い、西の丸の頭で倒れた回がある。段の間に手当ての一息（敵は変えず）
+    { kind: 'rest', dur: 8, heal: 0.35, say: [['組頭', '井楼は守った。傷を縛れ、西の丸へかかるぞ', 2.8]] },
+    { kind: 'fight', at: NISHI, obj: '西の丸へ攻め上がり、曲輪を奪う', title: '西の丸', sub: '水の手を断たれた城兵が最後の槍を揃える',
+      say: [['武田勝頼', '西の丸を取れば水の手は武田の物じゃ', 3]],
+      foes: [
+        { name: '西の丸の守り', from: { x: NISHI.x, z: NISHI.z - 10 }, list: [uS(4), uA(22)] },
+        { name: '西の丸の鉄砲', from: { x: NISHI.x + 10, z: NISHI.z - 16 }, list: [uG(6)] }],
+      reward: '西の丸を奪った' },
+    { kind: 'fight', at: HONMARU, limit: 150, obj: '本丸の前の城兵を降す', title: '本丸', sub: '小笠原信興の旗本が本丸の前に出る',
+      say: [['小笠原信興', '後詰は来ぬか……', 2.8]],
+      foes: [{ name: '小笠原信興の旗本', from: { x: HONMARU.x, z: HONMARU.z - 6 }, list: [busho('小笠原信興'), uS(5), uA(16)] }],
+      reward: '高天神城を開城させた' },
+  ],
+  win: {
+    banner: '高天神城 開城', sub: '小笠原信興は城を明け渡した。父の落とせなかった城を勝頼が落とした', award: '高天神城を開城させた',
+    say: [['使番', '小笠原殿、城を明け渡すと申しておりまする', 3],
+      ['武田勝頼', '父上にも落とせなかった城を、わしが落とした', 3.2],
+      ['組頭', '……この勢いが、どこまで続くかのう', 3]],
+  },
+}), { plan: TAKATENJIN_D09, at: { x: 0, z: 0 }, lift: 0, team: 1, life: false });
+export default d09_takatenjin1;
