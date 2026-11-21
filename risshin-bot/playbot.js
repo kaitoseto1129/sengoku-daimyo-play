@@ -1816,7 +1816,9 @@ const HABIT = {
       let lo = null, ld = 30;
       for (const o of L) { if (!o.from || !o.h.parent || o.mode === 'fled') continue; const d = Math.hypot(o.h.position.x - u.pos.x, o.h.position.z - u.pos.z); if (d < ld) { ld = d; lo = o; } }
       if (lo) c.looseSeen = true;
-      if (lo && !b.def.botOrders && !b.army.nearestEnemy(u, 6)) {
+      // 11/21 クラウド河田の持ち主：六回乗れなかった後も歩み去る空馬を追い続け、砦の段で二百五十秒さまよった（act bot 0348・木戸に131m までしか寄れず）。
+      //   上の乗る手と同じく、六回乗れなかったら空馬を追わない
+      if (lo && !b.def.botOrders && (c.mountTry || 0) < 6 && !b.army.nearestEnemy(u, 6)) {
         goTo(p, inp, lo.h.position.x, lo.h.position.z, 2.5);
         inp.k.add('KeyE'); inp.leftPressed = false; inp.chargeHold = false; inp.runHeld = false;
         return;
