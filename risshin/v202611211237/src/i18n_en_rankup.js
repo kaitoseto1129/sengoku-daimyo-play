@@ -1,0 +1,65 @@
+// K516 英語：昇進の場面（rankup.js）と戦の後の身分の札（screens.js の出世の道・累計戦功・できること）の字の訳。
+//   戦ごとの表が読まれる前後どちらでも出るので i18n.js がいつも読む。i18n.js の表に同じ字があればそちらが先
+//   （クラウド 手取川の持ち主 11/21：手取川の ?lang=en の通しの終わり444秒に、昇進の場面の字が日本語のまま残った）
+export const EN_RANKUP = [
+  // 新しくできる事・役目
+  ['使者を務める', 'Serve as an envoy'], ['贈り物を届ける', 'Deliver gifts'], ['同盟の話', 'Alliance talks'], ['婚姻の仲立ち', 'Arrange marriages'],
+  ['合印の旗を預かる', 'Carry the unit banner'], ['弓の兵を組に迎える', 'Take archers into your squad'], ['組の陣形を決める', 'Choose your squad formation'],
+  ['打刀と頭形兜を使える', 'Uchigatana and zunari helmet unlocked'], ['前立付き兜を使える', 'Crested helmet unlocked'], ['馬屋はこの先で開く', 'The stable opens later'],
+  ['一手の備を率いる', 'Lead a full battle group'], ['城と領地を預かる', 'Hold a castle and lands'], ['家臣団を率いる', 'Lead your retainers'],
+  ['組を鍛え、足軽大将を目指す。', 'Train your squad and aim for ashigaru captain.'],
+  ['組を率いて手柄を重ね、侍大将を目指す。', 'Lead your squad, earn merit, and aim for samurai commander.'],
+  ['備の先手を務め、武将を目指す。', 'Lead the vanguard and aim to become a general.'],
+  ['五人の組を率いる。', 'Lead a squad of five.'], ['弓の兵を交えた組を率いる。', 'Lead a squad with archers.'],
+  ['二十人の組を率いる。', 'Lead a squad of twenty.'], ['三十人の組を率いる。', 'Lead a squad of thirty.'],
+  ['五人の組、お下知を待っております。', 'Your squad of five awaits your orders.'],
+  ['十五人、弓の兵も迎えて組を支えます。', 'Fifteen of us, archers too. We stand with you.'],
+  ['二十人、力を合わせて働きます。', 'Twenty of us. We will work as one.'],
+  ['三十人、新しい旗のもとで働きます。', 'Thirty of us, under the new banner.'],
+  ['お館様、家中一同お仕えいたします。', 'My lord, the whole house will serve you.'],
+  ['殿の備、一丸となってお支えします。', 'We will stand as one behind you, my lord.'],
+  ['これからは足軽同士、肩を並べて戦おうぞ。', 'From now on we fight side by side as ashigaru.'],
+  ['新しい役目、お支えします。', 'We will support you in your new post.'],
+  ['一手の備を率い、大名を目指す。', 'Lead a battle group and aim to become a daimyo.'],
+  ['城と領地を治め、家臣を率いて戦に出る。', 'Rule your castle and lands, and lead your retainers to war.'],
+  ['手柄を重ね、組を預かる身を目指す。', 'Earn merit and aim to lead a squad.'],
+  // 変わること
+  ['組の人数', 'Squad size'], ['戦で率いる組の人数', 'Men you lead in battle'], ['家臣の上限', 'Retainer limit'], ['支度金と毎戦の俸禄が要る', 'Costs a fee and pay each battle'],
+  ['内政の回数', 'Domain actions'], ['次の出陣までの仕事', 'Tasks before the next battle'], ['知行（預かる土地）', 'Fief (lands you hold)'],
+  ['預かる土地を育てる', 'Develop your lands'], ['足軽から三十石を賜る', 'Granted 30 koku as an ashigaru'],
+  ['新しくできる事', 'Now unlocked'], ['新しい役目', 'New post'], ['これから：', 'Next: '], ['主君の言葉と次の役目を見る', "Read your lord's words and next post"],
+  ['候補は正式な役目の前段階。', 'A candidate is one step before the post.'], ['昇進できる戦で任務を果たす', 'Complete the mission in a promotion battle'],
+  ['上官の評価五十以上', 'Superior rating 50 or more'], ['命令違反二回以内', 'Two or fewer disobeyed orders'],
+  ['残った家中の者', 'The surviving retainers'], ['織田信長', 'Oda Nobunaga'], ['京を離れた後', 'After leaving Kyoto'], ['主君の前で', 'Before your lord'], ['上役の前で', 'Before your superior'],
+  ['家臣', 'Retainer'], ['朋輩', 'Comrade'], ['組の者', 'Squad member'],
+  // 戦の後の身分の札（screens.js）
+  ['累計戦功', 'Total merit'], ['率いる兵', 'Men you lead'], ['できること', 'What you can do'], ['加増', 'Fief increase'], ['下賜の装備', 'Granted gear'],
+  ['戦功の評価を見る', 'See merit review'], ['兵を集める', 'Raise troops'], ['田を開く', 'Open rice fields'],
+  ['城下の「組」で名簿を見る', 'See the roster at "Squad" in town'], ['城下へ戻る前に定める', 'Decide before returning to town'],
+  ['城下の「組」で割合を選ぶ', 'Choose the mix at "Squad" in town'], ['戦で号令の輪を開く', 'Open the order wheel in battle'],
+  ['戦の後の褒美に入る', 'Added to your post-battle reward'], ['城下の「問屋」で雇う', 'Hire at the "Merchant" in town'],
+  ['下賜され、所持している。城下の「武具屋」で着ける', 'Granted and in your bag. Equip it at the "Armory" in town'],
+  ['下賜され、いま着けている', 'Granted and now equipped'],
+  // 数の入る札
+  [/^(\d+)人の組を率いる$/, (m) => `Lead a squad of ${m[1]}`], [/^(\d+)人の組を率いられる。$/, (m) => `You can lead a squad of ${m[1]}.`],
+  [/^累計戦功(\d+)以上$/, (m) => `Total merit ${m[1]} or more`], [/^(\d+)石 →$/, (m) => `${m[1]} koku →`],
+  // 11/21 手取川の持ち主：?lang=en の通しの終わり（昇進の場面の畳み）に残った城下の家訓の札（oda_town.js の KAKUN）
+  ['北条家『早雲寺殿廿一箇条』の教え。\n朝早く起き、用事に備える。', "From the Hojo house code, the Twenty-One Articles of Lord Soun.\nRise early and be ready for your duties."],
+  ['武田家『武田信繁家訓』の教え。\n主君への務めを、大切にする。', "From the Takeda house code of Takeda Nobushige.\nHold your service to your lord dear."],
+  ['北条家『早雲寺殿廿一箇条』の教え。\n派手にせず、身なりを整える。', "From the Hojo house code, the Twenty-One Articles of Lord Soun.\nDress neatly, never showily."],
+  ['北条家『早雲寺殿廿一箇条』の教え。\nうその報告をしない。', "From the Hojo house code, the Twenty-One Articles of Lord Soun.\nNever make a false report."],
+  ['武田家『武田信繁家訓』の教え。\n学問を怠らず、学びをよく考える。', "From the Takeda house code of Takeda Nobushige.\nNever neglect study, and think hard on what you learn."],
+  ['後の前田家『国祖遺言』の逸話。\n利家は算盤で、兵の数を見積もった。', "A tale from the later Maeda house records.\nToshiie counted his troops with an abacus."],
+  [/^出世の道　(.)の段 ／ (.)段$/, (m) => `Path of rank: step ${'一二三四五六七八九十'.indexOf(m[1]) + 1} of ${'一二三四五六七八九十'.indexOf(m[2]) + 1}`],
+  // 昇進の場面の数と言葉（道明寺 ?lang=en の通しの終わり382秒に日本語のまま残った。K516 クラウド 道明寺の持ち主 11/21）
+  ['上官', 'Commander'],
+  [/^組：(\d+)人→(\d+)人$/, (m) => `Squad: ${m[1]} → ${m[2]}`], [/^家臣：(\d+)人→(\d+)人$/, (m) => `Retainers: ${m[1]} → ${m[2]}`],
+  [/^知行：(\d+)石→(\d+)石$/, (m) => `Fief: ${m[1]} → ${m[2]} koku`],
+  // 11/21 雑賀の持ち主 K516：昇進の表の知行の今の値（rankup.js の now『35石』）が一つの札で残った（k516_gate 雑賀の勝ちの後1）
+  [/^([\d,]+)石$/, (m) => `${m[1]} koku`],
+  [/^(\d+)人 →$/, (m) => `${m[1]} men →`], [/^(\d+)人（＋(\d+)）$/, (m) => `${m[1]} men (+${m[2]})`],
+  [/^(上役の前で|主君の前で|京を離れた後)・(.+)$/, (m, tr) => `${tr ? tr(m[1]) : m[1]} · ${tr ? tr(m[2]) : m[2]}`],
+  [/^「(.+?)、今日より(.+?)を命じる。(組|備|家中|槍働き)を頼むぞ。」$/, (m, tr) => `"${m[1]}, from today you serve as ${tr ? tr(m[2]) : m[2]}. ${{ 組: 'I leave the squad to you.', 備: 'I leave the division to you.', 家中: 'I leave the house to you.', 槍働き: 'Fight well with your spear.' }[m[3]]}"`],
+  [/^「(.+?)、生きて戻ったか。これからは(.+?)として、残った者をまとめてくれ。」$/, (m, tr) => `"${m[1]}, you came back alive. From now on, as ${tr ? tr(m[2]) : m[2]}, gather those who remain."`],
+  [/^「此度の働き、見事。(.+?)、(一|二|三|四|五|六|七|八|九|十)人の者を預ける。」$/, (m) => `"Fine work this time, ${m[1]}. I give you ${'一二三四五六七八九十'.indexOf(m[2]) + 1} men."`],
+];

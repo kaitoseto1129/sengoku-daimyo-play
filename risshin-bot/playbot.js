@@ -180,7 +180,10 @@ function survive(b, inp) {
   // 深手では一撃が致命傷になる。布を使い切っていても、味方が近くても間合いを外す。
   // 近接の一撃の上限（三割五分）以下なら、次の一撃を待たず列の後ろへ下がる。
   b._svFd = foe ? fd : -1; b._svClose = close;
-  if (u.mobbed || outnumbered || crossedStrikes || isolated || uncovered || (hurt && mate && md > 6) || (critical && foe && fd < 8) ||
+  // 11/21 K582 クラウド11（伏見の本丸 act bot：宇喜多の侍大将の一太刀が三割、六割を切っても一対一で打ち合い続けて倒れた）：
+  //   名のある将（武将・名のある侍）に打たれている時は、六割を切ったら列の味方の後ろへ下がる（人も強い将とは一人で打ち合わない）
+  const heavyFoe = !!attacker && (attacker.type === 'busho' || !!attacker.name) && hurt && !!mate;
+  if (u.mobbed || outnumbered || crossedStrikes || isolated || uncovered || heavyFoe || (hurt && mate && md > 6) || (critical && foe && fd < 8) ||
       (close && (critical || tired || (hurt && (canTreat || !supported))))) {
     b.botSurviveUntil = b.t + 2;
   }
@@ -202,6 +205,21 @@ function survive(b, inp) {
     // 11/17 K360⑦（長の許し・n-map）：退く間も三歩の内で自分を打っている敵には打ち返す。手加減を外した後、孤立の退きのまま
     //   打ち返さず追手に打たれ続けて倒れた（金ヶ崎の始まりの段で三度）。刃が届く直前は構え（guardHold）を先にし、その合間だけ突く。人が遊ぶ時の手本
     if (attacker && ad <= 3 && !inp.guardHold && !(p.cd > 0)) inp.leftPressed = true;
+    // 11/21 cloud-41（武田編の章の通し・司令塔「囲まれた時に味方の方へ退く・槍衆の陰に入る」）：深手（三割五分以下）で味方の列が五歩より遠い時、
+    //   敵を向いたまま後ずさると追手の槍が届き続け、十数秒で倒れた（d12〜d15 の受けの段）。人は背を向けて走り、味方の槍衆の後ろ（列の四歩後ろ）へ駆け込む。
+    //   --q=sprintfall=0 で前の型
+    if (retreating && critical && mate && md > 5 && !p.mounted && p.sta > 8 && !/[?&]sprintfall=0/.test(location.search)) {
+      const cx = close ? ex / close : foe ? foe.pos.x : u.pos.x, cz = close ? ez / close : foe ? foe.pos.z : u.pos.z;
+      const ax = mate.pos.x - cx, az = mate.pos.z - cz, al = Math.hypot(ax, az) || 1;
+      const tx = mate.pos.x + ax / al * 4, tz = mate.pos.z + az / al * 4;
+      if (!army.wallBetween(u.pos, -1, { x: tx, z: tz })) {
+        if (p.lock) inp.e.add('KeyQ');
+        p.yaw = Math.atan2(tx - u.pos.x, tz - u.pos.z);
+        inp.guardHold = false; inp.leftPressed = false; inp.runHeld = true; inp.k.add('KeyW');
+        b._sprintFallN = (b._sprintFallN || 0) + 1;
+        return true;
+      }
+    }
     if (retreating && foe && (fd < 8 || md > 6)) {
       // 退避中も実際の打ち手を受ける。近いだけの敵へ向くと、横からの一撃が構えを抜ける。
       const face = attacker || pursuer || foe;
@@ -602,6 +620,14 @@ export function brain(b, inp) {
   // 戦ごとの遊び方があればそれを使う（b_*.js の def.botBrain）
   // 11/18 夜50-30（雑賀③の退きで 60〜600秒さまよう）：戦の頭の後の鉄砲の避け足が、口へ戻る本人を南西へ横歩きさせ、西岸の柵の前へ押し戻していた。
   //   戦の頭が「今は避けない」と言う段（def.botNoCover）だけ、後の避け足を足さない。
+  // K564（11/21 クラウド29・全64戦の通しの「止まり」岐阜）：進軍の一行（march_open.js）の間は、前を歩く列のいちばん近い兵について行く（遊び手の印と同じ）。
+  //   戦ごとの頭（def.botBrain）は進軍の段を知らず、段の札が出るまで二十秒立っていた
+  { const mg = b.flags.marchG;
+    if (mg && !mg._marchDone && b.objectives.some((o) => o.id === 'march' && !o.state) && !b.objectives.some((o) => o.id !== 'march' && o.kind === 'main' && !o.state)) {
+      let best = null, bd = 1e9;
+      for (const q of mg.units) if (q.alive && !q.gone) { const d = Math.hypot(q.pos.x - u.pos.x, q.pos.z - u.pos.z); if (d < bd) { bd = d; best = q; } }
+      if (best) { if (bd > 3) goTo(p, inp, best.pos.x, best.pos.z, 2.5); return; }
+    } }
   if (b.def.botBrain && b.def.botBrain(b, inp, { goTo, patientStrike, strikeTarget, canStrike }) !== false) { if (!b.def.botNoCover?.(b)) cover(b, inp); return; }   // false を返した戦の頭は、ここから先の既定の動きへ譲る（信貴山の門前）
   // 柵を使う別の戦にも、設楽原の動きを押し付けない。
   if (b.flags.fence) return shitaraBrain(b, inp);
@@ -1745,6 +1771,10 @@ const HABIT = {
           // 11/19 07:05 クラウド設楽原の持ち主：手綱を取る間に空馬が歩いて三m 半より離れ、取り消しが続いた（act bot 0648・0655 で三〜六回乗れず）。人と同じく、馬が二m 余り離れたら歩いて寄り添う
           const ho = p.catching?.o?.h?.position;
           if (ho && Math.hypot(ho.x - u.pos.x, ho.z - u.pos.z) > 2.2) goTo(p, inp, ho.x, ho.z, 1.6);
+          // 11/21 クラウド 設楽原の持ち主：携帯の遊び手（persona）は戦の画面に「乗る」の丸が無く R が捨てられ（touch の KeyR は町・道場だけ）、
+          //   六回押して一度も手綱取りが始まらなかった（act 1337・1348「乗れなかった★★」訳なし）。人と同じく空馬のすぐ横（一・八m の内＝寄れば乗る）まで歩く
+          const to = !p.catching && p.takeO?.h?.position;
+          if (to && Math.hypot(to.x - u.pos.x, to.z - u.pos.z) > 1.4) goTo(p, inp, to.x, to.z, 1.0);
         } else if (outside && seenHorse) {
           goTo(p, inp, seenHorse.h.position.x, seenHorse.h.position.z, 2.5);
           inp.k.add('KeyE'); inp.leftPressed = false; inp.runHeld = false; inp.chargeHold = false;
@@ -2198,6 +2228,9 @@ function listPlayable() {
       if (lordList().some((l) => l.id === bt.id && l.scn === 'oda')) L.push({ kind: 'lord', scn: 'oda', i, id: bt.id, name: `${bt.name}（信長で出陣）`, rank: 4 });
     });
   }
+  // 11/21 cloud-41（章の通し・tools/chapter_walk.mjs）：?campscn=<筋書き> はその筋書きを織田家編と同じ「続けて遊ぶ」（camp）で並べる
+  const CS = Q.get('campscn');
+  if (CS && CS !== 'oda' && SCENARIOS[CS]) { L.length = 0; setScenario(CS); BATTLES.forEach((bt, i) => L.push({ kind: 'camp', scn: CS, i, id: bt.id, name: bt.name, rank: 0 })); return L; }
   for (const sk of [...SCENARIO_ORDER, 'toyotomi', 'tokugawa', 'takeda', 'uesugi']) {   // K563 武田編（cloud-41）・上杉編も bot で流せるように
     if (!SCENARIOS[sk]) continue;
     setScenario(sk);
@@ -2354,7 +2387,7 @@ async function campaignTown(game, c, aud, spec) {
     const scr = document.getElementById('screen');
     if ((!scr || scr.hidden || !scr.innerText.trim()) && performance.now() < tEnd) { k--; await wait(1000); continue; }
     const bs = [...document.querySelectorAll('#screen button, #screen .btn')].filter(vis);
-    const b = bs.find((x) => /ホームへ|城下|次へ|進む|続け|わかった|持ち帰|受け取|閉じ|はい/.test(x.textContent) && !/タイトル|やり直|易しく/.test(x.textContent)) || bs.find((x) => x.classList.contains('primary') && !/タイトル|やり直/.test(x.textContent));
+    const b = bs.find((x) => /ホームへ|城下|次へ|進む|続け|わかった|持ち帰|受け取|閉じ|はい|^(Close|Next|Continue|OK|Got it)\b|castle town|To town|Go home/i.test(x.textContent) && !/タイトル|やり直|易しく|Title|Retry|Try again|Easier/i.test(x.textContent)) || bs.find((x) => x.classList.contains('primary') && !/タイトル|やり直/.test(x.textContent));
     if (b) { pad.cache.clear(); pad.tap(b, `戦のあと：${b.textContent.trim().slice(0, 8)}`); }
     else { const sc = document.getElementById('screen'); if (sc) { pad.pe('pointerdown', sc, innerWidth / 2, innerHeight / 2, 7000 + k); pad.pe('pointerup', sc, innerWidth / 2, innerHeight / 2, 7000 + k); sc.click(); } }
     await wait(1200);
@@ -2370,8 +2403,9 @@ async function campaignTown(game, c, aud, spec) {
   c.townShot = f0 || c.townShot;
   // 2. 問屋
   const tabs = [...document.querySelectorAll('#screen [data-tab]')];
-  const ton = tabs.find((x) => /問屋/.test(x.textContent));
-  if (!ton) c.add('camp-notonya', '城下に「問屋」が見つからない', `施設：${tabs.map((x) => x.textContent.replace(/^\d+．/, '').trim().slice(0, 6)).join('・')}`, 1, { fix: '問屋（馬・鉄砲・供を買う）の札を城下に置く' });
+  const ton = tabs.find((x) => /問屋|Wholesaler/.test(x.textContent));   // ?lang=en の章の通しでも（11/21 クラウド34）
+  // 問屋は章の三戦目から開く（town_unlock.js）。開く前は無くて正しいので数えない（11/21 cloud-25：上杉編・武田編の章の通しの見誤り）
+  if (!ton && (G().battle || 0) >= 3 && !G().practice) c.add('camp-notonya', '城下に「問屋」が見つからない', `施設：${tabs.map((x) => x.textContent.replace(/^\d+．/, '').trim().slice(0, 6)).join('・')}`, 1, { fix: '問屋（馬・鉄砲・供を買う）の札を城下に置く' });
   else if (c.per.key !== 'sek' || Math.random() < 0.4) {
     pad.cache.clear(); pad.tap(ton, '問屋'); await wait(700);
     aud.scanDom(`${spec.name}の前・問屋`);
@@ -2393,7 +2427,8 @@ async function campaignTown(game, c, aud, spec) {
       const k0 = G().kan || 0;
       pad.cache.clear(); pad.tap(x, `問屋：${nm}`); await wait(600);
       // 所持金の半分を超える買い物は、確かめの札（「買う」）が出る。人と同じく、それを押して買う
-      const yes = document.querySelector('#ty-cf [data-cf=yes]');
+      // 確かめの札は押した釦のすぐ隣に出る（toiya.js の sure・button.nextElementSibling）。#ty-cf だけを見て押せず『銭が減らない』と見誤っていた（11/21 cloud-25）
+      const yes = x.nextElementSibling?.querySelector?.('[data-cf=yes]') || document.querySelector('#ty-cf [data-cf=yes]');
       if (yes && (G().kan || 0) >= k0) { pad.cache.clear(); pad.tap(yes, `問屋：${nm}（確かめ）`); await wait(600); }
       if ((G().kan || 0) < k0) (c.bought = c.bought || []).push(nm);
       else c.add('camp-buyfail', '問屋で「買う」を押しても、銭が減らない（買えていない？）', `押した物：${nm}（銭 ${k0}貫のまま）`, 2, { cat: '辻褄', shot: true, fix: '買えない時は釦を押せない見た目にし、理由を書く' });
@@ -2405,7 +2440,7 @@ async function campaignTown(game, c, aud, spec) {
   // 3. 出陣（上官屋敷の「任務を受けて出陣」→ 確かめの「出陣」）
   for (let k = 0; k < 5 && !document.getElementById('b-next') && !game.battle && document.getElementById('loading').hidden; k++) {
     let go = document.querySelector('#screen #go2') || document.querySelector('#screen #go');
-    if (!go || !vis(go)) { const tt = [...document.querySelectorAll('#screen [data-tab]')].find((x) => /上官|屋敷/.test(x.textContent)); if (tt) { pad.cache.clear(); pad.tap(tt, '上官屋敷'); await wait(600); } go = document.querySelector('#screen #go2') || document.querySelector('#screen #go'); }
+    if (!go || !vis(go)) { const tt = [...document.querySelectorAll('#screen [data-tab]')].find((x) => /上官|屋敷|Superior/.test(x.textContent)); if (tt) { pad.cache.clear(); pad.tap(tt, '上官屋敷'); await wait(600); } go = document.querySelector('#screen #go2') || document.querySelector('#screen #go'); }
     if (!go) break;
     pad.cache.clear(); pad.tap(go, go.id === 'go2' ? '出陣（確かめ）' : '任務を受けて出陣'); await wait(1000);
   }
@@ -2413,7 +2448,13 @@ async function campaignTown(game, c, aud, spec) {
     c.add('camp-nogo', '城下から出陣できなかった', '「出陣」の釦が見つからない・押しても戦の前の札が出ない', 3, { cat: '使いづらい', shot: true });
     return false;
   }
-  if (game.G.battle !== spec.i) spec.i = game.G.battle;
+  // 章の通し：城下から出た戦が並びの次（spec.i）でなければ、飛んだ・前に戻ったとして記録する
+  if (game.G.battle !== spec.i) {
+    const at = BATTLES[game.G.battle];
+    if (c.lastWin === false && game.G.battle === spec.i - 1) c.add(`camp-retry:${spec.id}`, '負けたので同じ戦をもう一度', `${game.G.battle + 1}番「${BATTLES[game.G.battle]?.name}」`, 1, { cat: '辻褄' });
+    else c.add(`camp-order:${spec.id}`, game.G.battle < spec.i ? '勝った後、前の戦に戻った' : '勝った後、戦を飛ばした', `並びの次は${spec.i + 1}番「${spec.name}」なのに、城下から出たのは${game.G.battle + 1}番「${at ? at.name : '無し'}」`, 3, { cat: '辻褄' });
+    spec.i = game.G.battle; if (at) { spec.id = at.id; spec.name = at.name; }
+  }
   return true;
 }
 
@@ -2455,7 +2496,7 @@ async function playPersona(game, spec, aud, c) {
       spec.i = BATTLES.findIndex((bt) => bt.id === spec.id);
       if (spec.i < 0) throw new Error('指定した戦が見つからない');
       if (spec.kind === 'battle') { G.rank = spec.rank; G.aijirushi = 'maru'; if (G.rank >= 2) G.owned.push('katana'); }
-      if (spec.kind === 'camp') { G.aijirushi = G.aijirushi || 'maru'; if (spec.i > 0) { G.rank = Math.min(3, Math.ceil(spec.i / 2)); if (G.rank >= 2) G.owned.push('katana'); } }
+      if (spec.kind === 'camp') { G.aijirushi = G.aijirushi || 'maru'; if (spec.i > 0) { G.rank = Q.has('camprank') ? +Q.get('camprank') : Math.min(3, Math.ceil(spec.i / 2)); if (G.rank >= 2) G.owned.push('katana'); } }
       G.battle = spec.i;
       game.story(spec.i);
     }
@@ -2810,7 +2851,7 @@ async function playPersona(game, spec, aud, c) {
     if (!rep.down && rep.kills >= 15 && !(hurtSum >= 0.5)) c.add(`act-easy:${spec.id}`, '歯ごたえがない（無傷で大勢倒せる）', `${rep.kills}人を無傷で討った`, 1, { cat: '使いづらい', fix: '敵の打ち返し・囲み方を強める' });
     if (rep.down && rep.time < 120) c.add(`act-hard:${spec.id}`, '始まってすぐやられる（難しすぎ）', `${rep.time}秒で倒れた（${rep.hurt || '―'}）`, 2, { cat: '使いづらい' });
     if (rep.hits > 10 && !c.feel) c.add('act-nofeel', '当たった手応え（止め・揺れ）が感じられない', `${rep.hits}回当てて、ヒットストップが一度も無い`, 2, { cat: '使いづらい', fix: 'battle.js の onPlayerLanded の hitstop を確かめる' });
-    if (c.mountTry && !c.rode) c.add(`act-mountfail:${spec.id}`, '馬に乗ろうとしても乗れなかった', `${c.mountTry}回試した`, 2, { cat: '使いづらい', fix: '乗れない時は理由を字幕で' });
+    if (c.mountTry && !c.rode) c.add(`act-mountfail:${spec.id}`, '馬に乗ろうとしても乗れなかった', `${c.mountTry}回試した・最後 ${Math.round(c.mountT || 0)}秒${b.player?.catchWhy ? '・訳 ' + b.player.catchWhy : b.player?.catching ? '・手綱の途中で終わり' : ''}`, 2, { cat: '使いづらい', fix: '乗れない時は理由を字幕で' });
     // 乗れない身分や、船上・寺の中の戦では、空馬を足す必要はない。
     if (b.player?.canRide && !b.def.noHorse && !c.mountTry && !c.rode && !c.looseSeen) c.add('act-nohorse', '馬に乗れる場面がなかった', name, 1, { cat: '使いづらい', fix: '空馬（主を失った馬）をもう少し置く' });
     if (c.invulnHit) c.add(`act-invuln:${c.invulnHit}`, '武将に斬りかかっても、傷がつかない（不死身）', c.invulnHit, 2, { cat: '辻褄', fix: '討てない武将なら、斬りかかれない理由を見せる' });
@@ -2862,8 +2903,8 @@ async function runPersona(game, key) {
   // 何を遊ぶか：その人の好みから、ばらばらに n 戦
   const all = listPlayable();
   // 11/19 クラウド17：?campfrom=K は織田家編の K 番目から n 戦（六まで）を新しい保存で続けて遊ぶ（戦と戦の間の褒美・地図・保存・再開を照らす通し）
-  const CAMPFROM = Q.get('campfrom');
-  const n = clamp(+(Q.get('n') || 1 + Math.floor(Math.random() * 3)), 1, CAMPFROM != null ? 6 : 3);
+  const CAMPFROM = Q.get('campfrom') ?? (Q.get('campscn') ? '0' : null);   // 章の通し（?campscn=）は一番目から
+  const n = clamp(+(Q.get('n') || 1 + Math.floor(Math.random() * 3)), 1, Q.get('campscn') ? 30 : CAMPFROM != null ? 6 : 3);
   let only = ONLY ? all.filter((x) => ONLY.has(x.id) && (V.mode === 'lord' ? x.kind === 'lord' : !(x.kind === 'lord' && x.scn === 'oda'))) : null;
   // 鍵が一つも合わない時は部分一致（inaba→稲葉山の id）で探す。それでも無ければ別の戦を流さず、ログに残す
   if (ONLY && !(only && only.length)) { const part = all.filter((x) => [...ONLY].some((k) => k && x.id.includes(k))); if (part.length) only = part; else console.warn('[playbot] --only に合う戦が無い:', [...ONLY].join(',')); }
@@ -2884,6 +2925,8 @@ async function runPersona(game, key) {
     const s0 = per.key === 'sen' ? 1 + Math.floor(Math.random() * Math.max(1, camp.length - 1)) : Math.random() < 0.75 ? 0 : Math.floor(Math.random() * camp.length);
     for (let k = 0; k < n && camp[s0 + k]; k++) plan.push({ ...camp[s0 + k], cont: k > 0 });
   }
+  // 11/21 クラウド42：章の通し（?campscn=）は必ず一番目から並びの全部を続けて遊ぶ（上の「時々は途中から」で上杉編の一戦目 布施が飛ばされた）
+  if (Q.get('campscn') && camp.length) { plan.length = 0; for (let k = 0; k < n && camp[k]; k++) plan.push({ ...camp[k], cont: k > 0 }); }
   if (CAMPFROM != null && camp.length) { plan.length = 0; const s0 = Math.max(0, Math.min(camp.length - 1, +CAMPFROM || 0)); for (let k = 0; k < n && camp[s0 + k]; k++) plan.push({ ...camp[s0 + k], cont: k > 0 }); }
   // 1000人の表の「遊ぶ所」「身分の進み」があれば、それで決める（種 pick で、どの戦かも決まる）
   if (V.mode && !only) {
@@ -2915,7 +2958,7 @@ async function runPersona(game, key) {
   window.__botFlush = () => { try { partial(); } catch (e) { /* 書けなくても続ける */ } return 1; };
   for (const spec of plan) {
     // 持ち時間の半分を過ぎていたら、次の戦は始めない
-    if (performance.now() > t0 + (BUDGET_END.t - t0) * 0.5) { say(`持ち時間が足りないので${spec.name}は遊ばない`); break; }
+    if (performance.now() > (Q.get('campscn') ? BUDGET_END.t - 600e3 : t0 + (BUDGET_END.t - t0) * 0.5)) { say(`持ち時間が足りないので${spec.name}は遊ばない`); break; }
     // 続けて遊ぶ時：戦のあとの画面を進めて城下へ、問屋で買い物、出陣
     if (spec.cont) {
       const ok = await campaignTown(game, c, aud, spec);
@@ -2924,7 +2967,7 @@ async function runPersona(game, key) {
     say(`${per.name}：${spec.name}を遊んでいます…`);
     let r;
     try { r = await playPersona(game, spec, aud, c); } catch (e) { r = { battle: spec.name, key: spec.id, errors: [String(e && e.stack || e).split('\n').slice(0, 3).join(' ')], stuck: [], waits: [], flow: [], named: [], time: 0, merit: 0, main: false, squad: '—', down: false, shots: [] }; if (game.battle) game.stopBattle(); }
-    reports.push(r);
+    reports.push(r); c.lastWin = r.main === true;
     say(`${spec.name}：${r.time}秒・任務${r.main === true ? '達成' : '失敗'}${r.down ? '・倒れた' : ''}・重なり止まり${r.stackN || 0}・重なり最大${r.stackMax || 0}・動かない敵${Math.round((r.idleAvg || 0) * 100)}%`);
     partial();
   }

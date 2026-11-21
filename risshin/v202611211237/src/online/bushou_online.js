@@ -1,0 +1,98 @@
+// オンライン（K580・12/1）の武将の格の表（クラウド kaito2 k365-cloud-27・11/21）。登用（toyo_rules.js）と、家選び・編成・交換所の係が同じ表を読む。
+//   格：N・R・A・S・SS（docs/online_req_1120.md 23〜35・docs/online_final_1120.md 21〜26）。格は強さでなく「戦術の広さと希少さ」。
+//   コスト：N10・R12・A15・S18・SS22（online_final 26。上限65）。
+//   家：oda 織田・takeda 武田・uesugi 上杉・tokugawa 徳川・mori 毛利・shimazu 島津（各20人）・other ほか（家をまたいで登用できる）。
+//   11/21：一人は一度だけ（木下藤吉郎と豊臣秀吉は同じ人なので、初めの4人の木下藤吉郎だけ残した）。真田昌幸・信繁は武田、官兵衛・氏郷は織田の家中へ。
+//   初めの4人（家を選ぶと無料・online_final 11）は start: true。登用の池にも入る（重なれば武将印へ）。
+//   11/21 18 の決め（docs/online_plan_1121.md §5 ①）：この表が武将の一つだけの元。初めの4人はどの家も SS・S・A・N（22+18+15+10＝65＝コストの上限）。
+//     大名本人は SS（家康・義久も。紙の SS の例に合わせる）。48 の house.js の仮の格はこちらへ寄せた。
+//   格の割り当ては紙の例（SS＝信長・信玄・謙信・家康・秀吉・元就／S＝柴田・本多忠勝・山県・島津家久・黒田官兵衛／A＝前田利家・榊原康政・長宗我部信親）に合わせ、
+//   書いていない人は同じ身分の人に並べて推した（大名本人・天下人＝SS、大名級と名の通った重臣＝S、著名な武将＝A、有力な家臣＝R、地方の武将・小領主＝N）。
+export const COST = { N: 10, R: 12, A: 15, S: 18, SS: 22 };
+export const RANKS = ['N', 'R', 'A', 'S', 'SS'];
+
+// rarity は rank と同じ（busho_bank.js〔33〕が読む名）。fav＝得意の兵種の型（house.js の KATA の id・48 の編成が読む）
+const B = (id, name, house, rank, o = {}) => ({ id, name, house, rank, rarity: rank, cost: COST[rank], ...o });
+export const BUSHOU_ONLINE = [
+  // SS：大名本人・天下人
+  B('nobunaga', '織田信長', 'oda', 'SS', { fav: 'teppo', start: true }), B('shingen', '武田信玄', 'takeda', 'SS', { fav: 'kiba', start: true }),
+  B('kenshin', '上杉謙信', 'uesugi', 'SS', { fav: 'kiba', start: true }), B('ieyasu', '徳川家康', 'tokugawa', 'SS', { fav: 'shubi', start: true }),
+  B('motonari', '毛利元就', 'mori', 'SS', { fav: 'std', start: true }), B('yoshihisa', '島津義久', 'shimazu', 'SS', { fav: 'std', start: true }),
+  B('nobushige', '真田信繁', 'takeda', 'SS', { fav: 'yari' }),
+  // S：大名級・名の通った重臣
+  B('katsuie', '柴田勝家', 'oda', 'S', { fav: 'yari', start: true }), B('masakage', '山県昌景', 'takeda', 'S', { fav: 'kiba', start: true }),
+  B('tadakatsu', '本多忠勝', 'tokugawa', 'S', { fav: 'yari', start: true }), B('iehisa', '島津家久', 'shimazu', 'S', { fav: 'teppo', start: true }),
+  B('yoshihiro', '島津義弘', 'shimazu', 'A', { fav: 'yari', start: true }), B('motoharu', '吉川元春', 'mori', 'S', { fav: 'yari', start: true }),
+  B('kageie', '柿崎景家', 'uesugi', 'S', { fav: 'kiba', start: true }), B('kanbei', '黒田官兵衛', 'oda', 'S', { fav: 'std' }),
+  B('nobuharu', '馬場信春', 'takeda', 'A', { fav: 'shubi', start: true }), B('takakage', '小早川隆景', 'mori', 'A', { fav: 'shubi', start: true }),
+  B('mitsuhide', '明智光秀', 'oda', 'S', { fav: 'teppo' }), B('masamune', '伊達政宗', 'other', 'SS', { fav: 'teppo' }),
+  // A：著名な武将
+  B('toshiie', '前田利家', 'oda', 'A', { fav: 'yari', start: true }), B('yasumasa', '榊原康政', 'tokugawa', 'A', { fav: 'yari', start: true }),
+  B('tadatsugu', '酒井忠次', 'tokugawa', 'N', { fav: 'teppo', start: true }), B('masatoyo', '内藤昌豊', 'takeda', 'N', { fav: 'yari', start: true }),
+  B('tomonobu', '斎藤朝信', 'uesugi', 'A', { fav: 'yari', start: true }), B('toshihisa', '島津歳久', 'shimazu', 'N', { fav: 'teppo', start: true }),
+  B('nobuchika', '長宗我部信親', 'other', 'A', { fav: 'yari' }), B('kazumasu', '滝川一益', 'oda', 'S', { fav: 'teppo' }), B('nagahide', '丹羽長秀', 'oda', 'S', { fav: 'shubi' }),
+  B('naomasa', '井伊直政', 'tokugawa', 'S', { fav: 'kiba' }), B('katsuyori', '武田勝頼', 'takeda', 'S', { fav: 'kiba' }), B('kanetsugu', '直江兼続', 'uesugi', 'S', { fav: 'shubi' }),
+  B('masayuki', '真田昌幸', 'takeda', 'S', { fav: 'shubi' }), B('kiyomasa', '加藤清正', 'other', 'S', { fav: 'yari' }),
+  // R：有力な家臣
+  B('tokichiro', '木下藤吉郎', 'oda', 'N', { fav: 'std', start: true }), B('kagemochi', '甘粕景持', 'uesugi', 'N', { fav: 'shubi', start: true }),
+  B('takamoto', '毛利隆元', 'mori', 'N', { fav: 'std', start: true }), B('nobumori', '佐久間信盛', 'oda', 'R', { fav: 'shubi' }), B('yoshinari', '森可成', 'oda', 'R', { fav: 'yari' }),
+  B('narimasa', '佐々成政', 'oda', 'R', { fav: 'teppo' }), B('masanobu_k', '高坂昌信', 'takeda', 'S', { fav: 'shubi' }), B('nobushige_t', '武田信繁', 'takeda', 'R', { fav: 'kiba' }),
+  B('shigenaga', '本庄繁長', 'uesugi', 'R', { fav: 'kiba' }), B('mototada', '鳥居元忠', 'tokugawa', 'R', { fav: 'shubi' }), B('tadayo', '大久保忠世', 'tokugawa', 'R', { fav: 'yari' }),
+  B('michiyoshi', '口羽通良', 'mori', 'R', { fav: 'std' }), B('tadamune', '新納忠元', 'shimazu', 'R', { fav: 'yari' }), B('ujisato', '蒲生氏郷', 'oda', 'S', { fav: 'yari' }),
+  // N：地方の武将・小領主（役目を一つに絞った人）
+  B('nagachika_k', '金森長近', 'oda', 'N', { fav: 'std' }), B('hidetaka', '河尻秀隆', 'oda', 'N', { fav: 'std' }), B('nobutsuna', '小山田信茂', 'takeda', 'N', { fav: 'std' }),
+  B('masatsuna', '土屋昌続', 'takeda', 'N', { fav: 'kiba' }), B('nagahide_y', '安田長秀', 'uesugi', 'N', { fav: 'std' }), B('katsunaga', '色部勝長', 'uesugi', 'N', { fav: 'kiba' }),
+  B('chikayoshi', '平岩親吉', 'tokugawa', 'N', { fav: 'std' }), B('moritsuna', '渡辺守綱', 'tokugawa', 'N', { fav: 'std' }), B('nobunao', '熊谷信直', 'mori', 'N', { fav: 'yari' }),
+  B('naritada', '児玉就忠', 'mori', 'N', { fav: 'std' }), B('tadamune_i', '伊集院忠棟', 'shimazu', 'N', { fav: 'std' }), B('tadasuke', '樺山忠助', 'shimazu', 'N', { fav: 'std' }),
+  // oda の家中（11/21 6家×20人に足した。家臣団の通説から）
+  B('tsuneoki', '池田恒興', 'oda', 'R', { fav: 'yari' }), B('ittetsu', '稲葉一鉄', 'oda', 'R', { fav: 'shubi' }), B('sadakatsu', '村井貞勝', 'oda', 'N', { fav: 'std' }), B('masanao', '坂井政尚', 'oda', 'N', { fav: 'yari' }), B('yoritaka', '蜂屋頼隆', 'oda', 'N', { fav: 'yari' }), B('hidemasa', '堀秀政', 'oda', 'A', { fav: 'yari' }),
+  // takeda の家中（11/21 6家×20人に足した。家臣団の通説から）
+  B('nobukimi', '穴山信君', 'takeda', 'R', { fav: 'kiba' }), B('torashige', '秋山虎繁', 'takeda', 'R', { fav: 'kiba' }), B('masatane', '原昌胤', 'takeda', 'N', { fav: 'std' }), B('nobutatsu', '一条信龍', 'takeda', 'N', { fav: 'kiba' }), B('norishige', '小幡憲重', 'takeda', 'N', { fav: 'kiba' }), B('torayasu', '甘利虎泰', 'takeda', 'R', { fav: 'kiba' }), B('nobukata', '板垣信方', 'takeda', 'A', { fav: 'kiba' }), B('torasada', '諸角虎定', 'takeda', 'N', { fav: 'yari' }), B('kansuke', '山本勘助', 'takeda', 'A', { fav: 'std' }),
+  // uesugi の家中（11/21 6家×20人に足した。家臣団の通説から）
+  B('kagetsuna_n', '直江景綱', 'uesugi', 'R', { fav: 'shubi' }), B('sadamitsu', '宇佐美定満', 'uesugi', 'A', { fav: 'std' }), B('fujisuke', '中条藤資', 'uesugi', 'R', { fav: 'kiba' }), B('takahiro', '北条高広', 'uesugi', 'R', { fav: 'kiba' }), B('masakage_n', '長尾政景', 'uesugi', 'R', { fav: 'yari' }), B('shigeie', '新発田重家', 'uesugi', 'A', { fav: 'kiba' }), B('yataro', '鬼小島弥太郎', 'uesugi', 'N', { fav: 'yari' }), B('kagechika', '千坂景親', 'uesugi', 'N', { fav: 'std' }), B('kagekatsu', '上杉景勝', 'uesugi', 'S', { fav: 'shubi' }), B('yoshikiyo', '村上義清', 'uesugi', 'A', { fav: 'kiba' }), B('toyomori', '山吉豊守', 'uesugi', 'N', { fav: 'std' }), B('munenobu', '吉江宗信', 'uesugi', 'N', { fav: 'yari' }),
+  // tokugawa の家中（11/21 6家×20人に足した。家臣団の通説から）
+  B('kazumasa', '石川数正', 'tokugawa', 'R', { fav: 'std' }), B('tadachika', '大久保忠隣', 'tokugawa', 'N', { fav: 'yari' }), B('masanobu_h', '本多正信', 'tokugawa', 'A', { fav: 'std' }), B('hanzo', '服部半蔵', 'tokugawa', 'R', { fav: 'std' }), B('suneemon', '鳥居強右衛門', 'tokugawa', 'N', { fav: 'std' }), B('nobumasa', '奥平信昌', 'tokugawa', 'R', { fav: 'shubi' }), B('katsunari', '水野勝成', 'tokugawa', 'A', { fav: 'kiba' }), B('hideyasu', '結城秀康', 'tokugawa', 'A', { fav: 'kiba' }), B('nobuyasu_m', '松平信康', 'tokugawa', 'R', { fav: 'yari' }), B('masanari', '内藤正成', 'tokugawa', 'N', { fav: 'std' }), B('kiyonaga', '高力清長', 'tokugawa', 'N', { fav: 'shubi' }),
+  // mori の家中（11/21 6家×20人に足した。家臣団の通説から）
+  B('hiroie', '吉川広家', 'mori', 'R', { fav: 'shubi' }), B('hideaki', '小早川秀秋', 'mori', 'R', { fav: 'yari' }), B('terumoto', '毛利輝元', 'mori', 'A', { fav: 'std' }), B('ekei', '安国寺恵瓊', 'mori', 'R', { fav: 'std' }), B('muneharu', '清水宗治', 'mori', 'A', { fav: 'shubi' }), B('takaie', '宍戸隆家', 'mori', 'R', { fav: 'yari' }), B('sadatoshi', '福原貞俊', 'mori', 'R', { fav: 'std' }), B('munekatsu', '乃美宗勝', 'mori', 'A', { fav: 'teppo' }), B('takeyoshi', '村上武吉', 'mori', 'A', { fav: 'teppo' }), B('motozumi', '桂元澄', 'mori', 'N', { fav: 'std' }), B('hiroyoshi', '志道広良', 'mori', 'N', { fav: 'std' }), B('motonaga', '益田元祥', 'mori', 'N', { fav: 'yari' }), B('motoyasu', '赤川元保', 'mori', 'N', { fav: 'std' }),
+  // shimazu の家中（11/21 6家×20人に足した。家臣団の通説から）
+  B('toyohisa', '島津豊久', 'shimazu', 'A', { fav: 'yari' }), B('tadatsune', '島津忠恒', 'shimazu', 'R', { fav: 'teppo' }), B('kakken', '上井覚兼', 'shimazu', 'N', { fav: 'std' }), B('tadakata', '川上忠堅', 'shimazu', 'N', { fav: 'yari' }), B('arinobu', '山田有信', 'shimazu', 'R', { fav: 'shubi' }), B('masatoshi', '鎌田政年', 'shimazu', 'N', { fav: 'std' }), B('tokihisa', '北郷時久', 'shimazu', 'R', { fav: 'yari' }), B('morizumi', '長寿院盛淳', 'shimazu', 'R', { fav: 'yari' }), B('tokitaka', '種子島時尭', 'shimazu', 'A', { fav: 'teppo' }), B('tadakura', '伊集院忠倉', 'shimazu', 'N', { fav: 'std' }), B('tadanaga', '島津忠長', 'shimazu', 'R', { fav: 'yari' }), B('mochihisa', '島津以久', 'shimazu', 'N', { fav: 'std' }), B('tadamasa', '島津忠将', 'shimazu', 'N', { fav: 'yari' }),
+  // 11/21 K586（kaito「SS 10人・S 20人は一人ずつ専用の甲冑」）に合わせ、諸家の大名と名将を足した（家をまたぐ登用の歴史IF）
+  B('ujiyasu', '北条氏康', 'other', 'SS', { fav: 'shubi' }), B('motochika', '長宗我部元親', 'other', 'SS', { fav: 'yari' }),
+  B('muneshige', '立花宗茂', 'other', 'S', { fav: 'yari' }), B('sakon', '島左近', 'other', 'S', { fav: 'yari' }),
+];
+export const BUSHOU_BY_ID = Object.fromEntries(BUSHOU_ONLINE.map((b) => [b.id, b]));
+export const HOUSE_NAME = { oda: '織田', takeda: '武田', uesugi: '上杉', tokugawa: '徳川', mori: '毛利', shimazu: '島津', other: '諸家' };
+
+// 11/21 武将の能力（online_final 27〜35：0〜100 の七つ）。格の基の数に、得意の兵種と大名本人の分を足す。
+//   格の差は「戦術の広さ」が主で、一兵あたりの強さの差は小さく（final 25：最大でも約10〜15%）。合戦への効き目は bushou_power.js が小さく掛ける。
+const STAT_BASE = { N: 50, R: 55, A: 60, S: 66, SS: 72 };
+const FAV_STAT = { kiba: { MOBILITY: 10 }, teppo: { RANGED: 10 }, yari: { COHESION: 10 }, shubi: { MORALE: 8, COHESION: 4 }, std: { COMMAND: 6, TACTICS: 4 } };
+// 一人ごとの評判（通説の得意）。格の基からの足し引きで、一つの能力に＋12・－8まで（格の並びを越えない）
+const PERSON_STAT = {
+  織田信長: { RANGED: 10, TACTICS: 6 }, 武田信玄: { COMMAND: 6, TACTICS: 6, SIEGE: 4 }, 上杉謙信: { MOBILITY: 6, MORALE: 8, TACTICS: 4 },
+  徳川家康: { MORALE: 8, SIEGE: 4 }, 毛利元就: { TACTICS: 12 }, 島津義久: { COMMAND: 6, TACTICS: 6 }, 真田信繁: { MORALE: 10, SIEGE: 8 },
+  柴田勝家: { MORALE: 8, TACTICS: -6 }, 明智光秀: { TACTICS: 8, SIEGE: 6 }, 山県昌景: { MOBILITY: 8 }, 本多忠勝: { MORALE: 10 },
+  島津家久: { TACTICS: 12 }, 吉川元春: { MORALE: 6, MOBILITY: 4 }, 黒田官兵衛: { TACTICS: 12, SIEGE: 10, MOBILITY: -6 }, 伊達政宗: { RANGED: 6, MOBILITY: 6 },
+  上杉景勝: { COHESION: 6, MORALE: 4 }, 柿崎景家: { MOBILITY: 6 },
+  前田利家: { MORALE: 4 }, 馬場信春: { COHESION: 6, SIEGE: 6 }, 斎藤朝信: { COHESION: 4 }, 榊原康政: { MOBILITY: 4 }, 小早川隆景: { TACTICS: 10, COMMAND: 4 },
+  島津義弘: { MORALE: 12, COHESION: 6 }, 滝川一益: { RANGED: 8 }, 丹羽長秀: { SIEGE: 8 }, 井伊直政: { MOBILITY: 6 }, 真田昌幸: { TACTICS: 12, SIEGE: 10 },
+  直江兼続: { TACTICS: 6, SIEGE: 4 }, 加藤清正: { SIEGE: 12 }, 蒲生氏郷: { COMMAND: 4 }, 高坂昌信: { COHESION: 6, TACTICS: 4 }, 山本勘助: { TACTICS: 12, SIEGE: 6 },
+  板垣信方: { MORALE: 4 }, 宇佐美定満: { TACTICS: 8 }, 村上義清: { MORALE: 6 }, 本多正信: { TACTICS: 10, MOBILITY: -6 }, 水野勝成: { MOBILITY: 6 },
+  清水宗治: { MORALE: 10, SIEGE: 8 }, 乃美宗勝: { RANGED: 4 }, 村上武吉: { RANGED: 6, MOBILITY: 4 }, 毛利輝元: { TACTICS: -6 }, 島津豊久: { MORALE: 8 },
+  種子島時尭: { RANGED: 12, MOBILITY: -6 }, 北条氏康: { SIEGE: 8, MORALE: 4 }, 長宗我部元親: { MOBILITY: 6 }, 立花宗茂: { MORALE: 8, TACTICS: 4 }, 島左近: { TACTICS: 6 }, 堀秀政: { COMMAND: 4 },
+  木下藤吉郎: { TACTICS: 8, SIEGE: 6 }, 小早川秀秋: { MORALE: -8 }, 鳥居元忠: { MORALE: 10 }, 鳥居強右衛門: { MORALE: 12 }, 服部半蔵: { TACTICS: 6, MOBILITY: 6 },
+  石川数正: { COMMAND: 4 }, 新納忠元: { MORALE: 6 }, 長寿院盛淳: { MORALE: 8 }, 佐久間信盛: { MORALE: -6, COHESION: 6 }, 森可成: { MORALE: 6 }, 佐々成政: { RANGED: 6 },
+  鬼小島弥太郎: { MORALE: 8 }, 高力清長: { COHESION: 4 },
+};
+export const STAT_KEYS = ['COMMAND', 'MORALE', 'COHESION', 'TACTICS', 'MOBILITY', 'RANGED', 'SIEGE'];
+export function statsOf(b) {
+  if (!b) return null;
+  const base = STAT_BASE[b.rank] ?? 50, o = {};
+  for (const k of STAT_KEYS) o[k] = base;
+  for (const [k, v] of Object.entries(FAV_STAT[b.fav] || {})) o[k] += v;
+  if (b.rank === 'SS' && b.start) o.COMMAND += 8;   // 大名本人（家の総大将）は指揮が上
+  for (const [k, v] of Object.entries(PERSON_STAT[b.name] || {})) o[k] += v;
+  for (const k of STAT_KEYS) o[k] = Math.max(0, Math.min(100, o[k]));
+  return o;
+}
+export const bushouByName = (name) => BUSHOU_ONLINE.find((b) => b.name === name) || null;
