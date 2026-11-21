@@ -1402,6 +1402,9 @@ class TouchPad {
   turn(d) {
     // 指の感度は touch.js で掛かる。鍵盤・マウスの感度とは別。
     // 11/21 佐和山の持ち主：大きく払うと画面の加速（player_view.js 最大1.4倍）で回り過ぎ、向きの差が半周を越えて同じ向きへ回り続けた（段2 尾根の登り）。一コマの払いを百十 px までに
+    // 11/21 19:00 UTC 佐和山の持ち主：向きの差が半周近いと、コマごとに差の符号が入れ替わって右へ左へ払い直し、向きが定まらなかった。半周近い時は前の払いの向きを続ける
+    if (Math.abs(d) > 2.6 && this.turnSign) d = this.turnSign * Math.abs(d);
+    if (Math.abs(d) > 0.3) this.turnSign = Math.sign(d);
     const f = clamp(-d / (0.0024 * (S.touchSens || 1) * 1.7), -110, 110);
     if (Math.abs(f) < 3) { if (this.look && ++this.look.idle > 8) { this.pe('pointerup', this.cv, this.look.x, this.look.y, this.look.id); this.look = null; } return; }
     if (!this.look || this.look.x + f < 24 || this.look.x + f > innerWidth - 24) {
@@ -1483,7 +1486,9 @@ class TouchPad {
     const side = inp.axis ? inp.axis.x : (inp.k.has('KeyD') ? 1 : 0) - (inp.k.has('KeyA') ? 1 : 0);
     // 頭は向き直った後の前後左右を選ぶが、指のなぞりは少しずつ回る。
     // 今の視点で棒の向きを組み直し、列へ退く足が敵の方へ逸れないようにする。
-    const da = adiff(p.yaw, wantYaw), forward = inp.axis ? -inp.axis.y : fw - bk;
+    // 11/21 19:00 UTC 佐和山の持ち主（act bot 携帯の見なし 一秒の足跡）：三の丸の東の門で舵が西の奥の口へ向けても、向きの差が半周近い間に
+    //   棒を後ろへ倒して本人が東へ全力で走り、門の外を百八十秒行き来した。前へ進みたい時に向きの差が百度を越える間は、足を止めて向き直りを待つ
+    const da = adiff(p.yaw, wantYaw), forward = inp.axis ? -inp.axis.y : (fw && !bk && Math.abs(adiff(p.yaw, wantYaw)) > 1.75 ? 0 : fw - bk);
     const cs = Math.cos(da), sn = Math.sin(da), length = Math.max(1, Math.hypot(side, forward));
     const stickX = (side * cs - forward * sn) / length;
     const stickY = -(forward * cs + side * sn) / length;
