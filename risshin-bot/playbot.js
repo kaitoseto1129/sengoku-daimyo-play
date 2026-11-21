@@ -1401,7 +1401,8 @@ class TouchPad {
   // 右側をなぞって向きを変える（d：回したい角度）
   turn(d) {
     // 指の感度は touch.js で掛かる。鍵盤・マウスの感度とは別。
-    const f = clamp(-d / (0.0024 * (S.touchSens || 1) * 1.7), -170, 170);
+    // 11/21 佐和山の持ち主：大きく払うと画面の加速（player_view.js 最大1.4倍）で回り過ぎ、向きの差が半周を越えて同じ向きへ回り続けた（段2 尾根の登り）。一コマの払いを百十 px までに
+    const f = clamp(-d / (0.0024 * (S.touchSens || 1) * 1.7), -110, 110);
     if (Math.abs(f) < 3) { if (this.look && ++this.look.idle > 8) { this.pe('pointerup', this.cv, this.look.x, this.look.y, this.look.id); this.look = null; } return; }
     if (!this.look || this.look.x + f < 24 || this.look.x + f > innerWidth - 24) {
       if (this.look) this.pe('pointerup', this.cv, this.look.x, this.look.y, this.look.id);
