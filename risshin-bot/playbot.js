@@ -1406,7 +1406,10 @@ class TouchPad {
     // 11/21 19:00 UTC 佐和山の持ち主：向きの差が半周近いと、コマごとに差の符号が入れ替わって右へ左へ払い直し、向きが定まらなかった。半周近い時は前の払いの向きを続ける
     if (Math.abs(d) > 2.6 && this.turnSign) d = this.turnSign * Math.abs(d);
     if (Math.abs(d) > 0.3) this.turnSign = Math.sign(d);
-    const f = clamp(-d / (0.0024 * (S.touchSens || 1) * 1.7), -110, 110);
+    // 11/22 07:50 UTC 佐和山の持ち主：本当の換算は touch.js 1.7×感度 → player_view.js 0.0042×加速0.85〜1.4（真ん中1.1）。
+    //   前の 0.0024 は 0.4〜0.67倍で、一回の払いが要る角の1.6倍余り回り、指の一コマの遅れと合わせて振れが育った（向きが十秒に千度回る）。
+    //   本当の換算で要る角の六割ずつ払う（遅れ一コマでも振れが育たない）
+    const f = clamp(-d * 0.6 / (0.0042 * 1.1 * (S.touchSens || 1) * 1.7), -110, 110);
     if (Math.abs(f) < 3) { if (this.look && ++this.look.idle > 8) { this.pe('pointerup', this.cv, this.look.x, this.look.y, this.look.id); this.look = null; } return; }
     if (!this.look || this.look.x + f < 24 || this.look.x + f > innerWidth - 24) {
       if (this.look) this.pe('pointerup', this.cv, this.look.x, this.look.y, this.look.id);
@@ -1770,7 +1773,9 @@ const HABIT = {
       const outside = b.flags.pursuit && b.flags.fenceRoute && u.pos.x >= b.flags.fenceRoute.frontX - 0.5;
       // 11/19 クラウド設楽原の持ち主：追い討ちで見えた空馬を87回取り損ね、馬を追って退き口から三百m 離れ1066秒かかった（act bot 0532）。
       //   ほかの戦と同じく六回乗れなかったら馬をあきらめ、戦の頭の道筋へ戻る
-      if (p.catching || (!p.mounted && p.mountT <= 0 && (c.mountTry || 0) < 6 && (atPost || outside) && !b.army.nearestEnemy(u, 6) && b.def.botMountAllowed?.(b) !== false)) {
+      // 11/22 クラウド 設楽原の持ち主（携帯 act bot 0836-3 ★★「乗れなかった」3回・訳なし）：指の端末で乗れない身分の空馬（討った将の馬でない）は人も乗れない。下の河田の手（touchNoTake）と同じく手を出さない
+      const fNoTake = isTouch && !p.canRide && p.takeO && !p.takeO.lord;
+      if (p.catching || (!p.mounted && !fNoTake && p.mountT <= 0 && (c.mountTry || 0) < 6 && (atPost || outside) && !b.army.nearestEnemy(u, 6) && b.def.botMountAllowed?.(b) !== false)) {
         if (p.catching || (p.takeO && t - (c.mountT || -9) > 4)) {
           if (!p.catching) { inp.e.add('KeyR'); c.mountT = t; c.mountTry = (c.mountTry || 0) + 1; }
           inp.k.delete('KeyW'); inp.k.delete('KeyS'); inp.k.delete('KeyA'); inp.k.delete('KeyD'); inp.k.delete('KeyE');
@@ -2767,6 +2772,7 @@ async function playPersona(game, spec, aud, c) {
         inp.k.add('KeyE');
       }
       const want = b.player.yaw;
+      b._botWant = want;
       const t1 = performance.now();
       if (touch) {
         b.player.yaw = yaw0;
