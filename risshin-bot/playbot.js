@@ -1874,11 +1874,15 @@ const HABIT = {
     const L = b.army.looseHorses;
     if (!p.mounted && u.alive && L && L.length) {
       let lo = null, ld = 30;
-      for (const o of L) { if (!o.from || !o.h.parent || o.mode === 'fled') continue; const d = Math.hypot(o.h.position.x - u.pos.x, o.h.position.z - u.pos.z); if (d < ld) { ld = d; lo = o; } }
+      for (const o of L) { if (!o.from || !o.h.parent || o.mode === 'fled' || o._botNoChase) continue; const d = Math.hypot(o.h.position.x - u.pos.x, o.h.position.z - u.pos.z); if (d < ld) { ld = d; lo = o; } }
       if (lo) c.looseSeen = true;
       // 11/21 クラウド河田の持ち主：六回乗れなかった後も歩み去る空馬を追い続け、砦の段で二百五十秒さまよった（act bot 0348・木戸に131m までしか寄れず）。
       //   上の乗る手と同じく、六回乗れなかったら空馬を追わない
       if (lo && !b.def.botOrders && (c.mountTry || 0) < 6 && !b.army.nearestEnemy(u, 6) && !(isTouch && !p.canRide && !lo.lord)) {
+        // 11/22 15:10 UTC クラウド sawayama 持ち主（act bot 携帯 1008秒）：段5 の本丸の坂の下で、歩み去る空馬を追って南東へ二百五十m・二百五十秒さまよった
+        //   （寄れないので手綱取りが一度も始まらず、上の六回で止まらない）。同じ空馬を二十五秒追って寄れなければ、その馬は追わない（人も諦める）
+        if (c.chaseHorse !== lo) { c.chaseHorse = lo; c.chaseHorseT = b.t; }
+        else if (b.t - c.chaseHorseT > 25) { lo._botNoChase = true; c.chaseHorse = null; }
         goTo(p, inp, lo.h.position.x, lo.h.position.z, 2.5);
         inp.k.add('KeyE'); inp.leftPressed = false; inp.chargeHold = false; inp.runHeld = false;
         return;
