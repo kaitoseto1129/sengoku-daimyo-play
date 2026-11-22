@@ -779,7 +779,8 @@ function shitaraBrain(b, inp) {
   }
   // 柵の外へ：三列で重なる虎口を通って殿へ。
   const route = F.fenceRoute;
-  if (route && u.pos.x < route.frontX - 0.5) {
+  // 11/22 クラウド 設楽原の持ち主（K582 渡河の段の止まり 四度目・act bot 2349）：一の柵の外（居場所0）に出た後も x < frontX−0.5 の間は口の点へ寄せ続け、浅瀬の西の岸で六百秒止まった。一の柵の外なら印へ向かう
+  if (route && u.pos.x < route.frontX - 0.5 && !(route.rows && shitaraZone(route, u.pos.x, shitaraGateI(route, u.pos.z), u.pos.z) === 0)) {
     const gz = shitaraGate(route, u.pos.z);
     // 11/19・11/20 iMac：口は階段。一の柵の外へ出るまで、口を順に抜ける
     if (route.rows) {
