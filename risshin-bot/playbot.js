@@ -1787,6 +1787,12 @@ const HABIT = {
           //   六回押して一度も手綱取りが始まらなかった（act 1337・1348「乗れなかった★★」訳なし）。人と同じく空馬のすぐ横（一・八m の内＝寄れば乗る）まで歩く
           const to = !p.catching && p.takeO?.h?.position;
           if (to && Math.hypot(to.x - u.pos.x, to.z - u.pos.z) > 1.4) goTo(p, inp, to.x, to.z, 1.0);
+        } else if (isTouch && p.takeO?.h && (atPost || outside)) {
+          // 11/22 12:30 クラウド 設楽原の持ち主（act bot 携帯 1129「乗れなかった」6回）：指の端末では R を押す一コマだけ一・四m へ寄り、
+          //   ほかのコマは二・五m に留まって寄れば乗る一・八m に届かなかった。手綱の届く馬のすぐ横（一m）まで歩き続ける
+          const to = p.takeO.h.position;
+          if (Math.hypot(to.x - u.pos.x, to.z - u.pos.z) > 1.0) goTo(p, inp, to.x, to.z, 0.8);
+          inp.leftPressed = false; inp.runHeld = false; inp.chargeHold = false;
         } else if (outside && seenHorse) {
           goTo(p, inp, seenHorse.h.position.x, seenHorse.h.position.z, 2.5);
           inp.k.add('KeyE'); inp.leftPressed = false; inp.runHeld = false; inp.chargeHold = false;
