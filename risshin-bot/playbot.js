@@ -1835,8 +1835,20 @@ const HABIT = {
       return;
     }
     if (ordered) { c.charge = 0; inp.chargeHold = false; return; }
+    // 11/22 クラウド河田の持ち主（K582 携帯 act bot 0239 ★★「乗れなかった」6回・河田・樫井・佐和山で同じ）：指の端末は戦の画面に
+    //   「乗る」の丸が無く R は捨てられる（設楽原の柵の手と同じ訳）。人と同じく空馬のすぐ横（一・八m の内で寄れば乗る）まで歩く
+    //   寄れば乗るのは乗れる身分（canRide）か討った将の馬（lord）だけ。指の端末でそれ以外の空馬は人も乗れないので、bot も手を出さない
+    const touchNoTake = isTouch && !p.canRide && !p.takeO?.lord;
+    const toH = isTouch && !touchNoTake && !p.mounted && !p.catching && p.mountT <= 0 && (c.mountTry || 0) < 6 && b.def.botMountAllowed?.(b) !== false &&
+      !b.army.nearestEnemy(u, 6) && (p.takeO?.h?.position || (ownHorse && Math.hypot(p.loose.x - u.pos.x, p.loose.z - u.pos.z) < 3.2 && p.loose));
+    //   自分の馬（loose）も同じ：寄れば乗るのは二・二m の内（口笛の R は捨てられ、三・二m の内で試したと数えていた・act 0255）
+    if (toH && Math.hypot(toH.x - u.pos.x, toH.z - u.pos.z) > (p.takeO ? 1.4 : 1.8)) {
+      goTo(p, inp, toH.x, toH.z, 1.0);
+      inp.runHeld = false; inp.leftPressed = false; inp.chargeHold = false; c.charge = 0;
+      return;
+    }
     // 六回乗れなかったら、あきらめて徒歩で行き先へ（乗れない馬の横で立ち尽くして刻限が尽きた。八尾・若江 11/2）
-    if (!p.mounted && !p.catching && p.mountT <= 0 && (ownHorse || p.takeO) && (c.mountTry || 0) < 6 && t - (c.mountT || -9) > 4 && b.def.botMountAllowed?.(b) !== false) {
+    if (!p.mounted && !p.catching && p.mountT <= 0 && (ownHorse || (p.takeO && !touchNoTake)) && (c.mountTry || 0) < 6 && t - (c.mountT || -9) > 4 && b.def.botMountAllowed?.(b) !== false) {
       inp.e.add('KeyR'); c.mountT = t;
       // 口笛は馬を呼ぶ操作。近くで手綱を取る時だけ乗馬を試したと数える。
       if (p.takeO || Math.hypot(p.loose.x - u.pos.x, p.loose.z - u.pos.z) < 3.2) {
@@ -1855,7 +1867,7 @@ const HABIT = {
       if (lo) c.looseSeen = true;
       // 11/21 クラウド河田の持ち主：六回乗れなかった後も歩み去る空馬を追い続け、砦の段で二百五十秒さまよった（act bot 0348・木戸に131m までしか寄れず）。
       //   上の乗る手と同じく、六回乗れなかったら空馬を追わない
-      if (lo && !b.def.botOrders && (c.mountTry || 0) < 6 && !b.army.nearestEnemy(u, 6)) {
+      if (lo && !b.def.botOrders && (c.mountTry || 0) < 6 && !b.army.nearestEnemy(u, 6) && !(isTouch && !p.canRide && !lo.lord)) {
         goTo(p, inp, lo.h.position.x, lo.h.position.z, 2.5);
         inp.k.add('KeyE'); inp.leftPressed = false; inp.chargeHold = false; inp.runHeld = false;
         return;
