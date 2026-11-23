@@ -144,6 +144,7 @@ export async function openChrome({ width = 1600, height = 900, port = 9400 + Mat
       ...(linux ? ['--no-sandbox', '--disable-dev-shm-usage', '--no-first-run', '--no-default-browser-check'] : []),
       ...(linux && (process.env.HTTPS_PROXY || process.env.https_proxy) ? ['--proxy-bypass-list=<-loopback>'] : []),   // 中継のある箱で localhost まで中継に送られて戦が開かないのを防ぐ
       ...(process.env.CHROME_JSFLAGS ? ['--js-flags=' + process.env.CHROME_JSFLAGS] : []),   // 測り用（例 CHROME_JSFLAGS=--allow-natives-syntax）
+      ...(process.env.CHROME_FLAGS ? process.env.CHROME_FLAGS.split(' ') : []),   // 測り用の追加（例 CHROME_FLAGS=--autoplay-policy=no-user-gesture-required で音を鳴らす）
       '--hide-scrollbars', '--mute-audio', 'about:blank',
     ], { stdio: 'ignore' });
     // node が止められた時に Chrome だけが置き去りにならないように（置き去りが十数個たまって機械が重くなった。10/6）
