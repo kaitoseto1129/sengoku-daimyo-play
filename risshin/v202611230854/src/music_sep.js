@@ -1,7 +1,6 @@
 // 大河ドラマのような楽の音（音源ファイルなし。発振器・雑音・フィルター・残響だけで作る）
 // 曲の譜面と、それを少し先まで予約して鳴らす仕組み。
-// 使い方：const m = createMusic(ctx, 出口, { mark, pressure, mood }); m.play('title'); m.stop(2); m.setIntensity(0.7)
-// mood は文字列か、それを返す関数。夜と雨の重なりは ['night', 'rain']。play の設定でも指定できる。
+// 使い方：const m = createMusic(ctx, 出口, { mark, pressure }); m.play('title'); m.stop(2); m.setIntensity(0.7)
 // OfflineAudioContext でも同じ物が鳴る（renderMusic で WAV に書き出せる）
 //
 // 曲の名前：
@@ -11,7 +10,6 @@
 // 音階：都節（D Eb G A Bb）・民謡（D F G A C）・陽（D E G A B）に、西洋の和音（Dm Bb Gm A Eb F C）を重ねる
 
 // ---------------- 音の高さと譜面 ----------------
-import { warCues, STAGE_TEMPO } from './music_war.js';
 const PC = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
 export function hz(n) {
   const m = /^([A-G])([#b]?)(-?\d)$/.exec(n);
@@ -61,38 +59,19 @@ const INTRO_FUE = bars('r/1 A5/2 Bb5/.5 A5/.5 | G5/1 Eb5/.5 D5/2.5');
 export function createMusic(ctx, dest, hooks = {}) {
   const sr = ctx.sampleRate;
   const offline = typeof OfflineAudioContext !== 'undefined' && ctx instanceof OfflineAudioContext;
-  const E = { intensity: 0, level: 1, stats: { peak: 0, dropped: 0, notes: 0, drop: [0, 0, 0], voices: {} } };
+  const E = { intensity: 0, level: 1, stats: { peak: 0, dropped: 0, notes: 0, drop: [0, 0, 0] } };
   const nb = ctx.createBuffer(1, sr, sr);
   { const d = nb.getChannelData(0); const r = rng(7); for (let i = 0; i < d.length; i++) d[i] = r() * 2 - 1; }
   // 残響（広い広間のような、暗めの尾）
   const rev = ctx.createConvolver();
-  rev.buffer = impulse(ctx, 2.6);
+  // 11/23 K626（iPhone の戦の途中の落ち）：残響の元は、この曲を初めて鳴らす時に入れる。本物の曲（bgm_real.js）が鳴る間は控えのまま鳴らないのに、
+  //   2.6秒の残響が一つ約13MB の記憶（畳み込みの下ごしらえ）を戦の間ずっと持っていた。鳴る音は前と同じ
+  let revReady = false;
+  const revOn = () => { if (revReady) return; revReady = true; rev.buffer = impulse(ctx, 2.6); };
   const revIn = ctx.createGain(); revIn.gain.value = 1;
-  const output = ctx.createGain(); output.connect(dest);
-  revIn.connect(rev); rev.connect(output);
+  revIn.connect(rev); rev.connect(dest);
 
   let cur = null, timer = null, horizon = 0;
-  const fading = new Set(), ramps = new WeakMap();
-  const fadeSeconds = (sec) => Number.isFinite(sec) ? Math.max(0.6, Math.min(1.2, sec)) : 0.8;
-  // 途中で替えても、その瞬間の音量から続ける。古い端末でも予約値を取り違えない。
-  function ramp(node, value, sec = 0.8, start = ctx.currentTime) {
-    const now = ctx.currentTime, p = node.gain, r = ramps.get(node);
-    const v = r ? r.from + (r.to - r.from) * Math.max(0, Math.min(1, (now - r.start) / (r.end - r.start))) : p.value;
-    p.cancelScheduledValues(now); p.setValueAtTime(v, now);
-    if (start > now) p.setValueAtTime(v, start);
-    const end = start + fadeSeconds(sec);
-    p.linearRampToValueAtTime(value, end);
-    ramps.set(node, { from: v, to: value, start, end });
-  }
-  // 音の時計の停止中は譜面も音源もそのまま。復帰時だけ出口をなだらかに開く。
-  // 停止前の即時消音は呼び出し元が行うため、ここでは遅らせられない。
-  if (!offline) ctx.addEventListener('statechange', () => {
-    if (ctx.state === 'running') ramp(output, 1);
-    else {
-      output.gain.cancelScheduledValues(ctx.currentTime);
-      output.gain.setValueAtTime(0, ctx.currentTime); ramps.delete(output);
-    }
-  });
   let iv = []; // [始まり, 終わり, 重さ]（音の時刻）
 
   // ---- 同時に鳴る数の見張り（prio 0＝旋律、1＝和音、2＝飾り） ----
@@ -138,11 +117,10 @@ export function createMusic(ctx, dest, hooks = {}) {
       const cl = (v) => Math.max(0, Math.min(1, v));
       const ratio = e / Math.max(1, a), mor = a ? am / a : 30;
       const hp = pu && pu.maxHp ? pu.hp / pu.maxHp : 1;
-      return cl(cl((ratio - 1.3) / 1.4) * 0.55 + cl((55 - mor) / 30) * 0.55 + (pu && pu.alive && hp < 0.3 ? 0.35 : 0) + (b.timeLimit && !b.timeLimit.up && b.timeLimit.left <= 180 ? 0.4 : 0));   // 制限時間の残り3分から曲が急く（Lancers 11/1）
+      return cl(cl((ratio - 1.3) / 1.4) * 0.55 + cl((55 - mor) / 30) * 0.55 + (pu && pu.alive && hp < 0.3 ? 0.35 : 0));
     } catch (e) { return 0; }
   }
   function bus(c, name) {
-    E.stats.voices[name] = (E.stats.voices[name] || 0) + 1;
     if (c.bus[name]) return c.bus[name];
     const [v, pan, wet] = BUS[name];
     const g = ctx.createGain(); g.gain.value = v;
@@ -172,7 +150,7 @@ export function createMusic(ctx, dest, hooks = {}) {
   function noiseSrc(t, dur) { const s = ctx.createBufferSource(); s.buffer = nb; s.loop = true; s.start(t, (t * 7.31) % 0.9); s.stop(t + dur); return s; }
   function adsr(p, t, a, peak, hold, rel, sus = 1) {
     p.setValueAtTime(0.0001, t);
-    p.exponentialRampToValueAtTime(Math.max(0.0001, peak), t + a);
+    p.exponentialRampToValueAtTime(peak, t + a);
     if (sus !== 1) p.linearRampToValueAtTime(peak * sus, t + a + Math.max(0.01, hold * 0.5));
     p.setValueAtTime(peak * sus, t + a + Math.max(0.01, hold));
     p.exponentialRampToValueAtTime(0.0001, t + a + Math.max(0.01, hold) + rel);
@@ -235,12 +213,12 @@ export function createMusic(ctx, dest, hooks = {}) {
     const f0 = big ? 58 : 84;
     const s = ctx.createOscillator(); s.type = 'sine';
     s.frequency.setValueAtTime(f0 * 1.7, t); s.frequency.exponentialRampToValueAtTime(f0, t + 0.035); s.frequency.exponentialRampToValueAtTime(f0 * 0.66, t + len);
-    const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(Math.max(0.0001, 0.5 * vel), t + 0.005); g.gain.exponentialRampToValueAtTime(0.0001, t + len);
+    const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.5 * vel, t + 0.005); g.gain.exponentialRampToValueAtTime(0.0001, t + len);
     s.connect(g); s.start(t); s.stop(t + len + 0.02);
     // 胴の二つ目の響き（整数倍でない）：大太鼓の「ドォン」の太さ
     const s2 = ctx.createOscillator(); s2.type = 'sine';
     s2.frequency.setValueAtTime(f0 * 2.7, t); s2.frequency.exponentialRampToValueAtTime(f0 * 1.58, t + 0.05);
-    const g2 = ctx.createGain(); g2.gain.setValueAtTime(0.0001, t); g2.gain.exponentialRampToValueAtTime(Math.max(0.0001, 0.16 * vel), t + 0.004); g2.gain.exponentialRampToValueAtTime(0.0001, t + len * 0.45);
+    const g2 = ctx.createGain(); g2.gain.setValueAtTime(0.0001, t); g2.gain.exponentialRampToValueAtTime(0.16 * vel, t + 0.004); g2.gain.exponentialRampToValueAtTime(0.0001, t + len * 0.45);
     s2.connect(g2); s2.start(t); s2.stop(t + len * 0.45 + 0.02);
     const n = noiseSrc(t, 0.15);
     const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = big ? 420 : 700;
@@ -253,7 +231,7 @@ export function createMusic(ctx, dest, hooks = {}) {
     if (!take(t, 0.16, 1, o.prio ?? 2)) return;
     const s = ctx.createOscillator(); s.type = 'triangle';
     s.frequency.setValueAtTime(430, t); s.frequency.exponentialRampToValueAtTime(300, t + 0.1);
-    const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(Math.max(0.0001, 0.13 * vel), t + 0.003); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.14);
+    const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.13 * vel, t + 0.003); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.14);
     const n = noiseSrc(t, 0.06);
     const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 2600; bp.Q.value = 1.5;
     const ng = ctx.createGain(); ng.gain.setValueAtTime(0.1 * vel, t); ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
@@ -270,7 +248,7 @@ export function createMusic(ctx, dest, hooks = {}) {
     for (const [k, a, d0] of [[1, 1, 1.3], [2.76, 0.45, 0.6]]) {
       const d = d0 * sc;
       const s = ctx.createOscillator(); s.frequency.value = 1040 * k;
-      const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(Math.max(0.0001, 0.035 * a * vel), t + 0.003); g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+      const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.035 * a * vel, t + 0.003); g.gain.exponentialRampToValueAtTime(0.0001, t + d);
       s.connect(g); g.connect(b); s.start(t); s.stop(t + d + 0.02);
     }
   }
@@ -282,8 +260,8 @@ export function createMusic(ctx, dest, hooks = {}) {
     if (o.bend) { s.frequency.setValueAtTime(f, t + 0.3); s.frequency.linearRampToValueAtTime(f * 1.0595, t + 0.45); }
     const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.Q.value = 2.5;
     lp.frequency.setValueAtTime(Math.min(9000, f * 9), t); lp.frequency.exponentialRampToValueAtTime(Math.max(300, f * 1.6), t + 0.5);
-    const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(Math.max(0.0001, (o.v ?? 0.1) * vel), t + 0.003);
-    g.gain.exponentialRampToValueAtTime(Math.max(0.0001, 0.02 * vel), t + 0.35); g.gain.exponentialRampToValueAtTime(0.0001, t + len);
+    const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime((o.v ?? 0.1) * vel, t + 0.003);
+    g.gain.exponentialRampToValueAtTime(0.02 * vel, t + 0.35); g.gain.exponentialRampToValueAtTime(0.0001, t + len);
     s.connect(lp); lp.connect(g); g.connect(bus(c, 'koto'));
     s.start(t); s.stop(t + len + 0.02);
   }
@@ -293,7 +271,7 @@ export function createMusic(ctx, dest, hooks = {}) {
     const s = ctx.createOscillator(); s.type = 'sawtooth';
     s.frequency.setValueAtTime(f * 1.01, t); s.frequency.exponentialRampToValueAtTime(f, t + 0.03);
     const hp = ctx.createBiquadFilter(); hp.type = 'bandpass'; hp.frequency.setValueAtTime(f * 4, t); hp.frequency.exponentialRampToValueAtTime(f * 2, t + 0.2); hp.Q.value = 0.9;
-    const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(Math.max(0.0001, 0.09 * vel), t + 0.002); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.55);
+    const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.09 * vel, t + 0.002); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.55);
     s.connect(hp); hp.connect(g); g.connect(bus(c, 'sham'));
     s.start(t); s.stop(t + 0.6);
   }
@@ -361,13 +339,13 @@ export function createMusic(ctx, dest, hooks = {}) {
     if (o.bend) { s.frequency.setValueAtTime(f, t + 0.35); s.frequency.linearRampToValueAtTime(f * 1.12, t + 0.6); s.frequency.linearRampToValueAtTime(f * 1.06, t + 1.1); }
     const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.Q.value = 3;
     lp.frequency.setValueAtTime(Math.min(8000, f * 12), t); lp.frequency.exponentialRampToValueAtTime(Math.max(260, f * 2.2), t + 0.6);
-    const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(Math.max(0.0001, (o.v ?? 0.11) * vel), t + 0.003);
-    g.gain.exponentialRampToValueAtTime(Math.max(0.0001, 0.025 * vel), t + 0.3); g.gain.exponentialRampToValueAtTime(0.0001, t + len);
+    const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime((o.v ?? 0.11) * vel, t + 0.003);
+    g.gain.exponentialRampToValueAtTime(0.025 * vel, t + 0.3); g.gain.exponentialRampToValueAtTime(0.0001, t + len);
     s.connect(lp); lp.connect(g); g.connect(b);
     // さわり：二倍の少し上の音が、細く長くびりつく
     const z = ctx.createOscillator(); z.type = 'square'; z.frequency.value = f * 2.006;
     const hp = ctx.createBiquadFilter(); hp.type = 'bandpass'; hp.frequency.value = f * 6; hp.Q.value = 2;
-    const zg = ctx.createGain(); zg.gain.setValueAtTime(0.0001, t); zg.gain.exponentialRampToValueAtTime(Math.max(0.0001, 0.018 * vel), t + 0.02); zg.gain.exponentialRampToValueAtTime(0.0001, t + len * 0.8);
+    const zg = ctx.createGain(); zg.gain.setValueAtTime(0.0001, t); zg.gain.exponentialRampToValueAtTime(0.018 * vel, t + 0.02); zg.gain.exponentialRampToValueAtTime(0.0001, t + len * 0.8);
     z.connect(hp); hp.connect(zg); zg.connect(b);
     // 撥の当たり
     const n = noiseSrc(t, 0.05);
@@ -381,7 +359,7 @@ export function createMusic(ctx, dest, hooks = {}) {
     if (!take(t, 0.08, 1, o.prio ?? 2)) return;
     const s = ctx.createOscillator(); s.type = 'triangle';
     s.frequency.setValueAtTime(980, t); s.frequency.exponentialRampToValueAtTime(720, t + 0.04);
-    const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(Math.max(0.0001, 0.1 * vel), t + 0.002); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.06);
+    const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.1 * vel, t + 0.002); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.06);
     const n = noiseSrc(t, 0.04);
     const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 2800;
     const ng = ctx.createGain(); ng.gain.setValueAtTime(0.07 * vel, t); ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.03);
@@ -392,18 +370,6 @@ export function createMusic(ctx, dest, hooks = {}) {
 
   // 曲の中から使う道具
   function api(c) {
-    // 小節ごとに受けた雰囲気を、元の譜面と高まりの連打の両方へ重ねる。
-    const war = c.name === 'battle' || c.name === 'climax' || c.name === 'prebattle';
-    const night = war && c.mood.includes('night'), rain = war && c.mood.includes('rain');
-    const drum = (fn, t, vel, o, fine = false) => {
-      if (night) {
-        const beat = (t - c.next) / c.B;
-        if (fine ? E.intensity < 0.8 || Math.abs(beat - 3) > 0.01
-          : Math.abs(beat) > 0.01 && !(E.intensity > 0.55 && Math.abs(beat - 2) < 0.01)
-            && !(E.intensity > 0.8 && beat >= 3.75)) return;
-      }
-      fn(c, t, vel * (rain ? 0.4 : 1) * (night ? 0.7 : 1), o);
-    };
     return {
       c, B: c.B, rnd: c.rnd, E, o: c.o,
       pad: (t, ch, dur, vel, o = {}) => { for (const f of CH[ch].pad) str(c, 'str', t, f, dur, vel, { prio: 1, v: 0.028, cut: 900 + 900 * vel, a: 0.5, r: 0.7, ...o }); },
@@ -411,16 +377,16 @@ export function createMusic(ctx, dest, hooks = {}) {
       str: (t, f, dur, vel, o = {}) => str(c, 'str', t, f, dur, vel, { solo: true, vib: true, prio: 0, v: 0.065, a: 0.12, r: 0.6, ...o }),
       low: (t, f, dur, vel, o = {}) => str(c, 'low', t, f, dur, vel, { prio: 1, v: 0.07, cut: 500 + 500 * vel, a: 0.01, r: 0.12, ...o }),
       brass: (t, f, dur, vel, o) => brass(c, t, f, dur, vel, o),
-      taiko: (t, vel, o) => drum(taiko, t, vel, o),
-      shime: (t, vel, o) => drum(shime, t, vel, o, true),
-      kane: (t, vel, o) => kane(c, t, vel * (rain ? 0.4 : 1), o),
+      taiko: (t, vel, o) => taiko(c, t, vel, o),
+      shime: (t, vel, o) => shime(c, t, vel, o),
+      kane: (t, vel, o) => kane(c, t, vel, o),
       koto: (t, f, vel, o) => koto(c, t, f, vel, o),
       sham: (t, f, vel, o) => sham(c, t, f, vel, o),
       fue: (t, f, dur, vel, o) => wind(c, 'fue', t, f, dur, vel, o),
       shaku: (t, f, dur, vel, o) => wind(c, 'shaku', t, f, dur, vel, o),
       hora: (t, f, dur, vel, o) => horagai(c, t, f, dur, vel, o),
       biwa: (t, f, vel, o) => biwa(c, t, f, vel, o),
-      fuchi: (t, vel, o) => drum(fuchi, t, vel, o, true),
+      fuchi: (t, vel, o) => fuchi(c, t, vel, o),
       // 押されている度合い 0〜1（hooks.pressed か、戦の様子から一小節に一度だけ量る。書き出しは o.pressed）
       pressed: () => (c.o.pressed != null ? c.o.pressed : pressedNow()),
       // 譜面の一小節を、楽器 fn で鳴らす（mul：高さの倍率、stretch：拍の長さの倍率）
@@ -430,63 +396,49 @@ export function createMusic(ctx, dest, hooks = {}) {
 
   // ---- 曲を始める・止める ----
   function play(name, o = {}) {
+    revOn();
     const def = CUES[name];
     if (cur && cur.name === name && !o.restart) { Object.assign(cur.o, o); return; }
     const now = ctx.currentTime;
     const prev = cur;
-    if (cur) fadeOut(cur, o.fadeOut);
+    if (cur) fadeOut(cur, o.fadeOut ?? (def && def.once ? 0.8 : 2.5));
     cur = null;
     if (!def) return;
-    // 消えかけの同じ曲へ戻る時は、楽器と譜面の続きを使う。
-    if (!o.restart) for (const c of fading) {
-      if (c.name !== name || c.fadeEnd <= now) continue;
-      fading.delete(c); Object.assign(c.o, o); cur = c;
-      const g = (def.gain ?? 1) * E.level;
-      const start = Math.max(now, c.start);
-      ramp(c.dry, g, o.fadeIn, start); ramp(c.wet, g * 0.5, o.fadeIn, start);
-      fill(now + LOOK);
-      return;
-    }
     const c = {
-      name, def, o: { ...o }, bus: {}, lfos: [], n: 0, mood: [],
+      name, def, o: { ...o }, bus: {}, lfos: [], n: 0,
       B: 60 / (def.bpm * (o.tempo || 1) * (def.tempo ? def.tempo(o) : 1)), rnd: rng(o.seed ?? (name.length * 97 + 13)),
       cap: def.cap || 18,
     };
     c.barLen = c.B * (def.beats || 4);
     c.dry = ctx.createGain(); c.wet = ctx.createGain();
     const g = (def.gain ?? 1) * E.level;
-    const fin = fadeSeconds(o.fadeIn);
+    // 続く曲は 2 秒かけてなめらかに入る（前の曲の消えていくのと重ねて、ぶつ切りに聞こえないように）
+    const fin = o.fadeIn ?? (def.once ? 0.02 : 2);
     let t0 = now + (o.delay || 0) + 0.12;
     // 拍の長さが同じか倍・半分の曲へ替わる時は、前の曲のまだ予約していない小節の頭から入る（太鼓の拍がずれずに重なる）
     if (prev && !o.delay && !def.once && !prev.def.once) {
       const r = prev.B / c.B;
-      if ([0.5, 1, 2].some((v) => Math.abs(r - v) < 0.01) && prev.next > now && prev.next < now + fadeSeconds(o.fadeOut)) t0 = prev.next;
+      if ([0.5, 1, 2].some((v) => Math.abs(r - v) < 0.01) && prev.next > now && prev.next - now < 3) t0 = prev.next;
     }
-    // 頭からやり直す指定でも、同じ曲の古い音が消えてから始める。
-    for (const old of fading) if (old.name === name) t0 = Math.max(t0, old.fadeEnd);
     for (const [node, v] of [[c.dry, g], [c.wet, g * 0.5]]) {
-      node.gain.setValueAtTime(0, now);
-      ramp(node, v, fin, t0);
+      node.gain.setValueAtTime(0.0001, now); node.gain.setValueAtTime(0.0001, t0);
+      if (fin > 0.5) node.gain.setTargetAtTime(v, t0, fin / 3);
+      else node.gain.exponentialRampToValueAtTime(v, t0 + Math.max(0.03, fin));
     }
-    c.dry.connect(output); c.wet.connect(revIn);
-    c.start = t0;
+    c.dry.connect(dest); c.wet.connect(revIn);
     c.next = t0;
     cur = c;
     fill(now + LOOK);
     if (!offline && !timer) timer = setInterval(tick, 150);
   }
   function fadeOut(c, sec) {
-    sec = fadeSeconds(sec);
-    ramp(c.dry, 0, sec); ramp(c.wet, 0, sec);
-    c.fadeEnd = ctx.currentTime + sec; fading.add(c);
-    if (offline) for (const l of c.lfos) { try { l.stop(c.fadeEnd); } catch (e) { /* 止まっている */ } }
+    const now = ctx.currentTime;
+    for (const n of [c.dry, c.wet]) { n.gain.cancelScheduledValues(now); n.gain.setValueAtTime(n.gain.value, now); n.gain.setTargetAtTime(0.0001, now, Math.max(0.05, sec / 3)); }
+    for (const l of c.lfos) { try { l.stop(now + sec + 1); } catch (e) { /* 止まっている */ } }
+    const drop = () => { try { c.dry.disconnect(); c.wet.disconnect(); } catch (e) { /* 外れている */ } };
+    if (!offline) setTimeout(drop, (sec + 5) * 1000);
   }
-  function stop(sec = 0.8) {
-    if (cur) fadeOut(cur, sec);
-    cur = null;
-    // 直前に替えた曲も残さず、繰り返しの停止で消える時刻を延ばさない。
-    for (const c of fading) if (c.fadeEnd > ctx.currentTime + fadeSeconds(sec)) fadeOut(c, sec);
-  }
+  function stop(sec = 2) { if (cur) fadeOut(cur, sec); cur = null; }
   const LOOK = 0.7;
   function fill(until) {
     const c = cur;
@@ -498,32 +450,17 @@ export function createMusic(ctx, dest, hooks = {}) {
         return;
       }
       horizon = c.next;
-      if (c.def.dyn) { c.B = 60 / (c.def.bpm * (c.o.tempo || 1) * (E.tempoMul || 1)); c.barLen = c.B * (c.def.beats || 4); }
-      const mood = c.o.mood ?? (typeof hooks.mood === 'function' ? hooks.mood() : hooks.mood);
-      c.mood = Array.isArray(mood) ? mood : mood ? [mood] : [];
       const len = c.def.len || Infinity;
       c.def.bar(api(c), c.def.once ? c.n : c.n % len, c.next, c.n);
       c.n++; c.next += c.barLen;
     }
   }
   function tick() {
-    if (!offline && ctx.state !== 'running') return;
+    if (!cur) return;
     const now = ctx.currentTime;
-    // 壁の時計では外さない。一時停止中に音の予約だけ失うのを防ぐ。
-    for (const c of fading) if (now >= c.fadeEnd) {
-      c.dry.disconnect(); c.wet.disconnect();
-      for (const l of c.lfos) { try { l.stop(); } catch (e) { /* 止まっている */ } }
-      fading.delete(c);
-    }
-    if (!cur) {
-      if (!fading.size && timer !== null) { clearInterval(timer); timer = null; }
-      return;
-    }
-    // 止まっていた拍は捨て、今の小節から再び予約する。
-    if (cur.next < now - cur.barLen) cur.next = now + 0.12;
     if (cur.doneAt && now > cur.doneAt) {
       const then = cur.o.then; const c = cur; cur = null;
-      fadeOut(c, 0.8);
+      fadeOut(c, 1.5);
       if (then) play(then, { season: c.o.season });
       return;
     }
@@ -533,14 +470,11 @@ export function createMusic(ctx, dest, hooks = {}) {
   return {
     play, stop, E,
     now: () => (cur ? cur.name : null),
-    // 戦の曲の段（0 通常・1 テンポ上昇・2 低音と太鼓・3 ほぼ無音・4 主題が戻る）と、戦ごとの曲の形（0〜3）
-    setStage(n) { E.stage = n | 0; E.tempoMul = STAGE_TEMPO[n | 0] || 1; },
-    setTune(n) { E.tune = n | 0; },
     setIntensity(x) { E.intensity = Math.max(0, Math.min(1, x)); },
-    setLevel(x) { E.level = Math.max(0, Math.min(1, x)); if (cur) { const g = (cur.def.gain ?? 1) * E.level, start = Math.max(ctx.currentTime, cur.start); ramp(cur.dry, g, 0.8, start); ramp(cur.wet, g * 0.5, 0.8, start); } },
+    setLevel(x) { E.level = x; if (cur) { const g = (cur.def.gain ?? 1) * x; cur.dry.gain.setTargetAtTime(g, ctx.currentTime, 0.8); cur.wet.gain.setTargetAtTime(g * 0.5, ctx.currentTime, 0.8); } },
     // 書き出し用：sec 秒ぶんを先に全部予約する
     prerender(sec) { fill(sec); },
-    stats: () => ({ ...E.stats, voices: { ...E.stats.voices }, mood: cur ? [...cur.mood] : [], live: busy(ctx.currentTime), cue: cur ? cur.name : null }),
+    stats: () => ({ ...E.stats, live: busy(ctx.currentTime), cue: cur ? cur.name : null }),
   };
 }
 
@@ -623,8 +557,7 @@ const CUES = {
 
   // 2. 城下：穏やかな琴と篠笛（季節で音階と楽器が少し変わる）
   town: {
-    // 11/2：題の曲より 8dB ほど小さく、城下だけ沈んで聞こえた。少し上げて画面ごとの大きさを揃える
-    bpm: 66, gain: 3.1, cap: 14,
+    bpm: 66, gain: 2.5, cap: 14,
     tempo: (o) => ({ 夏: 1.15, 冬: 0.85 }[o.season] || 1),
     bar(a, k, t, n) {
       const s = a.o.season || '春', sc = SCALES[s] || SCALES.春, B = a.B;
@@ -793,40 +726,6 @@ const CUES = {
     },
   },
 
-  // 7. 本陣（ホームの一画面）：陣幕の内の静けさ。琴の分散と尺八の長い息、遠い太鼓をひとつ
-  honjin: {
-    bpm: 66, len: 8, gain: 1.6, cap: 16,
-    bar(a, k, t) {
-      const B = a.B;
-      const ch = ['Dm', 'Bb', 'Gm', 'A', 'Dm', 'Eb', 'Gm', 'A'][k];
-      a.pad(t, ch, 4 * B, 0.32, { v: 0.018, a: 1.4, r: 1.6 });
-      a.bass(t, ch, 4 * B, 0.38, { a: 0.9 });
-      const p = CH[ch].pad.map((f) => f * 2);
-      for (let j = 0; j < 4; j++) a.koto(t + j * B + (j % 2) * 0.04, p[[0, 2, 1, 3][j]], 0.36, { prio: 2 });
-      const lines = ['D5/2 A4/1 C5/1', 'D5/3 r/1', 'Bb4/1 A4/1 G4/2', 'A4/3 r/1', 'F5/1.5 E5/.5 D5/2', 'Eb5/2 D5/2', 'G4/1 Bb4/1 D5/2', 'C#5/2 A4/2'];
-      a.line(t, seq(lines[k]), (tt, f, d) => a.shaku(tt, f / 2, d * 0.95, 0.5, { v: 0.05 }));
-      if (k === 0 || k === 4) a.taiko(t, 0.25, { big: true });
-      if (k === 7) a.kane(t + 3 * B, 0.18);
-    },
-  },
-
-  // 5-2. 稽古場（K299 11/14）：本陣の曲とは別に、軽い拍の太鼓と篠笛で明るく進める。旋律は自作。戦の曲とも違い、緊張させない
-  dojo: {
-    bpm: 92, len: 8, gain: 1.5, cap: 16,
-    bar(a, k, t) {
-      const B = a.B;
-      const ch = ['Dm', 'F', 'Gm', 'A', 'Dm', 'Bb', 'Gm', 'A'][k];
-      a.pad(t, ch, 4 * B, 0.22, { v: 0.014, a: 0.6, r: 0.8 });
-      a.bass(t, ch, 2 * B, 0.34, { a: 0.3 });
-      a.bass(t + 2 * B, ch, 2 * B, 0.28, { a: 0.3 });
-      const p = CH[ch].pad.map((f) => f * 2);
-      for (let j = 0; j < 4; j++) a.koto(t + j * B, p[[0, 1, 2, 1][j]], 0.34, { prio: 2 });
-      const lines = ['A4/1 D5/1 F5/2', 'A4/1 C5/1 F5/2', 'G4/1 Bb4/1 D5/2', 'E5/1.5 C#5/.5 A4/2', 'D5/1 F5/1 A5/2', 'D5/1 F5/1 Bb4/2', 'D5/1 Bb4/1 G4/2', 'A4/2 C#5/1 E5/1'];
-      a.line(t, seq(lines[k]), (tt, f, d) => a.fue(tt, f, d * 0.9, 0.5, { v: 0.045 }));
-      a.taiko(t, 0.2); a.taiko(t + 2 * B, 0.14);
-    },
-  },
-
   // 6. 日本地図：主題をゆったりと、尺八と篠笛で
   map: {
     bpm: 60, len: 12, gain: 1.7, cap: 18,
@@ -861,8 +760,6 @@ const CLX_FUE = bars(
   'D6/2 C6/1 A5/1 | C6/1.5 D6/.5 F6/2 | G6/1 F6/.5 D6/.5 C6/1 A5/1 | D6/4 | A5/1 C6/1 D6/1 F6/1 | G6/2 F6/1 D6/1 | C6/1 A5/.5 G5/.5 A5/1 C6/1 | D6/4');
 const PRESS_SHAKU = bars('D4/.5 Eb4/.5 D4/1 r/.5 Bb3/.5 A3/1 | G3/1 A3/.5 Bb3/.5 A3/2 | D4/.5 Eb4/.5 G4/1 Eb4/.5 D4/.5 Bb3/1 | A3/4');
 const KACHI_FUE = bars('D5/1 E5/1 G5/2 | A5/1 G5/.5 E5/.5 D5/2 | E5/1 G5/1 A5/1 B5/1 | D6/1.5 B5/.5 A5/1 D6/1');
-// 元の節に添える夜の笛。譜面の読み取りは起動時の一度だけ。
-const NIGHT_FUE = bars('D5/2 r/1 A4/1 | G4/3 r/1 | A4/2 D5/2 | Eb5/1 D5/3');
 // 一小節（4拍）を鳴らす。x＝激しさ、clx＝山場。押された度合いは小節ごとにゆっくり追う（急に曲調が替わらない）
 // 場面の移り（静→激）の太鼓の高まり。小節の頭ごとに、戦の激しさ（生の値）の変わりを見る
 //   急に上がった：この小節の後半に、だんだん速く強くなる連打。次の小節の頭に大太鼓と鉦で落とす
@@ -889,12 +786,6 @@ function battleBar(a, t, n, x, clx) {
   // 旋律は四小節の句の頭で選ぶ（句の途中で笛と尺八が入れ替わらない）
   if (n % 4 === 0) c.pressMel = ps > 0.45;
   const m4 = n % 4, root = c.pressMel ? hz('D2') : hz('D2') * (n % 8 >= 4 ? 1.125 : 1);
-  const night = c.mood.includes('night'), rain = c.mood.includes('rain'), sea = c.mood.includes('sea');
-  // 音源と同時発音の上限はそのまま。低い弦の持続と波は同じ合成を使う。
-  if (night || rain || sea) a.low(t, root, B * 3.7, 0.3 + 0.35 * xs,
-    { a: 0.3, r: 0.35, cut: rain ? 420 : 650, trem: sea ? 0.5 / B : 0, prio: 0 });
-  if (night && !c.pressMel && !clx) a.line(t, NIGHT_FUE[m4], (tt, f, d) => a.fue(tt, f, d * 0.9, 0.3 + 0.25 * xs));
-  if (c.mood.includes('temple') && m4 === 0) a.kane(t, 0.4 + 0.4 * xs, { prio: 0 });
   // ---- 激突 ----
   if (hit > 0.1) {
     // 大太鼓：頭・裏の突き上げ・三拍目・激しければ四拍目の裏
@@ -916,7 +807,7 @@ function battleBar(a, t, n, x, clx) {
     // 篠笛：激しい時に高く。山場は長い主題
     if (!c.pressMel) {
       if (clx) a.line(t, CLX_FUE[n % 8], (tt, f, d) => a.fue(tt, f, d * 0.93, 0.8));
-      else if (!night && xs > 0.5 && n % 8 >= 4) a.line(t, CLASH_FUE[m4], (tt, f, d) => a.fue(tt, f, d * 0.9, 0.55 + 0.25 * xs));
+      else if (xs > 0.5 && n % 8 >= 4) a.line(t, CLASH_FUE[m4], (tt, f, d) => a.fue(tt, f, d * 0.9, 0.55 + 0.25 * xs));
     }
     // 法螺貝の合図と、鉦（チャッパ）の打ち込み
     if ((clx ? n % 4 === 0 : n % 8 === 0 && xs > 0.55)) a.hora(t, hz('D3'), 1.8 * B, (0.6 + 0.3 * xs) * hit, { prio: 1 });
@@ -935,8 +826,6 @@ function battleBar(a, t, n, x, clx) {
   }
 }
 
-// 戦の三曲（prebattle・battle・climax）は戦だけの新しい曲（music_war.js）に差し替える（kaito 11/9）。戦以外の曲は上のまま
-Object.assign(CUES, warCues(rise));
 export const MUSIC_NAMES = Object.keys(CUES);
 
 // ---------------- 書き出し（確かめ用） ----------------
