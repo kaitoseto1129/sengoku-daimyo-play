@@ -56,7 +56,7 @@ import { kubijikken } from './kubijikken.js';
 import { titleScreen, storyCard, loadingStory, inkBand, evalScreen, spoilHorseInfo, aijirushiScreen, baseScreen, finalScreen, hideScreen, helpOverlay, settingsScreen, pauseMenu, notice, deathScreen, promoScreen, recordsScreen, dojoResult, epilogueScreen, ladderScreen } from './screens.js';
 import { icloudInit } from './native_bridge.js';
 try { icloudInit(); } catch (e) { /* iCloud が無くても遊べる */ }
-import { pcqSample, pcqRatio, pcqNoShadow } from './pc_autoq.js';
+import { pcqSample, pcqRatio, pcqNoShadow, pcHiRes } from './pc_autoq.js';
 import { S, QUALITY, saveSettings, canonical, K, reduceMotion, MEM_TIGHT, MEM_TIGHT_TEST, CPU_LEAN } from './settings.js';
 import { TIER, noteGL, markInBattle, markCrashed, WEAK_TEX_MAX, battleDrawRatio } from './device_tier.js';
 import { noteBattleStart } from './crash_note.js';
@@ -1253,7 +1253,7 @@ let sizeDirty = false;   // キャンバスの大きさを変えて、まだ描�
 function resize() {
   const w = Math.max(1, window.innerWidth), h = Math.max(1, window.innerHeight);
   // 大きな Android 画面でも仕上げを含め同じ画素数に収める。
-  const ratio = battleDrawRatio(w, h, MEM_TIGHT, heatLevel) * (MEM_TIGHT ? 1 : pcqRatio());   // K314 パソコンの自動の段
+  const ratio = battleDrawRatio(w, h, MEM_TIGHT, heatLevel) * (MEM_TIGHT ? 1 : pcqRatio() * pcHiRes(w, h));   // K314 パソコンの自動の段
   renderer.getSize(_drawSize);
   // 倍率だけの変更も一度で済ませる。setPixelRatio の中でも setSize が呼ばれるため、
   // 両方呼ぶと同じコマでキャンバスと仕上げの寸法更新が重複していた。
@@ -3762,7 +3762,7 @@ function loop() {
   // 待つ札・題・地図の間は毎秒十枚、端末がかなり熱い時は五枚（止まった絵なので見た目は同じ。熱を冷ます 10/28）
   const waitCap = backgroundHeat >= 2 ? 5 : 10;
   // 11/16 K314（kaito「パソコンでも 60fps を物差しに」）：戦の上限は携帯だけ毎秒三十枚。パソコンは六十枚まで（設定の上限があればそれ）
-  const battleCap = MEM_TIGHT ? 30 : 60;
+  const battleCap = MEM_TIGHT ? 30 : 240;   // 11/23 K637（Steam 版）：パソコンの戦も 144Hz まで（上限なし＝画面の更新の回数まで。設定の上限があればそれ）。携帯は 30 のまま
   const cap = waiting ? (chosenCap ? Math.min(chosenCap, waitCap) : waitCap) : b ? Math.min(chosenCap || battleCap, battleCap) : chosenCap;
   // パソコンは大きさの変更や再開時にすぐ描く。iPhone はその時も三十枚の間隔を守る。
   if (cap) {
