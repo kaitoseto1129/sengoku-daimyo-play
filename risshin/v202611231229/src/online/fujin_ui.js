@@ -280,6 +280,12 @@ export function placeDefault(def, mapId, heishuOfName = () => '槍') {
   const front = slots.filter((s) => !s.honjin && s.name !== '後詰').map((s) => s.name);
   const pts = (sl) => sl.rects.flatMap((r) => [1 / 6, 0.5, 5 / 6].map((k) => ({ x: r.x0 + (r.x1 - r.x0) * k, z: (r.z0 + r.z1) / 2 })));
   const out = def.map((q, i) => {
+    // K644 ②：軍団の地図で置いた所（q.pos）があれば、その所へそのまま置く（枠の名は所から読む）。前は枠の点へ置き直し、決めた布陣と開戦の並びがずれた
+    if (q.pos && Number.isFinite(q.pos.x) && Number.isFinite(q.pos.z)) {
+      const p = clampDeploy(q.pos), sl0 = slotOfPos(p, i, n, mapId);
+      used.add(sl0); used.add(`${p.x}|${p.z}`);
+      return { name: q.name, slot: sl0, pos: p, formation: JIN_NAMES.includes(q.formation) ? q.formation : '横陣', honjin: i === 0, fixed: true };
+    }
     let name = i === 0 ? '本陣' : q.slot;
     if (!slots.some((s) => s.name === name) || (name !== '後詰' && name !== '本陣' && used.has(name)) || name === '本陣' && i) name = front.find((f) => !used.has(f)) || '後詰';
     used.add(name);
@@ -298,11 +304,11 @@ export function placeDefault(def, mapId, heishuOfName = () => '槍') {
 // K642 ③（十一〜十六人）：駒は八割の大きさ（fujin2.many）でも、地図の上で横 31m・縦 33m より近いと画面で重なる。重なる駒は、
 //   後ろ・左右・斜め後ろ・前の順に、一段（横 32m・縦 34m）ずつ遠くの空いた所へ動かす（自陣の内：左右 ±180m・前は DEPLOY_Z の 6m 手前まで・後ろは −146m まで）
 function spreadPieces(out) {
-  if (out.length <= 10) { for (let i = 1; i < out.length; i++) for (let t = 0; t < 4 && out.slice(0, i).some((o) => Math.hypot(o.pos.x - out[i].pos.x, o.pos.z - out[i].pos.z) < 22); t++) out[i].pos = { x: out[i].pos.x, z: Math.max(-140, out[i].pos.z - 22) }; return; }
+  if (out.length <= 10) { for (let i = 1; i < out.length; i++) if (!out[i].fixed) for (let t = 0; t < 4 && out.slice(0, i).some((o) => Math.hypot(o.pos.x - out[i].pos.x, o.pos.z - out[i].pos.z) < 22); t++) out[i].pos = { x: out[i].pos.x, z: Math.max(-140, out[i].pos.z - 22) }; return; }
   const hit = (a, b) => Math.abs(a.x - b.x) < 31 && Math.abs(a.z - b.z) < 33, zMax = DEPLOY_Z - 6;
   const ok = (p, i) => Math.abs(p.x) <= 180 && p.z >= -146 && p.z <= zMax && !out.slice(0, i).some((o) => hit(o.pos, p));
   for (let i = 1; i < out.length; i++) {
-    const p0 = out[i].pos; if (ok(p0, i)) continue;
+    const p0 = out[i].pos; if (out[i].fixed || ok(p0, i)) continue;
     let got = null;
     for (let r = 1; r <= 6 && !got; r++) for (const [dx, dz] of [[0, -1], [1, 0], [-1, 0], [1, -1], [-1, -1], [0, 1], [1, 1], [-1, 1]]) { const q = { x: Math.round(p0.x + dx * 32 * r), z: Math.round(Math.min(zMax, p0.z + dz * 34 * r)) }; if (ok(q, i)) { got = q; break; } }
     if (got) out[i].pos = got;

@@ -333,7 +333,6 @@ export class WorldArmy {
     };
     grp.follow = (fn, opt = {}) => { A.followFn = fn; A.gap = opt.gap ?? A.gap ?? 0; A.followSpeed = opt.speed ?? 2.6; return grp; };
     grp.army = A;
-    (this.lightGroups || (this.lightGroups = [])).push(grp);   // K639 ④：流れ弾で倒す相手を探す（fellByShot）
     // 本物の兵に道を譲る（yieldArmies）ために、形ごとの入れ物と、旗持ち・騎馬の番を覚えておく
     A.parts = { body, flags, banners, horses, plumes, chiefs, bearers, riders, grp }; A.hid = new Float32Array(N);
     // 最初に道を譲るコマで、軍勢全体の行列を複製しない。
@@ -389,37 +388,6 @@ export class WorldArmy {
       let k = 0;
       for (let i = 0; i < N; i++) { if (A.taken[i]) continue; body.getMatrixAt(i, m4); tp.setFromMatrixPosition(m4).add(A.off); tp.applyMatrix4(grp.matrixWorld); if (Math.hypot(tp.x - x, tp.z - z) < r) k++; }
       return k;
-    };
-    // K639 ④（kaito 11/22「鉄砲で敵が倒れない」）：撃たれて減った数だけ、撃ち手（x, z）に近い兵（前列）から n 人を倒す。
-    //   立ち姿は大きさ 0 に（take と同じ）し、もう本物にも軽い兵にも戻さない（taken=2）。その場に伏した軽い形を置く（world.fallenAt）。倒した数を返す
-    //   line＝[x1, z1, r]：一般の戦の流れ弾。撃ち手（x, z）から弾の終わり（x1, z1）の線から r m の内の兵だけを、撃ち手に近い順に選ぶ
-    grp.fell = (x, z, n, line = null) => {
-      n = Math.floor(n); if (!(n > 0) || !grp.visible) return 0;
-      grp.updateWorldMatrix(true, false);
-      const cand = [];
-      const lx = line ? line[0] - x : 0, lz = line ? line[1] - z : 0, ll = lx * lx + lz * lz || 1;
-      for (let i = 0; i < N; i++) {
-        if (A.taken[i] || A.kinds[i] === K_PORTER) continue;
-        if (A.base && A.hid[i] > 0) continue;   // 道を譲って隠れている兵は倒さない（見えない所で倒れない）
-        body.getMatrixAt(i, m4);
-        tp.setFromMatrixPosition(m4).add(A.off); tp.applyMatrix4(grp.matrixWorld);
-        if (line) { const t = Math.max(0, Math.min(1, ((tp.x - x) * lx + (tp.z - z) * lz) / ll)); if (Math.hypot(tp.x - x - lx * t, tp.z - z - lz * t) > line[2]) continue; }
-        cand.push({ i, d: Math.hypot(tp.x - x, tp.z - z), x: tp.x, z: tp.z });
-      }
-      if (!cand.length) return 0;
-      cand.sort((a, b) => a.d - b.d);
-      const out = cand.slice(0, n);
-      const hide = (mesh, j) => { mesh.getMatrixAt(j, m4); tp.setFromMatrixPosition(m4); m4.makeScale(0, 0, 0).setPosition(tp); mesh.setMatrixAt(j, m4); mesh.instanceMatrix.needsUpdate = true; };
-      for (const c of out) {
-        A.taken[c.i] = 2; A.took++; A.fell = (A.fell || 0) + 1;
-        hide(body, c.i); hide(flags, c.i);
-        if (A.base) { body.getMatrixAt(c.i, m4); A.base.set(m4.elements, c.i * 16); }
-        if (banners) { const j = bearers.indexOf(c.i); if (j >= 0) hide(banners, j); }
-        if (horses) { const j = riders.indexOf(c.i); if (j >= 0) hide(horses, j); }
-        if (plumes) { const j = chiefs.indexOf(c.i); if (j >= 0) hide(plumes, j); }
-        this.fallenAt(c.x, c.z, Math.atan2(c.x - x, c.z - z), armor, 0.2 + Math.random() * 0.8);
-      }
-      return out.length;
     };
     // take で隠した兵 i を、軽い兵に戻す（本物の兵を大軍の中へ帰す時。帰した兵は、また take で選べる）
     const giveInv = new THREE.Matrix4(), givePos = new THREE.Vector3();
@@ -723,56 +691,6 @@ export class WorldArmy {
   //   (x, z) は戦う隊の真ん中、facing はその向き。軽い兵はその後ろ gap m（既定 5）から depth m の奥行きで並ぶ
   // 返す物は addDistantArmy と同じ（advance・rout・follow が使える）。
   //   隊に付いて歩かせるには：b.follow(() => g.count ? { ...centerOf(g), facing: g.facing } : null)
-  // K639 ④（一般の戦）：誰にも当たらずに飛び終えた弾（撃ち手 x0,z0 → 終わり x1,z1）の線の上に敵の軽い大軍の兵が居れば、一人倒す。
-  //   部隊（butai・諸大名戦）の軽い大軍は数を名目で持つので、ここでは倒さない（一斉射の側で減らす）。倒したら true
-  fellByShot(x0, z0, x1, z1, team) {
-    const G = this.lightGroups; if (!G || !G.length) return false;
-    const minX = Math.min(x0, x1) - 30, maxX = Math.max(x0, x1) + 30, minZ = Math.min(z0, z1) - 30, maxZ = Math.max(z0, z1) + 30;
-    for (const grp of G) {
-      const A = grp.army;
-      if (!grp.parent || !grp.visible || A.butai || A.rout || !grp.fell) continue;
-      const foe = A.team != null ? A.team !== team : (team === 0) === !!enemyFlagKind(A.mon);
-      if (!foe) continue;
-      grp.updateWorldMatrix(true, false);
-      const cx = A.cx + A.off.x + grp.matrixWorld.elements[12], cz = A.cz + A.off.z + grp.matrixWorld.elements[14];
-      if (cx < minX || cx > maxX || cz < minZ || cz > maxZ) continue;
-      if (grp.fell(x0, z0, 1, [x1, z1, 1.2])) { this.strayFell = (this.strayFell || 0) + 1; return true; }
-    }
-    return false;
-  }
-  // K639 ④：軽い大軍の倒れた兵（伏した軽い形）。具足の色ごとに一つの束（InstancedMesh・描く回数は色の数だけ）。数の上限を越えたら古い者から使い回す。
-  //   倒れる動き：撃ち手と反対へ 0.45 秒で倒れ伏す（delay 秒の後。発砲の煙と揃える）。地面の高さに置き、軍勢と一緒には動かない
-  fallenAt(x, z, yaw, armor, delay = 0) {
-    const F = this._fallen || (this._fallen = new Map());
-    let M = F.get(armor);
-    if (!M) {
-      const CAP = isTight ? 120 : 240;
-      const mesh = new THREE.InstancedMesh(armyGeometryCopy(soldierGeo(armor, 'lo')), new THREE.MeshLambertMaterial({ vertexColors: true }), CAP);
-      mesh.count = 0; mesh.frustumCulled = false; mesh.castShadow = false; mesh.receiveShadow = true; mesh.userData.fallenLight = true;
-      mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-      M = { mesh, CAP, next: 0, anim: [] };
-      const q = new THREE.Quaternion(), qx = new THREE.Quaternion(), e = new THREE.Euler(), p = new THREE.Vector3(), sc = new THREE.Vector3(1, 1, 1), mm = new THREE.Matrix4(), X = new THREE.Vector3(1, 0, 0);
-      M.place = (a, k) => { e.set(0, a.yaw, 0); q.setFromEuler(e); qx.setFromAxisAngle(X, k * Math.PI / 2 * 0.97); q.multiply(qx); p.set(a.x, a.y + 0.12 * k, a.z); mm.compose(p, q, sc); mesh.setMatrixAt(a.i, mm); };
-      mesh.onBeforeRender = () => {
-        if (!M.anim.length) return;
-        const now = performance.now() / 1000;
-        for (let j = M.anim.length - 1; j >= 0; j--) {
-          const a = M.anim[j], t = (now - a.at) / 0.45;
-          const k = t <= 0 ? 0 : t >= 1 ? 1 : t * t;
-          M.place(a, k);
-          if (t >= 1) M.anim.splice(j, 1);
-        }
-        mesh.instanceMatrix.needsUpdate = true;
-      };
-      this.scene.add(mesh);
-      F.set(armor, M);
-    }
-    const i = M.next; M.next = (M.next + 1) % M.CAP; M.mesh.count = Math.max(M.mesh.count, i + 1);
-    const a = { i, x, z, y: this.heightAt(x, z), yaw, at: performance.now() / 1000 + delay };
-    for (let j = M.anim.length - 1; j >= 0; j--) if (M.anim[j].i === i) M.anim.splice(j, 1);
-    M.place(a, 0); M.anim.push(a); M.mesh.instanceMatrix.needsUpdate = true;
-    this.fallenN = (this.fallenN || 0) + 1; this.lastFell = [x, z];   // lastFell：確かめの道具（k639_stray.mjs）がカメラを向ける所
-  }
   addBacking(o) {
     const w = o.w || 16, depth = o.depth || 10, gap = o.gap ?? 5, f = o.facing || 0;
     const back = gap + depth / 2;
