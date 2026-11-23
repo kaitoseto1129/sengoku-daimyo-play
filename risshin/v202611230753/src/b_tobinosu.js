@@ -926,6 +926,7 @@ export const tobinosu = {
     // ---- 砦 ----
     F.forts = FORTS.map((f) => ({ ...f, def: [], fallen: false, burned: false }));
     LIVE.forts = F.forts;   // moveWay（世界の側）から木戸の破れを見る
+    { const fs = F.forts; rt.cleanupTasks?.add?.(() => { if (LIVE.forts === fs) LIVE.forts = null; }); }   // K626：戦を閉じたら手放す（櫓の家→naka._entryRt で前の戦の Battle が残った）
     // 篝火の灯りは四つまでなので、最初に攻める姥ヶ懐と、最後の鳶ヶ巣山に先に付ける
     const fireOrder = [0, 4, 1, 2, 3];
     for (const i of fireOrder) {

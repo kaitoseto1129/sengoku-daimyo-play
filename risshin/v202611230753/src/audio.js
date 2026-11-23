@@ -243,7 +243,7 @@ export function initAudio() {
     pressure: () => { live(); return ends.length * 2; },
   });
   // 大河の曲（K322・kaito 11/15「bgm は大河ドラマみたいなやつに」）。読めない時・曲の無い場面は9月の自作の曲（music_sep.js）が鳴る
-  try { real = createRealBgm(ctx, musicBus, (n, o) => { if (musicWant == null && music) synthMusic(n, o); }); } catch (e) { real = null; }
+  try { if (window.__apx?.nobgm) throw 0; real = createRealBgm(ctx, musicBus, (n, o) => { if (musicWant == null && music) synthMusic(n, o); }); } catch (e) { real = null; }
   try { warEng = createWarMusic(ctx, musicBus, {
     mark: (delay, dur, w) => { const n = ctx.currentTime * 1000 + delay * 1000; mIv.push([n, n + dur * 1000 + 60, w]); live(); },
     pressure: () => { live(); return ends.length * 2; },
@@ -259,7 +259,7 @@ export function initAudio() {
     revIn = ctx.createGain(); revIn.connect(rev); rev.connect(rOut); rOut.connect(muffle);
   } catch (e) { revIn = null; }
   // 本物らしい音の元を、少し後から一つずつ焼く
-  setTimeout(() => { loadReal().finally(bakeAll); }, 400);
+  if (!window.__apx?.nosfxreal) setTimeout(() => { loadReal().finally(bakeAll); }, 400);   // __apx.nosfxreal・nobgm：確かめ用（録音の効果音と焼き・大河の曲を止めて記憶を比べる）
   syncAudioState();
   return audioPending;
 }
