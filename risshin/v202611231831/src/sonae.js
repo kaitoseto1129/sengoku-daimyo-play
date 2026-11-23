@@ -244,7 +244,7 @@ class Sonae {
       const prev = this.state;
       this.state = s;
       logEvent(rt, 'state', { team: this.team, who: this.id, v: s });
-      if (s === '敗走' && prev !== '敗走') logEvent(rt, 'rout', { team: this.team, who: this.id });
+      if (s === '敗走' && prev !== '敗走') logEvent(rt, 'rout', { team: this.team, who: this.id, left: this.b.nominal > 0 ? +(this.b.aliveNominal() / this.b.nominal).toFixed(3) : 0 });   // K645 ①：崩れた時の残りの割合も記録に
     }
   }
   _decide(g, m) {

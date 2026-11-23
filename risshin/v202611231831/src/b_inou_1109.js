@@ -783,7 +783,8 @@ const ino = {
   coda(rt) {
     const F = rt.flags;
     // 新六に会えたら、歩いた道のりが短くても締めへ進む（新六が本人のすぐ近くに座り込んだ回）。
-    if (F.codaT || F.ph !== 'after' || !F.afterStart || rt.t - F.stopT < 40 || near(rt.player.u.pos, F.afterStart) < 6 && !F.shinMet) return;
+    // 11/23 K637（最初の30分）：新六に会えた後も追撃停止から四十秒を待たせていた（ピンに着いて六〜十二秒なにも起きない）。会えたら台詞の後すぐ締めへ
+    if (F.codaT || F.ph !== 'after' || !F.afterStart || (F.shinMet && F.shinMetT >= F.stopT ? rt.t - F.shinMetT < 3 : rt.t - F.stopT < 40) || near(rt.player.u.pos, F.afterStart) < 6 && !F.shinMet) return;
     F.codaT = rt.t;
     // 柴田は退いた先から戻らず、同じ街道の奥へ去る。
     if (live(F.shibaG)) { this.retireG(F.shibaG, { x: -50, z: -140 }, 1.4); }
@@ -974,8 +975,8 @@ const ino = {
     // 11/10 first4：傷を負わずに生き残った新六にも、戦の跡では会える。ピンが新六のまま消えず、締めへ進まなかった。
     if ((F.shinHurtT && rt.t - F.shinHurtT > 3 || F.ending && F.ph === 'after') && !F.shinMet && F.shinrokuU?.alive && near(F.shinrokuU.pos, P.pos) < (F.ending ? 6 : 3.5)) {
       // 救援に間に合わず通り掛かっただけでは、戦後の再会を済ませない。
-      if (!F.ending && rt.t - F.shinHurtT < 60) { F.shinMet = true; F.helped = true; say(rt, '新六', 'すまぬ……助かった。', 2.4); }
-      else if (F.ending) { F.shinMet = true; say(rt, '新六', '……生きておったか。お主も。', 2.8); }
+      if (!F.ending && rt.t - F.shinHurtT < 60) { F.shinMet = true; F.shinMetT = rt.t; F.helped = true; say(rt, '新六', 'すまぬ……助かった。', 2.4); }
+      else if (F.ending) { F.shinMet = true; F.shinMetT = rt.t; say(rt, '新六', '……生きておったか。お主も。', 2.8); }
     }
     // 林勢を押し合いで六割まで減らしても、隊長の討死は待たずに進む
     if (F.ph === 'hayashi' && !F.capDead && F.contactT && rt.t - F.contactT > 50 && aliveIn(F.haya) <= F.hayaN * 0.45) this.capDown(rt);

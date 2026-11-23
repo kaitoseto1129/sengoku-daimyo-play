@@ -931,7 +931,7 @@ export function settingsHtml() {
     ${row('st-hc', '札の字をくっきりさせる', chk('st-hc', 'hudContrast'))}
     ${row('st-fade', '戦いが無い間は札を薄く', chk('st-fade', 'hudAutoFade'))}
     ${row('st-float', '討った場所に戦功を浮かべる', chk('st-float', 'floatMerit'))}
-    ${MEM_TIGHT ? '' : row('st-cap', '一秒に描く回数の上限', `<select id="st-cap"><option value="0" ${!S.fpsCap ? 'selected' : ''}>上限なし</option><option value="60" ${S.fpsCap === 60 ? 'selected' : ''}>60</option><option value="30" ${S.fpsCap === 30 ? 'selected' : ''}>30（省電力）</option></select>`)}
+    ${MEM_TIGHT ? '' : row('st-cap', '一秒に描く回数の上限', `<select id="st-cap"><option value="0" ${!S.fpsCap ? 'selected' : ''}>上限なし</option><option value="144" ${S.fpsCap === 144 ? 'selected' : ''}>144</option><option value="120" ${S.fpsCap === 120 ? 'selected' : ''}>120</option><option value="60" ${S.fpsCap === 60 ? 'selected' : ''}>60</option><option value="30" ${S.fpsCap === 30 ? 'selected' : ''}>30（省電力）</option></select>`)}
     ${row('st-dist', '見える遠さ', `<input type="range" id="st-dist" min="0.6" max="1.4" step="0.01" value="${S.drawDist}">`, Math.round(S.drawDist * 100) + '%')}
     ${row('st-light', '軽く遊ぶ（止まりにくくする）', `<select id="st-light">${['ふつう', '少し軽く', '軽く', 'いちばん軽く'].map((t, i) => `<option value="${i}" ${(S.heatFloor || 0) === i ? 'selected' : ''}>${t}</option>`).join('')}</select>`)}
     ${row('st-fps', '一秒の絵の数を出す', chk('st-fps', 'showFps'))}

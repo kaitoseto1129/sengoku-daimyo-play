@@ -356,7 +356,8 @@ export function butaiApply(B, it) {
   //   四十五m の内に入ってから attack にする（butai.js は触らない）
   if ((id === 'attack' || id === 'charge') && it.to && B.pos && d2(B.pos, it.to) > 45) id = 'charge';
   else if (id === 'charge' && it.to && B.pos && d2(B.pos, it.to) <= 45) id = 'attack';
-  const same = B._aiLast && B._aiLast.id === id && (!it.to || !B._aiLast.to || d2(B._aiLast.to, it.to) < 8);
+  // K645 ②：前と同じ下知でも、隊の今の下知が別の物（立て直し・混乱・息継ぎの『止まれ』）に替わっていれば出し直す（前は出し直さず、寄せの下知のまま止まり続けた）
+  const same = B._aiLast && B._aiLast.id === id && (!it.to || !B._aiLast.to || d2(B._aiLast.to, it.to) < 8) && (!B.cmd || B.cmd.id === id);
   if (!same) { B.order({ id, to: it.to || null }); B._aiLast = { id, to: it.to || null }; }
   if (B.pvp && B.real) {
     const fx = fatigueFx((B.fatigue || 0) * 100);
@@ -436,8 +437,24 @@ export function matchAiTick(rt, dt, sonae, o = {}) {
     const foeDist = foes.reduce((m, q) => Math.min(m, Math.hypot(q.pos.x - P.pos.x, q.pos.z - P.pos.z)), 999);
     fatigueStep(st, step, { fighting: P.engaged, running, moving, foeDist });
     B.fatigue = st.fatigue / 100;
+    // K639 ①：止まって三秒、斬り合っていない隊は列を揃える（army_think.js の g._tidy・両軍とも）
+    st.stillT = !moving && !P.engaged && !P.routed ? (st.stillT || 0) + step : 0;
+    if (B.real) B.real._tidy = st.stillT >= 3;
     // 切断の引き継ぎ（40 match_link.js の matchDrop が S.byAI を立てる）：切れた側の備は、本人の隊も相手の側も AI が動かす。戻れば matchBack が外す
-    if (!S.byAI && (S === own0 || (P.team !== 0 && !o.both))) continue;
+    // K639 ③（kaito 11/22「動かない味方の隊がある」）：本人の隊（own0）は AI が飛ばすので、本人が馬で離れても隊は布陣の所に立ったままだった。
+    //   本人が三十m より離れ、三十秒内に本人の命令が無ければ、隊は本人の八m 後ろへ付いて来る（命令があれば命令の通り）
+    if (!S.byAI && S === own0) {
+      const me0 = rt.player?.u, pg = B.real;
+      if (me0?.alive && me0.team === S.team && !P.routed && S.state !== '混乱' && !(S._plHold && t - S._plHold.t < 30) && !(pg?._plOrder && t - (pg._plOrder.t ?? -99) < 30) &&
+          Math.hypot(me0.pos.x - P.pos.x, me0.pos.z - P.pos.z) > 30) {
+        const h = me0.heading || 0, to = { x: me0.pos.x - Math.sin(h) * 8, z: me0.pos.z - Math.cos(h) * 8 };
+        // 本陣の守り（army4k.js honjinGuardTick）は H._home へ引き戻すので、付いて行く先を本陣の居所に替える
+        S._home = { x: to.x, z: to.z };
+        butaiApply(B, { id: 'move', to }); st.last = { id: 'move', to, why: '本人に付く' };
+      }
+      continue;
+    }
+    if (!S.byAI && P.team !== 0 && !o.both) continue;
     if (P.routed || S.state === '混乱' || P.strength <= 0) continue;
     if (!S.byAI && S._plHold && t - S._plHold.t < 30) continue;   // 本人の命令から 30 秒（次の命令まで）は AI が下知を重ねない（command.js runCmd が立てる・cloud-26 11/21）
     const g = B.real;
@@ -446,6 +463,9 @@ export function matchAiTick(rt, dt, sonae, o = {}) {
     if (bc?.id && st.seenCmd !== undefined && bc !== st.seenCmd && !(al && al.id === bc.id && ((!al.to && !bc.to) || (al.to && bc.to && d2(al.to, bc.to) < 1)))) st.ext = { id: bc.id === 'charge' ? 'attack' : bc.id, to: bc.to || null, t };
     st.seenCmd = bc || null;   // 始めの下知（備を立てた時の hold）は命令に数えない
     // 切断で AI が継いだ備（byAI）は、切れる前の人の命令を守らない（12秒で1m しか動かなかった＝前の『止まれ』を守り続けた）
+    // K645 ②：本人の命令（command.js の g._plOrder）でない『止まれ』（立て直し・混乱・騎馬の息継ぎ・着いた時に隊の中で立つ hold）は六秒で解く。
+    //   前は命令と取り違えて最大二分（25＋95×従う度）守り、本陣の周りの満員の隊が止まったままだった（十六将の諸大名戦で止まりの訳の一番）
+    if (st.ext?.id === 'hold' && t - st.ext.t > 6) st.ext = null;
     const po = S.byAI ? null : g?._plOrder && (!st.ext || g._plOrder.t >= st.ext.t) ? g._plOrder : st.ext;
     const me = { id: S.id, name: S.taisho, persona: st.persona, pos: P.pos, home: st.home, morale: P.morale, fatigue: st.fatigue, strength: P.strength,
       baitAny: o.tac?.BUSHO_TACTIC?.[S.taisho] === 'tsurinobuse' && !(st.tacUsed > 0),
@@ -534,6 +554,44 @@ export function matchAiTick(rt, dt, sonae, o = {}) {
     if (st.baitUntil > t && !(st.tacUsed > 0) && (P.morale ?? 100) >= 50 && it.why !== '命令') it = { id: 'retreat', to: st.baitTo, why: '誘い' };   // 退けの下知（31 の釣り野伏は備の b.cmd が retreat の隊を囮に数える）
     if (it.why === '誘い') M.baits.push({ S, from: { x: P.pos.x, z: P.pos.z }, to: it.to });
     if (o.field && it.why !== '命令') it = fieldStep(o.field, P, it, me, pub, t, st, M.st, g) || it;
+    // K645 ②（kaito 11/23「自軍の方が多かったのに劣勢。本陣の周りの部隊が動いてない。そいつらが動いてれば勝ってた」）：
+    //   本陣の守りの一隊（本陣に一番近い隊・本陣でない隊が四つ以上の時）は本陣の二十m 前に付き、本陣の九十m 内の敵だけを討つ。
+    //   それ以外の隊は、斬り合わずに十二秒続けて止まっていたら（動いた道のりで見る。決まりの名が替わっても数え続ける）、待たずに
+    //   押されている味方（当たる敵の兵が味方の兵より多い所・三百m 内）の敵か、無ければ一番近い敵（四百m 内）へ自分から寄せて戦う。命令・伏兵・誘いの最中は除く
+    //   止まりは、数え始めた所から六m 以上動いたかで見る（一秒ごとの道のりは兵の揺れで〇・四m/秒を越え、止まっていても数えが戻った）。鉄砲が届く敵を撃っている間は止まりに数えない
+    { const an = st.k645at; if (!an || P.engaged || Math.hypot(P.pos.x - an.x, P.pos.z - an.z) > 6 || /撃つ|斉射/.test(it.why || '')) { st.k645at = { x: P.pos.x, z: P.pos.z }; st.k645still = 0; } else st.k645still = (st.k645still || 0) + step; }   // K639 ① の st.stillT（三秒の整列）とは別の数え
+    if (it.why !== '命令' && !me.honjin) {
+      const gd = (M.guard ||= [null, null]), tm = P.team ? 1 : 0, H = pub.find((q) => q.team === P.team && (q.S.line === 'honjin' || q.S.major) && !q.routed && q.strength > 0);
+      const others = pub.filter((q) => q.team === P.team && !q.routed && q.strength > 0 && !(q.S.line === 'honjin' || q.S.major));
+      const gp = gd[tm] && pub.find((q) => q.S === gd[tm]);
+      if (!H || others.length < 4) gd[tm] = null;
+      else if (!gp || gp.routed || !(gp.strength > 0)) gd[tm] = others.sort((a, c) => Math.hypot(a.pos.x - H.pos.x, a.pos.z - H.pos.z) - Math.hypot(c.pos.x - H.pos.x, c.pos.z - H.pos.z))[0].S;
+      const foesAll = pub.filter((q) => q.team !== P.team && !q.routed && q.strength > 0), dd = (a, c) => Math.hypot(a.pos.x - c.pos.x, a.pos.z - c.pos.z);
+      if (gd[tm] === S && H) {
+        const th = foesAll.filter((q) => dd(q, H) < 90).sort((a, c) => dd(a, H) - dd(c, H))[0];
+        if (th) { if (!(me.kind === 'gun' && me.ammo?.ammo > 0 && dd(th, P) < (me.range || GUN_RANGE) * 0.7)) it = { id: me.kind === 'cavalry' ? 'charge' : 'attack', target: th.id, to: th.pos, why: '本陣の守り' }; }
+        else {
+          const nf3 = foesAll.sort((a, c) => dd(a, H) - dd(c, H))[0], L = nf3 ? dd(nf3, H) || 1 : 1;
+          const to = nf3 ? { x: H.pos.x + (nf3.pos.x - H.pos.x) / L * 20, z: H.pos.z + (nf3.pos.z - H.pos.z) / L * 20 } : { x: H.pos.x, z: H.pos.z };
+          it = Math.hypot(to.x - P.pos.x, to.z - P.pos.z) > 8 ? { id: 'move', to, why: '本陣の守り' } : { id: 'hold', to: { x: P.pos.x, z: P.pos.z }, why: '本陣の守り' };
+        }
+      } else if (st.k645 && t < st.k645.until && /持ち場|予備|翼で待つ|槍衾で受ける|射線で待つ|敵が見えない/.test(it.why || '') && pub.some((q) => q.id === st.k645.id && !q.routed && q.strength > 0)) {
+        // 一度寄せたら二十五秒はその敵へ向かい続ける（前は六m 動くと次の一秒で『持ち場』へ帰り、往き来した）
+        const tg = pub.find((q) => q.id === st.k645.id);
+        it = { id: me.kind === 'cavalry' && dd(tg, P) < 90 ? 'charge' : 'attack', target: tg.id, to: tg.pos, why: st.k645.why };
+      } else if (!P.engaged && t > 30 && st.k645still > 12 && !(st.ambushT > t) && !(st.baitUntil > t) && it.why !== '伏兵' && it.why !== '誘い' && it.why !== '間合いを取る' && it.why !== '弾を取りに戻る') {
+        let best = null, bs = -Infinity;
+        for (const q of pub) {
+          if (q.team !== P.team || q === P || !q.engaged || q.routed || !(q.strength > 0)) continue;
+          const d = dd(q, P); if (d > 300) continue;
+          const th = foesAll.filter((f) => dd(f, q) < 35); if (!th.length) continue;
+          const sc = th.reduce((a, f) => a + f.strength, 0) / Math.max(1, q.strength) * 100 - d * 0.2;
+          if (sc > bs) { bs = sc; best = th.sort((a, c) => c.strength - a.strength)[0]; }
+        }
+        const tg = best || foesAll.filter((f) => dd(f, P) < 400).sort((a, c) => dd(a, P) - dd(c, P))[0];
+        if (tg) { it = { id: me.kind === 'cavalry' && dd(tg, P) < 90 ? 'charge' : 'attack', target: tg.id, to: tg.pos, why: best ? '押される味方へ' : '近くの敵へ' }; st.k645 = { id: tg.id, until: t + 25, why: it.why }; }
+      }
+    }
     // K644 ③：弾のある鉄砲は、どの決まりから『斬り込め』（味方を守る・膠着を破る・本陣を攻める…）が来ても斬り込まず、的から届く距離の七割の所で撃つ（命令は除く）
     if (me.kind === 'gun' && me.ammo?.ammo > 0 && it.why !== '命令' && (it.id === 'attack' || it.id === 'charge')) {
       const tg = it.target != null ? pub.find((q) => q.id === it.target) : null, tp = tg?.pos || it.to;
