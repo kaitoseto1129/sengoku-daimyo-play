@@ -1551,6 +1551,8 @@ function mikiGoalBoard(rt) {
   const dispose = rt.dispose;
   rt.dispose = function () {
     hud.foeMarks = foeMarks; box.remove();
+    // 11/23 クラウドわ K626：hud は戦をまたいで使い回す。▼の候補（_mikiNear・_mikiCand）が前の戦の兵を持ち、Battle・Scene が残った（mem-retain 三木 Battle 1・Scene 2）
+    hud._mikiNear?.clear(); if (hud._mikiCand) hud._mikiCand.length = 0;
     hud.progress = progress;
     if (hud.prog) hud.prog.classList.remove('goal-mode');
     hud.root.classList.remove('miki-goals'); style.remove();

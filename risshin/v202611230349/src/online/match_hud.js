@@ -22,6 +22,11 @@ const CSS = `
 .mh .mh-foe{display:none;margin-top:3px;font-size:11px;letter-spacing:1px;color:#ffb8a8}
 .mh .mh-tr{position:absolute;right:max(10px,env(safe-area-inset-right));top:60px;width:auto;text-align:right}
 .mh .mh-map{display:block;width:280px;height:210px;border:2px solid #e8d9b0aa;border-radius:4px;background:rgba(20,26,20,.72);pointer-events:auto;touch-action:manipulation}
+.mh .mh-map.many{width:310px;height:232px}
+@media (min-height:600px){.mh .mh-map.many{width:380px;height:285px}}
+.mh .mh-bc.two{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:4px;left:calc(env(safe-area-inset-left,0px) + 268px);right:110px;transform:none;max-width:640px}
+.mh.two-cards .mh-pickmsg{bottom:calc(104px + env(safe-area-inset-bottom,0px))}.mh.two-cards .mh-tip{bottom:110px}
+.mh .mh-bc.two .mh-card{width:auto;min-width:0;min-height:36px;padding:2px 3px 3px}.mh .mh-bc.two .mh-card .mh-s{overflow:hidden;text-overflow:ellipsis}.mh .mh-bc.two .mh-card .mh-bar{height:4px;margin-top:2px}.mh .mh-bc.two .mh-card .mh-n{line-height:1.15}.mh .mh-bc.two .mh-card .mh-s{line-height:1.2}.mh .mh-bc.two .mh-card .mh-n{font-size:12px}.mh .mh-bc.two .mh-card .mh-s{font-size:11px}
 .mh .mh-tm{display:inline-flex;align-items:center;gap:5px;margin-top:4px;padding:2px 10px;border-radius:12px;background:#000a;border:1.5px solid #e8d9b0aa;font-size:17px;font-weight:700;font-variant-numeric:tabular-nums}
 .mh .mh-tm::before{content:'⌛';font-size:14px}
 .mh .mh-tm.hot{color:#ffb35a;border-color:#ffb35a}
@@ -79,7 +84,7 @@ function drawMap(cv, rt, M, P, sel) {
     g.fillStyle = '#4a7fa8'; const y0 = Y(r.z + r.w / 2), hh = Math.max(2, (r.w / o.h) * H); g.fillRect(0, y0, W, hh);
     g.fillStyle = '#b9a06a'; for (const bx of [...(r.bridges || []), ...(r.fords || [])]) g.fillRect(X(bx) - 3, y0 - 1, 6, hh + 2);
   }
-  const big = W > 200, rad = big ? 7 : 3.5;
+  const big = W > 200, rad = big ? 7 : 3.5, many = (M.sonae || []).length > 20;
   // K627 ②（kaito 11/22 写真 piece_1122.webp「地図の駒は布陣図の凸の形」）：駒は凸の形（上に細い頭・下に広い台）。自軍は頭が敵の方（上）、敵は頭が自軍の方（下）。
   //   名は連れた武将の全員を省かずに（前は四字で切り、重なって読めない者が居た）。本陣の駒は金の縁と『本』
   const totsu = (x, y, k, up, fill, stroke, lw) => {
@@ -101,7 +106,13 @@ function drawMap(cv, rt, M, P, sel) {
   const drawLabel = (t, x, y, col, dir, al) => {
     g.globalAlpha = al; const fs = W > 400 ? 12 : 10; g.font = `${fs}px sans-serif`; g.textAlign = 'center';
     const w = g.measureText(t).width, h = fs + 2;
-    for (let i = 0; i < 4 && boxes.some((r) => Math.abs(r.x - x) < (r.w + w) / 2 && Math.abs(r.y - y) < h); i++) y += dir * h;
+    const hit = (xx, yy) => boxes.some((r) => Math.abs(r.x - xx) < (r.w + w) / 2 + 1 && Math.abs(r.y - yy) < h);
+    if (!many) { for (let i = 0; i < 4 && hit(x, y); i++) y += dir * h; }
+    else if (hit(x, y)) {   // K642 ④：隊が多い時は、上下へ三段・左右へ半分ずつまで、空いた所を近い順に探す（見つからなければ元の所）
+      let best = null;
+      for (const [dx, dy] of [[0, dir], [0, -dir], [0.55, 0], [-0.55, 0], [0, 2 * dir], [0, -2 * dir], [0.55, dir], [-0.55, dir], [0.55, -dir], [-0.55, -dir], [0, 3 * dir], [0, -3 * dir]]) { const xx = x + dx * (w + 4), yy = y + dy * h; if (yy > h && yy < H - 2 && xx - w / 2 > 1 && xx + w / 2 < W - 1 && !hit(xx, yy)) { best = [xx, yy]; break; } }
+      if (best) [x, y] = best;
+    }
     boxes.push({ x, y, w });
     g.lineWidth = 3; g.strokeStyle = 'rgba(0,0,0,.65)'; g.strokeText(t, x, y); g.fillStyle = col; g.fillText(t, x, y);
   };
@@ -158,6 +169,9 @@ export function mountMatchHud(rt, M, P) {
   H.self = el('div', 'mh-self', tl); H.selfSta = el('i', 'sta', el('span', 'mh-g', H.self)); H.selfFear = el('i', 'fear', el('span', 'mh-g', H.self)); H.selfW = el('em', '', H.self);
   // 右上：地図と残り時間
   const tr_ = el('div', 'mh-tr', root); H.cv = el('canvas', 'mh-map', tr_); H.cv.width = 280; H.cv.height = 210; H.tm = el('div', 'mh-tm', tr_);
+  // K642 ④（kaito 11/23「出陣16に合わせて地図を大きく」）：両軍で二十一隊より多い時は地図を大きく（携帯 310×232・高さ 600 より上の画面 380×285）。
+  //   二十隊までは今のまま（280×210）。描く字は地図の大きさで決まる（drawMap）
+  if ((M.sonae || []).length > 20) { const tall = innerHeight >= 600; H.cv.classList.add('many'); H.cv.width = tall ? 380 : 310; H.cv.height = tall ? 285 : 232; }
   H.cv.setAttribute('role', 'button'); H.cv.setAttribute('aria-label', EN('戦況の地図を大きくする', 'Enlarge battle map'));
   // 上中央・開戦の札
   // 上中央：一本のゲージを半分に割る。左＝自軍の人数（青）・右＝敵軍の約の人数（赤・見えない間は ？）。真ん中の下に戦況
@@ -171,7 +185,7 @@ export function mountMatchHud(rt, M, P) {
   setTimeout(() => { H.intro.style.opacity = '0'; setTimeout(() => H.intro.remove(), 700); }, 3200);
   // 左下：大名本人の名と命は、戦の画面の既存の札が出す（二重に出さない）
   // 下中央：武将の札
-  const bc = el('div', 'mh-bc', root); bc.style.setProperty('--n', String(Math.max(4, (M.sonae || []).filter((x) => !x.team).length))); H.tip = el('div', 'mh-tip', root); H.cards = new Map();
+  const bc = el('div', 'mh-bc', root); { const nOwn = (M.sonae || []).filter((x) => !x.team).length; bc.style.setProperty('--n', String(nOwn > 10 ? 8 : Math.max(4, nOwn))); bc.classList.toggle('two', nOwn > 10); root.classList.toggle('two-cards', nOwn > 10); } H.tip = el('div', 'mh-tip', root); H.cards = new Map();   // K642 ③：十一隊より多い時は二段（一段八枚）
   const mine = (M.sonae || []).filter((s) => !s.team);
   for (const s of mine) {
     const c = el('div', 'mh-card', bc); const n = el('div', 'mh-n', c); const bar3 = el('div', 'mh-bar', c); const bi = el('i', '', bar3); const m3 = el('div', 'mh-bar', c); const mi = el('i', 'm', m3); const st = el('div', 'mh-s', c);

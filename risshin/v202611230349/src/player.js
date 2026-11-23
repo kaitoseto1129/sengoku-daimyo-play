@@ -126,7 +126,8 @@ export function camBlockSphere(o) {
 // 親の移動も見張り、動いた節だけ世界の行列を更新する。止まった壁は判定の線ごとに計算し直さない。
 const camBlockTransforms = new WeakMap();
 export function camBlockWorld(o) {
-  const parent = o.parent, pv = parent ? camBlockWorld(parent) : 0;
+  // 親は id で覚える（物で持つと、戦をまたいで使い回す節が前の戦の Scene を掴んだまま残る・K626 真田丸 11/23 クラウドわ）
+  const parentObj = o.parent, pv = parentObj ? camBlockWorld(parentObj) : 0, parent = parentObj ? parentObj.id : -1;
   let e = camBlockTransforms.get(o);
   if (!e) {
     e = { p: o.position.clone(), q: o.quaternion.clone(), s: o.scale.clone(), m: o.matrix.clone(), parent, pv, auto: o.matrixAutoUpdate, v: 0 };

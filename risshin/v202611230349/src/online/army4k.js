@@ -39,10 +39,13 @@ export const HEISHU_MIX = {
   弓: { bow: 0.95, samurai: 0.05 },
 };
 // K639 ⑧（kaito 11/22「本陣を本陣らしく。本陣だけは特別に、鉄砲だけでなく馬廻り・槍・騎馬も付ける」）：本陣の兵は総大将の兵種を四割五分残し、
-//   槍の足軽二割・馬廻りの騎馬一割五分・侍（旗本）一割五分・鉄砲五分を混ぜる（同じ兵種なら足し合わせる）
+//   槍の足軽二割・侍（旗本・徒歩の馬廻り）三割・鉄砲五分を混ぜる（同じ兵種なら足し合わせる）
+//   K626（11/23 k626_start npc・iPhone 見なし）：馬廻りの騎馬一割五分を入れると、本人のそばの本陣の騎馬（骨入りの人と馬・VAT に入らない）の分だけ
+//   開戦の描く回数の山 339→453・落ち着いた後 166→234・形 666→848・記憶 220→244MB に増えた（三分＝三騎ほどでも 194）。騎馬の分は徒歩の侍へ回した
+//   （騎馬の総大将の本陣は主兵種の四割五分が騎馬のまま）。騎馬を戻すなら、近くの騎馬の人と馬を束で描く作りが先
 const HONJIN_KIND = { 槍: 'ashigaru', 騎馬: 'cavalry', 鉄砲: 'gun', 弓: 'bow' };
 export function honjinMix(hs) {
-  const m = { ashigaru: 0.2, cavalry: 0.15, samurai: 0.15, gun: 0.05 }, k = HONJIN_KIND[hs] || 'ashigaru';
+  const m = { ashigaru: 0.2, samurai: 0.3, gun: 0.05 }, k = HONJIN_KIND[hs] || 'ashigaru';
   m[k] = (m[k] || 0) + 0.45; return m;
 }
 // 主兵種 → 遠くの軽い大軍の並びの型（pvp_army.js の PVP_TYPES）と、槍衾・騎馬の先駆けの型（typeTick）
@@ -290,7 +293,15 @@ function volleyTick(rt, A, S, B, g, kind) {
       for (const q of vict) { const at = A.time + 0.3 + Math.random() * 0.7; (A._salvoQ || (A._salvoQ = [])).push(() => { if (A.time < at) return false; if (q.alive && !q.gone) { q.hitKind = 'gun'; try { A.kill(q, src); } catch (x) { /* 倒せなくても数は減る */ } } return true; }); }
       kr = vict.length; S.visKills = (S.visKills || 0) + kr;
     }
-    e.b.lost = Math.min(e.b.nominal, e.b.lost + Math.max(0, kill - kr));
+    // K639 ④（kaito「鉄砲で敵が倒れない」）：本物で倒した数の残りは軽い大軍の受け持ち。軽い大軍の人数をその分だけ、撃った隊に近い前列から倒して減らす（伏した形を置く）
+    //   軽い大軍の人数が名目より少ない時（携帯など）は、その割合で倒す
+    const kl = Math.max(0, kill - kr);
+    if (kl >= 0.5 && e.b.light?.fell) {
+      const ln = e.b.lightCount(), lnom = Math.max(1, e.b.aliveNominal() - e.b.realCount());
+      const want = kl * Math.min(1, ln / lnom); let nf = Math.floor(want); if (Math.random() < want - nf) nf++;
+      const got = e.b.light.fell(B.pos.x, B.pos.z, nf); S.visLight = (S.visLight || 0) + got; S.lightLost = (S.lightLost || 0) + kl;
+    }
+    e.b.lost = Math.min(e.b.nominal, e.b.lost + kl);
     const mh = (gun ? 1.5 : 1.1) * 85 * kill / e.b.nominal; e.b.morale = Math.max(5, e.b.morale - mh); if (e.b.real?.count) e.b.real.morale = Math.max(5, e.b.real.morale - mh);
   }
   if (gun) S.ammoLeft = Math.max(0, S.ammoLeft - 1);

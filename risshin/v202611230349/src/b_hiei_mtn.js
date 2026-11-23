@@ -1786,10 +1786,11 @@ function hieiExitWay(rt) {
 }
 // 11/18 k365-cloud-43（K365② 重さ）：同じ兵の同じ区間（25cm 刻み）を0.25秒の内に何度も調べ直していた
 //   （道案内・使番・退きの候補選び。W.heightAt が描かずの自己時間の15.6%）。0.25秒の間は前の答えを使う。
+// 軍は WeakRef で覚える（物で持つと、戦を出た後も前の戦の Army→World→Scene を掴み続けた。11/23 mem-retain 比叡山）
 const RUNNER_MEMO = new Map(); let runnerMemoT = -1, runnerMemoArmy = null;
 function runnerClear(army, u, a, b) {
   const tq = Math.floor((army.time || 0) * 4);
-  if (tq !== runnerMemoT || army !== runnerMemoArmy) { RUNNER_MEMO.clear(); runnerMemoT = tq; runnerMemoArmy = army; }
+  if (tq !== runnerMemoT || runnerMemoArmy?.deref() !== army) { RUNNER_MEMO.clear(); runnerMemoT = tq; runnerMemoArmy = new WeakRef(army); }
   const key = u.id + ':' + Math.round(a.x * 4) + ':' + Math.round(a.z * 4) + ':' + Math.round(b.x * 4) + ':' + Math.round(b.z * 4);
   const memo = RUNNER_MEMO.get(key);
   if (memo !== undefined) return memo;

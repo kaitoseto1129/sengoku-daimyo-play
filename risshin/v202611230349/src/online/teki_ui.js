@@ -15,7 +15,7 @@ const FAV_HS = { kiba: '騎馬', teppo: '鉄砲', yari: '槍', yumi: '弓', std:
 const HS_EN = { 騎馬: 'Cavalry', 鉄砲: 'Gunners', 槍: 'Spear', 弓: 'Bow' };
 const HS_MARK = { 騎馬: '騎', 鉄砲: '鉄', 槍: '槍', 弓: '弓' };
 // K638 続き（kaito 11/22「敵を決めるに色々な上限がある。6人しか選べない等でボロボロ」）：敵もこちらの出陣枠と同じ十人まで
-export const FOE_MAX = 10;
+export const FOE_MAX = 16;   // K642 ③：出陣枠と同じ十六
 export const NOMINALS = [1000, 2000, 3000, 5000, 10000];
 const HEISHU = [null, '鉄砲', '騎馬', '槍', '弓'];
 

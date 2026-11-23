@@ -125,13 +125,13 @@ export function toLayout(state, map = { w: 400, h: 300 }) {
 //   枠は自陣の中の四角（または四角の組）。枠の中なら好きな所へ置ける（同じ左翼でも林の縁か平原かを選べる）。別の枠へ落とすと入れ替わる
 // K605（11/21）：前の枠は六人の形（左翼・左中・中央・右中・右翼の五列）で場所を決め、人数に合わせて開く。開いていない枠は地図に薄く『未解放』
 const FRONT6 = ['左翼', '左中', '中央', '右中', '右翼'];
-const OPEN = { 4: ['左翼', '中央', '右翼'], 5: ['左翼', '左中', '中央', '右翼'], 6: FRONT6, 7: FRONT6, 8: FRONT6, 9: FRONT6, 10: FRONT6 };   // K627 ⑤：七・八人目は前の五列と後詰に重ねて置く（自陣のどこにでも置ける＝K624 ⑩）
+const OPEN = { 4: ['左翼', '中央', '右翼'], 5: ['左翼', '左中', '中央', '右翼'], 6: FRONT6, 7: FRONT6, 8: FRONT6, 9: FRONT6, 10: FRONT6, 11: FRONT6, 12: FRONT6, 13: FRONT6, 14: FRONT6, 15: FRONT6, 16: FRONT6 };   // K627 ⑤：七・八人目は前の五列と後詰に重ねて置く（自陣のどこにでも置ける＝K624 ⑩）
 const HQX0 = 62;
 // 置ける範囲は戦場ごと（K605：match_terrain.js の zoneOf。天王寺は右が平野川まで・設楽原は川の手前まで出られる 等）
 const geom = (mapId) => { const Z = zoneOf(mapId), cx = (Z.xl + Z.xr) / 2, hq = Math.min(HQX0, (Z.xl - Z.xr) / 6); return { ...Z, cx, hq }; };
 const frontRect = (name, G0) => { const i = FRONT6.indexOf(name), w = (G0.xl - G0.xr) / 5; return { x0: G0.xl - (i + 1) * w, x1: G0.xl - i * w, z0: G0.fz[0], z1: G0.fz[1] }; };
 export function slotsFor(n, mapId = 'heigen') {
-  const G0 = geom(mapId), open = OPEN[Math.max(4, Math.min(10, n))] || OPEN[4];
+  const G0 = geom(mapId), open = OPEN[Math.max(4, Math.min(16, n))] || OPEN[4];
   const S = open.map((name) => ({ name, rects: [frontRect(name, G0)] }));
   S.push({ name: '後詰', rects: [{ x0: G0.cx + G0.hq, x1: G0.xl, z0: G0.bz[0], z1: G0.bz[1] }, { x0: G0.xr, x1: G0.cx - G0.hq, z0: G0.bz[0], z1: G0.bz[1] }] });
   // 本陣（K605）：後ろ（安全）と、前の列のすぐ後ろの真ん中（命令が届きやすい）の二か所から選ぶ
@@ -146,7 +146,7 @@ export const DEPLOY_Z = -24;
 export function clampDeploy(p, map = { w: 400, h: 300 }) { return { x: Math.max(-map.w / 2 + 8, Math.min(map.w / 2 - 8, p.x)), z: Math.max(-map.h / 2 + 8, Math.min(DEPLOY_Z, p.z)) }; }
 export function slotOfPos(p, i, n, mapId = 'heigen') {
   if (i === 0) return '本陣';
-  const G0 = geom(mapId), open = OPEN[Math.max(4, Math.min(10, n))] || OPEN[4];
+  const G0 = geom(mapId), open = OPEN[Math.max(4, Math.min(16, n))] || OPEN[4];
   if (p.z < (G0.bz[1] + G0.fz[0]) / 2 - 6) return '後詰';
   const k = Math.max(0, Math.min(open.length - 1, Math.floor((G0.xl - p.x) / ((G0.xl - G0.xr) / open.length))));
   return open[k];
@@ -164,7 +164,7 @@ export function jinLayout(name, n, map = { w: 400, h: 300 }) {
   return out;
 }
 /** 開いていない前の枠（地図に薄く出す） */
-export const lockedSlots = (n, mapId = 'heigen') => { const G0 = geom(mapId); return FRONT6.filter((nm) => !(OPEN[Math.max(4, Math.min(10, n))] || OPEN[4]).includes(nm)).map((name) => ({ name, rects: [frontRect(name, G0)] })); };
+export const lockedSlots = (n, mapId = 'heigen') => { const G0 = geom(mapId); return FRONT6.filter((nm) => !(OPEN[Math.max(4, Math.min(16, n))] || OPEN[4]).includes(nm)).map((name) => ({ name, rects: [frontRect(name, G0)] })); };
 /** 本陣の置き場の種類（K605：後ろ＝安全・中央＝命令が有利） */
 export const honjinKind = (p, mapId = 'heigen') => (p && p.z > geom(mapId).bz[1] ? '中央' : '後ろ');
 const inR = (r, p) => p.x >= r.x0 && p.x <= r.x1 && p.z >= r.z0 && p.z <= r.z1;
@@ -188,7 +188,7 @@ export function slotLayout(generals, mapId = 'heigen') {
     const c = want === '後詰' ? { x: G0.cx + G0.hq + 26, z: (G0.bz[0] + G0.bz[1]) / 2 } : center(sl.rects[0]);
     return { ...g, slot: sl.name, pos: c, facing: 0, honjin: sl.honjin === true };
   });
-  for (let i = 1; i < out.length; i++) for (let t = 0; t < 4 && out.slice(0, i).some((o) => Math.hypot(o.pos.x - out[i].pos.x, o.pos.z - out[i].pos.z) < 22); t++) out[i].pos = { x: out[i].pos.x, z: Math.max(-140, out[i].pos.z - 22) };   // K633 ③：近すぎる駒は後ろへ
+  spreadPieces(out);   // K633 ③・K642 ③：近すぎる駒は離す
   return out;
 }
 /** おすすめ布陣（K601 48〜49・39）：兵種と地形から。騎馬＝翼の平原・槍＝中央・鉄砲＝丘か後ろ寄り・弓＝丘か側翼。総大将は本陣の一番高い所 */
@@ -291,8 +291,22 @@ export function placeDefault(def, mapId, heishuOfName = () => '槍') {
     return { name: q.name, slot: name, pos: { ...best }, formation: JIN_NAMES.includes(q.formation) ? q.formation : '横陣', honjin: name === '本陣' };
   });
   // K633 ③：同じ枠の吸い付く点は 13m ほどしか離れず、九人・十人だと駒（幅 64px）が重なった。先に置いた駒と 22m より近い駒は、二十二m ずつ後ろ（自陣の側）へ下げる
-  for (let i = 1; i < out.length; i++) for (let t = 0; t < 4 && out.slice(0, i).some((o) => Math.hypot(o.pos.x - out[i].pos.x, o.pos.z - out[i].pos.z) < 22); t++) out[i].pos = { x: out[i].pos.x, z: Math.max(-140, out[i].pos.z - 22) };
+  spreadPieces(out);
   return out;
+}
+// K633 ③：先に置いた駒と 22m より近い駒は、二十二m ずつ後ろ（自陣の側）へ下げる（十人まで）。
+// K642 ③（十一〜十六人）：駒は八割の大きさ（fujin2.many）でも、地図の上で横 31m・縦 33m より近いと画面で重なる。重なる駒は、
+//   後ろ・左右・斜め後ろ・前の順に、一段（横 32m・縦 34m）ずつ遠くの空いた所へ動かす（自陣の内：左右 ±180m・前は DEPLOY_Z の 6m 手前まで・後ろは −146m まで）
+function spreadPieces(out) {
+  if (out.length <= 10) { for (let i = 1; i < out.length; i++) for (let t = 0; t < 4 && out.slice(0, i).some((o) => Math.hypot(o.pos.x - out[i].pos.x, o.pos.z - out[i].pos.z) < 22); t++) out[i].pos = { x: out[i].pos.x, z: Math.max(-140, out[i].pos.z - 22) }; return; }
+  const hit = (a, b) => Math.abs(a.x - b.x) < 31 && Math.abs(a.z - b.z) < 33, zMax = DEPLOY_Z - 6;
+  const ok = (p, i) => Math.abs(p.x) <= 180 && p.z >= -146 && p.z <= zMax && !out.slice(0, i).some((o) => hit(o.pos, p));
+  for (let i = 1; i < out.length; i++) {
+    const p0 = out[i].pos; if (ok(p0, i)) continue;
+    let got = null;
+    for (let r = 1; r <= 6 && !got; r++) for (const [dx, dz] of [[0, -1], [1, 0], [-1, 0], [1, -1], [-1, -1], [0, 1], [1, 1], [-1, 1]]) { const q = { x: Math.round(p0.x + dx * 32 * r), z: Math.round(Math.min(zMax, p0.z + dz * 34 * r)) }; if (ok(q, i)) { got = q; break; } }
+    if (got) out[i].pos = got;
+  }
 }
 /** 既定の布陣を、その戦場で試合（match.js）へ渡す並びにする */
 export function layoutFromDefault(def, mapId, map = { w: 400, h: 300 }, heishuOfName, typeOfName = () => null) {
@@ -340,7 +354,7 @@ export function mountFujin(root, opts) {
   const foeShown = false;   // K624 ⑩：敵の配置は地図に出さない（名だけ上に）。地図は自陣を大きく映す
 
   const wrap = document.createElement('div');
-  wrap.className = 'fujin2';
+  wrap.className = 'fujin2' + (N > 10 ? ' many' : '');   // K642 ③：十一人より多い時は駒を八割に・右の欄を細く（地図を広く）
   wrap.style.cssText = 'position:relative;width:100%;height:100%;box-sizing:border-box;display:grid;grid-template-columns:auto 1fr auto;grid-template-rows:auto 1fr auto;background:#1c140c;color:#f3ecd8;font:14px/1.35 sans-serif;touch-action:none;user-select:none;-webkit-user-select:none;padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px);overflow:hidden';
   const sty = document.createElement('style');
   sty.textContent = `@keyframes fujinGlow{0%,100%{box-shadow:0 0 6px 1px rgba(255,233,168,.35)}50%{box-shadow:0 0 0 4px rgba(255,233,168,.28),0 0 16px 5px rgba(255,233,168,.7)}}.fujin-go.on{animation:fujinGlow 1.6s ease-in-out infinite;border-color:#ffe9a8!important}@media (prefers-reduced-motion:reduce){.fujin-go.on{animation:none;box-shadow:0 0 0 3px rgba(255,233,168,.8)}}
@@ -368,6 +382,7 @@ export function mountFujin(root, opts) {
 .fj-tip{position:absolute;pointer-events:none;padding:3px 8px;border-radius:4px;background:rgba(24,16,8,.92);border:1px solid #c9b27a;font-size:13px;white-space:nowrap;z-index:5;transform:translate(-50%,-100%)}
 .fj-ov{position:absolute;inset:0;z-index:9;display:flex;align-items:center;justify-content:center;background:rgba(8,6,4,.62)}
 .fj-ov .bx{padding:18px 20px;background:#17130e;border:1px solid #d9b45a;border-radius:6px;text-align:center;display:flex;flex-direction:column;gap:12px}
+.fujin2.many .fj-card{transform:scale(.8)}.fujin2.many .fj-det{width:132px;font-size:12px}.fujin2.many .fj-det b{font-size:14px}.fujin2.many .fj-bk{width:132px!important}
 .fj-cd{position:absolute;inset:0;z-index:10;display:flex;align-items:center;justify-content:center;font:700 72px serif;color:#ffe9a8;text-shadow:0 2px 12px #000;pointer-events:none}`;
   wrap.appendChild(sty);
   const btn = (txt, cls = '') => { const b = document.createElement('button'); b.type = 'button'; b.className = 'fj-b ' + cls; b.textContent = txt; return b; };
@@ -401,7 +416,7 @@ export function mountFujin(root, opts) {
   // 右：選んだ武将の詳細・布陣帳
   const right = document.createElement('div'); right.style.cssText = 'display:flex;flex-direction:column;gap:6px;padding:4px 6px;min-height:0;overflow:auto';
   const det = document.createElement('div'); det.className = 'fj-det'; det.setAttribute('role', 'button'); det.tabIndex = 0;
-  const book = document.createElement('div'); book.style.cssText = 'display:flex;flex-wrap:wrap;gap:4px;width:176px';
+  const book = document.createElement('div'); book.className = 'fj-bk'; book.style.cssText = 'display:flex;flex-wrap:wrap;gap:4px;width:176px';
   const bookBtns = BOOK_NAMES.map((n) => { const b = btn(W2(n, { 標準: 'Std', 攻勢: 'Attack', 守備: 'Defend', 騎馬: 'Cav', 鉄砲: 'Guns' }[n])); b.style.cssText += ';min-width:44px;padding:0 6px;font-size:12px'; b.dataset.book = n; b.onclick = () => { bookSel = n; const bk = bookLoad()[mapId + ':' + n]; if (bk) applyBook(bk); draw(); }; return b; });
   const bSave = btn(W2('残す', 'Save')); bSave.style.cssText += ';font-size:12px;padding:0 8px'; bSave.onclick = () => { const bk = bookLoad(); bk[mapId + ':' + bookSel] = snap(); bookSave(bk); flash(W2(`布陣帳『${bookSel}』に残した`, `Saved "${bookSel}"`)); draw(); };
   book.append(...bookBtns, bSave);

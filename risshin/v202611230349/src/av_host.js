@@ -8,9 +8,12 @@
 import { MEM_TIGHT } from './settings.js';
 import { FACTION } from './units_data.js';
 import { ARMY_STRENGTH } from './army_scale.js';
+import { MEM_BUDGET } from './device_tier.js';
 
 const BIG = /(徳川家康|徳川秀忠|羽柴秀吉|豊臣秀吉|木下秀吉|豊臣秀頼|織田信長|今川義元|武田勝頼|武田信玄|石田三成|宇喜多秀家|毛利輝元|上杉景勝|北条氏政|島津義久)/;
-const CAP = 200;                                   // 本物の兵がこの数を超えていれば足さない（wake の枠を残す）
+// 11/23 クラウドか（K564・根来寺 mem=3 の段0 が 193〜200）：記憶の予算を見ず 200 まで足し、根来の始めに秀吉の本陣へ十・旗本へ五を足して予算180 を越えた。
+//   記憶の少ない端末では予算−20 まで（3GB 160・4GB 185。5〜6GB と 8GB・PC は今まで通り 200）
+const CAP = MEM_BUDGET.real ? Math.min(200, MEM_BUDGET.real - 20) : 200;   // 本物の兵がこの数を超えていれば足さない（wake の枠を残す）
 const REAL = MEM_TIGHT ? { hon: 20, saki: 12 } : { hon: 28, saki: 18 };   // 一つの隊の本物の兵の数（足すのはここまで）
 const REAL_BUDGET = MEM_TIGHT ? 40 : 70;           // 一つの戦で足す本物の兵の合わせた数
 const LIGHT_BUDGET = MEM_TIGHT ? 1100 : 2000;      // 一つの戦の軽い段の合わせた人数

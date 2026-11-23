@@ -6,7 +6,7 @@
 // 武将の表は bushou_online.js（27）が元。どの家も初めの4人でコスト上限65に収まるようにした。
 import { drawMon } from '../textures.js';
 
-import { BUSHOU_ONLINE, COST } from './bushou_online.js';
+import { BUSHOU_ONLINE, COST, MERGED_ID, MERGED_NAME } from './bushou_online.js';
 import { newBank, grant } from './busho_bank.js';
 import { isEn, tr, addEn } from '../i18n.js';
 // 英語の時だけ、模擬合戦で出る共通の札の英訳を足す（online/i18n_match48.js）
@@ -61,9 +61,19 @@ function addOwned(o, name) {
   if (!o.owned.includes(name)) o.owned.push(name);
   if (!o.kata[name]) o.kata[name] = b.fav;
 }
+// K642（11/23）：同じ人の二行を一人にまとめた（MERGED_NAME・MERGED_ID）。保存の中の名と id を残る方へ寄せる（重なれば一人に）
+function mergeSame(o) {
+  const nm = (x) => MERGED_NAME[x] || x, uniq = (a) => [...new Set(a.map(nm))];
+  if (Array.isArray(o.owned)) o.owned = uniq(o.owned);
+  if (Array.isArray(o.army)) o.army = o.army.map((x) => (typeof x === 'string' ? nm(x) : x)).filter((x, i, a) => x == null || typeof x !== 'string' || a.indexOf(x) === i);
+  if (o.kata) for (const [a, b] of Object.entries(MERGED_NAME)) if (a in o.kata) { if (!(b in o.kata)) o.kata[b] = o.kata[a]; delete o.kata[a]; }
+  for (const box of [o.bank?.owned, o.toyo?.owned]) if (box) for (const [a, b] of Object.entries(MERGED_ID)) if (a in box) { box[b] = Math.max(box[b] || 0, box[a] || 0) || box[a]; delete box[a]; }
+  return o;
+}
 export function syncOwned(o) {
   if (!o) return o;
   o.owned = o.owned || []; o.kata = o.kata || {};
+  mergeSame(o);
   if (!o.bank) { o.bank = newBank(); for (const n of o.owned.slice()) addOwned(o, n); }
   for (const id of Object.keys(o.bank.owned)) { const b = byId(id); if (b && o.bank.owned[id] > 0) { if (!o.owned.includes(b.name)) o.owned.push(b.name); if (!o.kata[b.name]) o.kata[b.name] = b.fav; } }
   return o;

@@ -324,7 +324,7 @@ export const ArmyRanged = {
       if (b.far) { b.acc += dt; if (b.acc < 0.08) continue; remaining = b.acc; b.acc = 0; }
       while (remaining > 0 && b.live) {
         const step = Math.min(remaining, b.far ? 0.16 : 0.05, (100 - b.distance) / 160);
-        if (step <= 0) { b.live = false; if (this.lethal) lethalBulletPath(this, b.ox, b.oz, b.x, b.z, b.u.team, null); if (this.missile) missileNear(this, b.x, b.z, b.u.team, 'gun', 3, b.u); if (b.u.onGunResult) { const r = b.result; r.u = b.u; r.victim = null; r.res = null; r.blocked = false; b.u.onGunResult(r); } break; }
+        if (step <= 0) { b.live = false; if (this.world?.fellByShot && !b.u.isPlayer && Math.random() < 0.35) this.world.fellByShot(b.ox, b.oz, b.x, b.z, b.u.team); if (this.lethal) lethalBulletPath(this, b.ox, b.oz, b.x, b.z, b.u.team, null); if (this.missile) missileNear(this, b.x, b.z, b.u.team, 'gun', 3, b.u); if (b.u.onGunResult) { const r = b.result; r.u = b.u; r.victim = null; r.res = null; r.blocked = false; b.u.onGunResult(r); } break; }
         remaining -= step;
         const dx = b.vx * step, dz = b.vz * step, dy = b.vy * step - 4.9 * step * step;
         const cover = projectileCover(this, b.x, b.y, b.z, b.x + dx, b.y + dy, b.z + dz, b.u);
@@ -366,6 +366,8 @@ export const ArmyRanged = {
           b.live = false;
           if (this.lethal) lethalBulletPath(this, b.ox, b.oz, b.x + dx * first, b.z + dz * first, b.u.team, victim);
           if (this.missile) missileNear(this, b.x + dx * first, b.z + dz * first, b.u.team, 'gun', 3, b.u);
+          // K639 ④：人に当たらず地面・物に落ちた弾も、その手前の線に敵の軽い大軍の兵が居れば倒す（飛び終えた弾と同じ）
+          if (!victim && this.world?.fellByShot && !b.u.isPlayer && Math.random() < 0.35) this.world.fellByShot(b.ox, b.oz, b.x + dx * first, b.z + dz * first, b.u.team);
           const r = b.result; r.u = b.u; r.t = b.t; r.victim = victim; r.res = null; r.armor = false; r.blocked = !victim;
           const horse = b.u.isPlayer && victim?.team === b.u.team && victim.mounted && victim.horse && !victim.isPlayer && !victim.invuln && hitY < victim.pos.y + RIDE.y;
           if (victim && (victim.team !== b.u.team || horse || this.world.def.friendlyProjectiles)) {

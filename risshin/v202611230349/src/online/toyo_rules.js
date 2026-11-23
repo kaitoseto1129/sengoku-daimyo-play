@@ -59,7 +59,32 @@ const openPick = (banner) => (banner.pickup && isOpen(banner.pickup) && (!banner
 // 候補三人（同じ人は並べない）。banner.pickup＝ピックアップの武将 id。
 //   banner.bank＝33 の手持ちの帳（busho_bank.js）がある時は、格を決めた後の人選びを 33 の drawTrio に任せる
 //   （無料は持っていない人を一・五倍・有料は三組続けて全部手持ちなら次は手持ちに無い人）。ピックアップの枠だけはここで先に決める。
-export function rollSet(kind, rng, banner = {}) {
+// K642：exclude（Set の id）＝同じ十回の中でもう並んだ人（各組の先頭）。普通に三人を引いた後、先頭がもう出た人なら同じ格の別の人に替える
+//   （格の出方＝提供割合は変えない。その格の人が尽きた時だけ近い格の人にする）。exclude が無い時は今まで通り
+export function rollSet(kind, rng, banner = {}, exclude = null) {
+  const set = rollSetRaw(kind, rng, banner);
+  if (!exclude) return set;
+  const arm = openPickArm(banner);
+  const ORD = ['SS', 'S', 'A', 'R', 'N'];
+  const fresh = (rank, taken) => poolOf(rank, arm).filter((c) => !exclude.has(c.id) && !taken.has(c.id) && !c.notInGacha);
+  const taken = new Set();
+  const out = [];
+  for (const [k, b] of set.entries()) {
+    // 十回の画面に並ぶのは各組の先頭の一人（toyo_screen.js drawFlat）。先頭だけを替え、ほかの二人はそのまま（率の動きを最小にする）
+    if (k > 0 || (b && !exclude.has(b.id) && !taken.has(b.id))) { if (b) { out.push(b); taken.add(b.id); } continue; }
+    const r0 = b ? b.rank : 'N', i0 = ORD.indexOf(r0);
+    let pick = null;
+    for (const d of [0, 1, -1, 2, -2, 3, -3, 4, -4]) {   // 同じ格 → 一つ下 → 一つ上 …
+      const r = ORD[i0 + d]; if (!r) continue;
+      const pool = fresh(r, taken); if (pool.length) { pick = pool[Math.floor(rng() * pool.length)]; break; }
+    }
+    if (!pick && arm) { const pool = ORD.flatMap((r) => poolOf(r).filter((c) => !exclude.has(c.id) && !taken.has(c.id))); if (pool.length) pick = pool[Math.floor(rng() * pool.length)]; }
+    const x = pick || b; if (x) { out.push(x); taken.add(x.id); }
+  }
+  return out;
+}
+const openPickArm = (banner) => banner.arm;
+function rollSetRaw(kind, rng, banner = {}) {
   banner = { ...banner, pickup: openPick(banner) };
   const rates = kind === 'paid' ? RATES.paid : banner.event ? RATES.freeEvent : RATES.free;
   if (banner.bank) {
@@ -120,9 +145,10 @@ export function pull(st, kind, n, rng, banner = {}) {
   const cost = n === 10 ? PRICE.ten : n === 1 ? PRICE.one : NaN;
   if (!(st.kin >= cost)) return { ok: false, why: 'kin', need: cost - (st.kin || 0) };
   st.kin -= cost;
-  const sets = [], got = [];
+  const sets = [], got = [], seen = n > 1 ? new Set() : null;   // K642：十回の中では同じ武将を二度出さない
   for (let i = 0; i < n; i++) {
-    sets.push(rollSet('paid', rng, banner));
+    sets.push(rollSet('paid', rng, banner, seen));
+    if (seen && sets[sets.length - 1][0]) seen.add(sets[sets.length - 1][0].id);
     st.pity++;
     for (const p of PITY) if (st.pity === p.at) { st.tickets[p.ticket]++; got.push(p); }
     if (st.pity >= PITY_CYCLE) st.pity = 0;
