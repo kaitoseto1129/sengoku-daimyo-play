@@ -204,7 +204,7 @@ export function attachCmdNet(rt, T, getFoeUnits, o = {}) {
 // ---------------- 模擬合戦（online/match.js）へのつなぎ ----------------
 // その側の4武将（備）を輪の札の形に。id 0＝総大将（布陣の一番目）
 export function matchUnits(rt, team) {
-  return (rt.sonae || []).filter((S) => S.team === team).slice(0, 10).map((S, id) => ({ id, name: S.taisho || S.name, mon: S.flag || S.faction || 'oda', o: S }));
+  return (rt.sonae || []).filter((S) => S.team === team).slice(0, 16).map((S, id) => ({ id, name: S.taisho || S.name, mon: S.flag || S.faction || 'oda', o: S }));
 }
 // 試合の始まりに一度（match.js の setup から）：ui＝command_ui.js・net＝onlineMatch の口 { send, recv }（無ければ一人で）
 //   輪の命令は自分の総大将（本人の体）の所から使番が走る。相手の札は相手の総大将の備の所から走る

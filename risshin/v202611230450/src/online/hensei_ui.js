@@ -7,15 +7,15 @@ import { HOUSES, RARITY, ROSTER, bushoOf, costOf, armyCost, loadOnline, saveOnli
 import { unitOf, keywordsOf, unitIcon, troopsOf } from './unit_type.js';
 import { canBuyKin } from './kin_store.js';
 
-export const SLOT_MAX = 10;   // K627 ⑤（6→8）・K633 ③（kaito 11/22「出陣武将を8→10に」）
-export const SLOT_PRICE = { 5: 1500, 6: 3000, 7: 4500, 8: 6000, 9: 7500, 10: 9000 };
+export const SLOT_MAX = 16;   // K627 ⑤（6→8）・K633 ③（8→10）・K642 ③（kaito 11/23「出陣を10→16人まで」）
+export const SLOT_PRICE = { 5: 1500, 6: 3000, 7: 4500, 8: 6000, 9: 7500, 10: 9000, 11: 10500, 12: 12000, 13: 13500, 14: 15000, 15: 16500, 16: 18000 };
 // K610（kaito）：総大将（家の大名本人・一番目の枠）の Cost は数えない。上限は家臣だけ（4将65・5将80・6将95）
 export const vassalCost = (army) => armyCost((army || []).slice(1));
-export const capOf = (n) => ({ 4: 65, 5: 80, 6: 95, 7: 110, 8: 125, 9: 140, 10: 155 }[n] || 65);
+export const capOf = (n) => ({ 4: 65, 5: 80, 6: 95, 7: 110, 8: 125, 9: 140, 10: 155, 11: 170, 12: 185, 13: 200, 14: 215, 15: 230, 16: 245 }[n] || 65);
 export const slotsOf = (o) => Math.max(4, Math.min(SLOT_MAX, o?.slots || 4));
 export const daimyoOf = (o) => ROSTER.find((b) => b.house === o?.house && b.start && b.rare === 'SS')?.name || null;
-const ROLE = ['総大将', '左翼', '右翼', '後詰', '第五陣', '第六陣', '第七陣', '第八陣', '第九陣', '第十陣'];
-const NUM = ['', '', '', '', '五', '六', '七', '八', '九', '十'];
+const ROLE = ['総大将', '左翼', '右翼', '後詰', '第五陣', '第六陣', '第七陣', '第八陣', '第九陣', '第十陣', '第十一陣', '第十二陣', '第十三陣', '第十四陣', '第十五陣', '第十六陣'];
+const NUM = ['', '', '', '', '五', '六', '七', '八', '九', '十', '十一', '十二', '十三', '十四', '十五', '十六'];
 // 兵種の色（印と色の両方で見分ける・原理5）。騎馬＝朱・鉄砲＝鉄の灰・槍＝藍・弓＝萌黄
 const UCOL = { kiba: '#e8957a', teppo: '#cfc8ba', yari: '#94b6e8', yumi: '#a8d68e' };
 // 枠の役の印（原理3）：本陣＝旗・後詰＝予備の輪
@@ -30,7 +30,7 @@ OPEN[7] = OPEN[8] = OPEN[9] = OPEN[10] = OPEN[6];   // K638：七人より多い
 const PREF = ['左翼', '右翼', '後詰', '中央', '左中', '右中'];
 export const JIN = ['横陣', '縦陣', '魚鱗', '鶴翼', '長蛇', '方円'];
 export const BOOKS = ['標準', '攻勢', '守備', '騎馬', '鉄砲'];
-const placesOf = (n) => [...(OPEN[Math.max(4, Math.min(10, n))] || OPEN[4]), '後詰'];
+const placesOf = (n) => [...(OPEN[Math.max(4, Math.min(16, n))] || OPEN[4]), '後詰'];
 /** 既定の布陣（k592 の布陣・始まりの道が読む）：[{ name, slot: '本陣'|'左翼'|…, formation }] と布陣帳の名。無ければ null */
 export function defaultFujinOf(o) {
   const d = o?.defaultFujin; if (!d?.pieces?.length) return null;
@@ -62,6 +62,7 @@ const CSS = `
 .olh .hz-nm{font-size:14px;color:#ece4d2;line-height:1.25;display:flex;gap:4px;align-items:center;max-width:100%;white-space:normal}.olh .hz-nm i{font-style:normal;white-space:normal;overflow-wrap:anywhere;text-align:center;line-height:1.1;font-size:13px}
 .olh .hz-unit{white-space:nowrap;display:flex;align-items:center;gap:4px;color:var(--uc,#f3d68a);font-size:14px;font-weight:600}
 .olh .hz-slots.many .hz-unit{font-size:11px;gap:2px}.olh .hz-slots.many .hz-info{font-size:11px}.olh .hz-slots.many .hz-unit svg,.olh .hz-slots.many .hz-unit canvas{width:11px;height:11px}
+.olh .hz-slots.two{gap:4px;padding:3px 0}.olh .hz-slots.two .hz-slot{min-height:0;padding:19px 2px 2px;gap:0}.olh .hz-slots.two .hz-slot .ol-face{width:30px;height:30px}.olh .hz-slots.two .hz-role{top:2px;left:auto;right:3px;transform:none;font-size:10.5px;letter-spacing:0;max-width:calc(100% - 26px);flex-wrap:nowrap;overflow:hidden}.olh .hz-slots.two .hz-role svg,.olh .hz-slots.two .hz-jin{display:none}.olh .hz-slots.two .hz-rb{height:15px;line-height:15px;font-size:10.5px;min-width:18px;padding:0 3px}.olh .hz-slots.two .hz-nm i{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;max-width:100%}.olh .hz-slots.two .hz-nm{max-width:100%;overflow:hidden}.olh .hz-slots.two .hz-info{font-size:10px;line-height:1.15}.olh .hz-slots.two .hz-unit{font-size:10px}.olh .hz-slots.two .hz-unit svg,.olh .hz-slots.two .hz-unit canvas{width:10px;height:10px}.olh .hz-slots.two .hz-lock{top:19px;right:2px;font-size:9px;padding:0 2px}.olh .hz-slots.two .hz-slot.locked{font-size:10.5px;line-height:1.2}
 .olh .hz-lock{position:absolute;top:3px;right:4px;font-size:11px;padding:0 5px;border:1px solid #c2a25a;border-radius:3px;color:#d9b45a}
 .olh .hz-slot.locked{flex-direction:column;justify-content:center;border-style:dashed;color:#c9b98f}
 .olh .hz-slot.locked b{font-size:15px;color:#ece4d2}
@@ -258,7 +259,8 @@ export function openHensei(o, onDone, onBack) {
           : [`${filled}人で出陣できます`, filled < N ? `空き ${N - filled} 枠` : '', N < SLOT_MAX ? `あと ${SLOT_MAX - N} 枠は鍵（第${NUM[N]}陣から順に開ける・最大 ${SLOT_MAX} 人）` : `最大 ${SLOT_MAX} 人`, owned < N ? `手持ち ${owned} 人（登用で増える）` : ''].filter(Boolean).join('・');
         whyEl.classList.toggle('warn', warn);
       } }
-    slots.style.setProperty('--n', String(Math.min(SLOT_MAX, N + (N < SLOT_MAX ? (N + 1 < SLOT_MAX ? 2 : 1) : 0))));
+    { const cols = Math.min(SLOT_MAX, N + (N < SLOT_MAX ? (N + 1 < SLOT_MAX ? 2 : 1) : 0)), two = cols > 10;   // K642 ③：十一より多い時は二段（一段八つまで）に小さな札で並べる
+      slots.style.setProperty('--n', String(two ? Math.ceil(cols / 2) : cols)); slots.classList.toggle('two', two); }
     slots.classList.toggle('many', N >= 8);   // K633 ③：八枠より多い時は、兵種と兵力・Cost の字を小さく（十枠で枠からはみ出た）
     slots.innerHTML = '';
     army.forEach((n, i) => {

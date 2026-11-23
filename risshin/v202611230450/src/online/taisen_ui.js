@@ -33,8 +33,8 @@ const LV_DESC = { shokyu: '初級：動きが遅く、予備と側面が甘い�
 const LV_DESC_EN = { shokyu: 'Easy: slow to react, weak reserves.', chukyu: 'Normal: standard tactics, same strength.', jokyu: 'Hard: ambush, flanks and terrain. One more enemy unit.', shura: 'Shura: reads matchups, fast decisions. Two more enemy units.' };
 /** 家臣団（十人ほど）：npc_clans.js の NPC_RETAINERS か、登用の表のその家の者（位の順） */
 export function retainersOf(house, NC) {
-  const R = NC?.NPC_RETAINERS?.[house]; if (Array.isArray(R) && R.length) return R.slice(0, 10);
-  return BUSHOU_ONLINE.filter((b) => b.house === house).sort((a, b) => RANK.indexOf(a.rank) - RANK.indexOf(b.rank)).map((b) => b.name).slice(0, 10);
+  const R = NC?.NPC_RETAINERS?.[house]; if (Array.isArray(R) && R.length) return R.slice(0, 16);
+  return BUSHOU_ONLINE.filter((b) => b.house === house).sort((a, b) => RANK.indexOf(a.rank) - RANK.indexOf(b.rank)).map((b) => b.name).slice(0, 16);
 }
 /** 家の編成の候補：[{ id, name, era, generals:[4] }]。npc_clans.js の形（NPC_CLANS[house] = [{ id, name, era, generals }]）を先に */
 export function clanVariants(house, NC) {
@@ -45,7 +45,7 @@ export function clanVariants(house, NC) {
   const clan = NC?.NPC_CLAN_BY_ID?.[house] || (Array.isArray(NC?.NPC_CLANS) ? NC.NPC_CLANS.find((c) => c.id === house) : null);
   const ext = clan?.formations || (!Array.isArray(NC?.NPC_CLANS) ? NC?.NPC_CLANS?.[house] : null);
   if (Array.isArray(ext) && ext.length) {
-    const vs = ext.map((v, i) => ({ id: v.id || `${house}${i}`, name: (isEn() ? v.nameEn : v.name) || v.name || '', era: v.year ? String(v.year) : v.era || '', generals: (v.generals || []).map(byId).filter(Boolean).slice(0, 10) })).filter((v) => v.generals.length >= 4);
+    const vs = ext.map((v, i) => ({ id: v.id || `${house}${i}`, name: (isEn() ? v.nameEn : v.name) || v.name || '', era: v.year ? String(v.year) : v.era || '', generals: (v.generals || []).map(byId).filter(Boolean).slice(0, 16) })).filter((v) => v.generals.length >= 4);
     if (vs.length) return vs;
   }
   const all = BUSHOU_ONLINE.filter((b) => b.house === house);
@@ -152,7 +152,7 @@ export function openTaisen(hooks = {}) {
   // K611 ③［敵を決める］：どの家の武将でも敵に・一隊の兵力と兵種も自由（teki_ui.js）。褒美なし
   async function openTekiHere() {
     await ready; if (!TK?.openTeki) return;
-    const mineArmy = ((H?.loadOnline?.() || {}).army || []).filter(Boolean).slice(0, 10), mineCount = mineArmy.length || 4;   // K638：自軍の兵力を格の兵で出すため名も渡す
+    const mineArmy = ((H?.loadOnline?.() || {}).army || []).filter(Boolean).slice(0, 16), mineCount = mineArmy.length || 4;   // K638：自軍の兵力を格の兵で出すため名も渡す
     TK.openTeki(body, { top, houses: HOUSE, maps: MAPS, face: H?.face, mineCount, mineArmy, onBack: () => pickHouse(false), onGo: (cfg) => { close(); hooks.onFree(cfg); } });
   }
   // ② 家と特徴 → 代表の4人・難易度・戦場（一つの画面で選ぶ）
@@ -210,14 +210,14 @@ export function openTaisen(hooks = {}) {
       });
       scr.appendChild(four);
       // K608：家臣団（十人ほど）と兵力。初級・中級は自分と同じ出陣の数、上級は一隊・修羅は二隊多い
-      const mine = Math.max(4, Math.min(10, ((H?.loadOnline?.() || {}).army || []).filter(Boolean).length || 4));
-      const nFoe = Math.min(10, mine + (state.level === 'jokyu' ? 1 : state.level === 'shura' ? 2 : 0));
+      const mine = Math.max(4, Math.min(16, ((H?.loadOnline?.() || {}).army || []).filter(Boolean).length || 4));
+      const nFoe = Math.min(16, mine + (state.level === 'jokyu' ? 1 : state.level === 'shura' ? 2 : 0));
       const ret = retainersOf(state.house, NC);
       const kd = document.createElement('div'); kd.className = 'tz-note'; kd.style.cssText = 'opacity:1;font-size:12.5px;line-height:1.45';
       // K616（原理2）：兵力は数を並べず、敵（朱）と自軍（藍）の二本の棒で長さを比べる。数は棒の横に小さく
       // K638（kaito「何人連れて行けて…が分からない」）：前は一人千で数え、軍団の画面の総兵力（格で率いる兵）と合わなかった。自軍は軍団の武将の兵の和、敵は出る武将の兵の和に難易度の兵の倍（修羅 1.6 など）
       const tOf = (n) => troopsOf(BUSHOU_ONLINE.find((b) => b.name === n));
-      const myArmy = ((H?.loadOnline?.() || {}).army || []).filter(Boolean).slice(0, 10);
+      const myArmy = ((H?.loadOnline?.() || {}).army || []).filter(Boolean).slice(0, 16);
       const foeNames = [...new Set([...v.generals, ...ret])].slice(0, nFoe);
       const myT = myArmy.reduce((a, n) => a + tOf(n), 0) || mine * 1000, foeT = Math.round((foeNames.reduce((a, n) => a + tOf(n), 0) || nFoe * 1000) * (NPC_LEVEL[state.level]?.power?.troops || 1));
       const mx = Math.max(foeT, myT), barRow = (t, n, k, col) => `<div class="tz-bar"><span style="width:3.2em;flex:none">${esc(t)}</span><i style="width:${Math.round(n / mx * 150)}px;background:${col}"></i><span>${n.toLocaleString()}（${k}${W('将', '')}）</span></div>`;

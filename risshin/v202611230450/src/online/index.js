@@ -179,8 +179,8 @@ async function toFujin(game, back, o) {
   if (!save || !M) return back();
   // K601：編成は第五・第六陣まで持てるが、試合（match.js・相手の bot）はまだ4将戦だけ。5将戦・6将戦が出来るまで先頭の4人で（人数差の戦はしない）
   // K601 25〜28：出陣は編成の枠の数（4・5・6人）のまま。相手探しは同じ人数どうし（server/online）、Bot の相手も同じ人数（match.js botFoe）
-  const generals = (save.army || []).filter(Boolean).slice(0, 10);   // K627 ⑤・K633 ③：出陣枠は十まで
-  if (o.trial) { const i = generals.indexOf(o.trial); if (i >= 0) generals.splice(i, 1); generals.unshift(o.trial); generals.length = Math.min(generals.length, 10); }
+  const generals = (save.army || []).filter(Boolean).slice(0, 16);   // K627 ⑤・K633 ③・K642 ③：出陣枠は十六まで
+  if (o.trial) { const i = generals.indexOf(o.trial); if (i >= 0) generals.splice(i, 1); generals.unshift(o.trial); generals.length = Math.min(generals.length, 16); }
   // K602：自分が操るのは家の大名本人（編成で総大将に固定。居なければ先頭に入れる）
   const lord = M.HOUSE_LORD?.[save.house];
   if (lord && !generals.length) { generals.unshift(lord);   // K628 ②：大名を軍団から外した時は加えない（軍団が空の時だけ大名）
@@ -189,7 +189,7 @@ async function toFujin(game, back, o) {
   const map = M.MATCH_MAPS[o.map || 'heigen'];
   // K603・K601 25〜28（11/21 k592）：諸大名戦・模擬合戦の相手も同じ人数（4将戦・5将戦・6将戦）。家の編成が四人なら、同じ家の者を位の順に足す（多ければ切る）
   // K608：初級・中級は自分と同じ出陣の数、上級は一隊・修羅は二隊多い（taisen_ui の nFoe）。足りない時は家臣団（o.retainers）から足す
-  const nFoe = Math.min(10, o.nFoe || generals.length);
+  const nFoe = Math.min(16, o.nFoe || generals.length);
   if (o.foe?.length && o.foe.length !== nFoe) {
     const BO = await has('./bushou_online.js'), RK = ['SS', 'S', 'A', 'R', 'N'];
     const house = o.npc?.house || BO?.BUSHOU_ONLINE.find((b) => b.name === o.foe[0])?.house;
@@ -228,7 +228,7 @@ async function toFujin(game, back, o) {
     const L = await has('./match_link.js');
     NM.linkMatch(game, found, M, L);
     const fd = found.foe?.deck || {};
-    const foe = Array.isArray(fd.generals) && fd.generals.length ? fd.generals.slice(0, 10) : null;
+    const foe = Array.isArray(fd.generals) && fd.generals.length ? fd.generals.slice(0, 16) : null;
     return M.startMatch(game, { generals, me, layout, foe, foeLayout: fd.layout || null, map: M.MATCH_MAPS[found.map] || map, practice: false, back: () => { NM.closeMatchLink(M); has('./michi.js').then((Mi) => { const s = Ho.loadOnline(); if (Mi && s && !s.michi?.pvp) { Mi.michiWin(s, { kind: 'pvp' }); Ho.saveOnline(s); } }).finally(back); } });   // 対人戦を一度遊んだら初心者の道を終える（michi.js）
   };
   if (!F) return go(null);
@@ -266,7 +266,7 @@ async function toFujin(game, back, o) {
     onBack: () => { host.remove(); back(); } });
 }
 
-const COST_CAP_N = { 4: 65, 5: 80, 6: 95, 7: 110, 8: 125, 9: 140, 10: 155 };
+const COST_CAP_N = { 4: 65, 5: 80, 6: 95, 7: 110, 8: 125, 9: 140, 10: 155, 11: 170, 12: 185, 13: 200, 14: 215, 15: 230, 16: 245 };
 async function capFoe(foe, house, level, mine = []) {
   const BO = await has('./bushou_online.js'); if (!BO) return foe;
   const cost = (n) => BO.COST[BO.BUSHOU_ONLINE.find((b) => b.name === n)?.rank] || 10;

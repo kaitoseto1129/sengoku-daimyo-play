@@ -553,6 +553,8 @@ export function warPeopleTick(rt, dt) {
 }
 
 export function warPeopleDispose(rt) {
+  // 置き物の升（SG8）は前の戦の置き物（舟の乗り手＝兵→Group→World→Scene）を掴むので、戦を出る時に空ける（長島・比叡山で前の戦の Scene が2つ残った。11/23）
+  SG8.n = -1; SG8.last = null; SG8.map.clear(); SG8.rest = [];
   const L = rt.warPeople;
   if (!L) return;
   for (const a of L.actors) rt.scene.remove(a.mesh);

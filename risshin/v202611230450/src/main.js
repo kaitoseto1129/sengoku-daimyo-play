@@ -563,8 +563,13 @@ if (MEM_TIGHT) {
       } };
     const readBack = (attr) => {
       const g = attr._gpuRef; attr._gpuRef = null;
-      if (window.__rbLog) { const k = (new Error().stack || '').split('\n').slice(3, 7).map((l) => (l.match(/(\w+)\s+\(.*\/(\w+\.js):(\d+)/) || []).slice(1).join(':')).join(' < '); window.__rbLog[k] = (window.__rbLog[k] || 0) + g.len * g.ctor.BYTES_PER_ELEMENT; }
-      const a = new g.ctor(g.len);
+      if (window.__rbLog) { const k = (new Error().stack || '').split('\n').slice(3, 8).map((l) => l.trim().replace(/^at /, '').replace(/https?:\/\/[^)]*\/([\w.]+\.js):(\d+):\d+/, '$1:$2').slice(0, 60)).join(' < '); window.__rbLog[k] = (window.__rbLog[k] || 0) + g.len * g.ctor.BYTES_PER_ELEMENT; }
+      const a = readInto(g, new g.ctor(g.len));
+      Object.defineProperty(attr, 'array', { value: a, writable: true, configurable: true, enumerable: true });
+      return a;
+    };
+    // GPU の buffer を配列 a へ読む（a を返す。attr の CPU の写しにはしない）
+    const readInto = (g, a) => {
       try {
         const prevVao = gl.getParameter(gl.VERTEX_ARRAY_BINDING);
         if (g.target === gl.ELEMENT_ARRAY_BUFFER) gl.bindVertexArray(null);
@@ -579,7 +584,6 @@ if (MEM_TIGHT) {
         if (prev && prevT === g.target && !(g.target === gl.ELEMENT_ARRAY_BUFFER && prevVao)) ob(prevT, prev);
         STAT.readback++; STAT.readbackMB += a.byteLength / 1048576;
       } catch (e) { /* 読み戻せない時は空の配列（描く分は GPU に残っている） */ }
-      Object.defineProperty(attr, 'array', { value: a, writable: true, configurable: true, enumerable: true });
       return a;
     };
     // 10/30 実機の落ち（iPhone 小谷・設楽原、iPad 大河内）：動かない形の CPU の写しが一戦 210〜290MB あった。弱い端末だけでなく iPhone・iPad でも手放す
@@ -640,9 +644,47 @@ if (MEM_TIGHT) {
     const BM = THREE.BatchedMesh?.prototype, bmInit = BM?._initializeGeometry, bmDraw = BM?.onBeforeRender;
     if (bmInit && bmDraw) {
       BM._initializeGeometry = function (...a) { const r = bmInit.apply(this, a); if (this.geometry?.index) this.geometry.index.keepCpu = true; return r; };
+      // 捨てた束（BatchedMesh.dispose）の入れ物は使い直さないので、捨てる時に GPU から読み戻さない（K626 桶狭間 24MB）
+      { const bmDisp = BM.dispose; if (bmDisp) BM.dispose = function (...a) { if (this.geometry && !window.__apx?.bmkeep) this.geometry.userData.noRestore = true; return bmDisp.apply(this, a); }; }
       BM.onBeforeRender = function (...a) { this._k365drawn = true; return bmDraw.apply(this, a); };
-      const keepAll = (bm) => { if (!bm._k365drawn || bm._k365kept) return; bm._k365kept = true; const g = bm.geometry; for (const k in g.attributes) g.attributes[k].keepCpu = true; };
-      for (const name of ['addGeometry', 'setGeometryAt']) { const f = BM[name]; if (f) BM[name] = function (...a) { keepAll(this); return f.apply(this, a); }; }
+      // 11/23 K626（iPhone の桶狭間・墨俣の落ち）：描いた後の書き足しで、手放した入れ物の配列を丸ごと GPU から読み戻し、そのまま CPU に残していた
+      //   （桶狭間120秒で約80MB。iOS は GPU と CPU の両方を WebContent に数える）。手放した入れ物へは、使い回しの下書きの配列に写させてから
+      //   書いた場所（その形の取り分）だけを GPU へ直に送る。丸ごと送り直さず、CPU の写しも作らない。写す元の形が手放してある時も一時の配列へ読むだけ。
+      //   まだ手放していない入れ物は今までどおり（描いた後に書き足しが来たら手放さない）。__apx.bmkeep で前の通り
+      const keepAll = (bm) => { if (!bm._k365drawn || bm._k365kept) return; bm._k365kept = true; const g = bm.geometry; for (const k in g.attributes) if (!g.attributes[k]._gpuRef) g.attributes[k].keepCpu = true; };
+      let scratch = null, wBm = null, wId = -1;
+      const scratchOf = (ctor, len) => { const by = len * ctor.BYTES_PER_ELEMENT; if (!scratch || scratch.byteLength < by) scratch = new ArrayBuffer(Math.max(by, Math.ceil((scratch ? scratch.byteLength : 0) * 1.5))); return new ctor(scratch, 0, len); };
+      const sendRange = (at, e) => {
+        const R = wBm._reservedRanges, r = wId >= 0 ? R[wId] : R[R.length - 1];
+        if (!r) return;
+        const n = at.itemSize, start = r.vertexStart * n, len = Math.min(r.vertexCount * n, e.len - start);
+        if (len <= 0) return;
+        const prev = bound.buf, prevT = bound.target;
+        try { ob(e.target, e.buf); gl.bufferSubData(e.target, start * e.ctor.BYTES_PER_ELEMENT, at.array, start, len); ob(e.target, null); } catch (err) { /* 送れない時は前の絵のまま */ }
+        if (window.__apx?.bmcheck) { const t = new e.ctor(len); try { ob(e.target, e.buf); gl.getBufferSubData(e.target, start * e.ctor.BYTES_PER_ELEMENT, t); ob(e.target, null); } catch (err) {} let bad = 0; for (let i = 0; i < len; i++) if (t[i] !== at.array[start + i] && !(t[i] !== t[i] && at.array[start + i] !== at.array[start + i])) bad++; STAT.bmChk = (STAT.bmChk || 0) + 1; STAT.bmBad = (STAT.bmBad || 0) + (bad ? 1 : 0); }   // 確かめ用：送った所を読み直して比べる
+        if (prev && prevT === e.target) ob(prevT, prev);
+        STAT.gpuWriteMB = (STAT.gpuWriteMB || 0) + len * e.ctor.BYTES_PER_ELEMENT / 1048576;
+      };
+      const gpuWrite = (bm, f, a, add) => {
+        if (wBm) { if (!add) wId = a[0]; return f.apply(bm, a); }
+        const g = bm.geometry, src = add ? a[0] : a[1], undo = [];
+        let dst = false;
+        for (const k in g.attributes) { const at = g.attributes[k], e = at._gpuRef; if (!e || at.isInterleavedBufferAttribute || !bufAlive(e.buf)) continue; dst = true;
+          undo.push([at, Object.getOwnPropertyDescriptor(at, 'array'), true]);
+          Object.defineProperty(at, 'array', { value: scratchOf(e.ctor, e.len), writable: true, configurable: true, enumerable: true });
+          Object.defineProperty(at, 'needsUpdate', { configurable: true, set(v) { if (v === true) sendRange(at, e); } }); }
+        if (!dst) { keepAll(bm); return f.apply(bm, a); }
+        if (src) for (const at of [...Object.keys(g.attributes).map((k) => src.attributes[k]), src.index]) { const e = at && at._gpuRef; if (!e || at.isInterleavedBufferAttribute || !bufAlive(e.buf)) continue;
+          undo.push([at, Object.getOwnPropertyDescriptor(at, 'array'), false]);
+          const t = readInto(e, new e.ctor(e.len)); STAT.tempRbMB = (STAT.tempRbMB || 0) + t.byteLength / 1048576;
+          Object.defineProperty(at, 'array', { value: t, writable: true, configurable: true, enumerable: true }); }
+        wBm = bm; wId = add ? -1 : a[0];
+        try { return f.apply(bm, a); } finally {
+          wBm = null; wId = -1;
+          for (const [at, d, isDst] of undo) { if (d) Object.defineProperty(at, 'array', d); if (isDst) delete at.needsUpdate; }
+        }
+      };
+      for (const name of ['addGeometry', 'setGeometryAt']) { const f = BM[name]; if (f) BM[name] = function (...a) { if (window.__apx?.bmkeep) { keepAll(this); return f.apply(this, a); } return gpuWrite(this, f, a, name === 'addGeometry'); }; }
     }
     P.onUploadCallback = function () {
       const arr = this.array;

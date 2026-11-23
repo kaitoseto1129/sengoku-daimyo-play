@@ -67,18 +67,23 @@ let net = null;
 // K628 ⑤（kaito 11/22「敗走と出ても戦場に残る。四割を切ったら全員が退き、散り散りに逃げる」）：諸大名戦・対人戦の決まり。
 //   隊（備）の兵が名目の四割を切ったら、その隊は立て直さず（再編しない）全員が背を向けて自陣の側へ散って逃げ、十二秒か地図の端で戦場から消える（討たれた数には入れない）。
 //   消えた後は人数の棒・地図から外す（名目の残りを 0 に）。本陣（総大将の備）は勝ち負けの決まり（本陣陥落）に任せて外す
-function k628Rout(rt, M) {
-  const mp = M.o?.map || { w: 400, h: 300 }, A = rt.army;
 // K641 ①（kaito 11/22「敗走はその隊の大将が討たれた時か、兵が三割を切った時だけ。それ以外は敗走しない」）：四割を三割に改め、大将の討死でも崩す。
 //   士気の低さだけの潰走（備の士気 15 未満・退きの中の 22 未満・組の士気 22 未満・一人ずつの逃げ）は止める（S.hardRoutOnly・組の noRout）。
 //   士気はそのまま下がり、押す力・下知の受けには効く（崩れて逃げないだけ）
 const K641_ROUT_AT = 0.3;
+// K641 の続き（11/23 rush_honjin：開戦三十秒ほどで本人が斬られて別の武将へ移った時、本陣の大将の体は無傷なのに『味方の総大将討死』で負けた）：
+//   本人が移る時（K639 ⑪・K640）、元の隊に討死の印（taishoDead・K603 の士気の下げと下知の遅れ）を立てるが、本人の体はその隊の大将の体とは別のことがある。
+//   決着（総大将の討死）と K641 ① の敗走では、大将の体（taishoU）を持つ隊は、その体が本当に倒れた時だけ討死と数える（体の無い隊は今まで通り印で）
+//   対人戦で相手の画面から来た討死（packSonae の六つ目＝相手の画面の k641ChiefGone）は、そのまま討死と数える（_k641remoteDead）
+function k641ChiefGone(S) { if (S?._k641remoteDead) return true; const u = S?.b?.taishoU; return u ? !u.alive && !u.gone : !!S?.taishoDead; }
+function k628Rout(rt, M) {
+  const mp = M.o?.map || { w: 400, h: 300 }, A = rt.army;
   for (const S of M.sonae || []) {
     const B = S.b; if (!B || !(B.nominal > 0)) continue;
     if (!S._out) {
       if (S.line === 'honjin' || S.major || B.aliveNominal() <= 0) continue;
-      if (!S.taishoDead && B.aliveNominal() >= B.nominal * K641_ROUT_AT) continue;
-      S._k641why = S.taishoDead ? 'taisho' : 'few';
+      if (!k641ChiefGone(S) && B.aliveNominal() >= B.nominal * K641_ROUT_AT) continue;
+      S._k641why = k641ChiefGone(S) ? 'taisho' : 'few';
       if (B.real) B.real.noRout = false;
     if (!S._out && !M.ending && !M.over) {
       S.hardRoutOnly = true;
@@ -162,7 +167,7 @@ export function botFoe(generals = [], day = new Date().getDate()) {
   if (!houses.length) return null;
   const h = houses[day % houses.length];
   // K601 25〜28：相手も同じ人数（4将戦・5将戦・6将戦）。初めの者を先に、足りなければ同じ家の者を位の順に
-  const n = Math.max(4, Math.min(10, generals.filter(Boolean).length || 4)), rk = (a, b) => RANK_ORDER.indexOf(a.rank) - RANK_ORDER.indexOf(b.rank);
+  const n = Math.max(4, Math.min(16, generals.filter(Boolean).length || 4)), rk = (a, b) => RANK_ORDER.indexOf(a.rank) - RANK_ORDER.indexOf(b.rank);
   const four = [...BUSHOU_ONLINE.filter((b) => b.start && b.house === h).sort(rk), ...BUSHOU_ONLINE.filter((b) => !b.start && b.house === h).sort(rk)].map((b) => b.name);
   return four.length >= n ? four.slice(0, n) : null;
 }
@@ -515,7 +520,7 @@ function hqInput(M, team) {
   const H = honjinOf(M, team); if (!H) return {};
   if (H.honjin) return H.honjin;   // 外から渡す時（試し）
   const hat = H.count() / Math.max(1, H.b?.nominal || 1000), inn = intrusionOf(M, H, team), u = H.b?.taishoU;
-  const tai = H.taishoDead ? 'dead' : H.state === '敗走' ? 'retreated' : 'alive';
+  const tai = k641ChiefGone(H) ? 'dead' : H.state === '敗走' ? 'retreated' : 'alive';
   const umaUp = !(M.uma?.[team]?.down) && H.state !== '敗走' && !(hat < 0.4 && inn >= 0.5) && tai === 'alive';
   if (H.state === '敗走') H._routSince ??= M.t ?? 0; else H._routSince = null;   // 本陣の潰走が十五秒続いた時だけ（一時の崩れで落とさない）
   return { strict: k613Strict(M, team), routed: H._routSince != null && (M.t ?? 0) - H._routSince >= 15, hatamoto: hat, umajirushi: umaUp, taisho: tai, taishoHp: u && u.maxHp ? Math.max(0, u.hp / u.maxHp) : 1, intrusion: inn, guardMorale: H.morale() };
@@ -536,7 +541,7 @@ function judgeSide(M, team) {
     units: L.map((s) => ({ strength: s.count(), start: s.b?.nominal || 1000, morale: s.morale(), routed: s.state === '敗走' })),
     // K603 47〜49：見えない戦線（兵の重みの押しの平均）と取り合う所（丘・橋・浅瀬・村・街道）。前は一番突き出た一隊だけで量った
     front: M.keyPts ? frontValue(M, team, [0, 1].map((tm) => { const h = honjinOf(M, tm); return h ? (h._home || h.b.pos) : null; })) : Math.max(0, Math.min(1, 0.5 + (adv[0] - adv[1]) / 2)),
-    generals: { alive: L.filter((s) => !s.taishoDead).length, total: L.length },
+    generals: { alive: L.filter((s) => !k641ChiefGone(s)).length, total: L.length },   // K641 の続き：本人が移った印だけでは数えない
     kills: (M.kills || [0, 0])[team],
   };
 }
@@ -821,7 +826,7 @@ function closeMatch(rt, M, r) {
 }
 
 // 二人の時の合わせ：自分の四備を { k:'st', s:[[減り, x, z, 崩れ]] } で送る（自分の画面の座標。相手は裏返して読む）
-const packSonae = (S) => [Math.round(S.b.lost || 0), Math.round(S.b.pos.x * 10) / 10, Math.round(S.b.pos.z * 10) / 10, S.state === '敗走' ? 1 : 0, S.b.real?.jin || null, S.taishoDead ? 1 : 0];
+const packSonae = (S) => [Math.round(S.b.lost || 0), Math.round(S.b.pos.x * 10) / 10, Math.round(S.b.pos.z * 10) / 10, S.state === '敗走' ? 1 : 0, S.b.real?.jin || null, k641ChiefGone(S) ? 1 : 0];   // K641 の続き：本当に倒れた時だけ
 function sendState(rt, M) {
   const own = (M.sonae || []).filter((S) => S.team === 0);
   // mt：試合の秒（客はホストの試合の秒にそろえる。裏に回った間は時計が止まり、戻ると遅れていた）
@@ -840,7 +845,7 @@ function syncOwnFromFoe(rt, M, m) {
     const [lost, x, z, routed, , dead] = q;
     if (Number.isFinite(lost)) S.b.lost = Math.max(S.b.lost || 0, Math.min(S.b.nominal || lost, lost));
     if (routed && S.state !== '敗走') { S.forceRout = true; S._k641remote = true; }
-    if (dead && !S.taishoDead) S.taishoDead = true;
+    if (dead) { S._k641remoteDead = true; if (!S.taishoDead) S.taishoDead = true; }
     if (Number.isFinite(x) && Number.isFinite(z) && S.state !== '敗走') { const to = { x: -x, z: -z }; if (!syncCatchUp(S, to, rt.t) && Math.hypot(S.b.pos.x - to.x, S.b.pos.z - to.z) > 15) S.b.order({ id: 'move', to }); }
   });
 }
@@ -855,7 +860,7 @@ function syncFoe(rt, M, m) {
     if (!S || S.byAI || !Array.isArray(q)) return;
     const [lost, x, z, routed, jin, dead] = q;
     // 総大将の討死（6つ目）：本陣の落ち（pvp_rules honjinFallen）はホストの画面で決めるのに、写しの総大将は生きたままで、客の本陣が崩れてもホストが決着しなかった（11/21 cloud-26）
-    if (dead && !S.taishoDead) S.taishoDead = true;
+    if (dead) { S._k641remoteDead = true; if (!S.taishoDead) S.taishoDead = true; }
     // 陣形（5つ目）：自分の画面の AI（47 aiJin）が陣形を替えても、相手の画面の写しは布陣の陣形のままだった（online_pvp PVP_ROSTER・11/21 cloud-26）
     const g = S.b.real;
     if (jin && g?.units && g.jin !== jin && parts.jin?.applyJin) { try { parts.jin.applyJin(g, jin); } catch (e) { /* 陣形が替えられなくても合わせは続ける */ } }

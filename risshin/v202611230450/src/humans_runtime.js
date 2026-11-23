@@ -12,7 +12,7 @@ import { GRIME, bodyMaterial, fpArmMat, CLOTH_W } from './humans_materials.js';
 import { WIND_STATE, WET, ARMY_P, ARMY_REAL_P, ARMY_REAL_R } from './world.js';
 import { REAL_PTS, MID_NEAR, LIGHT_HIDE_R } from './world_army_shader.js';
 import { HUM, SRC, HEAD, isNamed, isSohei, humanLook, preparationFrame, qualityKeeper, skinOpponent, humanPool, humanBuilding, SKIN_MAX, HSTAT, fits, attachBody, humanPoolKey, pinHumanGeometries, ALLB, restMatrix, XB, humanInv, memTight, borrowHuman, shapesReady, realNear, kusaPlates, SKIN_OUT, HUM_Q, HUM_T, SKIN_IN, v0, MIDDLE_MAX } from './humans_shared.js';
-import { _sph, _fr, COARSE, skipHiddenMW, tipMW, noopChange, carryFlag, dropHuman, humanSelection, humanCaches, farSpHid, farSp, farSpNow, evictHidden, humanTurn, _pv } from './humans_lifecycle.js';
+import { _sph, _fr, COARSE, skipHiddenMW, tipMW, noopChange, carryFlag, dropHuman, humanSelection, humanCaches, farSpHid, farSp, farSpNow, evictHidden, humanTurn, _pv, disposeHumanRoots } from './humans_lifecycle.js';
 import { preStep, preparationUnits, DM_KEEP, GS_KEEP, shareHumanSkeleton, cacheHumanSkeleton, crowdGeometry, humanGeoMaps, clearHumanGeoMaps } from './humans_crowd_geometry.js';
 import { UNIT_MAT, lookParts, GENERALS, DEATH_END, shadowWorth } from './units.js';
 import { unitMatPBR } from './units_model.js';
@@ -161,6 +161,7 @@ async function prefetchFaces(rt, camera, ms = 1500, current = () => true) {
 // 貸出の枠が埋まっていても、借り手のいない人（別の姿・名の兵の物）を一人返して枠を空ける。
 //   返さないと、名のある侍・旗持ちなど VAT に乗らない兵が人になれず、formGuard に隠されたまま透明の敵になった（1.6.3 レビュー・桶狭間で8人）
 const evictedRoots = [];
+let evictFlushAt = 0;
 function evictIdlePooled() {
   let old = null;
   for (const h of humanPool) if (!h.leased && (!old || (h.hidAt || 0) < (old.hidAt || 0))) old = h;
@@ -171,6 +172,11 @@ function evictIdlePooled() {
   old.root.traverse((o) => { if (o.geometry) o.geometry.userData.humanPooled = false; });
   if (old.cg) for (const g of old.cg) g.userData.humanPooled = false;
   evictedRoots.push(old.root);
+  // K626：返した人が四人たまったら（八秒に一度まで）、その人たちだけの形・材質・絵を戦の途中で片付ける（戦の終わりまで抱えない）
+  if (evictedRoots.length >= 4 && performance.now() - evictFlushAt > 8000 && !window.__apx?.noevictflush) {
+    evictFlushAt = performance.now();
+    try { disposeHumanRoots(evictedRoots.splice(0), ARMY, [...humanPool].map((h) => h.root)); HSTAT.evictFlush = (HSTAT.evictFlush || 0) + 1; } catch (e) { console.warn('返した人の片付け', e); }
+  }
   HSTAT.evictIdle = (HSTAT.evictIdle || 0) + 1;
   return true;
 }

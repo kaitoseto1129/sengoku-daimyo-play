@@ -299,4 +299,15 @@ function evictHidden(army, player) {
   resources.dispose();
 }
 
-export { humanSelection, humanTurn, noopChange, dropHuman, sharedHumanResources, humanCaches, carryFlag, skipHiddenMW, tipMW, _pv, _fr, _sph, farSp, farSpHid, farSpNow, COARSE, evictHidden };
+// K626（iPhone 16 Pro の実機：桶狭間・墨俣が戦の途中で落ちた）：携帯は隠れた人を捨てずに貸出待ちへ返すが、貸出の枠が埋まると一番古い人を返し、
+//   その人だけが持つ形・材質・絵は戦の終わりまで片付けずに抱えていた（humans_runtime.js の evictedRoots。桶狭間200秒で生きている JS の一番 42MB）。
+//   evictHidden と同じく、場面・今いる人・貸出待ちの人・共有の原本と作り置きが使う物を残して、返した人だけの物を GPU と記憶から返す
+function disposeHumanRoots(roots, army, keepRoots = []) {
+  if (!roots.length) return;
+  const resources = battleResources([sharedHumanResources(), humanResourceCaches(), crowdMats, WORLD?.scene,
+    army ? army.units.filter((u) => u.human).map((u) => u.human.root) : [], keepRoots]);
+  for (const r of roots) resources.add(r);
+  resources.dispose();
+}
+
+export { disposeHumanRoots, humanSelection, humanTurn, noopChange, dropHuman, sharedHumanResources, humanCaches, carryFlag, skipHiddenMW, tipMW, _pv, _fr, _sph, farSp, farSpHid, farSpNow, COARSE, evictHidden };
