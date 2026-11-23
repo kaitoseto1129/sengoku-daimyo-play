@@ -2356,6 +2356,7 @@ const arioka = {
     flReset();   // 床の層（石垣の上・水堀の土橋）を、この戦の分で作り直す
     // ---- 惣構えの柵（西の上臈塚の木戸が内応で開く） ----
     const cameraWalls = F.ariCamWalls = [];
+    rt.cleanupTasks?.add?.(() => { ariCamGrid = null; ariCamInGrid = null; ariCamWallBuf.length = 0; ariCamInBuf.length = 0; });   // K626：戦を閉じたら視点の升を手放す（町屋→mesh で前の戦の Battle が残った）
     F.ariCameraGates = [];
     F.ariCameraHouses = [];
     const noT = (segs) => {

@@ -15,6 +15,20 @@ import { voiceStats } from './war_speech.js';
 import { DEATH_END } from './units.js';
 import { disposeProbe } from './autoplay_probe.js';
 import { TIER } from './device_tier.js';
+import { uploadedGeometries } from './gpu_gc.js';
+// 11/23 K626（実機の桶狭間で GPU に置いた形が 820→1720 に増え続けて落ちる。Mac では増えない）：形を種類ごとに数と KB で数える。
+//   鍵は 名前|userData の鍵|属性の数|頂点の数の桁。上位十二と合わせた数・KB
+function geoKinds() {
+  const by = new Map(); let n = 0, kb = 0;
+  for (const g of uploadedGeometries()) {
+    let b = 0; const at = g.attributes;
+    for (const k in at) { const a = at[k], d = a.isInterleavedBufferAttribute ? a.data : a; b += d._gpuRef ? d._gpuRef.len * d._gpuRef.ctor.BYTES_PER_ELEMENT : (d.array ? d.array.byteLength : 0); }
+    if (g.index) b += g.index._gpuRef ? g.index._gpuRef.len * g.index._gpuRef.ctor.BYTES_PER_ELEMENT : (g.index.array ? g.index.array.byteLength : 0);
+    const vc = at.position ? at.position.count : 0, key = (g.name || '') + '|' + Object.keys(g.userData || {}).slice(0, 3).join('+') + '|' + Object.keys(at).length + 'a|' + (vc < 100 ? 'v<100' : vc < 1000 ? 'v<1k' : vc < 10000 ? 'v<10k' : 'v10k+');
+    const e = by.get(key) || [0, 0]; e[0]++; e[1] += b / 1024; by.set(key, e); n++; kb += b / 1024;
+  }
+  return { n, kb: Math.round(kb), top: [...by].sort((a, b) => b[1][1] - a[1][1]).slice(0, 12).map(([k, v]) => [k, v[0], Math.round(v[1])]) };
+}
 
 const _upV = new THREE.Vector3();
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -453,7 +467,7 @@ async function playOne(game, i, r, progress, started = false, firstInou = false,
         for (const key in counts) diff[key] = counts[key] - memoryCounts[key];
         r.tl[r.tl.length - 1].push({ 実秒: (now - t0) / 1000, 間隔秒: (now - memoryAt) / 1000,
           三角: (b.t > 100 && b.scene) ? trisBreak(b.scene, b.camera) : null, 声: voiceStats(), 音: (() => { try { const q = audioStats(); return [q.live, q.peak, q.sourceLive, q.sourcePeak, q.dropped]; } catch (e) { return null; } })(), 使用量: heap, 毎秒増加量: heap !== null && memoryHeap !== null ? (heap - memoryHeap) / ((now - memoryAt) / 1000) : null,
-          増分: diff });
+          増分: diff, 形: (() => { try { return geoKinds(); } catch (e) { return null; } })() });
         memoryCounts = counts; memoryHeap = heap; memoryAt = now;
       }
       if (r.tl.length > 200) r.tl.shift();

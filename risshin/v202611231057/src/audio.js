@@ -1,5 +1,5 @@
 // WebAudio で合成する効果音（音源ファイルなし）
-import { S } from './settings.js';
+import { S, MEM_TIGHT } from './settings.js';
 import { createMusic } from './music_sep.js'; // 11/4 kaito「9月のやつ気に入ってた」：曲は9月の自作の和の曲に戻す
 import { tuneOf } from './music_war.js';
 // 戦の曲（kaito 11/9「戦と戦以外で曲を分ける。戦ごとに合う曲」）：戦の三段（prebattle・battle・climax）だけ music.js の戦の曲（music_war.js）で鳴らし、
@@ -774,6 +774,8 @@ function spatialCleanupLater(slot) {
     if (slot.connected) spatialCleanupLater(slot);
   }, Math.max(50, (slot.until - ctx.currentTime) * 1000 + 20));
 }
+let hrtfN = 0;
+const HRTF_MAX = 3;
 function spatialSlot(kind) {
   cleanSpatial();
   let count = 0;
@@ -846,7 +848,10 @@ export function withPan(pan, fn) {
   let last = sfxBus || master;
   // 11/13 kaito「立体音響をやってみて」：左右だけの StereoPanner を、頭の形で前後左右が聞き分けられる HRTF の PannerNode へ（AirPods で後ろの蹄・横の銃声が分かる）。
   //   距離の小ささは上の gain が付けているので、Panner は向きだけ（rolloff 0）。位置のある音は六席までなので、軽い作りの設定（既定）でも HRTF にする。
-  if (pan && ctx.createPanner) {
+  // 11/23 K643（kaito「完璧な落ちない物を出して」・iPhone の桶狭間の落ち）：HRTF は一つ約7MB の下ごしらえを持ち、音の通り道（最大24）ごとに作って残していた。
+  //   携帯（MEM_TIGHT）は HRTF を三つまでにし、四つ目からの通り道は左右の振り分け（StereoPanner）で鳴らす（近い・大事な音から先に席を取る）
+  if (pan && ctx.createPanner && (slot.hrtf || !MEM_TIGHT || hrtfN < HRTF_MAX)) {
+    if (!slot.hrtf) hrtfN++;
     const p = slot.hrtf || (slot.hrtf = Object.assign(ctx.createPanner(), { panningModel: 'HRTF', distanceModel: 'inverse', refDistance: 1, rolloffFactor: 0 }));
     const x = Math.max(-1, Math.min(1, pan)), z = bk > 0.3 ? Math.sqrt(Math.max(0, 1 - x * x)) : -Math.sqrt(Math.max(0, 1 - x * x));   // 聞き手は原点で -z を向く。後ろ（bk）は +z
     if (p.positionX) { p.positionX.value = x; p.positionY.value = 0; p.positionZ.value = z; } else p.setPosition(x, 0, z);
