@@ -110,6 +110,10 @@ export function fatigueFx(f) {
 //   斉射の間はおよそ 25 秒（装填の揃え）。15分で撃てる回数は 36。普通の戦（接触してからの十分ほど・届く所で撃つ）は 20〜24 回。
 //   持つ数を 28 にする：普通は足り、始めから遠くへ撃ち続けると十一分ほどで尽きる。補給の地点（本陣のまわり）で半分まで戻る。
 export const AMMO = { max: 28, refillTo: 0.5, refillRate: 1 / 20, supplyR: 45, lowAt: 0.25, effRange: 0.65 };
+// K644 ③（kaito 11/23「鉄砲隊が前に突出して騎馬に突かれて終わる」）：鉄砲の届く距離を百四十m から百八十m へ（army4k.js の VOLLEY と揃える）。
+//   前に出すぎない（持ち場から百二十m まで）・騎馬が八十m（槍などは四十五m）内に来たら槍の後ろか後ろへ退いて間合いを取る・
+//   味方の槍が敵と斬り合い始めたら（一斉射で敵の前が崩れて当たった時）その敵から届く距離の六割五分まで下がって槍に任せ、離れた所から撃ち続ける（撃つのは army4k の volleyTick が届く敵へ自ら）
+export const GUN_RANGE = 180;
 export function makeAmmo() { return { ammo: AMMO.max, ammoMax: AMMO.max, shots: 0 }; }
 export function ammoStep(st, dt, a) {
   // a：{ volley（今の一斉射を撃った）, nearSupply（補給の地点の内で止まっている） }
@@ -202,6 +206,24 @@ export function aiStep(me, view) {
       const sp = (view.friends || []).filter((f) => f.kind === 'spear' && !f.routed && d2(f.pos, me.pos) < 70).sort((a, b) => d2(a.pos, me.pos) - d2(b.pos, me.pos))[0];
       if (sp) { const Ls = d2(sp.pos, nf.pos) || 1; return { id: 'move', to: { x: sp.pos.x + (sp.pos.x - nf.pos.x) / Ls * 18, z: sp.pos.z + (sp.pos.z - nf.pos.z) / Ls * 18 }, why: '槍の後ろから撃つ' }; }
     }
+    // K644 ③：鉄砲は斬り合いの間合いに入らない（騎馬は八十m・槍などは四十五m）。槍の後ろ（騎馬は二十五m 奥）か、無ければ寄る敵から離れる向きへ（持ち場の側へ寄せて）退く
+    if (me.kind === 'gun') {   // 斬り合いに入ってしまった時も、寄る敵から離れて抜ける
+      const rg = me.range || GUN_RANGE, fr = view.friends || [];
+      const mel = near(live.filter((f) => f.kind !== 'gun' && f.kind !== 'bow')), md = mel ? d2(mel.pos, me.pos) : Infinity, keep = mel?.kind === 'cavalry' ? 80 : 45;
+      if (mel && md < keep) {
+        const sp = fr.filter((f) => f.kind === 'spear' && !f.routed && d2(f.pos, me.pos) < 90 && d2(f.pos, mel.pos) < md).sort((a, b) => d2(a.pos, me.pos) - d2(b.pos, me.pos))[0];
+        if (sp) { const Ls = d2(sp.pos, mel.pos) || 1, bk = mel.kind === 'cavalry' ? 25 : 18; return { id: 'move', to: { x: sp.pos.x + (sp.pos.x - mel.pos.x) / Ls * bk, z: sp.pos.z + (sp.pos.z - mel.pos.z) / Ls * bk }, why: '槍の後ろへ退く' }; }
+        const h = me.home || view.honjin || me.pos, back = keep - md + 30;
+        let ax = (me.pos.x - mel.pos.x) / (md || 1), az = (me.pos.z - mel.pos.z) / (md || 1);
+        const dh = d2(h, me.pos); if (dh > 5) { ax = ax * 0.6 + (h.x - me.pos.x) / dh * 0.4; az = az * 0.6 + (h.z - me.pos.z) / dh * 0.4; }
+        const La = Math.hypot(ax, az) || 1;
+        return { id: 'move', to: { x: me.pos.x + ax / La * back, z: me.pos.z + az / La * back }, why: '間合いを取る' };
+      }
+      // 味方の槍（騎馬・侍）が斬り合っている敵へは寄らない：その敵から届く距離の五割五分より近ければ、六割五分まで下がって槍に任せる
+      const mf = near(live.filter((f) => f.engaged && fr.some((q) => q.kind !== 'gun' && q.kind !== 'bow' && q.engaged && !q.routed && d2(q.pos, f.pos) < 35)));
+      const mfd = mf ? d2(mf.pos, me.pos) : Infinity;
+      if (mf && !me.engaged && mfd < rg * 0.55) { const R = rg * 0.65; return { id: 'move', to: { x: mf.pos.x + (me.pos.x - mf.pos.x) / (mfd || 1) * R, z: mf.pos.z + (me.pos.z - mf.pos.z) / (mfd || 1) * R }, why: '槍に任せて下がる' }; }
+    }
     if (nf && (P.volley ? nd <= (me.range || 140) : shouldFire(me.ammo, nd, me.range || 140, P))) return { id: 'fire', target: nf.id, to: nf.pos, why: P.volley ? '斉射' : '撃つ' };   // K627 ⑥：修羅は届けば斉射を惜しまない
     // 鉄砲の家（織田・毛利）：届く距離の外の敵へ自分から寄せず、持ち場で撃てる所まで来るのを待つ
     if (P.gunHold && nf && !me.engaged && nd < (me.range || 140) * 1.8 && ((view.t | 0) % 10) < 5 + P.gunHold * 10) return { id: 'hold', to: me.home, why: '射線で待つ' };
@@ -214,7 +236,7 @@ export function aiStep(me, view) {
     if (tgt && d2(tgt.pos, me.pos) > rg * 0.85) {
       const L = d2(tgt.pos, me.pos) || 1, R = rg * 0.75;
       let to = { x: tgt.pos.x + (me.pos.x - tgt.pos.x) / L * R, z: tgt.pos.z + (me.pos.z - tgt.pos.z) / L * R };
-      const leash = me.honjin ? 90 : 160, h = me.home || me.pos, dh = d2(to, h);
+      const leash = me.honjin ? 90 : me.kind === 'gun' ? 120 : 160, h = me.home || me.pos, dh = d2(to, h);   // K644 ③：鉄砲は持ち場から百二十m まで（前に出すぎない）
       if (dh > leash) to = { x: h.x + (to.x - h.x) / dh * leash, z: h.z + (to.z - h.z) / dh * leash };
       // K624 ③：味方の槍の隊が的との間に入れる所にいれば、その槍の後ろ（的から見て十八m 奥）に立って撃つ（槍を前に、鉄砲・弓は後ろから）
       const sp = (view.friends || []).filter((f) => f.kind === 'spear' && !f.routed && d2(f.pos, me.pos) < 90 && d2(f.pos, tgt.pos) < rg * 0.9 && d2(f.pos, tgt.pos) > 15)
@@ -308,6 +330,12 @@ export function aiStep(me, view) {
   }
   // ⑫ ふだん：push の重みで前へ（holdLine が強い型は持ち場で待つ）
   if (!nf) return { id: 'hold', to: me.home, why: '敵が見えない' };
+  // K644 ③：弾のある鉄砲は斬り込みに行かない（前はここで『寄せる』の attack になり、騎馬の前へ突き出た）。届かなければ届く距離の八割まで寄り、届けばその場で撃つ
+  if (me.kind === 'gun' && me.ammo?.ammo > 0 && !me.engaged) {
+    const rg = me.range || GUN_RANGE;
+    if (nd > rg * 0.9) { const R = rg * 0.8; return { id: 'move', to: { x: nf.pos.x + (me.pos.x - nf.pos.x) / nd * R, z: nf.pos.z + (me.pos.z - nf.pos.z) / nd * R }, why: '射撃の間合いへ' }; }
+    return { id: 'hold', to: me.pos, why: '離れて撃つ' };
+  }
   const reach = 60 + 220 * P.push * fx.speed;
   if (nd <= reach && P.push >= P.holdLine) return { id: me.kind === 'cavalry' && nd < 90 ? 'charge' : 'attack', target: nf.id, to: nf.pos, why: '寄せる' };
   if (P.holdLine > P.push) {
@@ -421,7 +449,7 @@ export function matchAiTick(rt, dt, sonae, o = {}) {
     const po = S.byAI ? null : g?._plOrder && (!st.ext || g._plOrder.t >= st.ext.t) ? g._plOrder : st.ext;
     const me = { id: S.id, name: S.taisho, persona: st.persona, pos: P.pos, home: st.home, morale: P.morale, fatigue: st.fatigue, strength: P.strength,
       baitAny: o.tac?.BUSHO_TACTIC?.[S.taisho] === 'tsurinobuse' && !(st.tacUsed > 0),
-      kind: KIND(B.mix), honjin: S.line === 'honjin' || !!S.major, engaged: P.engaged, engagedFor: P.engaged ? t - (st.engT ?? (st.engT = t)) : (st.engT = null, 0), reserve: S.state === '予備待機' || S.line === 'gotsume', ammo: st.ammo, range: 140,
+      kind: KIND(B.mix), ...(KIND(B.mix) === 'gun' ? { range: GUN_RANGE } : {}), honjin: S.line === 'honjin' || !!S.major, engaged: P.engaged, engagedFor: P.engaged ? t - (st.engT ?? (st.engT = t)) : (st.engT = null, 0), reserve: S.state === '予備待機' || S.line === 'gotsume', ammo: st.ammo, range: 140,
       order: po ? { id: po.id, to: po.to, t: po.t } : null };
     // 諸大名戦の相手：難易度の『考える速さ』（初級は三秒に一度しか考え直さない）と『見る広さ』（霧に弱い）。前の下知はそのまま続く
     const npc = npcSide(o, S), Lv = npc ? NPC_LEVEL[o.npc.level] || NPC_LEVEL.chukyu : null;
@@ -476,6 +504,8 @@ export function matchAiTick(rt, dt, sonae, o = {}) {
           const rem = all.filter((q) => q !== fh && q.strength < (q.S.b?.nominal || 1000) * 0.2 && Math.hypot(q.pos.x - P.pos.x, q.pos.z - P.pos.z) < 250).sort((a, b) => a.strength - b.strength)[0];
           const tg = rem || (fh && dh < dn * 1.3 ? fh : nf2 || fh);
           if (tg) it = { id: me.kind === 'cavalry' && Math.min(dh, dn) < 90 ? 'charge' : 'attack', target: tg.id, to: tg.pos, why: tg === rem ? '残りを潰す' : tg === fh ? '本陣を攻める' : '次の的へ' };
+          // K644 ③：鉄砲は寄せても斬り込まず、的から届く距離の八割の所まで（撃つのは届けば自ら）
+          if (tg && me.kind === 'gun' && me.ammo?.ammo > 0) { const dg = Math.hypot(tg.pos.x - P.pos.x, tg.pos.z - P.pos.z) || 1, R = Math.min(dg, (me.range || GUN_RANGE) * 0.8); it = { id: 'move', to: { x: tg.pos.x + (P.pos.x - tg.pos.x) / dg * R, z: tg.pos.z + (P.pos.z - tg.pos.z) / dg * R }, why: it.why }; }
         }
       } else st.waitT = null;
       // K629 ②（続き・毎時の長 11/22「本陣が戦の流れに合わせて動く（押される時に退く・押す時に前へ）」）：待っている本陣は、
@@ -504,16 +534,19 @@ export function matchAiTick(rt, dt, sonae, o = {}) {
     if (st.baitUntil > t && !(st.tacUsed > 0) && (P.morale ?? 100) >= 50 && it.why !== '命令') it = { id: 'retreat', to: st.baitTo, why: '誘い' };   // 退けの下知（31 の釣り野伏は備の b.cmd が retreat の隊を囮に数える）
     if (it.why === '誘い') M.baits.push({ S, from: { x: P.pos.x, z: P.pos.z }, to: it.to });
     if (o.field && it.why !== '命令') it = fieldStep(o.field, P, it, me, pub, t, st, M.st, g) || it;
+    // K644 ③：弾のある鉄砲は、どの決まりから『斬り込め』（味方を守る・膠着を破る・本陣を攻める…）が来ても斬り込まず、的から届く距離の七割の所で撃つ（命令は除く）
+    if (me.kind === 'gun' && me.ammo?.ammo > 0 && it.why !== '命令' && (it.id === 'attack' || it.id === 'charge')) {
+      const tg = it.target != null ? pub.find((q) => q.id === it.target) : null, tp = tg?.pos || it.to;
+      if (tp) { const dg = Math.hypot(tp.x - P.pos.x, tp.z - P.pos.z) || 1, R = (me.range || GUN_RANGE) * 0.7;
+        it = dg > R + 8 ? { id: 'move', target: it.target, to: { x: tp.x + (P.pos.x - tp.x) / dg * R, z: tp.z + (P.pos.z - tp.z) / dg * R }, why: it.why } : { id: 'hold', to: { x: P.pos.x, z: P.pos.z }, why: it.why }; }
+    }
     st.last = it;
     if (it.why === '命令') continue;   // 命令は command.js の使番が運んで当てる
-    if (st.ammo) {
-      const nearSupply = view.supply && Math.hypot(P.pos.x - view.supply.x, P.pos.z - view.supply.z) < AMMO.supplyR && !moving;
-      const volley = it.id === 'fire' && t - st.volleyT >= 25;
     // K641 ③（kaito 11/22「中央が押されて負けているのに、右翼・左翼が助けに来ない」）：翼（slot left・right）の隊は、
     //   手が空いた（斬り合っていない・百m 内に敵の隊がいない）時か、中央が崩れかけた（中央の隊の残りが名目の半分を切った・中央と当たる敵が中央の一・二五倍より多い）時に、
     //   一番苦しい中央の隊と当たる敵の横（二十m）へ寄せて横槍を入れる。崩れかけの時は、自分の前の敵が自分の三分の二より少なければ斬り合いから離れても寄せる。
     //   本陣・後詰・命令・本陣の救援・伏兵・誘いの最中は動かさない
-    if (it.why !== '命令' && !me.honjin && S.line !== 'gotsume' && (S.slot === 'left' || S.slot === 'right') && !it.why?.startsWith('本陣') && !(st.ambushT > t) && !(st.baitUntil > t)) {
+    if (it.why !== '命令' && !me.honjin && S.line !== 'gotsume' && (S.slot === 'left' || S.slot === 'right') && !(me.kind === 'gun' && /退く|間合いを取る|下がる|弾を/.test(it.why || '')) && !it.why?.startsWith('本陣') && !(st.ambushT > t) && !(st.baitUntil > t)) {
       const ctr = pub.filter((q) => q.team === P.team && q !== P && !q.routed && q.strength > 0 && q.S.slot === 'center' && !(q.S.line === 'honjin' || q.S.major));
       const foeOn = (q, r) => pub.filter((f) => f.team !== P.team && !f.routed && f.strength > 0 && Math.hypot(f.pos.x - q.pos.x, f.pos.z - q.pos.z) < r);
       let need = null, worst = 0;
@@ -529,9 +562,14 @@ export function matchAiTick(rt, dt, sonae, o = {}) {
           const sg = ((P.pos.x - th.pos.x) * -bz + (P.pos.z - th.pos.z) * bx) >= 0 ? 1 : -1;
           const side = { x: th.pos.x - bz * 20 * sg, z: th.pos.z + bx * 20 * sg }, close = Math.hypot(side.x - P.pos.x, side.z - P.pos.z) < 25;
           it = { id: close ? (me.kind === 'cavalry' ? 'charge' : 'attack') : 'move', target: th.id, to: close ? th.pos : side, why: '中央を助ける' };
+          // K644 ③：鉄砲は横槍に入らず、中央と当たる敵を届く距離の七割の所から撃って助ける
+          if (me.kind === 'gun' && me.ammo?.ammo > 0) { const dg = Math.hypot(th.pos.x - P.pos.x, th.pos.z - P.pos.z) || 1, R = Math.min(dg, (me.range || GUN_RANGE) * 0.7); it = { id: 'move', target: th.id, to: { x: th.pos.x + (P.pos.x - th.pos.x) / dg * R, z: th.pos.z + (P.pos.z - th.pos.z) / dg * R }, why: '中央を助ける' }; }
         }
       }
     }
+    if (st.ammo) {
+      const nearSupply = view.supply && Math.hypot(P.pos.x - view.supply.x, P.pos.z - view.supply.z) < AMMO.supplyR && !moving;
+      const volley = it.id === 'fire' && t - st.volleyT >= 25;
       if (volley) st.volleyT = t;
       ammoStep(st.ammo, step, { volley, nearSupply });
     }
