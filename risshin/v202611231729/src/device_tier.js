@@ -54,13 +54,9 @@ function memGB() {
 }
 export const MEM_GB = memGB();
 // real：本物の兵の合計の上限・skin：骨入りの人の枠・bones：毎コマ骨を動かす人数・shadowDist：兵の影を落とす距離（m）。null は今まで通り
-// 11/23 K643（kaito「完璧な落ちない物を出して」）：8GB と見なす iPhone（16 Pro など）でも、一度落ちた端末（risshin-weak）は 6GB の予算、
-//   二度落ちた端末（落ちた数 2 以上）は 4GB の予算にする（実機 iPhone 16 Pro で桶狭間が戦の途中に落ち続けた。画質と見た目の設定は変えず、数の上限だけ）
-const CRASH_N = (() => { try { return Number(localStorage.getItem('risshin-crashcount')) || 0; } catch (e) { return 0; } })();
-const MEM_GB_EFF = MEM_GB != null && MEM_GB > 6 && why === 'crashed' ? (CRASH_N >= 2 ? 4 : 6) : MEM_GB;
-export const MEM_BUDGET = MEM_GB_EFF == null || MEM_GB_EFF > 6 ? { real: null, skin: null, bones: null, shadowDist: null }
-  : MEM_GB_EFF <= 3 ? { real: 180, skin: 10, bones: 28, shadowDist: 8 }
-  : MEM_GB_EFF <= 4 ? { real: 205, skin: 12, bones: 32, shadowDist: 10 }
+export const MEM_BUDGET = MEM_GB == null || MEM_GB > 6 ? { real: null, skin: null, bones: null, shadowDist: null }
+  : MEM_GB <= 3 ? { real: 180, skin: 10, bones: 28, shadowDist: 8 }
+  : MEM_GB <= 4 ? { real: 205, skin: 12, bones: 32, shadowDist: 10 }
   : { real: 225, skin: 16, bones: 40, shadowDist: 12 };
 // 戦の本物の兵の上限（def.realCap・既定 250）に記憶の予算を掛ける。筋書きの兵（台本の寄せ・名のある将）はこの外で、詰まるのは厚みの埋め（depth_*・布陣の後の備）だけ
 export const realCapOf = (def) => Math.min(def?.realCap ?? 250, MEM_BUDGET.real ?? Infinity);

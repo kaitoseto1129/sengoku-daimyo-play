@@ -159,6 +159,18 @@ function gunArcAllows(army, g, u, target) {
 // 一人へ矢玉を重ねず、ほかの射手は近い味方の兵へ狙いを分ける。
 // 構え始めだけ調べる。射手の支度と弾込め、味方への一斉射は変えない。
 // 撃つなの下知（g.fire === false・号令待ち）の隊でも、45 歩の内へ寄った本人には撃つ（十四8・BV 続き kaito 11/6「真田丸の前や中に一人で立っても撃ってこない」）
+const K644_OLD = typeof location !== 'undefined' && /[?&]k644old\b/.test(location.search);   // 測り比べ用（前の鉄砲）
+// K644：鉄砲組の「放て」を、隣り合う鉄砲組（同じ側・四十m の内）へも渡す。渡された組は待たずに同じ時に放つ（込め終えて的のある者だけ）
+function lineCall(army, g, u) {
+  const t0 = army.time;
+  for (const o of army.groups) {
+    if (o === g || o.team !== g.team || !o.isGun || o.isPlayerSquad || o.salvoOnly || o.p7 || o.fire === false || o.routed || !o.units?.length) continue;
+    if (o.vCall > t0 - 0.25) continue;
+    const c = o.anchor || o.units[0].pos;
+    if (Math.abs(c.x - u.pos.x) + Math.abs(c.z - u.pos.z) > 40) continue;
+    o.vCall = g.vCall; o._mvGo = true; o._mvChkT = g.vCall + 0.3; o._mvFirst = 0;
+  }
+}
 function closeShot(army, u, t) {
   if (u.group?.focusOnly && t !== u.group.focus) return false;
   // 打って出た味方を守る城攻めでは、近い主人公にも射撃停止の下知を守る。
@@ -1834,6 +1846,20 @@ export const ArmyThink = {
         speed = u.run; face = fa;
       } else if (u.type === 'gun' && !u.sidearm && !t.isStruct && d > 4 && d <= shotRange) {
         u.rangedBack = false;
+        // K644：鉄砲の弾を同じ敵へ重ねない（設楽原の柵の一斉射は十六発が同じ四人へ集まった）。他の鉄砲が狙っている敵なら、届く内で誰も狙っていない近い敵へ替える（〇・五秒に一度・十人まで）
+        if (!K644_OLD && !t.isPlayer && !u.isPlayer && g && !g.isPlayerSquad) {
+          const AM = this._aimed || (this._aimed = new Map());
+          const rec = AM.get(t);
+          if (rec && rec.u !== u && rec.u.alive && rec.until > this.time) {
+            if (!(u.spreadT > this.time)) {
+              u.spreadT = this.time + 0.5; let n = 0;
+              const alt = this.nearestEnemy(u, shotRange, (o) => o !== t && !o.isStruct && !o.civ && !o.noTarget && !o.isPlayer && n++ < 10 &&
+                !((AM.get(o)?.until || 0) > this.time) && Math.abs(o.pos.y - u.pos.y) < 6 && !this.hiddenBehind(u, o));
+              if (alt) { u.target = alt; AM.set(alt, { u, until: this.time + 1.6 }); }
+            }
+          } else AM.set(t, { u, until: this.time + 1.6 });
+          if (AM.size > 600) for (const [k, v] of AM) if (v.until < this.time || !k.alive) AM.delete(k);
+        }
         // 鉄砲：足を止めて狙いを定め、撃つ（撃てば長い装填）。段を組んだ隊は、前の段の者だけが撃つ
         face = fa;
         let ready = !t.isPlayer || this.time >= 12 + (u.id % 5) * 0.7;
@@ -1918,7 +1944,8 @@ export const ArmyThink = {
             if (!(g._mvFirst > 0) || this.time - (g._mvSeen || 0) > 1) g._mvFirst = this.time;   // 込めの間（誰も構えない間）が空いたら待ちの始まりを取り直す
             g._mvSeen = this.time;
             const w = this.time - g._mvFirst;
-            g._mvGo = rdy >= Math.max(3, Math.ceil(n * 0.4)) || w > 8 && rdy >= 2 || w > 12;
+            // K644（kaito 11/23「一部隊の一斉射で相当な数の敵がバタバタ倒れるべき」）：四割で放つと八挺の組が四発ずつばらばらに鳴っていた（設楽原の柵）。七割そろうまで待つ
+            g._mvGo = rdy >= Math.max(3, Math.ceil(n * (K644_OLD ? 0.4 : 0.7))) || w > 8 && rdy >= 2 || w > 12;
           }
           if (!g._mvGo) ready = false;
         }
@@ -1926,6 +1953,7 @@ export const ArmyThink = {
           if (!(g.vCall > this.time - 0.25)) {
             const wait = foeLine ? 2.5 : 0.8;
             g.vCall = this.time + wait;
+            if (!K644_OLD && (massVolley || this.gunGated(g))) lineCall(this, g, u);   // K644：隣の鉄砲組も同じ「放て」で
             const L = g.leader && g.leader.alive ? g.leader : u;
             // 戦固有の知らせが声まで受け持つ時は、共通の組頭の声を重ねない。
             const called = foeLine && this.hooks.onFoeVolleyCall?.(g, L, wait) === true;
@@ -2148,7 +2176,10 @@ export const ArmyThink = {
       const stopRow = Math.floor(u.slot / Math.max(1, g._stepCols || 1));
       const closing = stopRow > 0 && !g.marching && !u.mounted && !g.isGun && !g.cav && !g.routed && !(g.cavShare > 0.1) && (g.formation === 'line' || g.formation === 'yari') &&
         g._stopT != null && this.time - g._stopT < Math.min(0.65, stopRow * 0.18) + 0.25;
-      const stay = !closing && !busy && g.anchorSpeed < 0.3 && ((u.jammed && d < JAMR(g)) || (u.settled ? d < 1.2 : d < 0.6 || u.nearT > 1));   // 11/5 BQ：押し合いで持ち場の前を揺れ続けない
+      // 11/23 K639 ①（kaito「止まっている隊は整列（形を整える）」）：止まって三秒の隊（g._tidy。諸大名戦の general_ai.js が立てる）は、
+      //   持ち場の 1.2〜1.6m 手前で『着いた』と見なさず、0.3m まで寄せて列を揃える（塞がれて四秒進めなければ今まで通りそこで止まる）
+      const tidy = g._tidy && !u.target && !u.mounted && !u.isPlayer;
+      const stay = !closing && !busy && g.anchorSpeed < 0.3 && ((u.jammed && d < JAMR(g)) || (tidy ? (u.settled ? d < 0.45 : d < 0.3 || u.nearT > 4) : (u.settled ? d < 1.2 : d < 0.6 || u.nearT > 1)));   // 11/5 BQ：押し合いで持ち場の前を揺れ続けない
       // 11/13 K074 く：止まって重なる者は持ち場に着いていなくても、同じ点に重なって立つ味方（旗本など）は、横へ少しずつずれて重なりを解く
         if ((stay || (u.moving < 0.25 && !busy)) && !u.mounted && this.time >= (u._ovT || 0)) {
           u._ovT = this.time + 0.5;

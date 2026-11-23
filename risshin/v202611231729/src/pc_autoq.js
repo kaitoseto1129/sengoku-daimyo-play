@@ -21,3 +21,11 @@ export function pcqSample(battle, elapsed, cap, active) {
 // 段ごとの描く倍率（1・.85・.7・.6）。段2から影を切る
 export const pcqRatio = () => [1, .85, .7, .6][pcq.step];
 export const pcqNoShadow = () => pcq.step >= 2;
+// 11/23 K637（Steam 版）：高解像度の画面（4K・Retina・縁なし全画面）では、描く画素を画面の本当の画素に近づける（前は常に CSS の 1 倍で、字と輪郭がぼやけた）。
+//   パソコン（携帯でない）だけ。描く画素は約 420 万（2560×1640）までに収める＝1600×900 の 2 倍の画面なら 1.7 倍、1080p の 2 倍の画面なら 1.4 倍。?pchi=0 で前のまま
+export function pcHiRes(w, h) {
+  if (/[?&]pchi=0/.test(location.search)) return 1;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  if (dpr <= 1.05) return 1;
+  return Math.max(1, Math.min(dpr, Math.sqrt(4.2e6 / (w * h))));
+}

@@ -106,7 +106,7 @@ const CHOICES = {
   crosshair: ['dot', 'cross', 'none'], battleVoice: ['off', 'all'], voice: ['off', 'major', 'all'], fontBody: ['gothic', 'mincho'],
   quality: ['high'], blood: ['on', 'low', 'off'], hudMode: ['min', 'normal', 'full'],
   uiScale: ['s', 'm', 'l'], subSize: ['s', 'm', 'l'], touchSize: ['s', 'm', 'l'],
-  radialTime: ['slow', 'run'], fpsCap: [0, 30, 60],
+  radialTime: ['slow', 'run'], fpsCap: [0, 30, 60, 120, 144],
 };
 for (const [key, fallback] of Object.entries(DEFAULTS)) {
   if (key === 'binds' || saved0[key] === undefined) continue;

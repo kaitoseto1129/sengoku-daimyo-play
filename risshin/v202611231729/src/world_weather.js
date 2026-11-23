@@ -7,8 +7,8 @@ import { gradeOf, copyGrade, mixGrade } from './grade.js';
 // 時間と天気の見え方。vis は見通し（霞がおよそ八割五分になる距離）、cloud は雲の影の濃さ、top は天頂の色
 // morning は「朝」の戦（def.mood が 'morning' か、朝靄の戦）で day の代わりに使う
 const TIME = {
-  day: { sky: 0xb9c9ce, fog: 0xa4b5bc, sun: 0xfff0d8, sunI: 2.3, hemiSky: 0xbfccd6, hemiGround: 0x4a4432, hemiI: 1.0, sunPos: [70, 72, -50], vis: 900, cloud: 0.5, top: 0x527fa9, cover: 0.15, glowK: 0 },
-  morning: { sky: 0xc9bdad, fog: 0xbdb9af, sun: 0xffdcaa, sunI: 2.2, hemiSky: 0xb5c5d5, hemiGround: 0x4a4232, hemiI: 1.1, sunPos: [70, 27, 85], vis: 540, cloud: 0.4, top: 0x718aa7, cover: 0.34, glowK: 0.3, glow: 0xffc39a },
+  day: { sky: 0xb9c9ce, fog: 0xa4b5bc, sun: 0xfff0d8, sunI: 2.3, hemiSky: 0xbfccd6, hemiGround: 0x655a42, hemiI: 1.0, sunPos: [70, 72, -50], vis: 900, cloud: 0.5, top: 0x527fa9, cover: 0.15, glowK: 0 },
+  morning: { sky: 0xc9bdad, fog: 0xbdb9af, sun: 0xffdcaa, sunI: 2.2, hemiSky: 0xb5c5d5, hemiGround: 0x76664c, hemiI: 1.1, sunPos: [70, 27, 85], vis: 540, cloud: 0.4, top: 0x718aa7, cover: 0.34, glowK: 0.3, glow: 0xffc39a },
   // 雨は昼の雨（鉛色の雲でも空は明るい灰）。暗い灰の霧と弱い散乱光で、近くの兵まで黒い影になっていた（10/9）
   storm: { sky: 0x8c9496, fog: 0x9ca4a6, sun: 0xd8dcd8, sunI: 1.1, hemiSky: 0xc4cac8, hemiGround: 0x76705f, hemiI: 2.0, sunPos: [30, 120, 20], vis: 200, cloud: 0, top: 0x6a7477, cover: 0.85, glowK: 0 },
   after: { sky: 0x9aa7a8, fog: 0x98a2a0, sun: 0xffe8c8, sunI: 1.7, hemiSky: 0xb3bfc2, hemiGround: 0x423d2e, hemiI: 1.05, sunPos: [-70, 58, 30], vis: 440, cloud: 0.45, top: 0x6b7f92, cover: 0.55, glowK: 0.1, glow: 0xffc890 },
@@ -16,6 +16,8 @@ const TIME = {
   night: { sky: 0x253048, fog: 0x2a3446, sun: 0xb0b2b8, sunI: 0.32, hemiSky: 0x7a7f8a, hemiGround: 0x34363c, hemiI: 0.22, sunPos: [-60, 70, 40], vis: 145, cloud: 0.3, top: 0x0a1120, cover: 0.3, glowK: 0 },
   dusk: { sky: 0xb29588, fog: 0x9e8c85, sun: 0xffa060, sunI: 1.5, hemiSky: 0x76849e, hemiGround: 0x33302c, hemiI: 0.8, sunPos: [-120, 17, -24], vis: 470, cloud: 0.25, top: 0x596783, cover: 0.45, glowK: 0.62, glow: 0xff996d },
 };
+// 11/23 K635②（k600-engi）：晴れた昼と朝の地面の照り返し（hemiGround）を、日の当たる草地の色へ上げた（昼 0x4a4432→0x655a42・朝 0x4a4232→0x76664c）。
+//   逆光で本人や兵の正面が黒くつぶれていた元（正面に当たるのは空と地面の照り返しだけ）。映り込みの地面（world_sky.js の gnd）も同じ色を読む。光は足さない（重さは同じ）
 // 夕暮れ：日の当たる面だけ朱に、陰は空の青を受けて冷たく（半球光を青に寄せる）
 // 日なたと日陰の差：空の映り込み（scene.environment）が日陰を明るくするので、半球光はその分だけ控え、日差しを少し強める
 // （半球光と空の映り込みを両方まともに足すと、日陰が日なたの半分ほどの明るさになり、影の薄い平らな絵になる）

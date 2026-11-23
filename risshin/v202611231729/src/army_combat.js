@@ -334,7 +334,7 @@ export const ArmyCombat = {
     let z = missileZone || (t.isPlayer ? HIT_ZONES.torso.flesh : this.hitZone(t, kind, src, opts));
     // 11/8 kaito：騎馬の侍に鉄砲が当たれば落馬する。甲冑に止まった玉でも衝撃で鞍から落ち、馬は駆け去る（討たれない将も同じ）
     //   肉に入った玉で討たれない時も、手負いのまま鞍から落ちる（討たれる時は kill の落馬）
-    const gunSev = z.part === 'head' || z.part === 'neck' ? 1.1 : z.part === 'torso' ? 0.8 : 0.4;
+    const gunSev = z.part === 'head' || z.part === 'neck' ? 1.1 : z.part === 'torso' ? (t.name ? 0.8 : 1.05) : 0.4;
     const gunHurt = z.res === 'armor' || t.invuln ? 0 : Math.max(amount * (gunSev / 0.8), t.maxHp * gunSev);
     //   遠い玉（30m より先）が甲冑か手足に当たっただけなら、乗り手は鞍に残る（騎馬が寄る前に皆落ちて見えなくならないよう）
     const gunNear = !src?.pos || Math.hypot(src.pos.x - t.pos.x, src.pos.z - t.pos.z) < 30 || gunHurt && gunSev >= 0.8;
@@ -346,7 +346,8 @@ export const ArmyCombat = {
     }
     // 鎧を抜いた弾は部位に応じた深手。名前で耐える回数を決めない。
     if (kind === 'gun' && z.res !== 'armor' && !t.isPlayer && t.type !== 'dummy') {
-      const severity = z.part === 'head' || z.part === 'neck' ? 1.1 : z.part === 'torso' ? 0.8 : 0.4;
+      // K644④（kaito 11/23「一斉射で本物の兵がバタバタ倒れるべき」）：名の無い兵は、胴に入った玉で倒れる（前は命の八割で多くが立ち続けた）
+      const severity = z.part === 'head' || z.part === 'neck' ? 1.1 : z.part === 'torso' ? (t.name ? 0.8 : 1.05) : 0.4;
       amount = Math.max(amount * (severity / 0.8), t.maxHp * severity);
       // 11/18 K365（K352 kaito「豊久が鉄砲一発で死ぬ」を全戦へ）：本人の敵の名のある将は一発では倒れない（一発で命の四割まで。史実でここで討たれる将は除く）
       const P = this.playerUnit;
@@ -711,6 +712,9 @@ export const ArmyCombat = {
       if (part === 'torso' || part === 'shoulder') stop = Math.min(0.9, stop / Math.max(0.2, frontal));
     }
     if (T >= 2) stop *= 1.15;
+    // K644④（kaito 11/23「一部隊の一斉射で相当な数の敵がバタバタ倒れるべき。本物の兵が」）：名の無い足軽（御貸具足の桶側胴・陣笠）は、
+    //   百m 内の玉をほとんど止めない（斜めでも二割五分まで）。名のある将・侍の具足は今まで通り
+    if (kind === 'gun' && !t.name && T < 1 && (opts.d ?? 0) < 100) stop = Math.min(stop, 0.25);
     if (src && src.isPlayer && kind !== 'gun' && kind !== 'arrow') stop *= opts.pierce ? 0 : 0.55;   // 自分の槍は隙間を狙って突く
     if (Math.random() < cover * stop) return HIT_ZONES[part].armor;
     return HIT_ZONES[part][cover > 0.5 ? 'gap' : 'flesh'];

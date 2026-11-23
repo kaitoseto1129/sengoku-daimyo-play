@@ -4,6 +4,8 @@
 //   上のタブ［能力］［戦法］［家宝］［戦歴］。能力は英字と日本語を並べる（13）。家宝は小さな補正・外観だけ（15）。戦歴は史実の合戦（16）。
 //   形の手本は kaito の写真 docs/kaito_refs_all/k601/4.webp（形だけ。絵や見た目は写さない）。
 import { HOUSE_NAME, statsOf, STAT_KEYS } from './bushou_online.js';
+import { isEn } from '../i18n.js';
+import { taglineEn } from './bushou_tagline_en.js';
 
 const MARK = { SS: '', S: '', A: '', R: '', N: '' };   // K608：印は使わず、格は字と枠の色で
 const RCOL = { SS: '#e8c25a', S: '#d9824a', A: '#8fb0d8', R: '#9fc08a', N: '#b8ae9c' };
@@ -52,7 +54,7 @@ export function openBushouDetail(el, b, o = {}) {
   box.innerHTML = `<div class="tyd-main">
       <div class="tyd-l"><div class="stg" aria-label="${esc(b.name)}の全身（指で回せます）"></div><div class="tyd-unit">率いる部隊 <b>${arm} 1000</b></div></div>
       <div class="tyd-r">
-        <div class="tyd-hd"><span class="tyd-rk" style="color:${RCOL[b.rank]}">${MARK[b.rank]} ${b.rank}</span><span class="tyd-nm">${esc(b.name)}</span></div>
+        <div class="tyd-hd"><span class="tyd-rk" style="color:${RCOL[b.rank]}">${MARK[b.rank]} ${b.rank}</span><span class="tyd-nm">${esc(b.name)}</span></div>${isEn() ? `<div class="tyd-tl" style="font-size:13px;opacity:.9;font-style:italic;margin-top:2px">${esc(taglineEn(b))}</div>` : ''}
         <div class="tyd-hd"><span class="tyd-arm" aria-label="主兵種 ${arm}">主兵種 <i aria-hidden="true">${ARM_MARK[arm] || ''}</i><b>${arm}</b></span><span class="tyd-hs"><canvas width="64" height="64" aria-hidden="true"></canvas><span>${HOUSE_NAME[b.house] || ''}</span> <span>・Cost ${b.cost}</span></span></div>
         <div class="tyd-tabs" role="tablist">${['能力', '戦法', '家宝', '戦歴'].map((t, i) => `<button role="tab" data-t="${i}" aria-selected="${i === 0}">${t}</button>`).join('')}</div>
         <div class="tyd-body" role="tabpanel"></div>

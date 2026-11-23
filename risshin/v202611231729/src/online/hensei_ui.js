@@ -32,10 +32,12 @@ export const JIN = ['横陣', '縦陣', '魚鱗', '鶴翼', '長蛇', '方円'];
 export const BOOKS = ['標準', '攻勢', '守備', '騎馬', '鉄砲'];
 const placesOf = (n) => [...(OPEN[Math.max(4, Math.min(16, n))] || OPEN[4]), '後詰'];
 /** 既定の布陣（k592 の布陣・始まりの道が読む）：[{ name, slot: '本陣'|'左翼'|…, formation }] と布陣帳の名。無ければ null */
+// K644 ②（kaito 11/23「決めた布陣が戦に反映されていない」）：前は枠の名（左翼など）と陣形だけを持ち、地図で置いた所は捨てて開戦で枠の点へ置き直していた。置いた所（pos・地図の真ん中が原点の m・自陣は −z）も持つ
+const okPos = (p) => !!p && Number.isFinite(p.x) && Number.isFinite(p.z) && Math.abs(p.x) <= 200 && Math.abs(p.z) <= 150;
 export function defaultFujinOf(o) {
   const d = o?.defaultFujin; if (!d?.pieces?.length) return null;
   const army = (o.army || []).filter(Boolean);
-  const pieces = army.map((n, i) => { const q = d.pieces.find((x) => x.name === n); return { name: n, slot: i === 0 ? '本陣' : q?.slot || null, formation: JIN.includes(q?.formation) ? q.formation : '横陣' }; });
+  const pieces = army.map((n, i) => { const q = d.pieces.find((x) => x.name === n); return { name: n, slot: i === 0 ? '本陣' : q?.slot || null, formation: JIN.includes(q?.formation) ? q.formation : '横陣', ...(okPos(q?.pos) ? { pos: { x: q.pos.x, z: q.pos.z } } : {}) }; });
   return { pieces, book: BOOKS.includes(d.book) ? d.book : '標準' };
 }
 const n0 = (v) => Number(v).toLocaleString('ja-JP');
@@ -185,7 +187,8 @@ export function openHensei(o, onDone, onBack) {
   const stageDispose = () => { stageOff = true; try { stage?.dispose(); } catch (e) { /* 片付けられなくても閉じる */ } stage = null; };
   // ---- K607 既定の布陣：置き場と陣形（武将ごと）・布陣帳の既定 ----
   const fj = { slot: {}, jin: {}, book: BOOKS.includes(o.defaultFujin?.book) ? o.defaultFujin.book : '標準' };
-  for (const q of o.defaultFujin?.pieces || []) { if (q.slot) fj.slot[q.name] = q.slot; if (JIN.includes(q.formation)) fj.jin[q.name] = q.formation; }
+  const fjPos = {};   // K644 ②：地図で置いた所（武将ごと）
+  for (const q of o.defaultFujin?.pieces || []) { if (q.slot) fj.slot[q.name] = q.slot; if (JIN.includes(q.formation)) fj.jin[q.name] = q.formation; if (okPos(q.pos)) fjPos[q.name] = { x: q.pos.x, z: q.pos.z }; }
   let mode = 'busho';
   const fixPlaces = () => {   // 総大将は本陣。ほかは置き場を一人一つ（開いている枠と後詰）
     const P = placesOf(N), used = new Set();
@@ -233,17 +236,17 @@ export function openHensei(o, onDone, onBack) {
     fmap = null; mapEl.innerHTML = '';
     if (!list.length || !F.mountFujin) return;
     // 始めの置き場：今の地図の置き場（同じ者）→ 保存した既定（placeDefault で平原の枠へ）
-    const def = list.map((n, i) => ({ name: n, slot: i === 0 ? '本陣' : fj.slot[n] || null, formation: fj.jin[n] || '横陣' }));
+    const def = list.map((n, i) => ({ name: n, slot: i === 0 ? '本陣' : fj.slot[n] || null, formation: fj.jin[n] || '横陣', ...(fjPos[n] ? { pos: fjPos[n] } : {}) }));
     let initial = F.placeDefault ? F.placeDefault(def, 'heigen', heishuName) : null;
     if (prev && initial) initial = initial.map((q) => { const p = prev.find((x) => x.name === q.name && x.slot && x.slot !== '…'); return p ? { ...q, slot: p.slot, pos: p.pos, formation: p.formation || q.formation } : q; });
     fmap = F.mountFujin(mapEl, { generals: list, mapId: 'heigen', map: { w: 400, h: 300 }, initial, usePrev: false, countdown: false, embed: true, onDone: () => {},
-      onChange: (st) => { if (gen !== fmapGen) return; readMapFrom(st.generals); drawCards(); } });   // c23f5ae8b2：置いた・陣形を替えた度に上の札の置き場と陣形を替える
+      onChange: (st) => { if (gen !== fmapGen) return; readMapFrom(st.generals); drawCards(); autoSave(); } });   // K644 ①：動かした度に保存（［軍勢を決める］を押さなくても）   // c23f5ae8b2：置いた・陣形を替えた度に上の札の置き場と陣形を替える
     fitMap();
   };
   // 地図の高さ：画面の残りに合わせる（パソコンは一画面に収める・携帯の横は 330px 以上で下へ送って見る）
   const fitMap = () => { if (!mapEl.isConnected) { removeEventListener('resize', fitMap); return; } const t = mapEl.getBoundingClientRect().top - el.getBoundingClientRect().top + el.scrollTop; mapEl.style.height = (el.clientHeight < 520 ? el.clientHeight - 12 : Math.max(330, Math.min(620, el.clientHeight - t - 12))) + 'px'; };   // 携帯の横は下へ送ると地図が画面いっぱい（K616）
   addEventListener('resize', fitMap);
-  const readMapFrom = (st) => { for (const g of st || []) { if (!g?.name) continue; if (g.slot && g.slot !== '…' && g.slot !== '本陣') fj.slot[g.name] = g.slot; if (JIN.includes(g.formation)) fj.jin[g.name] = g.formation; }
+  const readMapFrom = (st) => { for (const g of st || []) { if (!g?.name) continue; if (g.slot && g.slot !== '…' && g.slot !== '本陣') fj.slot[g.name] = g.slot; if (JIN.includes(g.formation)) fj.jin[g.name] = g.formation; if (g.slot && g.slot !== '…' && okPos(g.pos)) fjPos[g.name] = { x: g.pos.x, z: g.pos.z }; }
   };
   const readMap = () => readMapFrom(mapState());
   const drawCards = () => draw();
@@ -331,8 +334,11 @@ export function openHensei(o, onDone, onBack) {
   el.querySelectorAll('.hz-filters [data-h]').forEach((b) => b.addEventListener('click', () => { houseF = houseF === b.dataset.h ? null : b.dataset.h; draw(); }));
   el.querySelector('.hz-auto').addEventListener('click', () => ask('自動編成', ['大名本人と、主兵種の合う武将を Cost の内で選びます'], [['騎馬中心', () => auto('kiba'), true], ['鉄砲中心', () => auto('teppo'), true], ['やめる', null]]));
   draw();
+  const packFujin = () => ({ book: fj.book, pieces: army.filter(Boolean).map((n, i) => ({ name: n, slot: i === 0 ? '本陣' : fj.slot[n], formation: fj.jin[n] || '横陣', ...(fjPos[n] ? { pos: { ...fjPos[n] } } : {}) })) });
+  // K644 ①：地図で駒を動かした・陣形を替えた時は、その場で軍勢と布陣を保存する（Cost の上限の内で、一人以上いる時だけ。総大将の枠が空なら保存しない）
+  const autoSave = () => { try { if (!army[0] || vassalCost(army) > capOf(N)) return; fixPlaces(); o.army = army.slice(); o.slots = N; o.defaultFujin = packFujin(); saveOnline(o); } catch (e) { /* 保存できなくても布陣は続ける */ } };
   const commit = (then) => { if (!army[0]) { const k = army.findIndex(Boolean); if (k > 0) { army[0] = army[k]; army[k] = null; } }   // K628 ②：総大将の枠が空なら、残りの先頭の者を総大将に
-    readMap(); fixPlaces(); o.army = army.slice(); o.slots = N; o.defaultFujin = { book: fj.book, pieces: army.filter(Boolean).map((n, i) => ({ name: n, slot: i === 0 ? '本陣' : fj.slot[n], formation: fj.jin[n] || '横陣' })) }; saveOnline(o); stageDispose(); fmapGen++; try { fmap?.destroy?.(); } catch (e) { /* 片付け済み */ } el.remove(); then(o); };
+    readMap(); fixPlaces(); o.army = army.slice(); o.slots = N; o.defaultFujin = packFujin(); saveOnline(o); stageDispose(); fmapGen++; try { fmap?.destroy?.(); } catch (e) { /* 片付け済み */ } el.remove(); then(o); };
   go.addEventListener('click', () => commit((x) => onDone && onDone(x)));
   // K624 ⑫：軍団の画面から直に出陣（決めて保存してから［対戦］の選び＝諸大名・オンライン）
   const sortie = el.querySelector('.hz-sortie');

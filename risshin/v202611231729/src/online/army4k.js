@@ -271,7 +271,8 @@ export const AMMO4K = 30;
 // 隊の斉射：鉄砲 十二秒・十五〜百m・名目の1.2%／弓 十秒・十二〜八十m・0.8%。戦法『一斉射』の間（S._rapidUntil）は間を半分に詰める（弾は同じく一つずつ使う＝弾が早く減る）
 // K611（kaito：後ろの鉄砲隊が撃たない・鉄砲をもっと活躍させる）：鉄砲の間合いを AI の撃つ間合い（general_ai の range 140）と揃えた（前は AI が 140m で『撃てる』と見て待ち、
 //   斉射は 100m までなので後ろの鉄砲隊が一度も撃たなかった）。当たりは近いほど多い（六十m 内 名目の3%・百m 内 2%・その先 1%＝千人の鉄砲で 30・20・10 人）
-const VOLLEY = { 鉄砲: { T: 12, R: [15, 140], K: [[60, 0.03], [100, 0.02], [1e9, 0.01]] }, 弓: { T: 10, R: [12, 80], K: [[55, 0.008], [1e9, 0.005]] } };
+// K644 ③（kaito 11/23「鉄砲の届く距離を長く」）：鉄砲の届く所を百四十m から百八十m へ（百m より先は名目の1%のまま。general_ai の GUN_RANGE と揃える）
+const VOLLEY = { 鉄砲: { T: 12, R: [15, 180], K: [[60, 0.03], [100, 0.02], [1e9, 0.01]] }, 弓: { T: 10, R: [12, 80], K: [[55, 0.008], [1e9, 0.005]] } };
 function volleyTick(rt, A, S, B, g, kind) {
   const V = VOLLEY[kind], gun = kind === '鉄砲';
   const pa = gun ? aimAtPlayer(rt, A, S, B, g) : null;   // K615：本人が正面に立てば、狙って必ず撃つ
@@ -283,23 +284,22 @@ function volleyTick(rt, A, S, B, g, kind) {
   if (e) {
     const K = V.K.find(([r]) => bd < r)[1];   // 遠いほど当たらない・疲れで落ちる
     const kill = Math.min(e.b.aliveNominal(), K * B.aliveNominal() * fat * Math.max(0.3, (B.morale || 70) / 100));
-    // K629 ③②（kaito 11/22「当たった敵が倒れるのが見えない」）：減らす数のうち八人までを、撃たれた隊の本物の兵からその場で倒す（発砲の〇・三〜一秒後）。
-    //   本物が倒れた分は butai の update が lost に足すので、名目の減らしからはその数を引く（二重に数えない）。名のある将・本人は一斉射では倒さない
-    let kr = 0;
+    // K629 ③②（kaito 11/22「当たった敵が倒れるのが見えない」）：減らす数のうち、撃たれた隊の本物の兵をその場で倒す。名のある将・本人は一斉射では倒さない
+    // K644 ④（kaito 11/23「本質は弾が本当に敵に当たって敵が死ぬ事。一部隊の一斉射で相当な数がバタバタ倒れるべき」）：
+    //   撃たれる隊がカメラに見えている時（画面の内・90m 内＝本物の兵で描かれている所）は、減る数を見えて倒れる本物の数に揃える（十〜三十人。前列＝撃ち手に近い順）。
+    //   倒れる者は撃ち手の弾の的になり（salvo が一人に一発を割り当てる）、弾が着く時に倒れる。名目の減りは butai が本物の死から数える（ここで足さない）。
+    //   見えていない隊は今までどおり（本物を二十人まで倒し、残りは名目だけ減らす）。軽い大軍の兵を倒した形で見せる K639 ④ の作りはやめた（kaito「棒人間」）
+    let kr = 0, kl = kill;
     if (gun && e.b.real?.units && A.kill) {
-      const vict = e.b.real.units.filter((q) => q.alive && !q.gone && !q.isPlayer && !q.name && !q.isTaisho && !q.invuln)
-        .sort((a, b) => Math.hypot(a.pos.x - B.pos.x, a.pos.z - B.pos.z) - Math.hypot(b.pos.x - B.pos.x, b.pos.z - B.pos.z)).slice(0, Math.min(20, Math.floor(kill)));   // K639 ④（kaito 11/22「煙だけで敵が倒れない」）：見えて倒れる数を八→二十人まで
-      const src = g?.units?.find((u) => u.alive && u.type === 'gun') || null;
-      for (const q of vict) { const at = A.time + 0.3 + Math.random() * 0.7; (A._salvoQ || (A._salvoQ = [])).push(() => { if (A.time < at) return false; if (q.alive && !q.gone) { q.hitKind = 'gun'; try { A.kill(q, src); } catch (x) { /* 倒せなくても数は減る */ } } return true; }); }
-      kr = vict.length; S.visKills = (S.visKills || 0) + kr;
-    }
-    // K639 ④（kaito「鉄砲で敵が倒れない」）：本物で倒した数の残りは軽い大軍の受け持ち。軽い大軍の人数をその分だけ、撃った隊に近い前列から倒して減らす（伏した形を置く）
-    //   軽い大軍の人数が名目より少ない時（携帯など）は、その割合で倒す
-    const kl = Math.max(0, kill - kr);
-    if (kl >= 0.5 && e.b.light?.fell) {
-      const ln = e.b.lightCount(), lnom = Math.max(1, e.b.aliveNominal() - e.b.realCount());
-      const want = kl * Math.min(1, ln / lnom); let nf = Math.floor(want); if (Math.random() < want - nf) nf++;
-      const got = e.b.light.fell(B.pos.x, B.pos.z, nf); S.visLight = (S.visLight || 0) + got; S.lightLost = (S.lightLost || 0) + kl;
+      const cand = e.b.real.units.filter((q) => q.alive && !q.gone && !q.isPlayer && !q.name && !q.isTaisho && !q.invuln)
+        .sort((a, b) => Math.hypot(a.pos.x - B.pos.x, a.pos.z - B.pos.z) - Math.hypot(b.pos.x - B.pos.x, b.pos.z - B.pos.z));
+      // 見えているか：倒す候補の前の十人のうち一人でも画面の内・カメラの 90m 内に居れば（隊の真ん中だけで見ると、前列を見ている時に外れた）
+      const hid = e.b._hiddenFromCam?.(); let seen = false;
+      if (hid) for (let i = 0; i < Math.min(10, cand.length); i++) if (!hid(cand[i].pos.x, cand[i].pos.z)) { seen = true; break; }
+      const vict = cand.slice(0, seen ? Math.min(30, Math.max(10, Math.round(kill))) : Math.min(20, Math.floor(kill)));
+      S._vict = vict; S._victAt = A.time;
+      kr = vict.length; S.visKills = (S.visKills || 0) + kr; S.volleyKill = (S.volleyKill || 0) + (seen ? kr : kill);
+      if (seen) { kl = 0; S.seenVolleys = (S.seenVolleys || 0) + 1; } else kl = Math.max(0, kill - kr);
     }
     e.b.lost = Math.min(e.b.nominal, e.b.lost + kl);
     const mh = (gun ? 1.5 : 1.1) * 85 * kill / e.b.nominal; e.b.morale = Math.max(5, e.b.morale - mh); if (e.b.real?.count) e.b.real.morale = Math.max(5, e.b.real.morale - mh);
@@ -395,18 +395,25 @@ function salvo(rt, A, S, B, g, e, bd, pa = null) {
   const foeReal = e?.b.real?.units?.filter((q) => q.alive && !q.gone) || [];
   const P = rt.player?.u, aim = e ? e.b.pos : P.pos;
   let toP = pa ? Math.max(0, 6 - (S.pAimers || 0)) : 0;   // 構えに間に合わなかった者も、本人へ数人は撃つ
+  // K644 ④：倒す者（volleyTick の S._vict）を撃ち手に一人ずつ割り当て、その弾が着く時に倒す。撃ち手より多い分は同じ間（〇・三〜一秒）に倒す
+  const vict = S._victAt === A.time ? (S._vict || []) : []; S._vict = null;
+  const dieAt = (q, at) => (A._salvoQ || (A._salvoQ = [])).push(() => { if (A.time < at) return false; if (q.alive && !q.gone) { q.hitKind = 'gun'; try { A.kill(q, shooters[0] || null); } catch (x) { /* 倒せなくても数は減る */ } } return true; });
+  let vi = 0;
   for (const u of shooters) {
     let t = null, best = 95;
     if (toP > 0 && Math.hypot(P.pos.x - u.pos.x, P.pos.z - u.pos.z) < 98) { t = P; toP--; }
+    else if (vi < vict.length) { t = vict[vi++]; u._k644at = Math.hypot(t.pos.x - u.pos.x, t.pos.z - u.pos.z) / 160; }
     else for (const q of foeReal) { const d = Math.hypot(q.pos.x - u.pos.x, q.pos.z - u.pos.z); if (d < best) { best = d; t = q; } }
     if (!t) { const dx = aim.x - u.pos.x, dz = aim.z - u.pos.z, dl = Math.hypot(dx, dz) || 1, k = Math.min(dl, 90) / dl; const x = u.pos.x + dx * k, z = u.pos.z + dz * k; t = { pos: { x, y: rt.world?.heightAt ? rt.world.heightAt(x, z) : u.pos.y, z }, alive: true, team: e ? e.team : P.team, mounted: false }; }
     const at = A.time + Math.random() * 0.6;
+    if (u._k644at != null) { dieAt(t, at + u._k644at + 0.05); u._k644at = null; }
     (A._salvoQ || (A._salvoQ = [])).push(() => {
       if (A.time < at) return false;
       if (u.alive && !u.reload && !u.atk && t.alive !== false) { u.heading = Math.atan2(t.pos.x - u.pos.x, t.pos.z - u.pos.z); const a0 = u.gunAmmo ?? 20; if (A.fireGun(u, t) || (u.gunAmmo ?? 20) < a0) A.startReload?.(u); }
       return true;
     });
   }
+  for (; vi < vict.length; vi++) dieAt(vict[vi], A.time + 0.3 + Math.random() * 0.7);
   // 百m 内の本人へは本物の弾が飛ぶ（上の構えと toP）。弾の届かない百〜百四十m の本人には、隊の一斉射の見込みで当てる（一発 14〜26）。外れは唸りと土煙
   //   込め直しの最中や行軍の途中で本人へ構えられる者がいない時も、一斉射の見込みで当てる（正面に立てば必ず撃たれる）
   if (pa && (pa.d >= 98 || !(S._pAimK > 0) && toP >= 6) && rt.army?.hooks?.playerDamage) {
