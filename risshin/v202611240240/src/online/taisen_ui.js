@@ -156,7 +156,7 @@ export function openTaisen(hooks = {}) {
     TK.openTeki(body, { top, houses: HOUSE, maps: MAPS, face: H?.face, mineCount, mineArmy, onBack: () => pickHouse(false), onGo: (cfg) => { close(); hooks.onFree(cfg); } });
   }
   // ② 家と特徴 → 代表の4人・難易度・戦場（一つの画面で選ぶ）
-  async function pickHouse(practice, sel = null) {
+  async function pickHouse(practice, sel = null, pre = null) {
     await ready;
     body.innerHTML = '';
     const tp = top(practice ? W('模擬合戦', 'Practice battle') : W('諸大名と戦う', 'Fight the warlords'), entrance);
@@ -168,6 +168,8 @@ export function openTaisen(hooks = {}) {
     const right = document.createElement('div'); right.className = 'tz-col'; right.style.flex = '1'; right.style.minHeight = '0';   // K608：家臣団と一言が増えたので縦に流せるように
     pane.append(grid, right);
     const state = { house: sel, variant: 0, level: 'chukyu', map: 'heigen', side: 'def' };
+    // 毎日の理由（daily_war.js）：今日の敵軍・今週の題・歴史軍団から来た時は、敵・戦場・難易度を決めて開く。そのまま［布陣へ］なら報いの印が付く（途中で替えたら付かない）
+    if (pre?.house) { state.house = pre.house; const vi = clanVariants(pre.house, NC).findIndex((x) => x.id === pre.variant); state.variant = vi > 0 ? vi : 0; state.level = pre.level || 'chukyu'; state.map = pre.map || 'heigen'; state.side = pre.side || 'def'; }
     const avail = (h) => clanVariants(h, NC).length > 0;
     for (const h of HOUSE) {
       const b = document.createElement('button'); b.type = 'button'; b.className = 'tz-h'; b.dataset.house = h.id;
@@ -234,7 +236,7 @@ export function openTaisen(hooks = {}) {
       const mp = document.createElement('div'); mp.className = 'tz-row'; mp.style.gap = '6px';
       for (const m of MAPS) { const b = document.createElement('button'); b.type = 'button'; b.className = 'tz-b'; b.className = 'tz-b tz-mp'; b.dataset.map = m.id; const tc = mapThumb(TT?.terrainOf?.(m.id)); if (tc) b.appendChild(tc); b.append(en ? m.en : m.name); b.setAttribute('aria-pressed', String(state.map === m.id)); b.onclick = () => { state.map = m.id; drawRight(); }; mp.appendChild(b); }
       const go = document.createElement('button'); go.type = 'button'; go.className = 'tz-b tz-go'; go.textContent = W('布陣へ', 'To deployment');
-      go.onclick = () => { close(); hooks.onNpc?.({ house: state.house, level: state.level, foe: v.generals.slice(0, 4), retainers: ret, nFoe, map: state.map, side: SIDES[state.map] ? state.side : null, practice, variant: v.id, ai: (NC?.NPC_CLAN_BY_ID?.[state.house] || null)?.ai || null }); };
+      go.onclick = () => { close(); hooks.onNpc?.({ house: state.house, level: state.level, foe: v.generals.slice(0, 4), retainers: ret, nFoe, map: state.map, side: SIDES[state.map] ? state.side : null, practice, variant: v.id, ai: (NC?.NPC_CLAN_BY_ID?.[state.house] || null)?.ai || null, daily: pre?.kind && state.house === pre.house && v.id === pre.variant && state.map === pre.map && state.level === pre.level && (!pre.side || state.side === pre.side) ? { kind: pre.kind, id: pre.id } : null }); };
       lv.appendChild(go); go.style.marginLeft = 'auto';
       ft.appendChild(mp);
       if (SIDES[state.map]) {   // K628 ④：守る側・攻める側
@@ -249,6 +251,6 @@ export function openTaisen(hooks = {}) {
     }
     drawRight();
   }
-  entrance();
+  if (hooks.preset?.house) pickHouse(false, hooks.preset.house, hooks.preset); else entrance();
   return { close, el };
 }

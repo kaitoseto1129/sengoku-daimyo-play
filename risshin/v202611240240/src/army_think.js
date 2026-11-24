@@ -1944,9 +1944,9 @@ export const ArmyThink = {
           ready = false;
           // 11/6 kaito 九-4「鉄砲隊は構えたら必ず撃つ」：段に据えた列で前の味方に射線を塞がれ続ける者は、射線の空いた別の敵へ筒を向け直す（一秒半に一度・六人まで調べる）
           u.lineBlk = (u.lineBlk || 0) + dt;
-          if (u.lineBlk > 1.5 && !(u.lineSeekT > this.time)) {
-            u.lineSeekT = this.time + 1.5; let n = 0;
-            const alt = this.nearestEnemy(u, u.range, (o) => o !== t && !o.isStruct && !o.civ && !o.noTarget && n++ < 6 && Math.abs(o.pos.y - u.pos.y) < 6 &&
+          if (u.lineBlk > 0.5 && !(u.lineSeekT > this.time)) {   // K645③：射線が味方に塞がれたら、0.5秒で射線の空いた別の敵へ筒を向け直す（前は1.5秒・六人まで）
+            u.lineSeekT = this.time + 0.5; let n = 0;
+            const alt = this.nearestEnemy(u, u.range, (o) => o !== t && !o.isStruct && !o.civ && !o.noTarget && n++ < 14 && Math.abs(o.pos.y - u.pos.y) < 6 &&
               !this.allyInLine(u, o, Math.hypot(o.pos.x - u.pos.x, o.pos.z - u.pos.z)) && !this.hiddenBehind(u, o));
             if (alt) { u.target = alt; u.lineBlk = 0; }
           }

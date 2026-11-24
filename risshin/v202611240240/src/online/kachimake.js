@@ -28,6 +28,11 @@ const CSS = `
 .kmk-hq .s.bad .p.on{background:#ffb35a}
 @media (max-width:700px){.kmk-v b{font-size:60px}.kmk-v i{font-size:17px}}
 @media (prefers-reduced-motion:reduce){.kmk-v{transition:none}}
+.kmk-r{position:fixed;left:50%;top:76px;transform:translateX(-50%);z-index:42;pointer-events:none;display:flex;gap:6px;opacity:1;transition:opacity .6s;font:700 14px/1.2 "Noto Serif JP",serif;color:#f6ecd0;text-shadow:0 1px 3px #000}
+.kmk-r.off{opacity:0}
+.kmk-r div{min-height:44px;min-width:104px;padding:5px 10px;border:1px solid #e8c25a;border-radius:6px;background:rgba(14,11,8,.82);text-align:center}
+.kmk-r b{display:block;font-size:20px;color:#e8c25a}
+@media (prefers-reduced-motion:reduce){.kmk-r{transition:none}}
 `;
 const css = () => { if (typeof document === 'undefined' || document.getElementById('kmk-css')) return; const s = document.createElement('style'); s.id = 'kmk-css'; s.textContent = CSS; document.head.appendChild(s); };
 const LEAD = { strength: ['兵力', 'strength'], morale: ['士気', 'morale'], honjin: ['本陣の守り', 'HQ'], front: ['戦線', 'the front'], generals: ['武将', 'generals'] };
@@ -53,7 +58,7 @@ function hook(rt) {
   if (rt._kmkHook) return; rt._kmkHook = 1;
   const d0 = rt.dispose.bind(rt); rt.dispose = (...a) => { kmkDispose(); return d0(...a); };
 }
-export function kmkDispose() { vEl?.remove(); vEl = null; hqEl?.remove(); hqEl = null; }
+export function kmkDispose() { rEl?.remove(); rEl = null; vEl?.remove(); vEl = null; hqEl?.remove(); hqEl = null; }
 
 // ①決着の札（一度だけ。M.ending の始めか、締めの時）
 export function verdictShow(rt, M, r) {
@@ -109,6 +114,7 @@ export function hqTick(rt, M) {
     }
     document.body.appendChild(hqEl);
   }
+  ruleTick(rt, M);
   const [A, F] = hqEl.children;
   for (const [el, team] of [[A, 0], [F, 1]]) {
     const q = M.hq?.[team]; if (!q || q.v == null) continue;
@@ -118,6 +124,25 @@ export function hqTick(rt, M) {
     el.classList.toggle('bad', q.state === 'UNDER_ATTACK' || q.state === 'COLLAPSING');
   }
   hqEl.style.display = M.hud?.big?.classList.contains('on') ? 'none' : '';
+}
+
+// K641 ②：戦の始めの八秒だけ、勝ちの三つの決まり（本陣・大将・兵の割合）を字を少なく並べる。史実の合戦も本陣と大将が崩れると決まった
+let rEl = null;
+function ruleTick(rt, M) {
+  if (M._kmkRule === 2) return;
+  const t = rt.t || 0;
+  if (!M._kmkRule) {
+    M._kmkRule = 1; M._kmkRuleT = t;
+    rEl = document.createElement('div'); rEl.className = 'kmk-r'; rEl.id = 'online-rules';
+    rEl.setAttribute('aria-label', EN('勝ちの決まり：敵の本陣を落とす・総大将を討つ・敵の兵を二割まで減らす', 'Win by taking the enemy HQ, killing the commander, or cutting the foe to 20%'));
+    for (const [ico, ja, en] of [['🏯', '敵本陣を落とす', 'Take their HQ'], ['⚔', '総大将を討つ', 'Kill their lord'], ['兵 20%', '敵の兵を減らす', 'Cut them to 20%']]) {
+      const d = document.createElement('div'); const b = document.createElement('b'); b.textContent = ico; d.append(b, EN(ja, en)); rEl.appendChild(d);
+    }
+    document.body.appendChild(rEl);
+    const d0 = rt.dispose.bind(rt); rt.dispose = (...a) => { rEl?.remove(); rEl = null; return d0(...a); };
+  }
+  if (t - M._kmkRuleT > 7.4) rEl?.classList.add('off');
+  if (t - M._kmkRuleT > 8) { rEl?.remove(); rEl = null; M._kmkRule = 2; }
 }
 
 // ②の知らせの字（match.js の戦況の一行が使う）

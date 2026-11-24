@@ -496,7 +496,9 @@ for (const [id, name, house, rank, fav, bio, battles, [sn, tac], enBio, enBattle
   BUSHOU_ONLINE.push(B(id, name, house, rank, { fav, senpo: { name: sn, tac }, keywords: FAV_KW[fav], placement: '中央・前方', partners: [], bio, battles,
     en: { fav: FAV_EN[fav], senpo: { name: enSn }, keywords: [FAV_EN[fav]], placement: 'Center, front', partners: [], bio: enBio, battles: enBattles } }));
 }
-for (const [id, rank] of [['yoshihiro', 'SSR'], ['masayuki', 'SSR'], ['imagawa_yoshimoto', 'SSR'], ['asai_nagamasa', 'SSR'], ['otomo_sorin', 'SSR'], ['takakage', 'SR']]) {
+for (const [id, rank] of [['yoshihiro', 'SSR'], ['masayuki', 'SSR'], ['imagawa_yoshimoto', 'SSR'], ['asai_nagamasa', 'SSR'], ['otomo_sorin', 'SSR'], ['takakage', 'SR'],
+  // K633 ④（11/24）：史実の大名級を SR→SSR に（SSR 16→24）
+  ['kagekatsu', 'SSR'], ['hojo_soun', 'SSR'], ['saito_dosan', 'SSR'], ['katsuyori', 'SSR'], ['terumoto', 'SSR'], ['takanobu_ryuzoji', 'SSR'], ['amago_tsunehisa', 'SSR'], ['yoshiaki_mogami', 'SSR']]) {
   const b = BUSHOU_ONLINE.find((x) => x.id === id); if (b) Object.assign(b, { rank: normRank(rank), rarity: normRank(rank), cost: COST[rank] });
 }
 for (const [id, on] of [['yoshihiro', false], ['toyohisa', true], ['takakage', false], ['terumoto', true]]) { const b = BUSHOU_ONLINE.find((x) => x.id === id); if (b) b.start = on; }
@@ -534,6 +536,48 @@ const SENPO_K633 = {
   masanori_fukushima: ['福島の猛攻', 'moko', 'Fukushima assault'], nagamasa_kuroda: ['黒田の追い討ち', 'tsuigeki', 'Kuroda pursuit'], hidenaga_toyotomi: ['大和の結束', 'sanbon', 'Yamato unity'],
   hojo_soun: ['早雲の奇襲', 'sakigake', 'Soun surprise'], saito_dosan: ['美濃の蝮', 'tsuigeki', 'Viper of Mino'], takakage: ['小早川の水軍', 'sanbon', 'Kobayakawa unity'],
 };
+// K633 ⑤（11/24 Sanae）：戦法の名が無かった SR にも、名と効きの型を一人ずつ決めた
+const SENPO_K633_SR = {
+  nobuharu: ['不死身の鬼美濃', 'kenjin', 'Immortal Oni-Mino'],
+  toshiie: ['槍の又左', 'moko', 'Spear Mataza'],
+  yasumasa: ['榊原の追撃', 'tsuigeki', 'Sakakibara pursuit'],
+  tomonobu: ['越後の鬼', 'sakigake', 'Echigo demon'],
+  nobuchika: ['戸次川の槍', 'moko', 'Hetsugigawa spear'],
+  hidemasa: ['名人久太郎', 'yobi_tonyu', 'Master Kyutaro'],
+  nobukata: ['板垣の先陣', 'sakigake', 'Itagaki vanguard'],
+  kansuke: ['啄木鳥の策', 'yobi_tonyu', 'Woodpecker plan'],
+  sadamitsu: ['宇佐美の軍配', 'gunshi', 'Usami strategy'],
+  shigeie: ['新発田の粘り', 'kenjin', 'Shibata tenacity'],
+  yoshikiyo: ['砥石崩れ', 'moko', 'Toishi rout'],
+  masanobu_h: ['策士の采配', 'gunshi', 'Schemer\'s command'],
+  katsunari: ['鬼日向の突撃', 'sakigake', 'Demon Hyuga charge'],
+  hideyasu: ['結城の猛攻', 'moko', 'Yuki assault'],
+  terumoto: ['五大老の総掛かり', 'sogakari', 'Regent\'s full assault'],
+  muneharu: ['高松の籠城', 'sanada_sonae', 'Takamatsu defense'],
+  munekatsu: ['乃美の水軍', 'sakigake', 'Nomi navy'],
+  takeyoshi: ['村上水軍', 'tsuigeki', 'Murakami navy'],
+  toyohisa: ['豊久の捨て奸', 'kenjin', 'Toyohisa rear guard'],
+  tokitaka: ['鉄砲伝来', 'g_seisha', 'Matchlock pioneer'],
+  tsunamoto_oniniwa: ['鬼庭の采配', 'gunshi', 'Oniniwa tactics'],
+  terumune_date: ['奥州の守り', 'kenjin', 'Oshu defense'],
+  ujiteru_hojo: ['八王子の籠城', 'sanada_sonae', 'Hachioji defense'],
+  kotaro_fuma: ['風魔の奇襲', 'tsurinobuse', 'Fuma ambush'],
+  ujinao_hojo: ['小田原の結束', 'sanbon', 'Odawara unity'],
+  oda_nobutada: ['信忠の連携', 'renzoku_kosei', 'Nobutada waves'],
+  tokugawa_hidetada: ['秀忠の堅陣', 'kenjin', 'Hidetada wall'],
+  takeda_nobutora: ['甲斐統一', 'sogakari', 'Kai unification'],
+  shimazu_takahisa: ['薩摩の礎', 'sanbon', 'Satsuma foundation'],
+  hojo_ujitsuna: ['国府台の勝ち', 'renzoku_kosei', 'Konodai victory'],
+  chosokabe_morichika: ['大坂の猛攻', 'moko', 'Osaka assault'],
+  takahashi_joun: ['岩屋城の死守', 'kenjin', 'Iwaya last stand'],
+  bekki_akitsura: ['雷神の突撃', 'sakigake', 'Thunder god charge'],
+  asakura_yoshikage: ['一乗谷の備え', 'yobi_tonyu', 'Ichijodani reserves'],
+  asakura_soteki: ['宗滴の采配', 'gunshi', 'Soteki command'],
+  taigen_sessai: ['軍師雪斎', 'gunshi', 'Sessai strategy'],
+  saito_yoshitatsu: ['義龍の猛攻', 'moko', 'Yoshitatsu assault'],
+  sanada_nobuyuki: ['信之の堅陣', 'kenjin', 'Nobuyuki wall'],
+};
+Object.assign(SENPO_K633, SENPO_K633_SR);
 for (const [id, [nm, tac, en]] of Object.entries(SENPO_K633)) {
   const b = BUSHOU_ONLINE.find((x) => x.id === id); if (!b) continue;
   b.senpo = { ...(b.senpo || {}), name: nm, tac };

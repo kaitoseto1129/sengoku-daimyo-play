@@ -6,6 +6,7 @@
 //   置き場はオンラインの箱（house.js の loadOnline/saveOnline）の npcHonors：{ paid:[試合の印], first:{家:日}, chal:{家:日}, titles:[称号の id], flags:[旗の id] }。
 //   呼ぶ側（match_link.js の matchSettle。つないだ）：settleMatch の後、勝った諸大名戦だけ npcWinBonus(save, M, team, extra) を呼び、
 //     返り値を r.npcBonus に入れて保存する。勝ち負けの札は npcBonusLines(r.npcBonus) の行を出す。extra.tacUsed＝rt.tactics.used（戦法の回数）。
+import { dailyWin, dailyLines } from './daily_war.js';
 export const FIRST_KOBAN = 30;
 export const NPC_HOUSES = {
   oda: { name: '織田', title: '尾張を破る', titleEn: 'Breaker of Owari' },
@@ -76,7 +77,8 @@ export function npcWinBonus(save, M, team = 0, extra = {}) {
     if (!h.flags.includes(c.flag)) h.flags.push(c.flag);
     out.chal = { name: c.name, zeni: c.zeni, title: c.title, flag: c.flag };
   }
-  return out.first || out.chal ? out : null;
+  try { out.daily = dailyWin(save, npc.daily); } catch (e) { /* 日替わりの報いが付かなくても他は付ける */ }
+  return out.first || out.chal || out.daily ? out : null;
 }
 // 称号の名（id から）
 export function titleName(id, en = false) {
@@ -92,5 +94,6 @@ export function npcBonusLines(b, en = false) {
   const L = [];
   if (b.first) L.push(en ? `First victory over ${b.house}: Koban +${b.first.koban} · Title "${H.titleEn}"` : `${H.name}家 初勝利　小判 +${b.first.koban}・称号「${b.first.title}」`);
   if (b.chal) L.push(en ? `Challenge cleared: coin +${b.chal.zeni} · new banner` : `挑戦達成　銭 +${b.chal.zeni}・称号「${b.chal.title}」・旗`);
+  if (b.daily) L.push(...dailyLines(b.daily, en));
   return L;
 }

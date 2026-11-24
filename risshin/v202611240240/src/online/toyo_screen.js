@@ -535,7 +535,8 @@ export function openToyo(root, o) {
       const g = el.querySelector('.ty-got'); if (!g || !g.isConnected) return;
       // K635①：描いた肖像があれば3Dの座った姿の代わりにそれを敷く（家紋・格・兵種の札はその上）
       if ((await R.portraits()).has(b0.id)) { const im = new Image(); im.src = R.portraitSrc(b0.id); im.alt = ''; im.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:contain;object-position:50% 50%;z-index:0'; g.prepend(im); return; }
-      got = R.mountBushouStage(g, b0, { studio: true });
+      // K631①：肖像の無い人も座った3Dは出さず、顔の札を敷く（kaito 11/22「座った具足の姿がまだ変」・K635①）
+      const box = document.createElement('div'); box.dataset.bushoBody = b0.name; box.style.cssText = 'position:absolute;inset:0;z-index:0'; g.prepend(box); R.fillBodies(g);
     }).catch(() => {});
     el.onclick = (e) => {
       const b = e.target.closest('[data-a]'); if (!b) return;

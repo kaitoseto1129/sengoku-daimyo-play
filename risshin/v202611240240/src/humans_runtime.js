@@ -162,7 +162,15 @@ async function prefetchFaces(rt, camera, ms = 1500, current = () => true) {
 //   返さないと、名のある侍・旗持ちなど VAT に乗らない兵が人になれず、formGuard に隠されたまま透明の敵になった（1.6.3 レビュー・桶狭間で8人）
 const evictedRoots = [];
 let evictFlushAt = 0;
-function evictIdlePooled() {
+// 11/24 K643（iPhone の桶狭間の落ち＝WebContent が記憶の上限 2GB）：枠が埋まった後、近くへ来る兵ごとに古い人を返して新しい人を作り続けていた
+//   （桶狭間は570秒に251人・墨俣は870秒に27人。一人作るたびに形・絵の大きな配列を作って捨て、iPhone の WebKit では片付けが追いつかず WebContent が伸び続けた）。
+//   VAT の立体で描ける兵（名の無い徒の兵）のための入れ替えは EVICT_GAP 秒に一度まで。待つ間は今までの「枠が埋まった時」と同じく VAT の立体で描く。
+//   本人の相手・VAT に乗れない兵（名のある者・騎馬・旗持ち）は待たせない。__apx.evictgap=秒 で試せる（0 で前の通り）
+const EVICT_GAP = 8;
+let evictMakeAt = -1e9, evictPlayer = null;
+function evictIdlePooled(u) {
+  const gap = (typeof window !== 'undefined' && window.__apx && window.__apx.evictgap != null) ? +window.__apx.evictgap : EVICT_GAP;
+  if (u && gap > 0 && !u.isPlayer && performance.now() - evictMakeAt < gap * 1000 && !skinOpponent(evictPlayer, u) && vatCan(u)) { HSTAT.evictWait = (HSTAT.evictWait || 0) + 1; return false; }
   let old = null;
   for (const h of humanPool) if (!h.leased && (!old || (h.hidAt || 0) < (old.hidAt || 0))) old = h;
   if (!old) return false;
@@ -178,6 +186,7 @@ function evictIdlePooled() {
     try { disposeHumanRoots(evictedRoots.splice(0), ARMY, [...humanPool].map((h) => h.root)); HSTAT.evictFlush = (HSTAT.evictFlush || 0) + 1; } catch (e) { console.warn('返した人の片付け', e); }
   }
   HSTAT.evictIdle = (HSTAT.evictIdle || 0) + 1;
+  if (u) evictMakeAt = performance.now();
   return true;
 }
 function makeHuman(u, look0) {
@@ -189,7 +198,7 @@ function makeHuman(u, look0) {
 function* buildHuman(u, look0) {
   const pooled = MEM_TIGHT && !qualityKeeper(u);
   if (pooled) {
-    if (humanPool.size + humanBuilding.size >= SKIN_MAX && !evictIdlePooled()) return null;
+    if (humanPool.size + humanBuilding.size >= SKIN_MAX && !evictIdlePooled(humanBuilding.has(u) || u._humanBuild ? null : u)) return null;
     humanBuilding.add(u);
   }
   try {
@@ -617,7 +626,7 @@ function useHuman(u, force = false) {
     u.human = null;
   }
   if (!u.human) {
-    if (MEM_TIGHT && !keyMan && !u._humanBuild && humanPool.size + humanBuilding.size >= SKIN_MAX && !evictIdlePooled()) return false;
+    if (MEM_TIGHT && !keyMan && !u._humanBuild && humanPool.size + humanBuilding.size >= SKIN_MAX && !evictIdlePooled(u)) return false;
     if (!force && (!canMake() || creationLeft <= 0)) return false;
     // 形がまだの兵は、このコマでは形を一段だけ作り、人にするのは次のコマ以後（一人の重さを数コマに分ける）。
     //   形が既にある姿なら段はすぐ済むので、同じコマで人にする。本人は待たせない
@@ -797,7 +806,7 @@ function updateHumans(rt, dt) {
   setHumanWorld(rt.world); setHumanArmy(rt.army);
   // 中景（8m〜）の兵は焼いた動きで描く。骨の人を作る候補から外す（crowd_vat.js）
   vatSelect(rt, dt);
-  const player = rt.player && rt.player.u;
+  const player = rt.player && rt.player.u; evictPlayer = player;
   // 軽い兵を隠す輪は手前の LIGHT_HIDE_R だけ（11/2 夕。本物の人の輪 realNear と分ける）
   if (player) { ARMY_REAL_P.value.set(player.pos.x, player.pos.z); ARMY_REAL_R.value = Math.min(realNear(), LIGHT_HIDE_R); }
   // 前の描画で作成待ちになった兵は、出来るまで既存の軽い姿へ戻す。
@@ -962,7 +971,7 @@ function humansStep(rt, dt, army, cam) {
   const cx = cam.position.x, cz = cam.position.z;
   const detailNear = TIER.weak ? 8 : MEM_TIGHT ? SKIN_OUT : false ? 14 : true ? rt.world.def.highHumanDetail ?? 15 : rt.world.def.lowHumanDetail ?? Infinity;
   // 高の戦別指定は、甲冑を一体にまとめる距離にもそろえる。人数・骨・攻撃は元のまま。
-  const player = rt.player && rt.player.u;
+  const player = rt.player && rt.player.u; evictPlayer = player;
   const want = humanWanted, pick = humanSelection, cp = cam.position, cq = cam.quaternion;
   let changed = pick.army !== army || pick.quality !== S.quality || pick.count !== army.units.length ||
     pick.target !== player?.target || pick.swingTarget !== player?.swing?.target ||

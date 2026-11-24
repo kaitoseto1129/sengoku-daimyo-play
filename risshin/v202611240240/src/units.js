@@ -2696,7 +2696,10 @@ export class Army {
       for (const id of pool.used) pool.bm.setVisibleAt(id, false);
       pool.used.length = 0; pool.bm.visible = false;
       // 一度返して作り直した束は、休眠を長く待ってから返す（10/31 iPhone 三木：大きな束を十秒ごとに返しては作り直し、開戦150秒に落ちた）
-      if (pool.idle > (MEM_TIGHT ? 240 : 900 * (1 + 3 * Math.min(3, P.again.get(key) || 0))) && B.retired < 2 && B.retireMs < 0.5) {
+      // 11/24 K643（iPhone の桶狭間の落ち）：携帯は休眠 240 コマ（8秒）で必ず返していて、一度返して作り直した束の「長く待つ」が効いていなかった。
+      //   桶狭間 200秒に束の入れ物を 340 個作り直し、返す前の読み戻しと合わせて約280MB の配列を作っては捨てていた（iPhone の WebKit は片付けが追いつかず WebContent が伸びる）。
+      //   携帯も、作り直した束は 64秒・120秒・176秒と長く待つ（__apx.oldretire で前の通り）
+      if (pool.idle > (MEM_TIGHT ? 240 * (window.__apx?.oldretire ? 1 : 1 + 7 * Math.min(3, P.again.get(key) || 0)) : 900 * (1 + 3 * Math.min(3, P.again.get(key) || 0))) && B.retired < 2 && B.retireMs < 0.5) {
         const started = performance.now();
         // 配列は束の中だけに残っている。全形を一度に読み戻すと、返却一つでも
         // 大量の確保と写しが集中する。束を残したまま一コマ一配列ずつ戻す。

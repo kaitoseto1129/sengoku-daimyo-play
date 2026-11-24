@@ -73,6 +73,60 @@ export const WEEKS = [
 // 11/24 増員の武将を各家の週へ（bushou_more_1124.js）
 for (const m of MORE_1124) { const w = WEEKS.find((x) => x.kind === 'house' && x.house === m[2]) || WEEKS.find((x) => x.add.some((i) => BUSHOU_BY_ID[i]?.house === m[2])); if (w && !w.add.includes(m[0])) w.add.push(m[0]); }
 export const ARM_NAME = { teppo: '鉄砲', kiba: '騎馬', yumi: '弓' };
+// ---- K636（11/24 Sanae）一年の暦：初めの池を絞り、週に出す人数に上限を付け、あふれた分を第22週から52週まで回す ----
+//   kaito 11/22「初めから全部出る→すぐコンプリート」。初めの池＝初めの4人（六家の24人）＋六家の N を一家5人まで（約54人）。
+//   第1〜21週の筋は今のまま（家・兵種・特別編）。一週に新しく出す人は CAP 人まで（目当て・注目が先・次に格の高い順）。
+//   あふれた人は、第22週からの「家の週・兵種の週・復刻の週」が家ごとにまとめて出す。第52週（2027/11/22〜28）の後で全員が出る。
+const CAP = 9, YEAR = 52, BASE_N = 5;
+const RK = ['SSR', 'SR', 'R', 'N'];
+export const HOUSE_JA = { oda: '織田家', takeda: '武田家', uesugi: '上杉家', tokugawa: '徳川家', mori: '毛利家', shimazu: '島津家', date: '伊達家', other: '諸家', toyotomi: '豊臣家', hojo: '北条家', chosokabe: '長宗我部家', otomo: '大友家', asai: '浅井家', asakura: '朝倉家', imagawa: '今川家', saito: '斎藤家', sanada: '真田家' };
+export const HOUSE_EN = { oda: 'Oda', takeda: 'Takeda', uesugi: 'Uesugi', tokugawa: 'Tokugawa', mori: 'Mori', shimazu: 'Shimazu', date: 'Date', other: 'Various Lords', toyotomi: 'Toyotomi', hojo: 'Hojo', chosokabe: 'Chosokabe', otomo: 'Otomo', asai: 'Asai', asakura: 'Asakura', imagawa: 'Imagawa', saito: 'Saito', sanada: 'Sanada' };
+const rkOf = (id) => { const i = RK.indexOf(BUSHOU_BY_ID[id]?.rank); return i < 0 ? 9 : i; };
+const BASE = (() => {
+  const L = BUSHOU_ONLINE.filter((b) => b.start).map((b) => b.id), n = {};
+  for (const b of BUSHOU_ONLINE) if (!b.start && SIX.includes(b.house) && b.rank === 'N' && (n[b.house] = (n[b.house] || 0) + 1) <= BASE_N) L.push(b.id);
+  return L;
+})();
+{
+  const seen = new Set(BASE);
+  const orig = WEEKS.splice(0, WEEKS.length);
+  for (const w of orig) {
+    const want = [...new Set([w.pickup, ...(w.focus || []), ...w.add])].filter((id) => BUSHOU_BY_ID[id] && !seen.has(id));
+    const first = want.filter((id) => id === w.pickup || (w.focus || []).includes(id));
+    const rest = want.filter((id) => !first.includes(id));
+    const keep = [...first, ...rest].slice(0, CAP);
+    for (const id of keep) seen.add(id);
+    WEEKS.push({ ...w, add: keep });
+  }
+  const pend = [];
+  for (const w of orig) for (const id of w.add) if (BUSHOU_BY_ID[id] && !seen.has(id) && !pend.includes(id)) pend.push(id);
+  for (const b of BUSHOU_ONLINE) if (!seen.has(b.id) && !pend.includes(b.id)) pend.push(b.id);
+  let j = 0;
+  const take = (ids) => { for (const id of ids) { seen.add(id); pend.splice(pend.indexOf(id), 1); } return ids; };
+  while (pend.length || WEEKS.length < YEAR) {
+    j++;
+    const left = YEAR - WEEKS.length, cap = Math.min(14, Math.max(CAP, Math.ceil(pend.length / Math.max(1, left))));
+    if (!pend.length) {
+      const h = SIX[(j - 1) % SIX.length], top = BUSHOU_ONLINE.filter((b) => b.house === h && seen.has(b.id)).sort((a, b) => RK.indexOf(a.rank) - RK.indexOf(b.rank)).slice(0, 3).map((b) => b.id);
+      WEEKS.push({ kind: 'house', house: h, name: `今週の登用 ${HOUSE_JA[h]}（復刻）`, en: `This week: ${HOUSE_EN[h]} (Rerun)`, bg: 'base', pickup: top[0], focus: top, add: [], rerun: true });
+      continue;
+    }
+    const armN = { teppo: 0, kiba: 0, yumi: 0 };
+    for (const id of pend) if (armN[BUSHOU_BY_ID[id].fav] != null) armN[BUSHOU_BY_ID[id].fav]++;
+    const arm = j % 4 === 0 ? Object.keys(armN).sort((a, b) => armN[b] - armN[a])[0] : null;
+    if (arm && armN[arm] >= 3) {
+      const ids = take(pend.filter((id) => BUSHOU_BY_ID[id].fav === arm).sort((a, b) => rkOf(a) - rkOf(b)).slice(0, cap));
+      WEEKS.push({ kind: 'arm', arm, name: `${ARM_NAME[arm]}武将の週`, en: { teppo: 'Gunner Week', kiba: 'Cavalry Week', yumi: 'Archer Week' }[arm], bg: arm === 'kiba' ? 'kai' : 'kiri', pickup: ids[0], focus: ids.slice(0, 3), add: ids });
+      continue;
+    }
+    const cnt = {};
+    for (const id of pend) { const h = BUSHOU_BY_ID[id].house; cnt[h] = (cnt[h] || 0) + 1; }
+    const h = Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a])[0];
+    const mine = pend.filter((id) => BUSHOU_BY_ID[id].house === h).sort((a, b) => rkOf(a) - rkOf(b)).slice(0, cap);
+    const ids = take([...mine, ...pend.filter((id) => !mine.includes(id)).slice(0, cap - mine.length)]);   // 家の人が足りない週は、ほかの家の人で埋める
+    WEEKS.push({ kind: 'house', house: h, name: `今週の登用 ${HOUSE_JA[h] || h}`, en: `This week: ${HOUSE_EN[h] || h}`, bg: 'base', pickup: ids[0], focus: ids.slice(0, 3), add: ids });
+  }
+}
 
 let forced = null;
 export function setToyoNow(d) { forced = d == null ? null : new Date(d); }
@@ -92,8 +146,6 @@ export function weekIndex(now) {
 export function weekFrom(i) { const d = new Date(startT()); d.setDate(d.getDate() + 7 * i); return d; }
 const md = (d) => `${d.getMonth() + 1}月${d.getDate()}日`;
 
-// 初めの池
-const BASE = BUSHOU_ONLINE.filter((b) => b.start || (SIX.includes(b.house) && b.rank === 'N')).map((b) => b.id);
 let cacheK = -1, cacheS = null;
 // 今出る武将の id の Set（解禁した武将だけ）
 export function openSet(now) {
@@ -119,7 +171,7 @@ export function nextNotice(now) {
   const w = WEEKS[k]; if (!w) return null;
   const from = weekFrom(k), s = openSet(now);
   const news = w.add.filter((id) => !s.has(id)).map((id) => BUSHOU_BY_ID[id]).filter(Boolean)
-    .sort((a, b) => 'SSANR'.indexOf(a.rank) - 'SSANR'.indexOf(b.rank)).slice(0, 3);
+    .sort((a, b) => RK.indexOf(a.rank) - RK.indexOf(b.rank)).slice(0, 3);
   if (!news.length) return { text: `${md(from)}から ${w.name}`, en: `From ${from.getMonth() + 1}/${from.getDate()}: ${w.en}` };
   return { text: `${md(from)}から ${news.map((b) => b.name).join('・')}${w.add.length > news.length ? 'ほか' : ''}が登用に出る`, en: `From ${from.getMonth() + 1}/${from.getDate()}: new generals join (${w.en})`, ids: news.map((b) => b.id) };
 }

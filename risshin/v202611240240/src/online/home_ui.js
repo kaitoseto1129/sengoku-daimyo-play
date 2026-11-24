@@ -1,5 +1,6 @@
 // オンラインのホーム・家を選ぶ・手持ちの一覧（k365-cloud-48。docs/online_plan_1121.md の受け持ち）。字は少なく絵で。
 import { drawMon } from '../textures.js';
+import { dailyStrip, openLegions, DAILY_CSS } from './daily_ui.js';
 import { HOUSES, RARITY, ROSTER, COST_CAP, KATA, ROLES, bushoOf, costOf, armyCost, startersOf, loadOnline, saveOnline, newOnline, changeHouse, monCanvas, kataCanvas, drawKata, face, root, esc, lbl, lw, kinOf } from './house.js';
 
 // ---- 家を選ぶ（初めて、または家を替える時）。onDone(o) に新しい手持ちを渡す。onBack は戻る ----
@@ -80,7 +81,7 @@ export function openOnlineHome(hooks = {}) {
   const o = loadOnline();
   if (!o) return openHouseSelect(() => openOnlineHome(hooks), hooks.back);
   const el = root('オンラインのホーム');
-  el.querySelector('style').insertAdjacentText('beforeend', HOME_CSS);
+  el.querySelector('style').insertAdjacentText('beforeend', HOME_CSS + DAILY_CSS);
   const h = HOUSES.find((x) => x.id === o.house) || HOUSES[0];
   const cost = armyCost(o.army || []);
   el.insertAdjacentHTML('beforeend', `<div class="ol-top"><button type="button" class="ol-back" aria-label="戻る">‹</button><h2>腕比べ</h2>
@@ -96,6 +97,8 @@ export function openOnlineHome(hooks = {}) {
         <button type="button" class="olm-tile" data-k="practice"><span>模擬合戦</span></button>
         <button type="button" class="olm-tile" data-k="tsutome" aria-label="毎日の務め"><i class="olm-dot" hidden></i><span>務め</span></button>
       </div></div>`);
+  // 毎日の理由（daily_war.js）：今日の敵軍・今週の題・歴史軍団を一目で。押すと戦いの支度（敵・戦場・難易度が決まって開く）
+  if (hooks.daily) { const ds = dailyStrip(o, (f) => { el.remove(); hooks.daily(f); }, () => { el.remove(); openLegions(loadOnline(), (f) => hooks.daily(f), again); }); el.querySelector('.olm').appendChild(ds); }
   const hb = el.querySelector('.olm-house'); hb.appendChild(icon('house', 28, o)); hb.insertAdjacentHTML('beforeend', `<span>${esc(h.name)}</span>`);
   el.querySelectorAll('.ol-cells i').forEach((c, i) => { c.className = cost > COST_CAP ? 'over' : i < cost ? 'on' : ''; });   // 上限を超えた軍は升を全部赤に（押せば編成で直す）
   const fs = el.querySelector('.olm-faces');

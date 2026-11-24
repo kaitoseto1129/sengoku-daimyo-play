@@ -35,6 +35,7 @@ export async function bootOnline(game) {
     hensei: E ? () => E.openHensei(null, home, home) : null,
     match: () => toFujin(game, home, { practice: false }),
     practice: () => toFujin(game, home, { practice: true }),
+    daily: (pre) => openTaisen(game, home, pre),   // 毎日の理由：今日の敵軍・今週の題・歴史軍団（daily_war.js）
     toyo: () => toToyo(home),
     tsutome: () => toTsutome(home),
     kin: (done) => toToyo(done, { startAt: 'kin' }),   // 48 のホームの金の『＋』：買い場を開き、閉じたら done（ホームはそのまま）   // 48 へ：ホームに「務め」の札を置く時はこの口
@@ -288,7 +289,7 @@ async function capFoe(foe, house, level, mine = []) {
 
 // K603（11/21 k592）：ホームの［対戦］→［オンライン対戦］［諸大名と戦う］［模擬合戦］。back＝ホームへ戻る
 //   家がまだなら家選び→元の所。オンライン対戦は今の openOnline(game,'match') と同じ道（編成→布陣→相手探し）
-export async function openTaisen(game, back) {
+export async function openTaisen(game, back, preset = null) {
   const [Tz, Ho, H] = await Promise.all([has('./taisen_ui.js'), has('./house.js'), has('./home_ui.js')]);
   if (!Tz || !Ho) return back();
   // 戦の後（勝ち負けの札から戻った時）：初心者の道（k598-home の michi.js）を数え、NPC 中級に初めて勝った時は対人戦へ誘う（強制しない）
@@ -304,16 +305,17 @@ export async function openTaisen(game, back) {
     Ho.saveOnline(s); show();
   };
   const pvpReady = !!(await has('./net_match.js'))?.serverUrl?.();
-  const show = () => Tz.openTaisen({
+  const show = (pre) => Tz.openTaisen({
+    preset: pre && pre.house ? pre : null,   // 毎日の理由（daily_war.js）：ホームの札から、敵・戦場・難易度を決めて開く
     onBack: back,
     onOnline: () => openOnline(game, 'match', back),
     onGundan: () => openGundan(game, back),
     onToyo: () => openOnline(game, 'toyo', back),
     pvpReady,   // K612：受け渡し所が無い間は［オンライン対戦］を準備中に
     onFree: (c) => toFujin(game, show, { practice: true, free: true, foe: c.foe, nFoe: c.foe.length, foeNominal: c.foeNominal, foeHeishu: c.foeHeishu, map: c.map }),   // K611 ③［敵を決める］：褒美なし（練習）・終われば［対戦］へ   // K608 ③：対戦 → 武将登用
-    onNpc: async (c) => { const prev = (await has('./match.js'))?.lastMatch?.(); toFujin(game, after(c, prev), { practice: !!c.practice, map: c.map, side: c.side || null, foe: c.foe, retainers: c.retainers || null, nFoe: c.nFoe || 0, npc: c.practice ? { house: c.house, level: c.level, ai: c.ai } : { house: c.house, level: c.level, variant: c.variant, ai: c.ai } }); },
+    onNpc: async (c) => { const prev = (await has('./match.js'))?.lastMatch?.(); toFujin(game, after(c, prev), { practice: !!c.practice, map: c.map, side: c.side || null, foe: c.foe, retainers: c.retainers || null, nFoe: c.nFoe || 0, npc: c.practice ? { house: c.house, level: c.level, ai: c.ai } : { house: c.house, level: c.level, variant: c.variant, ai: c.ai, daily: c.daily || null } }); },
   });
-  if (Ho.loadOnline()) return show();
+  if (Ho.loadOnline()) return show(preset);
   if (H) H.openHouseSelect(() => firstNote(show), back); else back();
 }
 

@@ -555,7 +555,8 @@ export function fillBodies(root) {
       const im = new Image(); im.src = url; im.alt = ''; im.style.cssText = 'height:100%;max-height:220px;width:auto;object-fit:contain;display:block;margin:0 auto';
       el.appendChild(im);
     };
-    portraits().then((S) => (S.has(b.id) ? art(b.id) : bodyShot(b).then((url) => (url || !el.isConnected ? url : new Promise((r) => setTimeout(r, 1200)).then(() => bodyShot(b)))).then(put, () => put(null))));
+    // K631①（kaito 11/22・K635①「変な3D の座り姿は札から外す」）：肖像のある人は絵、無い人は顔の札（座った3Dは撮らない）
+    void put; portraits().then((S) => (S.has(b.id) ? art(b.id) : bodyFallback(el, nm)));
   }
 }
 

@@ -4,7 +4,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { S, MEM_TIGHT } from './settings.js';
 import { DEATH_END } from './units.js';
 import { cloneWaterMaterial } from './water_body.js';
-import { muddyFlag, lodSwap } from './units_flags.js';
+import { muddyFlag, lodSwap, lodSwapLazy } from './units_flags.js';
 import { groundAt } from './floors.js';
 import { dropLazyGeo } from './units_model.js';
 import { shedModel } from './unit_shed.js';
@@ -110,7 +110,8 @@ export function contactLitter(o, world, y, gap = 0.015) {
 //   森部で死体 200 で 90MB まで伸びていた。10/20）。作った写しは戦の片付けのために別に覚える
 // 元の形の配列を GPU にだけ置いている（main.js の gpuOnly）か
 function needsReadback(u) {
-  const b = u.body, lod = b && b.userData.lod, g = lod ? lod[0] : b && b.geometry;
+  // 11/24 K643 クラウドか：まだ作っていない細かい形（lodSwapLazy）は読まない（読むと作ってしまう）。その時に今曲げるのは遠い形だけ
+  const b = u.body, lod = b && b.userData.lod, g = lod ? (lod.peekHi && !lod.peekHi() ? lod[1] : lod[0]) : b && b.geometry;
   if (!g || !g.attributes) return false;
   if (fallenBodies.get(g)) return false;
   for (const k in g.attributes) if (g.attributes[k]._gpuRef) return true;
@@ -412,7 +413,11 @@ export const ArmyGround = {
       const direction = side ? (u.mesh.rotation.z > 0 ? 3 : 2) : (u.mesh.rotation.x > 0 ? 0 : 1);
       const lod = u.body.userData.lod;
       // 画質「低」の遠い形（9m より先）は布の垂れ（数cm）を作り分けない。倒れた向きごとに束が四つに分かれていた
-      if (lod) lodSwap(u.body, fallenBody(lod[0], direction), fallenBody(lod[1], direction), lod[2]);
+      // 11/24 K643 クラウドか（桶狭間の戦の中で残る記憶）：倒れた兵ごとに近くの細かい形まで作って曲げ、その写しを戦の終わりまで抱えていた
+      //   （描かずの桶狭間 6分で曲げた写し 1533・66MB＝戦の中で増える ArrayBuffer の半分。細かい形の作りも +15MB）。
+      //   細かい形をまだ作っていない亡骸（遠くで倒れた兵）は、遠い形だけ今曲げ、細かい形はカメラが近づいた時に作って曲げる（見た目は同じ）
+      if (lod && lod.peekHi && !lod.peekHi()) lodSwapLazy(u.body, () => fallenBody(lod[0], direction), fallenBody(lod[1], direction), lod[2]);
+      else if (lod) lodSwap(u.body, fallenBody(lod[0], direction), fallenBody(lod[1], direction), lod[2]);
       else u.body.geometry = fallenBody(u.body.geometry, direction);
     }
     this.keepLitter(u.dropped); this.keepLitter(u.hatOff);
