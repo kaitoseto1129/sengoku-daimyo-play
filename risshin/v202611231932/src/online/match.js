@@ -70,7 +70,8 @@ let net = null;
 // K641 ①（kaito 11/22「敗走はその隊の大将が討たれた時か、兵が三割を切った時だけ。それ以外は敗走しない」）：四割を三割に改め、大将の討死でも崩す。
 //   士気の低さだけの潰走（備の士気 15 未満・退きの中の 22 未満・組の士気 22 未満・一人ずつの逃げ）は止める（S.hardRoutOnly・組の noRout）。
 //   士気はそのまま下がり、押す力・下知の受けには効く（崩れて逃げないだけ）
-const K641_ROUT_AT = 0.3;
+// K645 ①（kaito 11/23「兵が半分ほど残っていそうなのに敗走する。二割を切ったら敗走でいい」）：三割を二割に。崩れた時の残りの割合を S._k645left に残し、戦の記録（logEvent の rout）にも載せる
+const K641_ROUT_AT = 0.2;
 // K641 の続き（11/23 rush_honjin：開戦三十秒ほどで本人が斬られて別の武将へ移った時、本陣の大将の体は無傷なのに『味方の総大将討死』で負けた）：
 //   本人が移る時（K639 ⑪・K640）、元の隊に討死の印（taishoDead・K603 の士気の下げと下知の遅れ）を立てるが、本人の体はその隊の大将の体とは別のことがある。
 //   決着（総大将の討死）と K641 ① の敗走では、大将の体（taishoU）を持つ隊は、その体が本当に倒れた時だけ討死と数える（体の無い隊は今まで通り印で）
@@ -83,7 +84,7 @@ function k628Rout(rt, M) {
     if (!S._out) {
       if (S.line === 'honjin' || S.major || B.aliveNominal() <= 0) continue;
       if (!k641ChiefGone(S) && B.aliveNominal() >= B.nominal * K641_ROUT_AT) continue;
-      S._k641why = k641ChiefGone(S) ? 'taisho' : 'few';
+      S._k641why = k641ChiefGone(S) ? 'taisho' : 'few'; S._k645left = +(B.aliveNominal() / B.nominal).toFixed(3);
       if (B.real) B.real.noRout = false;
     if (!S._out && !M.ending && !M.over) {
       S.hardRoutOnly = true;

@@ -56,7 +56,7 @@ import { kubijikken } from './kubijikken.js';
 import { titleScreen, storyCard, loadingStory, inkBand, evalScreen, spoilHorseInfo, aijirushiScreen, baseScreen, finalScreen, hideScreen, helpOverlay, settingsScreen, pauseMenu, notice, deathScreen, promoScreen, recordsScreen, dojoResult, epilogueScreen, ladderScreen } from './screens.js';
 import { icloudInit } from './native_bridge.js';
 try { icloudInit(); } catch (e) { /* iCloud が無くても遊べる */ }
-import { pcqSample, pcqRatio, pcqNoShadow } from './pc_autoq.js';
+import { pcqSample, pcqRatio, pcqNoShadow, pcHiRes } from './pc_autoq.js';
 import { S, QUALITY, saveSettings, canonical, K, reduceMotion, MEM_TIGHT, MEM_TIGHT_TEST, CPU_LEAN } from './settings.js';
 import { TIER, noteGL, markInBattle, markCrashed, WEAK_TEX_MAX, battleDrawRatio } from './device_tier.js';
 import { noteBattleStart } from './crash_note.js';
@@ -362,7 +362,16 @@ import { gungiAvailable, openGungi, closeGungi } from './gungi.js';   // 軍議�
 import { initMetrics } from './metrics.js';   // 遊びの数字（GA4。GA_ID が空なら送らない）
 import { initCount } from './count.js';
 import { chokuTopUp } from './choku.js';   // K598 直属兵（問屋で補充）
-import { hubScreen, pickScreen, preCard, battleRows, openIndex, markToyoWon, toyoWon } from './hub.js';   // 本陣と戦を選ぶ（サムネの並び）
+import { hubScreen, pickScreen, preCard, battleRows, openIndex, markToyoWon, toyoWon } from './hub.js';
+// K637（kaito 11/22「稲生→清洲→桶狭間前夜→…→清洲へ帰る→昇進を製品版の質で一本」・docs/k637_slice_plan.md）：
+//   稲生の後と桶狭間の後は、本陣の札（ホーム）でなく歩ける清洲の城下へ帰る（町の噂・組頭と仲間の話・上官屋敷・問屋から出陣）。
+//   前は「次の戦へ」で戦から戦へ飛び、「城下へ」もホームの札で、清洲の町は陣中のある戦の前にしか開かなかった
+const KIYOSU_SLICE = new Set(['okehazama', 'moribe']);
+function kiyosuBefore(G) {
+  if (!G || G.practice || G.lord || scenarioKey() !== 'oda') return false;
+  const row = ODA_LINE[openIndex(G)];
+  return !!row && KIYOSU_SLICE.has(row.id) && row.town === '清洲';
+}   // 本陣と戦を選ぶ（サムネの並び）
 import { markCleared } from './cleared.js';   // 勝った戦を覚える
 import { loreOf, rosterDepart } from './screens.js';
 import { lethalStoryAfter } from './lethal_story.js';
@@ -852,7 +861,7 @@ function fireReady(obj, b) {
 }
 // 支度中の人の下ごしらえは、題の画面の「影なし」のまま組むと、戦では影つきで全部組み直しになる（10/28 三方ヶ原：開戦0.1秒に目・髪・顔・具足など十余り）。
 //   組む一瞬だけ戦と同じ影の有無にして、すぐ戻す（compile は同期で描き方を決める）
-const battleShadowOn = () => S.quality !== 'low' && (window.__drawLow && MEM_TIGHT ? false : heatLevel < 2) && !APX.noshadow;   // 11/13 K073：重い戦（drawLow）は影を熱が 0 の間だけ（実機で約4ms）。ほかは段2から切る
+const battleShadowOn = () => S.quality !== 'low' && (window.__drawLow && MEM_TIGHT ? false : heatLevel < 3) && !APX.noshadow;   // 11/13 K073：重い戦（drawLow）は影を熱が 0 の間だけ（実機で約4ms）。ほかは段3から切る（11/23 K643：描く所（draw）が熱3で切るのに、ここが段2で切っていたため、熱2の端末では支度で影なしの描き方を組み、戦で影つきを組み直していた＝描き方が二重）
 window.__battleShadow = battleShadowOn;   // 絵札を焼く所（efuda.js）も戦と同じ影の有無で組む
 function withBattleShadow(work) {
   const prev = renderer.shadowMap.enabled;
@@ -1253,7 +1262,7 @@ let sizeDirty = false;   // キャンバスの大きさを変えて、まだ描�
 function resize() {
   const w = Math.max(1, window.innerWidth), h = Math.max(1, window.innerHeight);
   // 大きな Android 画面でも仕上げを含め同じ画素数に収める。
-  const ratio = battleDrawRatio(w, h, MEM_TIGHT, heatLevel) * (MEM_TIGHT ? 1 : pcqRatio());   // K314 パソコンの自動の段
+  const ratio = battleDrawRatio(w, h, MEM_TIGHT, heatLevel) * (MEM_TIGHT ? 1 : pcqRatio() * pcHiRes(w, h));   // K314 パソコンの自動の段
   renderer.getSize(_drawSize);
   // 倍率だけの変更も一度で済ませる。setPixelRatio の中でも setSize が呼ばれるため、
   // 両方呼ぶと同じコマでキャンバスと仕上げの寸法更新が重複していた。
@@ -3145,7 +3154,7 @@ const game = {
       if (S.townWalk !== 'cards' && !this.G?.practice) {
         const G0 = this.G;
         const hubGo = () => { if (!memReloadGate(this, this.goNext ? 'hubNext' : 'hub', [])) { if (this.goNext) this.hubNext(); else this.hub(); } };
-        import('./town_jinchu.js').then((m) => { if (this.G !== G0) return; if (m.jinchuOf(G0)) this.startTown(); else hubGo(); }).catch(hubGo);
+        import('./town_jinchu.js').then((m) => { if (this.G !== G0) return; if (m.jinchuOf(G0) || kiyosuBefore(G0)) this.startTown(); else hubGo(); }).catch(hubGo);
         return;
       }
       // K214 kaito 11/9 夜「押した瞬間に遊べる・前もって支度」：iPhone・iPad の読み直し（前の戦の記憶を返す）を、出陣を押した時でなく、戦の後ホームへ戻る時に済ませる。
@@ -3445,7 +3454,7 @@ const game = {
     save(G);
     const go0 = () => { rosterDepart(G); save(G); this.nextBattle(); };
     // 11/18 K364：次の戦の前に陣中がある時は、結果の「次の戦へ」からもその陣中へ入る（陣中の出陣の口から次の戦へ）
-    const go = () => (this.townWalkOn() ? import('./town_jinchu.js').then((m) => (this.G === G && m.jinchuOf(G) ? this.startTown() : go0())).catch(go0) : go0());
+    const go = () => (this.townWalkOn() ? import('./town_jinchu.js').then((m) => (this.G === G && (m.jinchuOf(G) || kiyosuBefore(G)) ? this.startTown() : go0())).catch(go0) : go0());
     return isLocked(G.battle) ? showPaywall(go, () => this.base()) : go();
   },
 
@@ -3762,7 +3771,7 @@ function loop() {
   // 待つ札・題・地図の間は毎秒十枚、端末がかなり熱い時は五枚（止まった絵なので見た目は同じ。熱を冷ます 10/28）
   const waitCap = backgroundHeat >= 2 ? 5 : 10;
   // 11/16 K314（kaito「パソコンでも 60fps を物差しに」）：戦の上限は携帯だけ毎秒三十枚。パソコンは六十枚まで（設定の上限があればそれ）
-  const battleCap = MEM_TIGHT ? 30 : 60;
+  const battleCap = MEM_TIGHT ? 30 : 240;   // 11/23 K637（Steam 版）：パソコンの戦も 144Hz まで（上限なし＝画面の更新の回数まで。設定の上限があればそれ）。携帯は 30 のまま
   const cap = waiting ? (chosenCap ? Math.min(chosenCap, waitCap) : waitCap) : b ? Math.min(chosenCap || battleCap, battleCap) : chosenCap;
   // パソコンは大きさの変更や再開時にすぐ描く。iPhone はその時も三十枚の間隔を守る。
   if (cap) {

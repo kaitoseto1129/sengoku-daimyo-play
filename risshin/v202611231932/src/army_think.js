@@ -159,6 +159,42 @@ function gunArcAllows(army, g, u, target) {
 // 一人へ矢玉を重ねず、ほかの射手は近い味方の兵へ狙いを分ける。
 // 構え始めだけ調べる。射手の支度と弾込め、味方への一斉射は変えない。
 // 撃つなの下知（g.fire === false・号令待ち）の隊でも、45 歩の内へ寄った本人には撃つ（十四8・BV 続き kaito 11/6「真田丸の前や中に一人で立っても撃ってこない」）
+const K644_OLD = typeof location !== 'undefined' && /[?&]k644old\b/.test(location.search);   // 測り比べ用（前の鉄砲）
+// K644（kaito 11/23「一部隊の一斉射で相当な数の敵がバタバタ倒れるべき」）：段を組まない鉄砲組の「放て」を、四十m 四方の区ごとに一つの時計で揃える。
+//   区の中の鉄砲（的のある者）の七割五分が込め終えたら（十秒で三人・十六秒で一人でも）、区の組みな同じ時に放つ。皆が同じ時に撃てば込めも同じ時に終わり、
+//   次の一斉射も揃う（前は八挺の小組が別々に四発ずつ放ち、込めの間がずれたまま一斉射が平均九発だった）。数えるのは〇・二五秒に一度
+function sectorGo(army, g) {
+  const c = g.anchor || g.units?.[0]?.pos; if (!c) return true;
+  const key = g.team * 1e6 + Math.floor(c.x / 40) * 1000 + Math.floor(c.z / 40);
+  const SV = army._sectVol || (army._sectVol = new Map());
+  let S = SV.get(key); if (!S) SV.set(key, S = { chk: 0, first: 0, seen: 0, go: false, until: 0 });
+  const t0 = army.time;
+  if (S.go && t0 < S.until) return true;
+  if (S.chk > t0) return S.go;
+  S.chk = t0 + 0.25; S.go = false;
+  let n = 0, rdy = 0; const gs = [];
+  for (const o of army.groups) {
+    if (o.team !== g.team || !o.isGun || o.isPlayerSquad || o.salvoOnly || o.p7 || o.fire === false || o.routed || !o.units?.length || (o.count || 0) < 4) continue;
+    const q = o.anchor || o.units[0].pos;
+    if (Math.floor(q.x / 40) * 1000 + Math.floor(q.z / 40) !== key - g.team * 1e6) continue;
+    gs.push(o);
+    for (const u of o.units) {
+      if (!u.alive || u.type !== 'gun' || u.fleeing || u.woundOut || u.sidearm || u.gunAmmo === 0 || !u.target?.alive || u.target.team === u.team) continue;
+      n++; if (!u.reload && !(u.cd > 0)) rdy++;
+    }
+  }
+  if (!n) return false;
+  if (!(S.first > 0) || t0 - S.seen > 1) S.first = t0;
+  S.seen = t0;
+  const w = t0 - S.first;
+  if (rdy >= Math.max(3, Math.ceil(n * 0.75)) || w > 10 && rdy >= 3 || w > 16 && rdy >= 1) {
+    S.go = true; S.until = t0 + 1.2; S.first = 0; S.n = (S.n || 0) + 1; S.last = rdy; S.lastN = n; S.lastW = Math.round(w * 10) / 10;
+    const call = t0 + 0.8;
+    for (const o of gs) if (!(o.vCall > t0 - 0.25)) { o.vCall = call; o._mvGo = true; }
+  }
+  if (SV.size > 400) for (const [k, v] of SV) if (t0 - v.seen > 30) SV.delete(k);
+  return S.go;
+}
 function closeShot(army, u, t) {
   if (u.group?.focusOnly && t !== u.group.focus) return false;
   // 打って出た味方を守る城攻めでは、近い主人公にも射撃停止の下知を守る。
@@ -1834,6 +1870,20 @@ export const ArmyThink = {
         speed = u.run; face = fa;
       } else if (u.type === 'gun' && !u.sidearm && !t.isStruct && d > 4 && d <= shotRange) {
         u.rangedBack = false;
+        // K644：鉄砲の弾を同じ敵へ重ねない（設楽原の柵の一斉射は十六発が同じ四人へ集まった）。他の鉄砲が狙っている敵なら、届く内で誰も狙っていない近い敵へ替える（〇・五秒に一度・十人まで）
+        if (!K644_OLD && !t.isPlayer && !u.isPlayer && g && !g.isPlayerSquad) {
+          const AM = this._aimed || (this._aimed = new Map());
+          const rec = AM.get(t);
+          if (rec && rec.u !== u && rec.u.alive && rec.until > this.time) {
+            if (!(u.spreadT > this.time)) {
+              u.spreadT = this.time + 0.5; let n = 0;
+              const alt = this.nearestEnemy(u, shotRange, (o) => o !== t && !o.isStruct && !o.civ && !o.noTarget && !o.isPlayer && n++ < 10 &&
+                !((AM.get(o)?.until || 0) > this.time) && Math.abs(o.pos.y - u.pos.y) < 6 && !this.hiddenBehind(u, o));
+              if (alt) { u.target = alt; AM.set(alt, { u, until: this.time + 1.6 }); }
+            }
+          } else AM.set(t, { u, until: this.time + 1.6 });
+          if (AM.size > 600) for (const [k, v] of AM) if (v.until < this.time || !k.alive) AM.delete(k);
+        }
         // 鉄砲：足を止めて狙いを定め、撃つ（撃てば長い装填）。段を組んだ隊は、前の段の者だけが撃つ
         face = fa;
         let ready = !t.isPlayer || this.time >= 12 + (u.id % 5) * 0.7;
@@ -1911,14 +1961,16 @@ export const ArmyThink = {
         //   近すぎる敵（closeShot）と、筋書きの一斉射（salvoOnly）・段の号令（gunGated）はそのまま
         const massVolley = !TOFF && !cs && !g.salvoOnly && !g.isPlayerSquad && g.isGun && g.count >= 4 && !this.gunGated(g) && !foeLine;
         if (massVolley && ready && u.cd <= 0 && !(u.stagger > 0) && !this.gunHold(g, u, t) && g.fire !== false) {
-          if (!(g._mvChkT > this.time)) {
+          if (!K644_OLD) g._mvGo = sectorGo(this, g);
+          else if (!(g._mvChkT > this.time)) {
             g._mvChkT = this.time + 0.25;
             let n = 0, rdy = 0;
             for (const o of g.units) if (o.alive && o.type === 'gun' && !o.fleeing && !o.woundOut && !o.sidearm && o.gunAmmo !== 0) { n++; if (!o.reload && !(o.cd > 0)) rdy++; }
             if (!(g._mvFirst > 0) || this.time - (g._mvSeen || 0) > 1) g._mvFirst = this.time;   // 込めの間（誰も構えない間）が空いたら待ちの始まりを取り直す
             g._mvSeen = this.time;
             const w = this.time - g._mvFirst;
-            g._mvGo = rdy >= Math.max(3, Math.ceil(n * 0.4)) || w > 8 && rdy >= 2 || w > 12;
+            // K644（kaito 11/23「一部隊の一斉射で相当な数の敵がバタバタ倒れるべき」）：四割で放つと八挺の組が四発ずつばらばらに鳴っていた（設楽原の柵）。七割そろうまで待つ
+            g._mvGo = rdy >= Math.max(3, Math.ceil(n * (K644_OLD ? 0.4 : 0.7))) || w > 8 && rdy >= 2 || w > 12;
           }
           if (!g._mvGo) ready = false;
         }
@@ -2148,7 +2200,10 @@ export const ArmyThink = {
       const stopRow = Math.floor(u.slot / Math.max(1, g._stepCols || 1));
       const closing = stopRow > 0 && !g.marching && !u.mounted && !g.isGun && !g.cav && !g.routed && !(g.cavShare > 0.1) && (g.formation === 'line' || g.formation === 'yari') &&
         g._stopT != null && this.time - g._stopT < Math.min(0.65, stopRow * 0.18) + 0.25;
-      const stay = !closing && !busy && g.anchorSpeed < 0.3 && ((u.jammed && d < JAMR(g)) || (u.settled ? d < 1.2 : d < 0.6 || u.nearT > 1));   // 11/5 BQ：押し合いで持ち場の前を揺れ続けない
+      // 11/23 K639 ①（kaito「止まっている隊は整列（形を整える）」）：止まって三秒の隊（g._tidy。諸大名戦の general_ai.js が立てる）は、
+      //   持ち場の 1.2〜1.6m 手前で『着いた』と見なさず、0.3m まで寄せて列を揃える（塞がれて四秒進めなければ今まで通りそこで止まる）
+      const tidy = g._tidy && !u.target && !u.mounted && !u.isPlayer;
+      const stay = !closing && !busy && g.anchorSpeed < 0.3 && ((u.jammed && d < JAMR(g)) || (tidy ? (u.settled ? d < 0.45 : d < 0.3 || u.nearT > 4) : (u.settled ? d < 1.2 : d < 0.6 || u.nearT > 1)));   // 11/5 BQ：押し合いで持ち場の前を揺れ続けない
       // 11/13 K074 く：止まって重なる者は持ち場に着いていなくても、同じ点に重なって立つ味方（旗本など）は、横へ少しずつずれて重なりを解く
         if ((stay || (u.moving < 0.25 && !busy)) && !u.mounted && this.time >= (u._ovT || 0)) {
           u._ovT = this.time + 0.5;

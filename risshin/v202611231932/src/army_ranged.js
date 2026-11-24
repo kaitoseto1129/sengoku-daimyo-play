@@ -377,6 +377,8 @@ export const ArmyRanged = {
             //   戦が def.playerGunGap（秒）を決めた時だけ、本人が鉄砲を受けた直後のその間に来た次の弾はかすり（三割）にする＝回復の間。敵の数・狙い・強さは変えない
             if (victim.isPlayer && this.world.def.playerGunGap) { if (this.time - (this._pGunAt ?? -99) < this.world.def.playerGunGap) dmg *= 0.3; else this._pGunAt = this.time; }
             opts.d = distance; opts.y = hitY; opts.incoming.x = dx; opts.incoming.z = dz; opts.out.res = null; opts.out.horse = null;
+            // K644（kaito 11/23「本質は鉄砲隊の弾が本当に敵に当たって敵が死ぬ事」）：百m の内で兵（本人・名のある者・大将でない敵）に当たった弾は、その一発で倒す
+            if (!K644_OLD && !victim.isPlayer && !victim.name && !victim.isTaisho && !victim.invuln && !b.u.isPlayer && victim.team !== b.u.team && distance <= 100 && victim.hp > 0) dmg = Math.max(dmg, victim.hp * 1.05 + 1);
             if (horse) { this.horseDamage(victim, dmg, b.u, 'gun'); opts.out.res = 'hit'; }
             else {
               const wasAlive = victim.alive, gs = this.gStat(b.u);
@@ -1172,7 +1174,7 @@ export const ArmyRanged = {
       const q = segHit(u.pos.x, u.pos.z, tp.x, tp.z, s.seg);
       if (q < 0) continue;
       const cx = u.pos.x + (tp.x - u.pos.x) * q, cz = u.pos.z + (tp.z - u.pos.z) * q;
-      if (RX_FENCE.test(s.name || '') && q * L < 1.1) continue;
+      if (RX_FENCE.test(s.name || '') && q * L < (K644_OLD ? 1.1 : 12)) continue;   // K644：自分の側の柵は十二m の内なら杭の間から撃つ（二の柵・三の柵の鉄砲が一の柵に塞がれて撃てなかった）
       const lineY = eye + ((tp.y ?? u.pos.y) + 1.2 - eye) * q;
       if (lineY > this.wallTop(s, cx, cz) + 0.25) continue;
       const m = u.sama;
@@ -1302,4 +1304,5 @@ export const ArmyRanged = {
   }
 };
 
+const K644_OLD = typeof location !== 'undefined' && /[?&]k644old\b/.test(location.search);   // 測り比べ用（前の鉄砲）
 function collectBulletCandidate(u, list) { list.push(u); }

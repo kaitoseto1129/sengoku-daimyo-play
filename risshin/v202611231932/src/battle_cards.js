@@ -1,6 +1,7 @@
 // K639 ⑥（kaito 11/22「一般の戦も諸大名戦と同じ形に」）：一般の戦の下中央に、名のある味方の隊の札（名と今の人数の棒）を小さく並べる。
 //   諸大名戦（online/match_hud.js）の出陣武将の札と同じ形。字は隊の名と人数だけ。0.5 秒に一度だけ DOM を書き換える（描く回数は増やさない）。
 //   隊＝rt.army.groups の味方（team 0）で名のある物。人数＝生きている兵／初めの兵（g.initial）。多い順に四つまで。
+import { isEn, tr } from './i18n.js';
 let root = null, rtOf = null;
 const CSS = `
 .bcards{position:fixed;left:50%;bottom:6px;transform:translateX(-50%);display:flex;gap:4px;pointer-events:none;z-index:9;font:600 12px/1.2 "Noto Serif JP","Hiragino Mincho ProN",serif;color:#f4ecd8;text-shadow:0 0 3px #000,0 0 6px #000}
@@ -22,6 +23,6 @@ export function updateTeamCards(rt) {
   const rows = gs.map((g) => ({ g, n: g.units.filter((u) => u.alive).length })).sort((a, b) => (b.g.initial || 0) - (a.g.initial || 0)).slice(0, 4);
   const key = rows.map((r) => r.g.name + r.n).join('|');
   if (root.dataset.k === key) return; root.dataset.k = key;
-  root.innerHTML = rows.map((r) => { const f = Math.max(0, Math.min(1, r.n / Math.max(1, r.g.initial))); return `<div class="bc${f <= 0.3 ? ' low' : ''}${r.n <= 0 ? ' out' : ''}"><b>${r.g.name.replace(/[<>&]/g, '')}</b><u><i style="width:${Math.round(f * 100)}%"></i></u><em>${r.n}</em></div>`; }).join('');
+  root.innerHTML = rows.map((r) => { const f = Math.max(0, Math.min(1, r.n / Math.max(1, r.g.initial))); return `<div class="bc${f <= 0.3 ? ' low' : ''}${r.n <= 0 ? ' out' : ''}"><b>${(isEn() ? tr(r.g.name) : r.g.name).replace(/[<>&]/g, '')}</b><u><i style="width:${Math.round(f * 100)}%"></i></u><em>${r.n}</em></div>`; }).join('');
 }
 export function clearTeamCards() { if (root) { try { root.remove(); } catch (e) { /* 無ければよい */ } } root = null; rtOf = null; }

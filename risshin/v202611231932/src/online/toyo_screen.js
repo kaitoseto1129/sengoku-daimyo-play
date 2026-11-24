@@ -7,6 +7,7 @@ import { BUSHOU_BY_ID, HOUSE_NAME, BUSHOU_ONLINE } from './bushou_online.js';
 import { GUARD_NOTE, SEAL_NOTE, GUARD_NOTE_EN, SEAL_NOTE_EN } from './busho_bank.js';
 import { armOf as tierArmOf, armsAvailable, housesAvailable, houseNameOf, TIERS, tierOf, pullTier, tierPendingNow, confirmPicks, tierRates, tierPool } from './toyo_tiers.js';
 import { isEn, addEn } from '../i18n.js';
+import { taglineEn } from './bushou_tagline_en.js';
 import { troopsOf } from './unit_type.js';   // K624⑤：格で率いる兵（N600〜SS2000）
 import { buyError } from '../paywall.js';   // K583：買えなかった時は字で知らせる（押しても何も起きないに見えない）
 
@@ -352,7 +353,7 @@ export function openToyo(root, o) {
           ${opened[i] ? `<div class="op"><div class="bd" data-busho-body="${esc(b.name)}"></div><div class="in">
               <span class="rk" style="color:${RCOL[b.rank] === '#e8c25a' ? '#8a5a08' : b.rank === 'S' ? '#9a4a1a' : '#3a2a18'}">${MARK[b.rank]} ${b.rank}</span>
               ${houseTag(b, 'lg')}<span class="hs">${armChip(b)}${ten ? `　Cost ${b.cost}` : ''}</span>
-              <span class="nm">${esc(b.name)}</span>${ten ? '' : `<span class="ka" data-kata="${esc(b.name)}" data-fav="${b.fav || 'std'}">得意：${KATA_NAME[b.fav || 'std'] || '標準'}</span>`}
+              <span class="nm">${esc(b.name)}${isEn() && !ten ? `<small class="tgl" style="display:block;font-weight:400;font-size:11px;font-style:italic;opacity:.85;line-height:1.2;margin-top:1px">${esc(taglineEn(b))}</small>` : ''}</span>${ten ? '' : `<span class="ka" data-kata="${esc(b.name)}" data-fav="${b.fav || 'std'}">得意：${KATA_NAME[b.fav || 'std'] || '標準'}</span>`}
               ${b.id === banner.pickup ? '<span class="tag">目当ての武将</span>' : ''}${st.owned[b.id] ? '<span class="tag">持っている（武将印へ）</span>' : ''}${tk ? '<span class="tag">登用しました</span>' : allOpen() && left > 0 && !ten ? `<span class="pickb" role="button" data-a="pick" data-i="${i}">登用する</span>` : ''}</div></div>`
           : `<div class="fold"><span class="ti">書状</span><span class="fu">${b.rank === 'S' || b.rank === 'SS' ? '紋' : '封'}</span></div>`}</button>`; }).join('')}</div>
         <div class="ty-foot">${!allOpen() ? `<button data-a="all">${N > 1 ? '一括開封' : '開封'}</button>` : flat ? `${chosen.size ? `<button data-a="tfin">${chosen.size}人を登用する</button>` : `<button class="sec" data-a="no3">誰も登用しない</button>${moreBtn(N)}`}` : taken.length ? (left > 0 && ten ? `<button data-a="fin">この${taken.length}人で確定する</button>` : '') : `<button class="sec" data-a="no3">登用しない</button>${moreBtn(N)}`}</div>
@@ -516,7 +517,7 @@ export function openToyo(root, o) {
     const firstS = one && (b0.rank === 'S' || b0.rank === 'SS') && !st.firstS;   // 最初の S 以上：そのまま模擬合戦へ（96）
     if (firstS) { st.firstS = 1; save(); }
     const dupNote = (r) => (r.dup ? `すでに登用済みです。武将印 ${r.seal} に変えました（交換所で使えます）` : '');
-    el.innerHTML = `<div class="ty-ov"><h2>${one ? `${esc(b0.name)}を登用しました` : `${bs.length}人を登用しました`}</h2>
+    el.innerHTML = `<div class="ty-ov"><h2>${one ? `${esc(b0.name)}を登用しました` : `${bs.length}人を登用しました`}</h2>${one && isEn() ? `<p class="ty-note" style="margin:0 0 4px;font-style:italic">${esc(taglineEn(b0))}</p>` : ''}
       ${one ? `<div class="ty-cards"><div class="ty-got" data-a="detail" style="cursor:pointer;flex:2.2;min-width:0;position:relative;border:1px solid #5a4a32;border-radius:4px;overflow:hidden;background:#0006" aria-label="${esc(b0.name)}と率いる${armOf(b0)}の隊">${houseTag(b0, 'lg ov')}<span class="ty-gs"><b class="ty-gk r-${b0.rank}">${MARK[b0.rank]} ${b0.rank}</b>${armChip(b0)}</span></div></div>
         <p class="ty-note" style="text-align:center" id="ty-info">${infoLine(b0, null)}</p>${results[0].dup ? `<p class="ty-note" role="status" style="text-align:center">${dupNote(results[0])}</p>` : ''}`
       : results.length > 2 ? `<div class="ty-g5">${results.map((r, i) => candCard(r.b, { a: 'rd', attrs: `data-i="${i}"`, note: r.dup ? `武将印 +${r.seal}` : '新しく登用' })).join('')}</div>`

@@ -2,6 +2,8 @@ import { $, esc, setClass, setStyle, setText } from "./hud_common.js";
 import { openingGoal, BattleOpening } from "./battle_opening.js";
 import { battlePeople, castleWelcome } from "./battle_welcome.js";
 import { decorateTerms } from "./glossary.js";
+import { isEn } from "./i18n.js";
+import { battleLineEn } from "./battle_line_en.js";
 import { reduceMotion, S } from "./settings.js";
 
 export class HudOpening {
@@ -80,6 +82,8 @@ export class HudOpening {
     if (document.pointerLockElement) document.exitPointerLock?.();
     el.innerHTML = `<div class="card" role="dialog" aria-modal="true" aria-labelledby="intro-title" aria-describedby="intro-wait"><div class="intro-reading" tabindex="0" aria-label="戦の下知"><div class="date">${esc(date).split('\u3000').map((t) => `<span style="white-space:nowrap">${t}</span>`).join('\u3000')}</div><div class="ttl" id="intro-title">${esc(battle?.def.introName || name)}</div><i class="rule" aria-hidden="true"></i><div class="sides">${openingVersus()}</div><p id="intro-wait" style="font-size:max(15px, calc(15px * var(--text-scale, 1)));line-height:1.6">${esc(waitShown)}</p>${goal ? `<p style="font-size:max(15px, calc(15px * var(--text-scale, 1)));line-height:1.6"><b>目当て：${esc(goal)}</b></p>` : ''}</div><button type="button" class="btn primary" id="intro-go" style="min-height:48px;pointer-events:auto">${esc(battle?.def.introStartText || '出陣する')}</button></div>`;
     if (battle?.def.introDateNoWrap) el.querySelector('.date').style.whiteSpace = 'nowrap';
+    // K516/K637：英語の時、戦の名の下に一行の史実（海外向け・戦の id は def.key）
+    if (isEn()) { const L = battleLineEn(battle?.def.key) || battleLineEn(battle?.id); const tt = L && el.querySelector('#intro-title'); if (tt) { const p = document.createElement('p'); p.className = 'intro-hist'; p.textContent = L; p.style.cssText = 'margin:2px 0 6px;font-size:13px;opacity:.9;font-style:italic'; tt.insertAdjacentElement('afterend', p); } }
     // 札の外は指を受け取らない。出陣待ちの停止は保つ。
     el.querySelector('.sides').innerHTML = openingVersus();
     // 指定した戦では、下知と勝つ条件を読んでから人物紹介へ送る。
