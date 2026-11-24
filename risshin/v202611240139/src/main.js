@@ -3757,6 +3757,9 @@ function loop() {
   loopFrame = requestAnimationFrame(loop);
   // 読み戻し（GPU を待つ）を許すコマの印：既に読み戻したコマか、十五コマに一度（gpu_gc・soloDraw・倒れた体の形が使う）
   if (window.__gpuOnly) { const g = window.__gpuOnly; g.frame = (g.frame | 0) + 1; g.rb0 = g.readback; g.tick(); g.sweep(); }
+  // 確かめ用 x_gcnudgeN（K643）：N MB の空の ArrayBuffer を20秒ごとに作ってすぐ捨てる（触らないので本当の記憶は使わない）。
+  //   WebKit の JS の片付け（古い世代の全部の片付け）が、積もった量の見積もりで早く走るかを見る
+  if (APX.gcnudge && game.battle) { const now = performance.now(); if (now - (window.__gcNudgeAt || 0) > 20000) { window.__gcNudgeAt = now; try { void new ArrayBuffer(APX.gcnudge * 1048576); window.__gcNudgeN = (window.__gcNudgeN || 0) + 1; } catch (e) { window.__gcNudgeErr = String(e); } } }
   // 確かめ用：開戦から10秒、1コマの重さを window.__startFrames に記す（重いコマを探す道具。遊びには使わない）
   const _pf0 = window.__startFrames ? performance.now() : 0;
   // 待つ札と題の背景は毎秒十枚。再開・戦の切り替えではすぐ入力と絵を戻す。

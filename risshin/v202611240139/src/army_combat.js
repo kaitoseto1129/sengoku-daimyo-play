@@ -1137,12 +1137,41 @@ export const ArmyCombat = {
 
   // 脇差を抜く：鉄砲は足もとに置き、短い刀で斬り合う（撃つのはやめる）
   drawSidearm(u) {
+    // K645③：鉄砲は足もとに置くだけ。寄った敵が離れたら拾い直して撃ち戻る（pickGun）。拾うために筒と手の中の据わりを覚えておく
+    if (u.type === 'gun' && !u.isPlayer && !u.sidearm) {
+      const gw = u.wpn?.parent ? u.wpn : null;   // 筒の形を持たない兵（描かない兵）は値だけ覚える
+      u._gunKit = { orig: u.wpn, w: gw, hand: gw?.parent, p: gw?.position.clone(), q: gw?.quaternion.clone(), s: gw?.scale.clone(), range: u.range, cdBase: u.cdBase, windup: u.windup, dmg: u.dmg, reach: u.reach, kind: u.wpnKind };
+    }
     this.dropWeapon(u);
     const w = makeWeapon('sword');
     w.scale.setScalar(0.72);   // 脇差（打刀より短い）
     u.hand.add(w); u.wpn = w; u.wpnKind = 'sword'; u.sidearm = true; u.dropped = null;
     u.range = 0; u.cdBase = 1.7; u.cd = Math.min(u.cd, 0.6); u.windup = 0.5; u.dmg = 9; u.reach = 1.25; u.reload = null; u.atk = null; u.swing = null;
     if (u.camD < 30) this.play('swing', u.pos, 0.3);
+  },
+  // K645③（kaito 11/23「鉄砲隊は敵が届く所にいる間はずっと撃ち続ける」）：脇差を抜いた鉄砲足軽が、近くの敵が去った後も刀のまま立ち尽くしていた（関ヶ原の鉄砲の四割）。
+  //   足もとに置いた筒がまだ地にあれば拾い上げ、手の据わりと撃ち手の値を戻す（込めから始める）。筒が薄れて消えていれば拾わない
+  pickGun(u) {
+    const K = u._gunKit;
+    if (!K) return false;
+    let w = K.w;
+    // 置いた筒が足もとの散らかりの間引きで薄れた・消えた時は、腰の替えの筒を構える（同じ形をもう一つ作る。拾い直しは一人一度きりの稀な事）
+    if (w && (w.parent !== this.scene || w.userData.groundFadeAt != null)) { w = makeWeapon('gun'); w.userData.spare = true; }
+    if (w && !K.hand?.parent) return false;
+    if (u.wpn && u.wpn !== w && u.wpn.parent) u.wpn.parent.remove(u.wpn);
+    if (w) {
+      if (w.parent === this.scene) this.scene.remove(w);
+      const L = this.litter; if (L) { const i = L.indexOf(w); if (i >= 0) L.splice(i, 1); }
+      w.userData.groundKept = false; w.userData.groundAt = undefined;
+      w.position.copy(K.p); w.quaternion.copy(K.q); w.scale.copy(K.s);
+      K.hand.add(w);
+      if (w.userData.ember) w.userData.ember.visible = true;
+    }
+    u.wpn = w || K.orig; u.wpnKind = K.kind; u.sidearm = false; u.dropped = null; u._gunKit = null;
+    u.range = K.range; u.cdBase = K.cdBase; u.windup = K.windup; u.dmg = K.dmg; u.reach = K.reach;
+    u.atk = null; u.swing = null; u.target = null; u.aiT = 0;
+    this.startReload(u); u.cd = Math.min(u.cd, 6 + Math.random() * 4); if (u.reload) u.reload.dur = u.cd;   // 拾って火縄を吹き直す間（込め直しの半ばほど）
+    return true;
   },
   // 手の武器を地面に落とす（地面の傾きに沿わせる）
   dropWeapon(t) {

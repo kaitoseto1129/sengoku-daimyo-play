@@ -9,7 +9,7 @@ import { BUSHOU_ONLINE, HOUSE_NAME, statsOf, STAT_KEYS } from './bushou_online.j
 import { RARITY, KATA, loadOnline, saveOnline, face, esc } from './house.js';
 
 const RANK_ORDER = ['SSR', 'SR', 'R', 'N'];
-const HOUSE_ORDER = ['oda', 'takeda', 'uesugi', 'tokugawa', 'mori', 'shimazu', 'date', 'hojo', 'toyotomi', 'other'];
+const HOUSE_ORDER = ['oda', 'takeda', 'uesugi', 'tokugawa', 'mori', 'shimazu', 'date', 'hojo', 'toyotomi', 'chosokabe', 'otomo', 'asai', 'asakura', 'imagawa', 'saito', 'sanada', 'other'];
 const STAT_NAME = { COMMAND: '統率', MORALE: '士気', COHESION: '隊列', TACTICS: '戦術', MOBILITY: '機動', RANGED: '射撃', SIEGE: '攻城' };
 let BIO = null, TAC = null;
 async function lore() {

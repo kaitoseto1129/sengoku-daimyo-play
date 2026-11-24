@@ -13,7 +13,18 @@ export function releaseFlagGpu() {
     const ok = t.isCompressedTexture ? !!(t.mipmaps && t.mipmaps.length) : !!(t.image && t.image.width > 1);
     if (ok) t.dispose();
   }
+  // K643（11/24 Sanae）：違う戦を続けると、戦ごとに旗の布（canvas 256×512＝約0.5MB の絵）が cache に溜まっていく（十戦で 100 枚超・数十MB）。
+  //   戦を出る時、新しい FLAG_KEEP 枚より古い布を捨てる（canvas・ASTC の絵ごと）。次に要る家は flagTexture が描き直す（開戦の支度で仕上げ済みの札の間に済む）。
+  //   仕上げ待ち・符号化の途中の布は触らない
+  if (cache.size > FLAG_KEEP) {
+    for (const [k, t] of cache) {
+      if (cache.size <= FLAG_KEEP) break;
+      if (!t || !t.isTexture || !(t.userData && t.userData.mon) || t.userData.astcBusy || flagPaintJobs.has(t)) continue;
+      t.dispose(); cache.delete(k);
+    }
+  }
 }
+const FLAG_KEEP = 48;
 
 // K643（11/24 クラウド Sanae）：同じ頁で戦を続けると、出た家の旗の布（256×512 の canvas）が戦ごとに溜まり、十戦で絵が 150→310 枚に増えた。
 //   ほかの戦が生きていない時（戦を出た時）だけ、布を GPU から返して表ごと手放す。次の戦は初めの戦と同じく描き直す

@@ -160,6 +160,7 @@ function gunArcAllows(army, g, u, target) {
 // 構え始めだけ調べる。射手の支度と弾込め、味方への一斉射は変えない。
 // 撃つなの下知（g.fire === false・号令待ち）の隊でも、45 歩の内へ寄った本人には撃つ（十四8・BV 続き kaito 11/6「真田丸の前や中に一人で立っても撃ってこない」）
 const K644_OLD = typeof location !== 'undefined' && /[?&]k644old\b/.test(location.search);   // 測り比べ用（前の鉄砲）
+const K645_OLD = typeof location !== 'undefined' && /[?&]k645old\b/.test(location.search);   // 測り比べ用（前の崩れ・隊の起こし・鉄砲）
 // K644（kaito 11/23「一部隊の一斉射で相当な数の敵がバタバタ倒れるべき」）：段を組まない鉄砲組の「放て」を、四十m 四方の区ごとに一つの時計で揃える。
 //   区の中の鉄砲（的のある者）の七割五分が込め終えたら（十秒で三人・十六秒で一人でも）、区の組みな同じ時に放つ。皆が同じ時に撃てば込めも同じ時に終わり、
 //   次の一斉射も揃う（前は八挺の小組が別々に四発ずつ放ち、込めの間がずれたまま一斉射が平均九発だった）。数えるのは〇・二五秒に一度
@@ -1666,6 +1667,14 @@ export const ArmyThink = {
       if (!e) u._closeT = 0;
       else if ((u._closeT = (u._closeT || 0) + 0.5) >= 1) { this.drawSidearm(u); u.target = e; u.watch = null; }
     }
+    // K645③：脇差を抜いた鉄砲足軽は、六m 内に敵がいないまま三秒たてば、足もとの筒を拾って撃ち戻る（弾の尽きた者・逃げる者は拾わない）
+    if (!K645_OLD && u._gunKit && u.sidearm && !u.isPlayer && !u.fleeing && !g.routed && !u.mounted && u.gunAmmo !== 0 && !u.swing && !u.bind && !(u.atk && !u.atk.ranged) &&
+      !((u._pickChkT = (u._pickChkT || 0) - dt) > 0)) {
+      u._pickChkT = 0.5;
+      const e = this.nearestEnemy(u, 6, (o) => !o.isStruct && !o.fleeing && !o.noTarget && Math.abs(o.pos.y - u.pos.y) < 1.8);
+      if (e) u._pickT = 0;
+      else if ((u._pickT = (u._pickT || 0) + 0.5) >= 3) { u._pickT = 0; if (!this.pickGun(u)) u._gunKit = null; }
+    }
     // 判断の間引きを待たず、崩れた瞬間から斬撃と一騎討ちをやめる。
     if (!u.isPlayer && (g.routed || u.fleeing) && !(u.cornerUntil > this.time && u.cornerFoe?.alive) && (u.target || u.atk || u.swing || u.bind)) {
       u.target = null; u.atk = null; u.swing = null; u.bind = null;
@@ -1935,9 +1944,9 @@ export const ArmyThink = {
           ready = false;
           // 11/6 kaito 九-4「鉄砲隊は構えたら必ず撃つ」：段に据えた列で前の味方に射線を塞がれ続ける者は、射線の空いた別の敵へ筒を向け直す（一秒半に一度・六人まで調べる）
           u.lineBlk = (u.lineBlk || 0) + dt;
-          if (u.lineBlk > 1.5 && !(u.lineSeekT > this.time)) {
-            u.lineSeekT = this.time + 1.5; let n = 0;
-            const alt = this.nearestEnemy(u, u.range, (o) => o !== t && !o.isStruct && !o.civ && !o.noTarget && n++ < 6 && Math.abs(o.pos.y - u.pos.y) < 6 &&
+          if (u.lineBlk > 0.5 && !(u.lineSeekT > this.time)) {   // K645③：射線が味方に塞がれたら、0.5秒で射線の空いた別の敵へ筒を向け直す（前は1.5秒・六人まで）
+            u.lineSeekT = this.time + 0.5; let n = 0;
+            const alt = this.nearestEnemy(u, u.range, (o) => o !== t && !o.isStruct && !o.civ && !o.noTarget && n++ < 14 && Math.abs(o.pos.y - u.pos.y) < 6 &&
               !this.allyInLine(u, o, Math.hypot(o.pos.x - u.pos.x, o.pos.z - u.pos.z)) && !this.hiddenBehind(u, o));
             if (alt) { u.target = alt; u.lineBlk = 0; }
           }

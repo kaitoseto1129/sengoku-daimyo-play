@@ -116,6 +116,15 @@ export const DEATH_END = 2.2;
 // 本物の兵（CPU で動かす者）の上限。姉川のように大軍がぶつかる戦でも、重さが兵の数に引きずられないように
 const REALCAP = { low: 120, mid: 180, high: 250 };
 const liveFoe = (e) => !e.fleeing && !e.isStruct && !e.downed && !e.noTarget;   // 毎コマ new しない
+const K645_OLD = typeof location !== 'undefined' && /[?&]k645old\b/.test(location.search);   // 測り比べ用（前の鉄砲）
+// K645③：組の真ん中から八十m 内に戦える敵がいるか（組ごとに 1.2 秒に一度だけ数える）
+function gunFoeNear(army, g) {
+  if (g._gfnAt !== undefined && army.time - g._gfnAt < 1.2 && army.time >= g._gfnAt) return g._gfn;
+  g._gfnAt = army.time; g._gfn = false;
+  const c = g.center(g._gfnC || (g._gfnC = { x: 0, z: 0 }));
+  army.forNear(c.x, c.z, 80, (e) => { if (!g._gfn && e.alive && e.team !== g.team && !e.fleeing && !e.isStruct && !e.civ && !e.noTarget && (e.pos.x - c.x) ** 2 + (e.pos.z - c.z) ** 2 < 6400) g._gfn = true; });
+  return g._gfn;
+}
 const byCrowdTarget = (a, b) => a.target.id - b.target.id || a._crowdD - b._crowdD;
 const byCameraDistance = (a, b) => (a.camD || 0) - (b.camD || 0);
 // 名のある武将は一人で出さない（kaito 11/2 P・O）：隊に旗本の侍と足軽の備が足りなければ足す（全戦共通）。
@@ -1867,6 +1876,10 @@ export class Army {
           // 11/21 クラウド kaito2（K564 根白坂のパソコン：休む兵2800人に0.4秒ごと三・五 m の敵探し）：idleSkip の兵は組の五十m 内に敵がいない時だけ休むので、探さずに候補へ
           if (!u.idleSkip && !u.fleeing && !u.noTarget && u.group && !u.group.routed && !u.group.hidden && u.type !== 'gun' && u.type !== 'bow' &&
             this.nearestEnemy(u, 3.5, liveFoe)) { u.farSim = false; protectedCount++; continue; }
+          // K645③（kaito 11/23「鉄砲隊は敵が届く所にいる間はずっと撃ち続ける（音も）」）：遠景扱いの鉄砲は狙いを毎コマ消され、本人から六十m 先の鉄砲隊が
+          //   敵を前に黙っていた（天王寺・関ヶ原の鉄砲の放ちの大半が止まる訳）。筒を持つ鉄砲足軽は、組の撃てる遠さ（八十m）に戦える敵がいれば遠景から外す。
+          //   外した分は上の枠（cap）から引くので、本物の兵の数は増えない（遠い槍・刀の者が先に遠景へ回る）
+          if (!K645_OLD && u.type === 'gun' && !u.sidearm && !u.fleeing && u.gunAmmo !== 0 && u.group && !u.group.routed && !u.group.hidden && !u.group.ambush && u.group.fire !== false && gunFoeNear(this, u.group)) { u.farSim = false; protectedCount++; continue; }
           cand.push(u);
         }
         cand.sort(byCameraDistance);
@@ -2683,7 +2696,10 @@ export class Army {
       for (const id of pool.used) pool.bm.setVisibleAt(id, false);
       pool.used.length = 0; pool.bm.visible = false;
       // 一度返して作り直した束は、休眠を長く待ってから返す（10/31 iPhone 三木：大きな束を十秒ごとに返しては作り直し、開戦150秒に落ちた）
-      if (pool.idle > (MEM_TIGHT ? 240 : 900 * (1 + 3 * Math.min(3, P.again.get(key) || 0))) && B.retired < 2 && B.retireMs < 0.5) {
+      // 11/24 K643（iPhone の桶狭間の落ち）：携帯は休眠 240 コマ（8秒）で必ず返していて、一度返して作り直した束の「長く待つ」が効いていなかった。
+      //   桶狭間 200秒に束の入れ物を 340 個作り直し、返す前の読み戻しと合わせて約280MB の配列を作っては捨てていた（iPhone の WebKit は片付けが追いつかず WebContent が伸びる）。
+      //   携帯も、作り直した束は 64秒・120秒・176秒と長く待つ（__apx.oldretire で前の通り）
+      if (pool.idle > (MEM_TIGHT ? 240 * (window.__apx?.oldretire ? 1 : 1 + 7 * Math.min(3, P.again.get(key) || 0)) : 900 * (1 + 3 * Math.min(3, P.again.get(key) || 0))) && B.retired < 2 && B.retireMs < 0.5) {
         const started = performance.now();
         // 配列は束の中だけに残っている。全形を一度に読み戻すと、返却一つでも
         // 大量の確保と写しが集中する。束を残したまま一コマ一配列ずつ戻す。

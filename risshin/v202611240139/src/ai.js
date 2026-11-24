@@ -20,6 +20,7 @@ import { weatherSight } from './weather_gameplay.js';
 import { angleDiff } from './units.js';
 import { pickLine } from './lines_data.js';
 import { scriptedAlly } from './ally_orders.js';
+const K645_OLD = typeof location !== 'undefined' && /[?&]k645old\b/.test(location.search);   // 測り比べ用（前の隊の起こし）
 import { pacingOrderActive } from './battle_pacing.js';
 import { localClear, localPoint } from './army_local_way.js';
 const TOFF = typeof location !== 'undefined' && /[?&]toff\b/.test(location.search);   // 試し：緊迫の仕組みを切る
@@ -373,6 +374,17 @@ export class Commander {
       }
       A.foeNearT = near ? (A.foeNearT || 0) + 1.5 : 0;
       if (A.foeNearT >= (g.count <= 2 ? 1.5 : 6)) { g.order = 'attack'; g.seekRange = Math.max(g.seekRange || 0, 40); this.log(g, 'wake 敵が間近、持ち場から打って出る'); }
+    }
+    // K645②（kaito 11/23「本陣の周りの部隊が動かず戦わない→本陣の守り以外の隊は、近くの敵や押されている味方へ自分から動いて戦う」）：
+    //   持ち場の隊（筋書きが据えた stay・fixed・noAI・守り・控え・伏兵・塀や柵の内・大将の隊は除く）は、敵味方とも、八十m 内の味方の隊が
+    //   斬り合いに入って三秒たてば、持ち場を出てそこへ加わる（前は敵の隊か本人が四十〜七十m に来るまで突っ立って、隣が討たれるのを見ていた）
+    if (!K645_OLD && g.order === 'hold' && !scriptedAlly(g) && !g.stay && !g.interiorHold && !g.guard && !g.reserve && !g.noAI && !g.isPlayerSquad && !g.holdFire && !g.focus && !g.fixed && !g.ambush && !g.hidden && !g.civ && !s.lord &&
+      g !== this.rt.hostGroup && !A.walled && !A.fort && !A.garrison && this.rt.t > Math.max(20, this.rt.def?.openingSafe || 0) && !this.rt.over && !this.rt.flags?.ending && !(A.helpChkT > this.rt.t)) {
+      A.helpChkT = this.rt.t + 1.5;
+      let pal = null;
+      for (const o of this.S.values()) if (o.g && o.g !== g && o.team === g.team && !o.routed && o.eng >= Math.max(2, o.n * 0.2) && dist(o.c, s.c) < 80) { pal = o; break; }
+      A.helpT = pal ? (A.helpT || 0) + 1.5 : 0;
+      if (A.helpT >= 3) { g.order = 'attack'; g.seekRange = Math.max(g.seekRange || 0, 45); A.helpT = 0; this.stats.support++; this.log(g, 'help 隣の味方が斬り合っている、持ち場から出て加わる'); }
     }
     // g.ai の隊は order を 'attack' にしておく（大将の頭が中で動かす）
     //   総大将の本陣・旗本（大将のいる隊・fixed の隊）は持ち場のまま（開戦すぐに前線へ出て本人を追い回した。一2・11/6 淀の野の頼み）

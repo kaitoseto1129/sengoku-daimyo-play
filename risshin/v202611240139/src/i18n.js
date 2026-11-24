@@ -330,5 +330,7 @@ if (LANG === 'en') import('./i18n_en_clans_screens.js').then((m) => { addEn(m.de
 if (LANG === 'en') import('./i18n_en_story_cards.js').then((m) => { addEn(m.default); done = new WeakMap(); if (typeof document !== 'undefined' && document.body) walk(document.body); }).catch(() => {});
 // K646 オンラインに足した斎藤・真田・諸家の名の英語（クラウド Sanae）
 if (LANG === 'en') import('./i18n_k646_names.js').then((m) => { addEn(m.default); done = new WeakMap(); if (typeof document !== 'undefined' && document.body) walk(document.body); }).catch(() => {});
+// K650 オンライン武将492人の通しで英語の名が無かった131人（クラウド Sanae 11/24）
+if (LANG === 'en') import('./i18n_busho_names_1124.js').then((m) => { addEn(m.default); done = new WeakMap(); if (typeof document !== 'undefined' && document.body) walk(document.body); }).catch(() => {});
 if (LANG === 'en') import('./i18n_en_tokugawa.js').then((m) => addEn(m.default)).catch(() => {});
 startI18n();
