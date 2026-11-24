@@ -965,7 +965,7 @@ const REAL = {};
 // 鉄砲と刃は録音の方が芯が張って聞こえるので、比のままにはせず少し大きく残す
 const REAL_LEVEL = { gunNear: 0.37, gunFar: 0.32, volley: 0.37, volleyFar: 0.51, gunScatter: 0.31, gunScatterFar: 0.34, clash: 0.63, parry: 0.65, hit: 0.58, neigh: 1.2, gallop: 0.71, hooves: 0.59, hora: 0.6, bonsho: 1, eiei: 1, toki: 1.19, ou: 1.25, taiko: 0.7 };
 // 火の繰り返し（約9秒）は、火の出る戦で初めて要る時にだけ解く（火の無い戦で記憶を使わない）
-const REAL_LAZY = new Set(['fire', 'fireRoar']), REAL_B64 = {};
+const REAL_LAZY = new Set(['fire', 'fireRoar']), REAL_B64 = {}, REAL_LAZY_SRC = {};
 let realLoading = null;
 async function decodeReal(k, list) {
   const bufs = [];
@@ -991,6 +991,7 @@ function loadReal() {
 function needReal(k) {
   const list = REAL_B64[k];
   if (!list) return;
+  REAL_LAZY_SRC[k] = list;
   delete REAL_B64[k];
   decodeReal(k, list).catch(() => {});
 }
@@ -3356,6 +3357,23 @@ export function ambience(dt, o, world = null, pos = null, wind = 1, heading = 0)
       });
     }
   }
+}
+
+// 戦を出る時（K643 音・kaito「完璧な落ちない物」）：同じ頁で戦を続けても音の物が溜まらないよう、戦の間だけ要る物を手放す。
+//   聞こえる音は変えない（次の戦・城下で要る時に作り直す。録音の効果音・焼いた音は城下でも使うので残す）。
+//   ①解いた曲の入れ物（戦の三曲と戦ごとの節）②向きを付ける通り道（HRTF・StereoPanner・遅れ・残響の送り）の組を全部外す ③火の録音（要る戦だけ解く）を戻す
+export function releaseBattleAudio() {
+  if (real) real.release();
+  if (!ctx) return;
+  cleanSpatial(true);
+  for (let i = spatialGroups.length - 1; i >= 0; i--) {
+    const slot = spatialGroups[i];
+    if (slot.busy || slot.connected) continue;
+    for (const k of ['hrtf', 'pan', 'lp', 'ed', 'eg', 'ef', 'wg']) { const n = slot[k]; if (n) { try { n.disconnect(); } catch (e) { /* 外れ済み */ } slot[k] = null; } }
+    spatialGroups.splice(i, 1);
+  }
+  hrtfN = spatialGroups.reduce((a, s) => a + (s.hrtf ? 1 : 0), 0);
+  for (const k of Object.keys(REAL_LAZY_SRC)) { delete REAL[k]; REAL_B64[k] = REAL_LAZY_SRC[k]; delete REAL_LAZY_SRC[k]; }
 }
 
 export function silence() {

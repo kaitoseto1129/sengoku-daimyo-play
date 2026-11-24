@@ -1,6 +1,9 @@
 // K516 英語版：長篠・設楽原の戦い（長篠編 四戦目 shitaragahara）の画面に出る字（任務・ピン・人と組の名・札・手引き・物語・結果）。
 //   英語の時だけ b_shitaragahara.js から読む（日本語の時は読まない・重さ0）。台詞は字幕を出さない物も、短い物は入れた。デバッグ用の字は入れない。クラウド46 11/21。
 const MOR = { 意気盛ん: 'high spirits', 平常: 'steady', 動揺: 'shaken', 崩れかけ: 'breaking' };
+const NUM = { 一: '1', 二: '2', 三: '3', 四: '4' };
+const BL = { 佐久間: 'Sakuma', 滝川: 'Takigawa', 丹羽: 'Niwa', 佐々: 'Sassa', 前田: 'Maeda', 塙: 'Hanawa', 家康旗本: "Ieyasu's hatamoto", 本多: 'Honda', 柴田: 'Shibata', 榊原: 'Sakakibara', 水野: 'Mizuno', 池田: 'Ikeda', 福富: 'Fukutomi', 羽柴: 'Hashiba', 野々村: 'Nonomura', 大宮前: 'Omiya-front' };
+const BK = { 後備え: 'rear guard', 先手: 'vanguard', 脇備え: 'flank unit' };
 export default [
   // 場所・陣の名
   ['内側の槍の持ち場', 'Inner spear post'], ['大宮前', 'Omiya front'], ['柳田前', 'Yanagida front'], ['竹広', 'Takehiro'], ['左翼', 'Left wing'], ['中央左', 'Center left'], ['中央', 'Center'], ['中央右', 'Center right'], ['右翼', 'Right wing'],
@@ -11,6 +14,7 @@ export default [
   ['武田の包囲（北の陣）', 'Takeda siege (north camp)'], ['武田の包囲（西の陣）', 'Takeda siege (west camp)'], ['武田の包囲（南西の陣）', 'Takeda siege (southwest camp)'], ['武田の包囲（北西の陣）', 'Takeda siege (northwest camp)'], ['武田の仕寄りの柵', 'Takeda siege palisade'],
   ['武田の陣小屋', 'Takeda camp hut'], ['南の集落の民家', 'Houses of the south hamlet'], ['北の集落の民家', 'Houses of the north hamlet'], ['村外れの寺の堂', 'Hall of the temple at the village edge'],
   // 人の名
+  [/^(.+?)の(後備え|先手|脇備え) (一|二|三|四)$/, (m) => `${BL[m[1]] || m[1]} ${BK[m[2]]} ${NUM[m[3]]}`], [/^尾根の(東|西)の備 (一|二|三|四)$/, (m) => `${m[1] === '東' ? 'East' : 'West'} ridge unit ${NUM[m[2]]}`],
   ['馬場信春', 'Baba Nobuharu'], ['佐久間信盛', 'Sakuma Nobumori'], ['滝川一益', 'Takigawa Kazumasu'], ['野々村正成', 'Nonomura Masanari'], ['佐々成政', 'Sassa Narimasa'], ['前田利家', 'Maeda Toshiie'], ['塙直政', 'Hanawa Naomasa'], ['福富平左衛門', 'Fukutomi Heizaemon'],
   ['榊原康政', 'Sakakibara Yasumasa'], ['本多忠勝', 'Honda Tadakatsu'], ['織田信忠', 'Oda Nobutada'], ['羽柴秀吉', 'Hashiba Hideyoshi'], ['丹羽長秀', 'Niwa Nagahide'], ['柴田勝家', 'Shibata Katsuie'], ['土屋昌次', 'Tsuchiya Masatsugu'],
   ['真田信綱', 'Sanada Nobutsuna'], ['真田昌輝', 'Sanada Masateru'], ['内藤昌豊', 'Naito Masatoyo'], ['内藤の胴赤', 'Naito red-armored guard'], ['原昌胤', 'Hara Masatane'], ['武田逍遥軒信廉', 'Takeda Shoyoken Nobukado'], ['小山田信茂', 'Oyamada Nobushige'], ['山県昌景', 'Yamagata Masakage'],

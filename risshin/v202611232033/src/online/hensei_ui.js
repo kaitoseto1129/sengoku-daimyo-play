@@ -47,7 +47,8 @@ const CSS = `
 .olh .hz-stat{display:flex;gap:6px 14px;align-items:center;flex-wrap:wrap;margin-left:auto;font-size:14px;color:#c9b98f}
 .olh .hz-stat b{font-size:17px;color:#ece4d2;font-variant-numeric:tabular-nums;margin-left:4px}
 .olh .hz-stat b.over{color:#e3826a}
-.olh .hz-auto{min-height:44px;padding:0 12px;border:1px solid #c2a25a;border-radius:4px;background:#14120fcc}
+.olh .hz-auto,.olh .hz-clear{min-height:44px;padding:0 12px;border:1px solid #c2a25a;border-radius:4px;background:#14120fcc}
+.olh .hz-clear[hidden]{display:none}
 .olh .hz-slots{flex:none;display:grid;grid-template-columns:repeat(var(--n),minmax(0,1fr));gap:8px;padding:6px 0}
 .olh .hz-slot{position:relative;display:flex;flex-direction:column;gap:2px;align-items:center;justify-content:flex-start;border:1px solid #6a5a3a;border-radius:6px;background:#17130ecc;padding:38px 4px 4px;min-height:142px;min-width:0;text-align:center}
 .olh .hz-slot[aria-pressed=true]{border:2px solid #d9b45a;background:#241b12}
@@ -126,7 +127,7 @@ export function openHensei(o, onDone, onBack) {
   let sel = boss && army[0] === boss ? Math.max(1, army.indexOf(null)) : 0; if (sel < 0) sel = 1;
   const filt = new Set(); let rareF = null, houseF = null;
   el.insertAdjacentHTML('beforeend', `<div class="hz-top"><button type="button" class="ol-back" aria-label="戻る">‹</button><h2>軍団</h2>
-      <div class="hz-stat" role="status"></div><button type="button" class="hz-auto">自動編成</button></div>
+      <div class="hz-stat" role="status"></div><button type="button" class="hz-clear" hidden>全員を外す</button><button type="button" class="hz-auto">自動編成</button></div>
     <div class="hz-why" role="status" aria-live="polite"></div>
     <div class="hz-mid"><div class="hz-stage" aria-hidden="true"></div><div class="hz-col"><div class="hz-slots" role="group" aria-label="出陣武将"></div>
     <div class="hz-filters" role="group" aria-label="絞る"><button type="button" data-f="all" aria-pressed="true">全員</button>${FILTERS.map((f) => `<button type="button" data-f="${f}" aria-pressed="false">${['騎馬', '鉄砲', '槍', '弓'].includes(f) ? unitIcon({ 騎馬: 'kiba', 鉄砲: 'teppo', 槍: 'yari', 弓: 'yumi' }[f], 16) : ''}${f}</button>`).join('')}${RARES.map((r) => `<button type="button" data-r="${r}" aria-pressed="false" style="--rc:${RARITY[r]?.color || '#ccc'};color:var(--rc)">${r}</button>`).join('')}${HOUSE_F.map(([id, nm]) => `<button type="button" data-h="${id}" aria-pressed="false">${nm}</button>`).join('')}</div></div></div>
@@ -321,6 +322,7 @@ export function openHensei(o, onDone, onBack) {
     el.querySelectorAll('.hz-filters [data-r]').forEach((b) => b.setAttribute('aria-pressed', String(rareF === b.dataset.r)));
     el.querySelectorAll('.hz-filters [data-h]').forEach((b) => b.setAttribute('aria-pressed', String(houseF === b.dataset.h)));
     { const ab = el.querySelector('.hz-filters [data-f="all"]'); if (ab) ab.textContent = `全員 ${(o.owned || []).filter((n) => bushoOf(n)).length}`; }
+    { const cb = el.querySelector('.hz-clear'); if (cb) cb.hidden = !filled; }   // K646：出陣が一人以上の時だけ［全員を外す］
     go.disabled = !filled || cost > cap;
     { const sb = el.querySelector('.hz-sortie'); if (sb) sb.disabled = go.disabled; }   // K610：枠を全部埋めなくても決められる（出陣は置いた人数で）
     stageSet();
@@ -332,6 +334,8 @@ export function openHensei(o, onDone, onBack) {
   el.querySelectorAll('.hz-filters [data-f]').forEach((b) => b.addEventListener('click', () => { const f = b.dataset.f; if (f === 'all') { filt.clear(); rareF = null; houseF = null; } else if (filt.has(f)) filt.delete(f); else { filt.clear(); filt.add(f); } draw(); }));
   el.querySelectorAll('.hz-filters [data-r]').forEach((b) => b.addEventListener('click', () => { rareF = rareF === b.dataset.r ? null : b.dataset.r; draw(); }));
   el.querySelectorAll('.hz-filters [data-h]').forEach((b) => b.addEventListener('click', () => { houseF = houseF === b.dataset.h ? null : b.dataset.h; draw(); }));
+  // K646（kaito 11/24「何人かいる時に全員解除のボタンを付けて、一気に布陣から外せるように」）：確かめの札の後、出陣の枠を全部空ける（保存も空に）。外した武将は手持ちに残る
+  el.querySelector('.hz-clear').addEventListener('click', () => ask('全員を外す', [`出陣の枠から ${army.filter(Boolean).length} 人を全員外します。武将は手持ちに残ります`], [['全員を外す', () => { army.fill(null); sel = 0; fmapKey = ''; o.army = army.slice(); o.defaultFujin = null; saveOnline(o); draw(); }, true], ['やめる', null]]));
   el.querySelector('.hz-auto').addEventListener('click', () => ask('自動編成', ['大名本人と、主兵種の合う武将を Cost の内で選びます'], [['騎馬中心', () => auto('kiba'), true], ['鉄砲中心', () => auto('teppo'), true], ['やめる', null]]));
   draw();
   const packFujin = () => ({ book: fj.book, pieces: army.filter(Boolean).map((n, i) => ({ name: n, slot: i === 0 ? '本陣' : fj.slot[n], formation: fj.jin[n] || '横陣', ...(fjPos[n] ? { pos: { ...fjPos[n] } } : {}) })) });

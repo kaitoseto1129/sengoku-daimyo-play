@@ -293,5 +293,7 @@ if (LANG === 'en') import('./i18n_toyo_cards.js').then((m) => { addEn(m.default)
 if (LANG === 'en') import('./i18n_en_clans_screens.js').then((m) => { addEn(m.default); done = new WeakMap(); if (typeof document !== 'undefined' && document.body) walk(document.body); }).catch(() => {});
 // K516 織田編・豊臣編の出陣の札（main.js STORY_BY の年・題・話・釦）も英語の時だけ読む（クラウド 八尾若江の持ち主 11/21）
 if (LANG === 'en') import('./i18n_en_story_cards.js').then((m) => { addEn(m.default); done = new WeakMap(); if (typeof document !== 'undefined' && document.body) walk(document.body); }).catch(() => {});
+// K646 オンラインに足した斎藤・真田・諸家の名の英語（クラウド Sanae）
+if (LANG === 'en') import('./i18n_k646_names.js').then((m) => { addEn(m.default); done = new WeakMap(); if (typeof document !== 'undefined' && document.body) walk(document.body); }).catch(() => {});
 if (LANG === 'en') import('./i18n_en_tokugawa.js').then((m) => addEn(m.default)).catch(() => {});
 startI18n();

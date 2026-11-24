@@ -46,6 +46,8 @@ export function scriptedShotBlocked(army, src, t) {
 }
 // 弾ごと・塀ごとに正規表現の字を書くと、通るたびに新しい物を作る（10/31 三木の iPhone の落ち）。一度だけ作って使い回す
 const RX_WALL = /塀|壁|門|石垣|櫓/, RX_EARTH = /土|石|堤/, RX_FENCE = /柵/;
+const K644_OLD = typeof location !== 'undefined' && /[?&]k644old\b/.test(location.search);   // 測り比べ用（前の鉄砲）
+
 // 四角を持たない置き物（升に入らない物）の番号。置き物の配列か数が変われば作り直す
 function freeSolids(army) {
   const list = army.solids, F = army._freeSolids;
@@ -86,8 +88,9 @@ export function projectileCover(army, x, y, z, ex, ey, ez, owner) {
       q = boxEntry(x, y, z, dx, dy, dz, o.x - r, o.x + r, bottom, bottom + height, o.z - r, o.z + r);
     }
     // K644④（11/23 クラウドわ・設楽原）：撃つ者の手元（2.5m の内）の自分の方の柵は、杭の間から撃つとみなして抜ける（下の置き物と同じ決まり・shotBlocked も柵の手元は通す）。
+    //   11/23 夜：二の柵・三の柵の後ろ（2.4〜6.8m）から一の柵の杭の間越しに撃つ列も抜ける（手元 2.5m→8m。敵の柵・塀・竹束は今まで通り止める）
     //   前は柵の後ろの鉄砲の弾の六割近く（240秒で 690 発中 395 発）が自分の馬防柵に止まり、武田の寄せに届いていなかった
-    if (q < h.q && owner?.pos && o.seg && o.team === owner.team && RX_FENCE.test(name) && Math.hypot(x + dx * q - owner.pos.x, z + dz * q - owner.pos.z) < 2.5) continue;
+    if (q < h.q && owner?.pos && o.seg && o.team === owner.team && RX_FENCE.test(name) && Math.hypot(x + dx * q - owner.pos.x, z + dz * q - owner.pos.z) < 8) continue;
     accept(h, q, o, RX_EARTH.test(name) ? 'dust' : 'wood');
   }
   // 高さを書いていない塀・柵・竹束・建物の当たりも、矢玉を止める（十四3・BV kaito 11/6「竹束・塀・柵が本当に防ぎ、刺さる」）。
@@ -116,6 +119,7 @@ export function projectileCover(army, x, y, z, ex, ey, ez, owner) {
       q = rectEntry(x, y, z, dx, dy, dz, cx, cz, vx / L, -vz / L, L * .5, o.r, bottom, o.naka != null ? o.yTop : bottom + mH);
     }
     if (auto && q < h.q && ox != null && Math.hypot(x + dx * q - ox, z + dz * q - oz) < 2.5) return;
+    if (q < h.q && ox != null && !K644_OLD && o.struct && o.struct.team === owner.team && RX_FENCE.test(o.struct.name || '') && Math.hypot(x + dx * q - ox, z + dz * q - oz) < 12) return;   // K644：同上（置き物の柵）
     accept(h, q, o.struct || o, o.missileType || 'wood');
     };
     // 升は兵の当たりと同じ表（army_move の collide がコマごとに動いた物を置き直す）。同じコマなら作り直さない

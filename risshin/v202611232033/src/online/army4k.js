@@ -263,11 +263,12 @@ export function army4kNominal(rt) {
 //   ① 鉄砲の弾：隊ごとに斉射の蓄え（AMMO4K 回）。鉄砲の隊は 15〜100m の敵の備へ十二秒ごとに一斉射（名目の兵を減らし、士気を揺らす。本物の鉄砲足軽が居れば火と煙も）。
 //      前は本物の敵の兵が四〜九十 m に居る時だけ一人ずつ撃つ作りで、千人隊どうしの遠い間合いでは一発も撃たなかった（11/21 模擬合戦 5分で発砲0）。
 //      一斉射で一つ、本物の鉄砲足軽の六十発で一つ減る。尽きれば撃てない（脇差で斬り合う）。本陣の45m 内で斬り合っていなければ半分まで戻る（補給）。
-//      撃ち続ければ六分で尽きる＝撃ち放題にしない。残りは S.ammoPct（0〜100）と部隊の stat() の『弾』
+//      撃ち続ければ十八分で尽きる（K645③で三十→九十）。残りは S.ammoPct（0〜100）と部隊の stat() の『弾』
 //   ② 騎馬の状態（S.cav）：READY → CHARGING（駆けて寄る）→ ENGAGED（斬り合い）→ REFORMING（離れて二十秒・再集合）→ READY。疲れ七割五分で EXHAUSTED（四割まで休む）。
 //      REFORMING と EXHAUSTED の間は『かかれ・駆けよ』の下知を受けず、その場で集まる（突撃の後は再集合が要る）。先駆けの騎馬の塊も出さない
 //   ③ 疲れの効き目：本物の斬り合いの一太刀を疲れで最大三割五分下げる（軽い押し合いは butai が既に下げる）。開戦すぐに全軍で駆けると、着いた時に疲れて弱い
-export const AMMO4K = 30;
+// K645③（kaito 11/23「最初の一斉射の後、撃ってるのか分からない。鉄砲隊はずっと撃ち続けてほしい」）：蓄えを三十→九十（十二秒ごとで十八分＝一戦の間は尽きない）
+export const AMMO4K = 90;
 // 隊の斉射：鉄砲 十二秒・十五〜百m・名目の1.2%／弓 十秒・十二〜八十m・0.8%。戦法『一斉射』の間（S._rapidUntil）は間を半分に詰める（弾は同じく一つずつ使う＝弾が早く減る）
 // K611（kaito：後ろの鉄砲隊が撃たない・鉄砲をもっと活躍させる）：鉄砲の間合いを AI の撃つ間合い（general_ai の range 140）と揃えた（前は AI が 140m で『撃てる』と見て待ち、
 //   斉射は 100m までなので後ろの鉄砲隊が一度も撃たなかった）。当たりは近いほど多い（六十m 内 名目の3%・百m 内 2%・その先 1%＝千人の鉄砲で 30・20・10 人）
@@ -305,9 +306,48 @@ function volleyTick(rt, A, S, B, g, kind) {
     const mh = (gun ? 1.5 : 1.1) * 85 * kill / e.b.nominal; e.b.morale = Math.max(5, e.b.morale - mh); if (e.b.real?.count) e.b.real.morale = Math.max(5, e.b.real.morale - mh);
   }
   if (gun) S.ammoLeft = Math.max(0, S.ammoLeft - 1);
-  S._volT = A.time + V.T * (S._rapidUntil > A.time ? 0.5 : 1) / Math.max(0.5, fat); S.volleys = (S.volleys || 0) + 1;
+  S._volAt = A.time; S._volT = A.time + V.T * (S._rapidUntil > A.time ? 0.5 : 1) / Math.max(0.5, fat); S.volleys = (S.volleys || 0) + 1;
   if (pa) S.pVolleys = (S.pVolleys || 0) + 1;
   if (gun) try { salvo(rt, A, S, B, g, e, bd, pa); } catch (x) { /* 火と煙が出なくても数は減らす */ }
+}
+// K645③（kaito 11/23「一斉でなくていいから、鉄砲隊はずっと撃ち続けてほしい。銃声が聞こえなくなる」）：一斉射の合間も、弾の届く所に敵の備が居る間は
+//   〇・四〜一秒に一発ずつ撃ち続ける。本物の鉄砲足軽が居れば一人が本物の弾を放つ（込めの済んだ者だけ・当たれば本物が倒れる）。本物が居ない遠目の隊は、
+//   隊の前の列の辺りに筒先の火と硝煙と銃声だけを出す（名目の数は一斉射でだけ減らす＝強さは変えない）。カメラから百六十m より遠い隊は音も絵も出さない。
+//   一斉射の前後一秒半は出さない（一斉射の音と重ねない）。斉射の蓄えは減らさない
+function rippleTick(rt, A, S, B, g) {
+  // 斬り合いの間（_k603eng）も、後ろの列は撃ち続ける（一斉射は止まる。kaito「ずっと撃ち続けて」）
+  if (!(S.ammoLeft >= 1) || S.state === '敗走' || B.aliveNominal() <= 50) return;
+  const t = A.time;
+  if (S._ripT > t) return;
+  S._ripT = t + 0.4 + Math.random() * 0.6;
+  if (Math.abs((S._volT ?? -99) - t) < 1.5 || t - (S._volAt ?? -99) < 1.5) return;
+  // 届く所の敵の備（一秒に一度だけ探す）
+  if (!(S._ripET > t)) {
+    S._ripET = t + 1; S._ripE = null; let bd = VOLLEY.鉄砲.R[1];
+    for (const q of rt.sonae || []) { if (q.team === S.team || q.state === '敗走' || !q.b || q.b.aliveNominal() <= 0) continue; const d = Math.hypot(q.b.pos.x - B.pos.x, q.b.pos.z - B.pos.z); if (d < bd) { bd = d; S._ripE = q; } }   // 寄られて十五m より近くても撃つ
+  }
+  const e = S._ripE; if (!e?.b) return;
+  // 本物の鉄砲足軽が居れば、込めの済んだ一人が近い本物の敵へ一発
+  const foes = e.b.real?.units;
+  if (g && foes?.length) {
+    for (const u of g.units) {
+      if (!u.alive || u.gone || u.type !== 'gun' || u.sidearm || u.reload || u.cd > 0 || u.atk || u.fleeing || (u.gunAmmo ?? 20) <= 0) continue;
+      let tg = null, best = 95;
+      for (const q of foes) { if (!q.alive || q.gone) continue; const d = Math.hypot(q.pos.x - u.pos.x, q.pos.z - u.pos.z); if (d < best) { best = d; tg = q; } }
+      if (!tg) break;
+      u.heading = Math.atan2(tg.pos.x - u.pos.x, tg.pos.z - u.pos.z);
+      const a0 = u.gunAmmo ?? 20; if (A.fireGun(u, tg) || (u.gunAmmo ?? 20) < a0) A.startReload?.(u);
+      S.ripples = (S.ripples || 0) + 1; return;
+    }
+  }
+  // 本物が居ない（遠目の隊）：前の列の辺りに火と煙と音だけ
+  const cam = rt.camera?.position; if (!cam || Math.hypot(cam.x - B.pos.x, cam.z - B.pos.z) > 160) return;
+  const dx = e.b.pos.x - B.pos.x, dz = e.b.pos.z - B.pos.z, L = Math.hypot(dx, dz) || 1, fx = dx / L, fz = dz / L;
+  const w = B.lightWidth ?? Math.max(8, Math.min(46, Math.sqrt(Math.max(1, B.aliveNominal())) * 3));
+  const side = (Math.random() - 0.5) * w, x = B.pos.x - fz * side + fx * 3, z = B.pos.z + fx * side + fz * 3;
+  const y = (rt.world?.heightAt ? rt.world.heightAt(x, z) : 0) + 1.45;
+  try { A.flash?.(x, y, z, 1); A.smoke?.(x, y, z, fx, fz, 1); A.play?.('gun', { x, y, z }, 1.2); } catch (err) { /* 絵や音が無くても進む */ }
+  S.ripples = (S.ripples || 0) + 1;
 }
 // K615（kaito 11/21「織田の鉄砲隊の目の前に立っていたのに全然気づかなかった」）：狙われている事を絵と音で分からせる。
 //   本人が敵の鉄砲隊の正面（隊の向きから左右およそ八十度・八〜百四十m）に入ると、その隊は二秒半の内に必ず一斉射を放つ（間が残っていても詰める）。
@@ -466,6 +506,7 @@ function k603Tick(rt) {
         u._ga = u.gunAmmo ?? 20;
       }
       volleyTick(rt, A, S, B, g, '鉄砲');
+      rippleTick(rt, A, S, B, g);
       const H = (rt.sonae || []).find((q) => q.team === S.team && q.line === 'honjin');
       if (!S._k603eng && H && H !== S && H.b && Math.hypot(H.b.pos.x - B.pos.x, H.b.pos.z - B.pos.z) < 45 && S.ammoLeft < AMMO4K * 0.5) S.ammoLeft = Math.min(AMMO4K * 0.5, S.ammoLeft + dt / 4);
       S.ammoPct = B.ammoPct = Math.round(S.ammoLeft / AMMO4K * 100);

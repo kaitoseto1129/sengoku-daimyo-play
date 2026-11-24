@@ -4,6 +4,7 @@ const HOUSE_EN = { oda: 'Oda', takeda: 'Takeda', uesugi: 'Uesugi', tokugawa: 'To
 const ROLE = { A: 'general', R: 'commander', N: 'retainer' };
 const ARM = { teppo: 'gunner captain', yari: 'spear captain', kiba: 'cavalry captain', shubi: 'defensive commander', yumi: 'archer captain', std: 'field commander' };
 export const TAGLINE_EN = {
+  ukita_hideie: 'One of the Five Elders, young lord of Bizen',
   nobunaga: 'Daimyo seeking to unify Japan', shingen: 'Tiger of Kai, master of cavalry', kenshin: 'Dragon of Echigo, devout and undefeated', ieyasu: 'Patient lord who would found the Tokugawa shogunate',
   motonari: 'Schemer who built the Mori realm in western Japan', yoshihisa: 'Daimyo who brought Kyushu under Shimazu rule', nobushige: 'Sanada hero of the Osaka campaigns', yoshihiro: 'Fierce Shimazu general of the famous retreat at Sekigahara',
   masamune: 'One-eyed dragon of Oshu', masayuki: 'Cunning lord of Ueda who twice beat the Tokugawa', ujiyasu: 'Lord of the Later Hojo, master of Kanto', motochika: 'Lord who united Shikoku',

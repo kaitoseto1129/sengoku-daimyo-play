@@ -7,6 +7,7 @@
 //   ・今週の登用の枠（pickup.js の activeBanners）と、登用の池（toyo_rules.js・toyo_tiers.js・tojo.js の poolOf）がここを読む。
 //   試す：?toyonow=2027-01-10（その日として暦を読む）。node では setToyoNow(Date)。
 import { BUSHOU_ONLINE, BUSHOU_BY_ID } from './bushou_online.js';
+import { MORE_1124 } from './bushou_more_1124.js';
 
 export const CAL_START = '2026-12-01';
 const SIX = ['oda', 'takeda', 'uesugi', 'tokugawa', 'mori', 'shimazu'];
@@ -23,23 +24,26 @@ export const WEEKS = [
   { kind: 'story', story: 'oda', name: '織田編 特別編 桶狭間', en: 'Oda Special: Okehazama', bg: 'base', pickup: 'imagawa_yoshimoto', focus: ['imagawa_yoshimoto', 'saito_dosan', 'ujisato'],
     add: ['imagawa_yoshimoto', 'imagawa_ujizane', 'taigen_sessai', 'saito_dosan', 'saito_yoshitatsu', 'saito_tatsuoki', 'ujisato'] },
   { kind: 'house', house: 'date', name: '今週の登用 伊達家', en: 'This week: Date', bg: 'oshu', pickup: 'masamune', focus: ['masamune', 'kagetsuna_date', 'shigezane_date'],
-    add: ['masamune', 'kagetsuna_date', 'shigezane_date', 'tsunamoto_oniniwa', 'terumune_date', 'shigezane_rusu', 'date_harimune', 'date_tanemune', 'oniniwa_yoshinao', 'date_hidemune'] },
+    add: ['masamune', 'kagetsuna_date', 'shigezane_date', 'tsunamoto_oniniwa', 'terumune_date', 'shigezane_rusu', 'date_harimune', 'date_tanemune', 'oniniwa_yoshinao', 'date_hidemune', 'shiraishi_munezane', 'harada_munetoki', 'katakura_shigenaga', 'watari_shigemune', 'date_sanemoto', 'ishikawa_akimitsu', 'kokubu_morishige', 'hasekura_tsunenaga', 'endo_mototsugu', 'goto_nobuyasu', 'koyanagawa_morimune', 'hamada_kagetaka'] },
   { kind: 'house', house: 'tokugawa', name: '今週の登用 徳川家', en: 'This week: Tokugawa', bg: 'base', pickup: 'ieyasu', focus: ['ieyasu', 'tadakatsu', 'naomasa'],
-    add: ['mototada', 'tadayo', 'kazumasa', 'hanzo', 'nobumasa', 'nobuyasu_m', 'honda_masazumi', 'naomasa', 'masanobu_h', 'katsunari', 'hideyasu', 'tokugawa_hidetada'] },
+    add: ['mototada', 'tadayo', 'kazumasa', 'hanzo', 'nobumasa', 'nobuyasu_m', 'honda_masazumi', 'naomasa', 'masanobu_h', 'katsunari', 'hideyasu', 'tokugawa_hidetada', 'okubo_tadasuke', 'matsudaira_ietada', 'matsudaira_yasutada', 'honda_shigetsugu', 'torii_tadayoshi', 'okubo_tadataka', 'matsudaira_tadayoshi', 'yagyu_munenori', 'ii_naotaka', 'doi_toshikatsu', 'sakai_shigetada', 'toda_tadatsugu', 'suganuma_sadamitsu', 'amano_yasukage', 'ishikawa_ienari', 'itakura_katsushige', 'naito_nobunari'] },
   { kind: 'story', story: 'oda', name: '織田編 特別編 姉川', en: 'Oda Special: Anegawa', bg: 'base', pickup: 'asai_nagamasa', focus: ['asai_nagamasa', 'asakura_soteki', 'asakura_yoshikage'],
-    add: ['asai_nagamasa', 'asai_hisamasa', 'akai_naomasa', 'endo_naotsune', 'asakura_yoshikage', 'asakura_kagetake', 'magara_naotaka', 'asakura_soteki'] },
+    add: ['asai_nagamasa', 'asai_hisamasa', 'akai_naomasa', 'endo_naotsune', 'asakura_yoshikage', 'asakura_kagetake', 'magara_naotaka', 'asakura_soteki',
+      // K580（11/24 kaito「浅井・朝倉を各20人」）
+      'asai_sukemasa', 'isono_kazumasa', 'kaiho_tsunachika', 'atsuji_sadayuki', 'amenomori_kiyosada', 'mitamura_kunisada', 'asai_masazumi', 'anyoji_ujihide', 'imamura_ujinao', 'dodo_kuranosuke', 'hori_hidemura', 'higuchi_naofusa', 'onogi_hidetoshi', 'asai_inosane', 'taya_akimasa', 'nomura_naotaka',
+      'asakura_toshikage', 'asakura_sadakage', 'asakura_takakage', 'asakura_kagetaka', 'asakura_kagenori', 'asakura_kagetaka2', 'asakura_kageyuki', 'asakura_kagetsune', 'yamazaki_yoshiie', 'uozumi_kagekata', 'maenami_yoshitsugu', 'tomita_nagashige', 'torii_kagechika', 'kawai_yoshimune', 'takumi_kagetane', 'magara_naozumi'] },
   { kind: 'arm', arm: 'kiba', name: '騎馬武将の週', en: 'Cavalry Week', bg: 'kai', pickup: 'shingen', focus: ['shingen', 'kenshin', 'yoshishige_satake'],
     add: ['takeda_nobutora', 'kotaro_fuma', 'yoshishige_satake', 'yoshiaki_mogami'] },
   { kind: 'house', house: 'mori', name: '今週の登用 毛利家', en: 'This week: Mori', bg: 'setouchi', pickup: 'motonari', focus: ['motonari', 'takakage', 'motoharu'],
-    add: ['michiyoshi', 'hiroie', 'hideaki', 'ekei', 'takaie', 'sadatoshi', 'kikkawa_mototsune', 'mori_hidemoto', 'takakage', 'muneharu', 'naoie_ukita'] },
+    add: ['michiyoshi', 'hiroie', 'hideaki', 'ekei', 'takaie', 'sadatoshi', 'kikkawa_mototsune', 'mori_hidemoto', 'takakage', 'muneharu', 'naoie_ukita', 'kodama_narikata', 'hoida_motokiyo', 'amano_takashige', 'sugihara_morishige', 'ichikawa_tsuneyoshi', 'kokushi_mototsuke', 'shishido_mototsugu', 'kikkawa_tsuneie', 'watanabe_nagashi'] },
   { kind: 'house', house: 'hojo', name: '今週の登用 北条家', en: 'This week: Hojo', bg: 'base', pickup: 'ujiyasu', focus: ['ujiyasu', 'tsunashige_hojo', 'hojo_soun'],
     add: ['ujiyasu', 'tsunashige_hojo', 'ujimasa_hojo', 'ujiteru_hojo', 'ujinao_hojo', 'hojo_soun', 'hojo_ujitsuna', 'hojo_ujikuni', 'hojo_ujinori', 'matsuda_norihide'] },
   { kind: 'house', house: 'shimazu', name: '今週の登用 島津家と九州', en: 'This week: Shimazu & Kyushu', bg: 'kyushu', pickup: 'yoshihiro', focus: ['yoshihiro', 'otomo_sorin', 'takahashi_joun'],
-    add: ['tadamune', 'tadatsune', 'arinobu', 'tokihisa', 'morizumi', 'tadanaga', 'yoshihiro', 'otomo_sorin', 'otomo_yoshimune', 'takahashi_joun', 'bekki_akitsura', 'shiga_chikatsugu', 'takanobu_ryuzoji', 'muneshige'] },
+    add: ['tadamune', 'tadatsune', 'arinobu', 'tokihisa', 'morizumi', 'tadanaga', 'yoshihiro', 'otomo_sorin', 'otomo_yoshimune', 'takahashi_joun', 'bekki_akitsura', 'shiga_chikatsugu', 'takanobu_ryuzoji', 'muneshige', 'shimazu_tadayoshi', 'shimazu_yoshitora', 'kimotsuki_kanetsugu', 'hishijima_kunisada', 'honda_chikasada', 'shirahama_shigemasa', 'hirata_masumune', 'shimazu_hisayasu', 'usuki_akinobu', 'yoshihiro_akimasa', 'yoshioka_akioki', 'tawara_chikakata', 'takita_shigechika', 'tsunokuma_sekishu', 'yoshihiro_shigenobu', 'ono_shigeyuki', 'tokito_tsurasada', 'yufu_koreyoshi', 'komono_masutoki', 'ichimanda_akizane', 'saeki_koreyori', 'otomo_yoshiaki', 'saito_shigezane'] },
   { kind: 'story', story: 'toyotomi', name: '豊臣編 特別編 賤ヶ岳', en: 'Toyotomi Special: Shizugatake', bg: 'base', pickup: 'kiyomasa', focus: ['kiyomasa', 'masanori_fukushima', 'kanbei'],
-    add: ['kiyomasa', 'mitsunari_ishida', 'yoshitsugu_otani', 'masanori_fukushima', 'nagamasa_kuroda', 'hidenaga_toyotomi', 'toyotomi_hidetsugu', 'katagiri_katsumoto', 'kato_yoshiaki', 'wakisaka_yasuharu', 'hirano_nagayasu', 'kasuya_takenori', 'kanbei', 'hanbei_takenaka'] },
+    add: ['kiyomasa', 'mitsunari_ishida', 'yoshitsugu_otani', 'masanori_fukushima', 'nagamasa_kuroda', 'hidenaga_toyotomi', 'toyotomi_hidetsugu', 'katagiri_katsumoto', 'kato_yoshiaki', 'wakisaka_yasuharu', 'hirano_nagayasu', 'kasuya_takenori', 'kanbei', 'hanbei_takenaka', 'ukita_hideie', 'konishi_yukinaga', 'hosokawa_tadaoki', 'toyotomi_hideyori', 'asano_nagamasa', 'masuda_nagamori', 'nagatsuka_masaie', 'maeda_gen_i', 'sengoku_hidehisa', 'horio_yoshiharu', 'nakamura_kazuuji', 'ikoma_chikamasa', 'asano_yoshinaga', 'hachisuka_iemasa', 'kinoshita_iesada', 'toyotomi_hidekatsu', 'hitotsuyanagi_naosue', 'tanaka_yoshimasa', 'terasawa_hirotaka', 'mori_hidekane', 'maeno_nagayasu', 'kuwayama_shigeharu', 'kuki_yoshitaka'] },
   { kind: 'house', house: 'chosokabe', name: '今週の登用 長宗我部と四国', en: 'This week: Chosokabe & Shikoku', bg: 'setouchi', pickup: 'motochika', focus: ['motochika', 'nobuchika', 'nagayoshi_miyoshi'],
-    add: ['motochika', 'nobuchika', 'chosokabe_morichika', 'kira_chikasada', 'kagawa_chikakazu', 'kosokabe_chikayasu', 'nagayoshi_miyoshi', 'hisahide_matsunaga'] },
+    add: ['motochika', 'nobuchika', 'chosokabe_morichika', 'kira_chikasada', 'kagawa_chikakazu', 'kosokabe_chikayasu', 'nagayoshi_miyoshi', 'hisahide_matsunaga', 'chosokabe_kunichika', 'hisatake_chikanobu', 'hisatake_chikanao', 'tani_tadasumi', 'yoshida_takayori', 'yoshida_shigeyasu', 'fukudome_chikamasa', 'nakajima_shigekatsu', 'hiyama_chikaoki', 'yamada_motoyoshi', 'tsuno_chikatada', 'motoyama_shigetoki', 'kira_chikazane', 'ike_yorikazu', 'aki_kunitora', 'ichijo_kanesada'] },
   { kind: 'arm', arm: 'yumi', name: '弓武将の週', en: 'Archer Week', bg: 'setouchi', pickup: 'motonari', focus: ['motonari', 'yoshihisa', 'ujiyasu'],
     add: ['sakon'] },
   { kind: 'story', story: 'sanada', name: '特別編 真田と大坂', en: 'Special: Sanada & Osaka', bg: 'kiri', pickup: 'nobushige', focus: ['nobushige', 'masayuki', 'sanada_nobuyuki'],
@@ -53,7 +57,21 @@ export const WEEKS = [
     add: ['hosokawa_fujitaka', 'araki_murashige', 'tsutsui_junkei', 'amago_haruhisa', 'yamanaka_shikanosuke', 'sue_harukata', 'ouchi_yoshitaka'] },
   { kind: 'story', story: 'osaka', name: '特別編 大坂の陣と名将たち', en: 'Special: Osaka & Great Captains', bg: 'kiri', pickup: 'goto_matabei', focus: ['goto_matabei', 'mori_katsunaga', 'todo_takatora'],
     add: ['goto_matabei', 'mori_katsunaga', 'kimura_shigenari', 'akashi_takenori', 'todo_takatora', 'hachisuka_masakatsu', 'yamauchi_kazutoyo'] },
+  // K650（11/24 kaito「織田家はまだまだいる」）：第21週。織田家の家臣・一門25人（bushou_online.js の NEW_K650）
+  { kind: 'house', house: 'oda', name: '今週の登用 織田家の家臣たち', en: 'This week: Oda Retainers', bg: 'base', pickup: 'kuki_yoshitaka', focus: ['kuki_yoshitaka', 'sakuma_morimasa', 'oda_nobuhide'],
+    add: ['oda_nobuhide', 'kuki_yoshitaka', 'sakuma_morimasa', 'takayama_ukon', 'nakagawa_kiyohide', 'ujiie_bokuzen', 'ando_morinari', 'fuwa_mitsuharu', 'hanawa_naomasa', 'hayashi_hidesada', 'hirate_masahide', 'oda_nobukane', 'oda_nagamasu', 'oda_nobuyuki', 'tsuda_nobusumi', 'mori_ranmaru', 'maeda_gen_i', 'hasegawa_hidekazu', 'sugaya_nagayori', 'mori_yoshikatsu', 'hattori_kazutada', 'yanada_masatsuna', 'saito_toshiharu', 'miyabe_keijun', 'maeno_nagayasu'] },
 ];
+// K646（11/24 各家20人）：足した50人も週に入れる（斎藤は桶狭間の週・真田は真田と大坂の週・諸家は地方ごとの週）。16週の後は全員が出る
+{
+  const add = (story, ids) => { const w = WEEKS.find((x) => x.story === story && x.add); if (w) for (const id of ids) if (!w.add.includes(id)) w.add.push(id); };
+  add('oda', ['saito_michitoshi', 'hineno_hirosuke', 'takekoshi_naomitsu', 'saito_toshiharu', 'saito_toshimitsu', 'akechi_mitsuyasu', 'nagai_morihiro', 'hibino_kiyozane', 'toki_yorinari', 'nagai_nagahiro', 'ando_morinari', 'ujiie_bokuzen', 'endo_morikazu', 'takenaka_shigemoto', 'fuwa_mitsuharu', 'inada_danjo', 'adachi_rokubei', 'saito_magoshiro', 'saito_kihei', 'sato_tadayoshi', 'kishi_nobuchika']);
+  add('sanada', ['sanada_nobutsuna', 'sanada_masateru', 'yazawa_yoritsuna', 'yazawa_yoriyasu', 'sanada_nobumasa', 'sanada_daisuke', 'sanada_nobuyoshi', 'sanada_nobumasa_k', 'oyamada_shigemasa', 'kawahara_tsunaie', 'uderu_morikiyo', 'tokita_takanaga', 'kanbara_shigeharu', 'yokotani_yukishige', 'takanashi_naiki', 'sarutobi_sasuke', 'kirigakure_saizo', 'mochizuki_rokuro', 'unno_rokuro', 'miyoshi_seikai', 'anayama_kosuke']);
+  add('tohoku', ['kunohe_masazane', 'oda_ujiharu']);
+  add('chugoku', ['amago_tsunehisa', 'urakami_munekage', 'bessho_nagaharu', 'hatano_hideharu']);
+  add('osaka', ['ashikaga_yoshiaki', 'rokkaku_yoshikata', 'kennyo_honganji', 'shimotsuma_rairen', 'miyoshi_nagayasu', 'miyoshi_masayasu', 'iwanari_tomomichi', 'kitabatake_tomonori']);
+}
+// 11/24 増員の武将を各家の週へ（bushou_more_1124.js）
+for (const m of MORE_1124) { const w = WEEKS.find((x) => x.kind === 'house' && x.house === m[2]) || WEEKS.find((x) => x.add.some((i) => BUSHOU_BY_ID[i]?.house === m[2])); if (w && !w.add.includes(m[0])) w.add.push(m[0]); }
 export const ARM_NAME = { teppo: '鉄砲', kiba: '騎馬', yumi: '弓' };
 
 let forced = null;

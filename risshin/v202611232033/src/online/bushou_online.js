@@ -8,6 +8,9 @@
 //     大名本人は SS（家康・義久も。紙の SS の例に合わせる）。48 の house.js の仮の格はこちらへ寄せた。
 //   格の割り当ては紙の例（SS＝信長・信玄・謙信・家康・秀吉・元就／S＝柴田・本多忠勝・山県・島津家久・黒田官兵衛／A＝前田利家・榊原康政・長宗我部信親）に合わせ、
 //   書いていない人は同じ身分の人に並べて推した（大名本人・天下人＝SS、大名級と名の通った重臣＝S、著名な武将＝A、有力な家臣＝R、地方の武将・小領主＝N）。
+import { NEW_K646 } from './bushou_k646.js';
+import { MORE_1124 } from './bushou_more_1124.js';
+import { NEW_SW_1124 } from './bushou_add_sw1124.js';
 export const COST = { N: 10, R: 12, A: 15, S: 18, SS: 22 };
 export const RANKS = ['N', 'R', 'A', 'S', 'SS'];
 
@@ -336,6 +339,150 @@ const NEW_K640 = [
   ['yamauchi_kazutoyo', '山内一豊', 'other', 'R', 'yari', '信長・秀吉に仕え、のち関ヶ原で徳川方につき、土佐の領主となった。', ['関ヶ原の戦い'], ['土佐の槍', 'moko'], 'Yamauchi Kazutoyo served Nobunaga and Hideyoshi. He joined the Tokugawa at Sekigahara and received Tosa.', ['Sekigahara'], 'Tosa spears'],
 ];
 for (const [id, name, house, rank, fav, bio, battles, [sn, tac], enBio, enBattles, enSn] of NEW_K640) {
+  if (BUSHOU_ONLINE.some((x) => x.id === id || x.name === name)) continue;
+  BUSHOU_ONLINE.push(B(id, name, house, rank, { fav, senpo: { name: sn, tac }, keywords: FAV_KW[fav], placement: '中央・前方', partners: [], bio, battles,
+    en: { fav: FAV_EN[fav], senpo: { name: enSn }, keywords: [FAV_EN[fav]], placement: 'Center, front', partners: [], bio: enBio, battles: enBattles } }));
+}
+// K650（kaito 11/24「オンライン対戦の武将をもっと増やしてほしい」）：豊臣家を35人・徳川家を40人へ。史実の家臣・一門で、今いない人だけ。
+//   形は NEW_K640 と同じ。格は N・R・A が主（S は宇喜多秀家だけ）。肖像は addPortraitRows が家（toyotomi・tokugawa）の甲冑・兜・旗・家紋で作る。
+const NEW_K650_TT = [
+  ['ukita_hideie', '宇喜多秀家', 'toyotomi', 'S', 'teppo', '宇喜多直家の子。豊臣秀吉に可愛がられ、五大老の一人になった。関ヶ原では西軍の大将の一人として戦った。', ['関ヶ原の戦い'], ['備前の斉射', 'g_seisha'], 'Ukita Hideie was the son of Ukita Naoie and a favorite of Hideyoshi. One of the Five Elders, he led a western army division at Sekigahara.', ['Sekigahara'], 'Bizen volleys'],
+  ['konishi_yukinaga', '小西行長', 'toyotomi', 'A', 'std', '堺の商人の子から秀吉に仕えて出世し、肥後の宇土を治めた。朝鮮への出兵では先鋒を務め、関ヶ原では西軍についた。', ['関ヶ原の戦い'], ['宇土の采配', 'gunshi'], 'Konishi Yukinaga rose from a merchant family of Sakai to rule Uto in Higo. He led the vanguard in Korea and joined the western army at Sekigahara.', ['Sekigahara'], 'Uto command'],
+  ['hosokawa_tadaoki', '細川忠興', 'toyotomi', 'A', 'yari', '細川藤孝の子。秀吉に仕え、関ヶ原では徳川方で戦った。茶の湯にも通じた。', ['関ヶ原の戦い'], ['丹後の突き', 'moko'], 'Hosokawa Tadaoki was a son of Hosokawa Fujitaka. He served Hideyoshi, fought for the Tokugawa at Sekigahara, and was a tea master.', ['Sekigahara'], 'Tango thrust'],
+  ['toyotomi_hideyori', '豊臣秀頼', 'toyotomi', 'A', 'std', '豊臣秀吉の子。父の死後に大坂城の主となり、大坂の陣で徳川家と戦った。', ['大坂冬の陣', '大坂夏の陣'], ['大坂の籠城', 'sanada_sonae'], 'Toyotomi Hideyori was the son of Hideyoshi. He held Osaka Castle after his father died and fought the Tokugawa in the Osaka campaigns.', ['Osaka Winter', 'Osaka Summer'], 'Osaka defense'],
+  ['asano_nagamasa', '浅野長政', 'toyotomi', 'R', 'std', '秀吉の妻ねねの縁者。豊臣政権の五奉行の一人として、検地や政務を支えた。', ['小田原征伐'], ['奉行の采配', 'gunshi'], 'Asano Nagamasa was a relative of Hideyoshi’s wife. As one of the Five Commissioners, he handled land surveys and government work.', ['Odawara'], 'Commissioner command'],
+  ['masuda_nagamori', '増田長盛', 'toyotomi', 'R', 'std', '豊臣政権の五奉行の一人。大和郡山の城主で、土木や検地の仕事に通じた。', ['小田原征伐'], ['郡山の采配', 'gunshi'], 'Masuda Nagamori was one of the Five Commissioners and lord of Koriyama in Yamato. He was skilled in public works and land surveys.', ['Odawara'], 'Koriyama command'],
+  ['nagatsuka_masaie', '長束正家', 'toyotomi', 'R', 'std', '豊臣政権の五奉行の一人。算術に優れ、秀吉の財政を預かった。', ['小田原征伐'], ['兵糧の備え', 'sanbon'], 'Nagatsuka Masaie was one of the Five Commissioners. A skilled accountant, he managed Hideyoshi’s finances.', ['Odawara'], 'Supply unity'],
+  ['maeda_gen_i', '前田玄以', 'toyotomi', 'N', 'shubi', '豊臣政権の五奉行の一人。京都所司代として、京の町の守りと政務を預かった。', ['小田原征伐'], ['京の守り', 'kenjin'], 'Maeda Gen’i was one of the Five Commissioners. As governor of Kyoto, he kept order in the capital.', ['Odawara'], 'Kyoto guard'],
+  ['sengoku_hidehisa', '仙石秀久', 'toyotomi', 'R', 'yari', '秀吉の家臣。戸次川の戦いで敗れて領地を失ったが、小田原征伐で戦功を立てて信濃小諸の大名に戻った。', ['戸次川の戦い', '小田原征伐'], ['小諸の先駆け', 'sakigake'], 'Sengoku Hidehisa served Hideyoshi. He lost his lands after Hetsugigawa, but won them back at Odawara and ruled Komoro.', ['Hetsugigawa', 'Odawara'], 'Komoro vanguard'],
+  ['horio_yoshiharu', '堀尾吉晴', 'toyotomi', 'R', 'shubi', '秀吉に仕え、三中老の一人になった。浜松城の主となり、のち出雲の松江城を築いた一族の祖となった。', ['小田原征伐'], ['浜松の備え', 'kenjin'], 'Horio Yoshiharu served Hideyoshi and became one of the Three Mediators. He held Hamamatsu Castle.', ['Odawara'], 'Hamamatsu defense'],
+  ['nakamura_kazuuji', '中村一氏', 'toyotomi', 'N', 'yari', '秀吉に仕え、三中老の一人になった。小田原征伐の後、駿府城の主となった。', ['小田原征伐'], ['駿府の槍', 'moko'], 'Nakamura Kazuuji served Hideyoshi and became one of the Three Mediators. After Odawara he held Sunpu Castle.', ['Odawara'], 'Sunpu spears'],
+  ['ikoma_chikamasa', '生駒親正', 'toyotomi', 'N', 'shubi', '信長・秀吉に仕え、三中老の一人になった。讃岐に入り、高松城を築いた。', ['小田原征伐'], ['讃岐の守り', 'kenjin'], 'Ikoma Chikamasa served Nobunaga and Hideyoshi and became one of the Three Mediators. He built Takamatsu Castle in Sanuki.', ['Odawara'], 'Sanuki defense'],
+  ['asano_yoshinaga', '浅野幸長', 'toyotomi', 'R', 'yari', '浅野長政の子。朝鮮の蔚山城の戦いで戦い、関ヶ原では徳川方についた。', ['蔚山城の戦い', '関ヶ原の戦い'], ['蔚山の籠城', 'sanada_sonae'], 'Asano Yoshinaga was a son of Asano Nagamasa. He fought at Ulsan in Korea and joined the Tokugawa at Sekigahara.', ['Ulsan', 'Sekigahara'], 'Ulsan defense'],
+  ['hachisuka_iemasa', '蜂須賀家政', 'toyotomi', 'N', 'yari', '蜂須賀正勝の子。秀吉に仕え、四国征伐の後に阿波を与えられた。', ['四国征伐'], ['阿波の槍', 'moko'], 'Hachisuka Iemasa was a son of Hachisuka Masakatsu. After the Shikoku campaign Hideyoshi gave him Awa.', ['Shikoku campaign'], 'Awa spears'],
+  ['kinoshita_iesada', '木下家定', 'toyotomi', 'N', 'shubi', '秀吉の妻ねねの兄。姫路城の主となり、豊臣家の身内として仕えた。', ['小田原征伐'], ['姫路の守り', 'kenjin'], 'Kinoshita Iesada was the elder brother of Hideyoshi’s wife. He held Himeji Castle as a Toyotomi kinsman.', ['Odawara'], 'Himeji defense'],
+  ['toyotomi_hidekatsu', '豊臣秀勝', 'toyotomi', 'N', 'yari', '秀吉の甥。秀吉に従って戦い、朝鮮への出兵の途中、巨済島で病に倒れた。', ['小牧・長久手の戦い'], ['秀吉の先手', 'sakigake'], 'Toyotomi Hidekatsu was a nephew of Hideyoshi. He fought under him and died of illness on Geoje Island during the Korean campaign.', ['Komaki-Nagakute'], 'Hideyoshi vanguard'],
+  ['hitotsuyanagi_naosue', '一柳直末', 'toyotomi', 'N', 'yari', '秀吉に仕えた武将。小田原征伐の山中城の戦いで、先頭に立って討死した。', ['山中城の戦い'], ['山中の突撃', 'moko'], 'Hitotsuyanagi Naosue served Hideyoshi. He fell leading the attack on Yamanaka Castle at Odawara.', ['Yamanaka Castle'], 'Yamanaka assault'],
+  ['tanaka_yoshimasa', '田中吉政', 'toyotomi', 'R', 'yari', '秀吉・秀次に仕えた。関ヶ原の後、逃げた石田三成を捕らえ、筑後柳川の大名になった。', ['関ヶ原の戦い'], ['柳川の追い討ち', 'tsuigeki'], 'Tanaka Yoshimasa served Hideyoshi and Hidetsugu. After Sekigahara he captured Ishida Mitsunari and received Yanagawa.', ['Sekigahara'], 'Yanagawa pursuit'],
+  ['terasawa_hirotaka', '寺沢広高', 'toyotomi', 'N', 'std', '秀吉に仕え、肥前唐津の大名になった。朝鮮への出兵の拠点、名護屋城の普請と運営に当たった。', ['朝鮮出兵'], ['名護屋の采配', 'gunshi'], 'Terasawa Hirotaka served Hideyoshi and ruled Karatsu in Hizen. He managed Nagoya Castle, the base for the Korean campaign.', ['Korean campaign'], 'Nagoya command'],
+  ['mori_hidekane', '毛利秀包', 'toyotomi', 'N', 'yari', '毛利元就の九男。小早川隆景の養子となり、のち秀吉に仕えて筑後久留米を治めた。', ['朝鮮出兵', '関ヶ原の戦い'], ['久留米の槍', 'moko'], 'Mori Hidekane was the ninth son of Mori Motonari. Adopted by Kobayakawa Takakage, he served Hideyoshi and ruled Kurume.', ['Korean campaign', 'Sekigahara'], 'Kurume spears'],
+  ['maeno_nagayasu', '前野長康', 'toyotomi', 'N', 'std', '蜂須賀正勝とともに、早くから秀吉を支えた。のち秀次の宿老になった。', ['山崎の戦い'], ['宿老の采配', 'gunshi'], 'Maeno Nagayasu supported Hideyoshi from his early days alongside Hachisuka Masakatsu, and later served Hidetsugu as an elder.', ['Yamazaki'], 'Elder command'],
+  ['kuwayama_shigeharu', '桑山重晴', 'toyotomi', 'N', 'shubi', '秀吉の弟の秀長に仕えた。紀伊和歌山の城を預かり、一族で紀州を治めた。', ['紀州征伐'], ['紀州の守り', 'kenjin'], 'Kuwayama Shigeharu served Hideyoshi’s brother Hidenaga and held Wakayama Castle in Kii.', ['Kishu campaign'], 'Kishu defense'],
+  ['kuki_yoshitaka', '九鬼嘉隆', 'toyotomi', 'R', 'teppo', '信長・秀吉に仕えた水軍の将。木津川口の戦いで大きな鉄張りの船を率い、のち朝鮮への出兵でも水軍を率いた。', ['木津川口の戦い', '朝鮮出兵'], ['九鬼の水軍', 'g_seisha'], 'Kuki Yoshitaka was a naval commander under Nobunaga and Hideyoshi. He led iron-clad ships at Kizugawaguchi and later commanded ships in Korea.', ['Kizugawaguchi', 'Korean campaign'], 'Kuki fleet'],
+  // 徳川
+  ['okubo_tadasuke', '大久保忠佐', 'tokugawa', 'N', 'yari', '大久保忠世の弟。兄とともに家康に仕え、のち駿河沼津の城主になった。', ['長篠の戦い'], ['沼津の槍', 'moko'], 'Okubo Tadasuke was a younger brother of Okubo Tadayo. He served Ieyasu and later held Numazu Castle.', ['Nagashino'], 'Numazu spears'],
+  ['matsudaira_ietada', '松平家忠', 'tokugawa', 'N', 'teppo', '深溝松平家の当主。家康に仕え、陣中の日記「家忠日記」を残した。関ヶ原の前、伏見城で討死した。', ['長篠の戦い', '伏見城の戦い'], ['伏見の籠城', 'sanada_sonae'], 'Matsudaira Ietada served Ieyasu and left a diary of his campaigns. He died defending Fushimi Castle before Sekigahara.', ['Nagashino', 'Fushimi Castle'], 'Fushimi defense'],
+  ['matsudaira_yasutada', '松平康忠', 'tokugawa', 'N', 'std', '幼い頃から家康に仕えた三河の武将。家康の側近くで働いた。', ['姉川の戦い'], ['側近の采配', 'gunshi'], 'Matsudaira Yasutada served Ieyasu from boyhood and worked at his side.', ['Anegawa'], 'Close command'],
+  ['honda_shigetsugu', '本多重次', 'tokugawa', 'N', 'yari', '「鬼作左」と呼ばれた強い性格の武将。家康のもとで三河の三奉行の一人を務めた。', ['姉川の戦い'], ['鬼作左の突き', 'moko'], 'Honda Shigetsugu, called Oni Sakuza, was a stern retainer. He served as one of the three magistrates of Mikawa.', ['Anegawa'], 'Oni Sakuza thrust'],
+  ['torii_tadayoshi', '鳥居忠吉', 'tokugawa', 'N', 'shubi', '鳥居元忠の父。幼い家康が今川家にいた間、岡崎の城と蔵を守った老臣。', ['桶狭間の戦い'], ['岡崎の守り', 'kenjin'], 'Torii Tadayoshi, father of Mototada, was an old retainer who protected Okazaki while young Ieyasu was with the Imagawa.', ['Okehazama'], 'Okazaki defense'],
+  ['okubo_tadataka', '大久保忠教', 'tokugawa', 'N', 'yari', '「彦左衛門」で知られる。徳川家の歴史を「三河物語」に書き残した。', ['姉川の戦い', '大坂の陣'], ['彦左衛門の突撃', 'sakigake'], 'Okubo Tadataka, known as Hikozaemon, wrote the Mikawa Monogatari, a history of the Tokugawa house.', ['Anegawa', 'Osaka'], 'Hikozaemon charge'],
+  ['matsudaira_tadayoshi', '松平忠吉', 'tokugawa', 'R', 'yari', '徳川家康の四男。関ヶ原では井伊直政とともに先陣を切り、島津の陣へ攻めかかった。', ['関ヶ原の戦い'], ['関ヶ原の先陣', 'sakigake'], 'Matsudaira Tadayoshi was Ieyasu’s fourth son. At Sekigahara he charged with Ii Naomasa in the first attack.', ['Sekigahara'], 'Sekigahara vanguard'],
+  ['yagyu_munenori', '柳生宗矩', 'tokugawa', 'R', 'yari', '大和の柳生の剣術の家に生まれた。家康・秀忠に仕え、のち将軍家の剣術の師になった。', ['関ヶ原の戦い', '大坂の陣'], ['柳生の剣', 'tsuigeki'], 'Yagyu Munenori was born into the Yagyu sword school of Yamato. He served Ieyasu and Hidetada and taught the shogun swordsmanship.', ['Sekigahara', 'Osaka'], 'Yagyu sword'],
+  ['ii_naotaka', '井伊直孝', 'tokugawa', 'A', 'kiba', '井伊直政の子。大坂の陣では赤備えを率いて戦い、若江で木村重成を破った。', ['大坂夏の陣'], ['井伊の赤備え', 'akazonae'], 'Ii Naotaka was a son of Ii Naomasa. In the Osaka campaigns he led the red-armored troops and defeated Kimura Shigenari at Wakae.', ['Osaka Summer'], 'Ii Red Guard'],
+  ['doi_toshikatsu', '土井利勝', 'tokugawa', 'R', 'std', '家康・秀忠に仕え、のち徳川幕府の政治を支えた。大坂の陣でも秀忠のもとで戦った。', ['大坂の陣'], ['幕府の采配', 'gunshi'], 'Doi Toshikatsu served Ieyasu and Hidetada and later helped run the shogunate.', ['Osaka'], 'Shogunate command'],
+  ['sakai_shigetada', '酒井重忠', 'tokugawa', 'N', 'yari', '家康に仕えた三河の武将。のち関東に移り、武蔵川越の城主になった。', ['小牧・長久手の戦い'], ['川越の槍', 'moko'], 'Sakai Shigetada served Ieyasu from Mikawa and later held Kawagoe in Musashi.', ['Komaki-Nagakute'], 'Kawagoe spears'],
+  ['toda_tadatsugu', '戸田忠次', 'tokugawa', 'N', 'yari', '三河の武将。家康に仕え、徳川家の戦いに加わった。', ['長篠の戦い'], ['三河の槍', 'moko'], 'Toda Tadatsugu was a Mikawa warrior who served Ieyasu in his campaigns.', ['Nagashino'], 'Mikawa spears'],
+  ['suganuma_sadamitsu', '菅沼定盈', 'tokugawa', 'N', 'shubi', '三河の野田城の主。家康に仕え、長篠の戦いのころの徳川の東の守りを担った。', ['長篠の戦い'], ['野田の守り', 'kenjin'], 'Suganuma Sadamitsu was lord of Noda Castle in Mikawa and guarded the eastern front for Ieyasu.', ['Nagashino'], 'Noda defense'],
+  ['amano_yasukage', '天野康景', 'tokugawa', 'N', 'std', '家康に仕え、三河の三奉行の一人を務めた。のち駿河興国寺の城主になった。', ['小田原征伐'], ['奉行の采配', 'gunshi'], 'Amano Yasukage served Ieyasu as one of the three magistrates of Mikawa and later held Kokokuji Castle in Suruga.', ['Odawara'], 'Magistrate command'],
+  ['ishikawa_ienari', '石川家成', 'tokugawa', 'N', 'shubi', '石川数正の叔父。家康に仕え、のち駿河の掛川城を預かった。', ['姉川の戦い'], ['掛川の守り', 'kenjin'], 'Ishikawa Ienari was an uncle of Ishikawa Kazumasa. He served Ieyasu and later held Kakegawa Castle.', ['Anegawa'], 'Kakegawa defense'],
+  ['itakura_katsushige', '板倉勝重', 'tokugawa', 'N', 'std', '家康に仕え、京都所司代として京の町を治めた。裁きの上手さで知られた。', ['大坂の陣'], ['京都の采配', 'gunshi'], 'Itakura Katsushige served Ieyasu and governed Kyoto. He was known for fair judgment.', ['Osaka'], 'Kyoto command'],
+  ['naito_nobunari', '内藤信成', 'tokugawa', 'N', 'yari', '家康に長く仕えた武将。駿府城の城代を務め、東海の守りを預かった。', ['姉川の戦い'], ['駿府の槍', 'moko'], 'Naito Nobunari served Ieyasu for years and held Sunpu Castle as its warden.', ['Anegawa'], 'Sunpu spears'],
+];
+for (const [id, name, house, rank, fav, bio, battles, [sn, tac], enBio, enBattles, enSn] of NEW_K650_TT) {
+  if (BUSHOU_ONLINE.some((x) => x.id === id || x.name === name)) continue;
+  BUSHOU_ONLINE.push(B(id, name, house, rank, { fav, senpo: { name: sn, tac }, keywords: FAV_KW[fav], placement: '中央・前方', partners: [], bio, battles,
+    en: { fav: FAV_EN[fav], senpo: { name: enSn }, keywords: [FAV_EN[fav]], placement: 'Center, front', partners: [], bio: enBio, battles: enBattles } }));
+}
+// K650（kaito 11/24「オンライン対戦の武将をもっと増やして。織田家はまだまだいる」）：織田家の家臣・一門を25人→50人に。史実の織田家臣で、まだ表にいない人だけ（house は oda。甲冑・旗・家紋は織田の家の作りを読む）。
+//   形は NEW_K640 と同じ。登用の週は toyo_calendar.js の第21週。肖像は prototype/assets/portrait/<id>.webp（無い間は札の絵が出る）。
+const NEW_K650 = [
+  ['oda_nobuhide', '織田信秀', 'oda', 'A', 'yari', '信長の父。尾張の虎と呼ばれ、美濃や三河へ兵を出して織田家の力を広げた。', ['小豆坂の戦い'], ['尾張の虎', 'moko'], 'Oda Nobuhide was the father of Nobunaga. Called the Tiger of Owari, he sent armies into Mino and Mikawa.', ['Azukizaka'], 'Tiger of Owari'],
+  ['kuki_yoshitaka', '九鬼嘉隆', 'oda', 'A', 'teppo', '志摩の水軍を率いた。木津川口で毛利水軍を鉄甲船で破り、信長の海の戦を支えた。', ['木津川口の戦い'], ['鉄甲船の斉射', 'g_seisha'], 'Kuki Yoshitaka led the Shima navy. At Kizugawaguchi his ironclad ships beat the Mori fleet.', ['Kizugawaguchi'], 'Ironclad volleys'],
+  ['sakuma_morimasa', '佐久間盛政', 'oda', 'A', 'yari', '柴田勝家の甥。鬼玄蕃と呼ばれた猛将で、賤ヶ岳では先に動いて中川清秀を討った。', ['賤ヶ岳の戦い'], ['鬼玄蕃の突撃', 'sakigake'], 'Sakuma Morimasa was a nephew of Shibata Katsuie. Called Demon Genba, he struck first at Shizugatake.', ['Shizugatake'], 'Demon Genba charge'],
+  ['takayama_ukon', '高山右近', 'oda', 'A', 'yari', '摂津高槻の城主。キリシタン大名として知られ、のち山崎の戦いで秀吉に味方した。', ['山崎の戦い'], ['高槻の槍', 'kenjin'], 'Takayama Ukon held Takatsuki in Settsu. A noted Christian lord, he joined Hideyoshi at Yamazaki.', ['Yamazaki'], 'Takatsuki spears'],
+  ['nakagawa_kiyohide', '中川清秀', 'oda', 'R', 'yari', '摂津茨木の城主。荒木村重のもとから信長に従い、賤ヶ岳で討死した。', ['賤ヶ岳の戦い'], ['茨木の槍', 'moko'], 'Nakagawa Kiyohide held Ibaraki in Settsu. He served Nobunaga and fell at Shizugatake.', ['Shizugatake'], 'Ibaraki spears'],
+  ['ujiie_bokuzen', '氏家卜全', 'oda', 'R', 'yari', '美濃三人衆の一人。稲葉山攻めの頃に信長へ従い、のち長島の戦いで討死した。', ['長島一向一揆'], ['美濃の槍', 'sogakari'], 'Ujiie Bokuzen was one of the three Mino elders. He joined Nobunaga and died at Nagashima.', ['Nagashima'], 'Mino spears'],
+  ['ando_morinari', '安藤守就', 'oda', 'N', 'shubi', '美濃三人衆の一人。西美濃を治め、信長に従って各地の戦に出た。', ['姉川の戦い'], ['西美濃の守り', 'kenjin'], 'Ando Morinari was one of the three Mino elders. He ruled western Mino and followed Nobunaga.', ['Anegawa'], 'West Mino defense'],
+  ['fuwa_mitsuharu', '不破光治', 'oda', 'N', 'yari', '美濃の武将。信長に従い、越前一向一揆の平定でも働いた。', ['越前一向一揆'], ['不破の槍', 'sanbon'], 'Fuwa Mitsuharu was a Mino warrior. He served Nobunaga and fought in the Echizen campaign.', ['Echizen Ikko-ikki'], 'Fuwa spears'],
+  ['hanawa_naomasa', '塙直政', 'oda', 'R', 'teppo', '原田直政とも。信長の側近から出世して大和を任された。天王寺で本願寺勢に討たれた。', ['石山合戦'], ['天王寺の斉射', 'g_seisha'], 'Hanawa Naomasa rose from Nobunaga’s guard and was given Yamato. He fell near Tennoji against the Honganji.', ['Ishiyama campaign'], 'Tennoji volleys'],
+  ['hayashi_hidesada', '林秀貞', 'oda', 'R', 'std', '信長の家老。若い頃の信長を支えたが、のち追放された。', ['稲生の戦い'], ['家老の采配', 'sanbon'], 'Hayashi Hidesada was Nobunaga’s chief elder. He supported the young lord and was later exiled.', ['Ino'], 'Elder command'],
+  ['hirate_masahide', '平手政秀', 'oda', 'N', 'shubi', '信長の傅役。若い信長を守り育て、のち諫めるために自害したと伝わる。', ['尾張の守り'], ['傅役の備え', 'kenjin'], 'Hirate Masahide was Nobunaga’s guardian. Tradition says he took his own life to warn his lord.', ['Owari campaigns'], 'Guardian defense'],
+  ['oda_nobukane', '織田信包', 'oda', 'R', 'std', '信長の弟。伊勢を任され、のち秀吉にも仕えた。', ['長島一向一揆'], ['伊勢の采配', 'gunshi'], 'Oda Nobukane was a younger brother of Nobunaga. He held Ise and later served Hideyoshi.', ['Nagashima'], 'Ise command'],
+  ['oda_nagamasu', '織田長益', 'oda', 'R', 'std', '信長の弟。茶人として有楽斎の名で知られ、のち大坂城にも入った。', ['大坂の陣'], ['有楽の采配', 'gunshi'], 'Oda Nagamasu was a brother of Nobunaga. Known as the tea master Urakusai, he later entered Osaka Castle.', ['Osaka campaigns'], 'Urakusai command'],
+  ['oda_nobuyuki', '織田信行', 'oda', 'N', 'std', '信長の弟。信長に背いて稲生で戦い、敗れた。', ['稲生の戦い'], ['末盛の連携', 'sanbon'], 'Oda Nobuyuki was a younger brother of Nobunaga. He rose against his brother at Ino and lost.', ['Ino'], 'Suemori support'],
+  ['tsuda_nobusumi', '津田信澄', 'oda', 'N', 'yari', '信行の子。信長に仕え、明智光秀の娘婿だった。本能寺のあとに討たれた。', ['石山合戦'], ['津田の槍', 'moko'], 'Tsuda Nobusumi was a son of Nobuyuki. He served Nobunaga and was killed after Honnoji.', ['Ishiyama campaign'], 'Tsuda spears'],
+  ['mori_ranmaru', '森成利', 'oda', 'N', 'yari', '蘭丸の名で知られる。信長の小姓として仕え、本能寺で信長とともに討死した。', ['本能寺の変'], ['本能寺の槍', 'kenjin'], 'Mori Naritoshi, known as Ranmaru, was Nobunaga’s page. He died with his lord at Honnoji.', ['Honnoji'], 'Honnoji spears'],
+  ['maeda_gen_i', '前田玄以', 'oda', 'N', 'std', '信長・信忠に仕えた。のち秀吉のもとで京都の政を任された。', ['本能寺の変'], ['京の采配', 'gunshi'], 'Maeda Gen’i served Nobunaga and Nobutada. He later ran Kyoto for Hideyoshi.', ['Honnoji'], 'Kyoto command'],
+  ['hasegawa_hidekazu', '長谷川秀一', 'oda', 'N', 'yari', '信長の側近。本能寺の時は家康の案内役として堺にいた。', ['石山合戦'], ['馬廻の槍', 'sanbon'], 'Hasegawa Hidekazu was a close retainer of Nobunaga. He guided Ieyasu in Sakai at the time of Honnoji.', ['Ishiyama campaign'], 'Guard spears'],
+  ['sugaya_nagayori', '菅屋長頼', 'oda', 'N', 'std', '信長の側近。奉行として働き、越前や石山の戦にも出た。', ['長篠の戦い'], ['奉行の采配', 'gunshi'], 'Sugaya Nagayori was a close aide of Nobunaga. He served as magistrate and fought in Echizen.', ['Nagashino'], 'Magistrate command'],
+  ['mori_yoshikatsu', '毛利良勝', 'oda', 'N', 'yari', '新介の名で知られる。桶狭間で今川義元を討ち取った。', ['桶狭間の戦い'], ['義元の首', 'sakigake'], 'Mori Yoshikatsu, known as Shinsuke, struck down Imagawa Yoshimoto at Okehazama.', ['Okehazama'], 'Yoshimoto’s head'],
+  ['hattori_kazutada', '服部一忠', 'oda', 'N', 'yari', '小平太の名で知られる。桶狭間で義元に最初の槍をつけた。', ['桶狭間の戦い'], ['一番槍', 'sakigake'], 'Hattori Kazutada, known as Kohyota, landed the first spear on Yoshimoto at Okehazama.', ['Okehazama'], 'First spear'],
+  ['yanada_masatsuna', '簗田政綱', 'oda', 'R', 'std', '桶狭間で義元の居所を知らせ、一番の功とされた。', ['桶狭間の戦い'], ['義元の居所', 'tsurinobuse'], 'Yanada Masatsuna reported Yoshimoto’s position at Okehazama and was ranked first in merit.', ['Okehazama'], 'Finding Yoshimoto'],
+  ['saito_toshiharu', '斎藤利治', 'oda', 'R', 'yari', '斎藤道三の子。信忠を助けて各地で戦い、二条御所で討死した。', ['岩村城の戦い'], ['信忠の守り', 'kenjin'], 'Saito Toshiharu was a son of Saito Dosan. He aided Nobutada and died at Nijo.', ['Iwamura'], 'Nobutada guard'],
+  ['miyabe_keijun', '宮部継潤', 'oda', 'R', 'shubi', '浅井家から信長に従い、のち秀吉のもとで鳥取城攻めなどに働いた。', ['鳥取城攻め'], ['近江の守り', 'kenjin'], 'Miyabe Keijun left the Asai for Nobunaga and later fought for Hideyoshi at Tottori.', ['Tottori'], 'Omi defense'],
+  ['maeno_nagayasu', '前野長康', 'oda', 'R', 'std', '尾張の土豪。蜂須賀正勝とともに墨俣の築城を助け、のち秀吉に仕えた。', ['墨俣一夜城'], ['墨俣の采配', 'sanbon'], 'Maeno Nagayasu was an Owari local lord. With Hachisuka he helped raise the Sunomata fort.', ['Sunomata'], 'Sunomata command'],
+];
+for (const [id, name, house, rank, fav, bio, battles, [sn, tac], enBio, enBattles, enSn] of NEW_K650) {
+  if (BUSHOU_ONLINE.some((x) => x.id === id || x.name === name)) continue;
+  BUSHOU_ONLINE.push(B(id, name, house, rank, { fav, senpo: { name: sn, tac }, keywords: FAV_KW[fav], placement: '中央・前方', partners: [], bio, battles,
+    en: { fav: FAV_EN[fav], senpo: { name: enSn }, keywords: [FAV_EN[fav]], placement: 'Center, front', partners: [], bio: enBio, battles: enBattles } }));
+}
+// K580（kaito 11/24「浅井とか朝倉とか入ってないじゃん、各家20人ぐらい」）：浅井・朝倉を各20人に。史実で名の通る家臣だけ。形は NEW_K640 と同じ。
+//   見た目（甲冑・旗・家紋）は家の id（asai・asakura）で kacchu_data.js・named_gear.js の azai／asakura の作りが当たる。
+const NEW_1124_ASAI_ASAKURA = [
+  ['asai_sukemasa', '浅井亮政', 'asai', 'S', 'std', '浅井家の祖。京極家の内紛の中で北近江の主となり、小谷城を築いた。', ['小谷城の築城'], ['小谷の築き', 'kenjin'], 'Azai Sukemasa founded the Azai rise. He became master of northern Omi amid Kyogoku strife and built Odani Castle.', ['Odani'], 'Odani foundation'],
+  ['isono_kazumasa', '磯野員昌', 'asai', 'A', 'yari', '浅井家の重臣。佐和山城を守り、姉川では織田の十三段の陣のうち十一段まで突き崩した。のち信長に降った。', ['姉川の戦い', '佐和山城の戦い'], ['姉川の突撃', 'sakigake'], 'Isono Kazumasa was a senior Azai retainer who held Sawayama. At Anegawa his charge broke eleven of Oda\'s thirteen lines. He later yielded to Nobunaga.', ['Anegawa', 'Sawayama'], 'Anegawa charge'],
+  ['kaiho_tsunachika', '海北綱親', 'asai', 'A', 'yari', '浅井三代に仕えた勇将。姉川などで戦い、小谷城の落城の時に討死した。', ['姉川の戦い', '小谷城の戦い'], ['海北の槍', 'moko'], 'Kaiho Tsunachika served three generations of the Azai. He fought at Anegawa and died at the fall of Odani.', ['Anegawa', 'Odani'], 'Kaiho spears'],
+  ['atsuji_sadayuki', '阿閉貞征', 'asai', 'R', 'shubi', '浅井家の重臣。山本山城を守ったが、のち織田に寝返った。', ['山本山城の戦い'], ['山本山の備え', 'kenjin'], 'Atsuji Sadayuki was an Azai retainer who held Yamamotoyama Castle. He later went over to the Oda.', ['Yamamotoyama'], 'Yamamotoyama defense'],
+  ['amenomori_kiyosada', '雨森清貞', 'asai', 'R', 'shubi', '浅井家の重臣。浅井三代に仕え、政務と軍事を支えた。', ['小谷城の戦い'], ['雨森の備え', 'sanbon'], 'Amenomori Kiyosada was a senior Azai retainer who supported both government and war under three lords.', ['Odani'], 'Amenomori support'],
+  ['mitamura_kunisada', '三田村国定', 'asai', 'R', 'yari', '浅井家に仕えた武将。姉川の戦いで浅井方として戦った。', ['姉川の戦い'], ['三田村の突き', 'moko'], 'Mitamura Kunisada was an Azai commander who fought for the Azai at Anegawa.', ['Anegawa'], 'Mitamura thrust'],
+  ['asai_masazumi', '浅井政澄', 'asai', 'R', 'yari', '浅井一族の武将。浅井長政に従って戦った。', ['姉川の戦い'], ['浅井の一族', 'sanbon'], 'Azai Masazumi was a kinsman of Nagamasa who fought in the Azai ranks.', ['Anegawa'], 'Azai kin'],
+  ['anyoji_ujihide', '安養寺氏秀', 'asai', 'N', 'shubi', '浅井家の家臣。小谷城の戦いで浅井方として戦った。', ['小谷城の戦い'], ['安養寺の備え', 'kenjin'], 'Anyoji Ujihide was an Azai retainer who fought at Odani.', ['Odani'], 'Anyoji defense'],
+  ['imamura_ujinao', '今村氏直', 'asai', 'N', 'yari', '浅井家の家臣。浅井長政に仕えた。', ['姉川の戦い'], ['今村の槍', 'moko'], 'Imamura Ujinao served Azai Nagamasa as a retainer.', ['Anegawa'], 'Imamura spears'],
+  ['dodo_kuranosuke', '百々内蔵助', 'asai', 'N', 'yari', '浅井家に仕えた武将。姉川の戦いで戦った。', ['姉川の戦い'], ['百々の突き', 'sakigake'], 'Dodo Kuranosuke was an Azai commander who fought at Anegawa.', ['Anegawa'], 'Dodo thrust'],
+  ['hori_hidemura', '堀秀村', 'asai', 'N', 'shubi', '浅井方の武将。鎌刃城を守ったが、のち織田に降った。', ['鎌刃城の戦い'], ['鎌刃の備え', 'kenjin'], 'Hori Hidemura held Kamabane Castle for the Azai. He later submitted to the Oda.', ['Kamabane'], 'Kamabane defense'],
+  ['higuchi_naofusa', '樋口直房', 'asai', 'N', 'std', '浅井家に仕えた武将。のち織田に降った。', ['小谷城の戦い'], ['樋口の連携', 'sanbon'], 'Higuchi Naofusa served the Azai and later joined the Oda.', ['Odani'], 'Higuchi support'],
+  ['onogi_hidetoshi', '大野木秀俊', 'asai', 'N', 'shubi', '浅井家の家臣。浅井長政に従い、浅井方として働いた。', ['姉川の戦い'], ['大野木の備え', 'kenjin'], 'Onogi Hidetoshi was an Azai retainer who served under Nagamasa.', ['Anegawa'], 'Onogi defense'],
+  ['asai_inosane', '浅井井演', 'asai', 'N', 'yari', '浅井一族の武将。浅井家の戦いに加わった。', ['姉川の戦い'], ['浅井の備え', 'sanbon'], 'Azai Inosane was an Azai kinsman who took part in the clan\'s wars.', ['Anegawa'], 'Azai line'],
+  ['taya_akimasa', '田屋明政', 'asai', 'N', 'shubi', '浅井家に仕えた武将。浅井長政の側で戦った。', ['小谷城の戦い'], ['田屋の備え', 'kenjin'], 'Taya Akimasa served the Azai and fought at Nagamasa\'s side.', ['Odani'], 'Taya defense'],
+  ['nomura_naotaka', '野村直隆', 'asai', 'N', 'yari', '浅井家の武将。姉川の戦いで織田勢と戦った。', ['姉川の戦い'], ['野村の突き', 'moko'], 'Nomura Naotaka was an Azai commander who fought the Oda at Anegawa.', ['Anegawa'], 'Nomura thrust'],
+
+  ['asakura_toshikage', '朝倉敏景', 'asakura', 'S', 'std', '朝倉家の祖。応仁の乱で功を立て、越前の守護代から国主となった。一乗谷に城下を開いた。', ['応仁の乱', '一乗谷の築城'], ['越前の旗揚げ', 'renzoku_kosei'], 'Asakura Toshikage founded the Asakura house. He rose in the Onin War from deputy governor to lord of Echizen and began Ichijodani.', ['Onin War', 'Ichijodani'], 'Echizen rise'],
+  ['asakura_sadakage', '朝倉貞景', 'asakura', 'A', 'shubi', '朝倉家の当主。一向一揆を抑え、朝倉家の国を固めた。', ['越前の一向一揆'], ['越前の堅陣', 'kenjin'], 'Asakura Sadakage led the house and put down the Ikko uprisings, steadying Echizen.', ['Echizen Ikko'], 'Echizen wall'],
+  ['asakura_takakage', '朝倉孝景', 'asakura', 'A', 'std', '朝倉家の当主。宗滴ら重臣に支えられ、越前を治めて勢いを広げた。', ['越前の戦い'], ['孝景の采配', 'sanbon'], 'Asakura Takakage ruled Echizen with veterans like Soteki beside him and widened the house\'s reach.', ['Echizen'], 'Takakage command'],
+  ['asakura_kagetaka', '朝倉景鏡', 'asakura', 'R', 'std', '朝倉一族の重臣。刀根坂のあと義景を裏切り、織田に通じた。', ['刀根坂の戦い', '一乗谷の戦い'], ['朝倉一門の備え', 'sanbon'], 'Asakura Kagetaka was a senior Asakura kinsman. After Tonezaka he betrayed Yoshikage and went over to the Oda.', ['Tonezaka', 'Ichijodani'], 'Asakura kin'],
+  ['asakura_kagenori', '朝倉景紀', 'asakura', 'R', 'yari', '朝倉一門の武将。朝倉義景に従って戦った。', ['姉川の戦い'], ['景紀の突き', 'moko'], 'Asakura Kagenori was an Asakura kinsman who fought for Yoshikage.', ['Anegawa'], 'Kagenori spears'],
+  ['asakura_kagetaka2', '朝倉景隆', 'asakura', 'R', 'shubi', '朝倉一門の武将。越前の戦いで朝倉方として戦った。', ['越前の戦い'], ['景隆の備え', 'kenjin'], 'Asakura Kagetaka was an Asakura kinsman who fought in the Echizen wars.', ['Echizen'], 'Kagetaka defense'],
+  ['asakura_kageyuki', '朝倉景行', 'asakura', 'N', 'yari', '朝倉一門の武将。朝倉義景に仕えた。', ['姉川の戦い'], ['景行の槍', 'moko'], 'Asakura Kageyuki served Yoshikage as an Asakura kinsman.', ['Anegawa'], 'Kageyuki spears'],
+  ['asakura_kagetsune', '朝倉景恒', 'asakura', 'N', 'shubi', '朝倉一門の武将。のち越前の一向一揆と戦う中で討たれた。', ['越前の一向一揆'], ['景恒の備え', 'kenjin'], 'Asakura Kagetsune was an Asakura kinsman who died in the fighting with the Echizen Ikko forces.', ['Echizen Ikko'], 'Kagetsune defense'],
+  ['yamazaki_yoshiie', '山崎吉家', 'asakura', 'A', 'yari', '朝倉家の老臣。姉川などで朝倉勢を率い、刀根坂の撤退で討死した。', ['姉川の戦い', '刀根坂の戦い'], ['山崎の殿', 'tsurinobuse'], 'Yamazaki Yoshiie was a veteran Asakura commander who led troops at Anegawa and died covering the retreat at Tonezaka.', ['Anegawa', 'Tonezaka'], 'Yamazaki rearguard'],
+  ['uozumi_kagekata', '魚住景固', 'asakura', 'R', 'shubi', '朝倉家の重臣。朝倉義景に仕えた。', ['一乗谷の戦い'], ['魚住の備え', 'kenjin'], 'Uozumi Kagekata was a senior Asakura retainer under Yoshikage.', ['Ichijodani'], 'Uozumi defense'],
+  ['maenami_yoshitsugu', '前波吉継', 'asakura', 'R', 'std', '朝倉家の重臣。のち織田に降り、桂田長俊と名乗って越前を任されたが、一向一揆に討たれた。', ['越前の一向一揆'], ['前波の機', 'gunshi'], 'Maenami Yoshitsugu was an Asakura retainer who joined the Oda as Katsurada Nagatoshi and was killed in the Echizen uprising.', ['Echizen Ikko'], 'Maenami insight'],
+  ['tomita_nagashige', '富田長繁', 'asakura', 'N', 'yari', '朝倉の旧臣。織田に降ったのち、越前の一向一揆を率いて旧主の家臣と争った。', ['越前の一向一揆'], ['富田の突撃', 'sakigake'], 'Tomita Nagashige was a former Asakura retainer who, after yielding to the Oda, led an uprising in Echizen.', ['Echizen Ikko'], 'Tomita charge'],
+  ['torii_kagechika', '鳥居景近', 'asakura', 'N', 'yari', '朝倉家に仕えた武将。刀根坂の戦いで朝倉方として戦った。', ['刀根坂の戦い'], ['鳥居の槍', 'moko'], 'Torii Kagechika was an Asakura commander who fought at Tonezaka.', ['Tonezaka'], 'Torii spears'],
+  ['kawai_yoshimune', '河合吉統', 'asakura', 'N', 'shubi', '朝倉家の家臣。朝倉義景に仕えた。', ['刀根坂の戦い'], ['河合の備え', 'kenjin'], 'Kawai Yoshimune was an Asakura retainer under Yoshikage.', ['Tonezaka'], 'Kawai defense'],
+  ['takumi_kagetane', '詫美景胤', 'asakura', 'N', 'yari', '朝倉家に仕えた武将。越後守を名乗り、朝倉の旗の下で戦った。', ['姉川の戦い'], ['詫美の突き', 'sakigake'], 'Takumi Kagetane was an Asakura commander, styled Echigo no Kami, who fought under the Asakura banner.', ['Anegawa'], 'Takumi thrust'],
+  ['magara_naozumi', '真柄直澄', 'asakura', 'R', 'yari', '真柄直隆の弟。兄とともに姉川で戦い、討死した。', ['姉川の戦い'], ['真柄の大太刀', 'sakigake'], 'Magara Naozumi was the younger brother of Naotaka. He fought beside him at Anegawa and fell there.', ['Anegawa'], 'Magara greatsword'],
+];
+for (const [id, name, house, rank, fav, bio, battles, [sn, tac], enBio, enBattles, enSn] of NEW_1124_ASAI_ASAKURA) {
+  if (BUSHOU_ONLINE.some((x) => x.id === id || x.name === name)) continue;
+  BUSHOU_ONLINE.push(B(id, name, house, rank, { fav, senpo: { name: sn, tac }, keywords: FAV_KW[fav], placement: '中央・前方', partners: [], bio, battles,
+    en: { fav: FAV_EN[fav], senpo: { name: enSn }, keywords: [FAV_EN[fav]], placement: 'Center, front', partners: [], bio: enBio, battles: enBattles } }));
+}
+// 11/24 武田・上杉・北条・今川の増員（bushou_more_1124.js）
+for (const [id, name, house, rank, fav, bio, battles, [sn, tac], enBio, enBattles, enSn] of MORE_1124) {
+  if (BUSHOU_ONLINE.some((x) => x.id === id || x.name === name)) continue;
+  BUSHOU_ONLINE.push(B(id, name, house, rank, { fav, senpo: { name: sn, tac }, keywords: FAV_KW[fav], placement: '中央・前方', partners: [], bio, battles,
+    en: { fav: FAV_EN[fav], senpo: { name: enSn }, keywords: [FAV_EN[fav]], placement: 'Center, front', partners: [], bio: enBio, battles: enBattles } }));
+}
+// K650（kaito 11/24「武将をもっと増やす」）：毛利・島津・伊達・長宗我部・大友の家臣・一門を足す。表は bushou_add_sw1124.js
+for (const [id, name, , house, rank, fav, bio, battles, [sn, tac], enBio, enBattles, enSn] of NEW_SW_1124) {
+  if (BUSHOU_ONLINE.some((x) => x.id === id || x.name === name)) continue;
+  BUSHOU_ONLINE.push(B(id, name, house, rank, { fav, senpo: { name: sn, tac }, keywords: FAV_KW[fav], placement: '中央・前方', partners: [], bio, battles,
+    en: { fav: FAV_EN[fav], senpo: { name: enSn }, keywords: [FAV_EN[fav]], placement: 'Center, front', partners: [], bio: enBio, battles: enBattles } }));
+}
+// K646（kaito 11/24「各家20人」）：斎藤 3→20・真田 1→20・諸家 41→55 の56人（データは bushou_k646.js）。形は NEW_K640 と同じ
+for (const [id, name, house, rank, fav, bio, battles, [sn, tac], enBio, enBattles, enSn] of NEW_K646) {
   if (BUSHOU_ONLINE.some((x) => x.id === id || x.name === name)) continue;
   BUSHOU_ONLINE.push(B(id, name, house, rank, { fav, senpo: { name: sn, tac }, keywords: FAV_KW[fav], placement: '中央・前方', partners: [], bio, battles,
     en: { fav: FAV_EN[fav], senpo: { name: enSn }, keywords: [FAV_EN[fav]], placement: 'Center, front', partners: [], bio: enBio, battles: enBattles } }));

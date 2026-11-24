@@ -928,13 +928,44 @@ export const REQUIRED_KACCHU = [
   ['志道広良', 'suji', 'moon', null, 0xb02a1c, null, null, null, null, { shikoroLace: 0xb02a1c, kusazuriBands: Array(5).fill(0xb02a1c) }, 'K642：同じに見えた組から分けた'],
   ['島津忠隣', 'suji', 'none', null, 0x5a5650, null, null, null, null, { shikoroLace: 0x5a5650, kusazuriBands: Array(5).fill(0x5a5650) }, 'K642：同じに見えた組から分けた'],
 ];
+// K646（kaito 11/24「各家20人・甲冑の準備もいろいろ」・クラウド Sanae）：オンラインに足した斎藤・真田・諸家の人のうち、具足の行が無かった人の行。
+//   家の色と旗：斎藤＝紫・萌黄・茶の威に斎藤の二頭波の旗／真田＝赤の胴と六文銭の旗（真田昌幸・信繁・信之の行と同じ家の色。赤備えは信繁の行が別にある）。
+//   本人所用の現存品は確かめられない人ばかりなので、同じ家・同じ時代の当世具足（桶側・毛引威）に推した復元案。伝承の十勇士は人の姿を決める史料が無く、動きやすい黒の軽い具足にした。
+//   [名, 鉢, 立物, 胴の色, 威, 胴の作り, 家紋・旗印]。同じ家の中で鉢・立物・威が重ならない（10/28 の決まり・K642）
+const K646_ROWS = [
+  ['竹腰尚光', 'suji', 'kuwa', D.kuro, C.moegi, 'kebiki', 'saito'], ['明智光安', 'momonari', 'none', D.tame, C.murasaki, 'kebiki', 'saito'],
+  ['土岐頼芸', 'eboshi', 'none', D.kuro, C.fuji, 'kebiki', 'saito'], ['長井長弘', 'zunari', 'moon', D.chaurushi, C.cha, 'kebiki', 'saito'],
+  ['遠藤盛数', 'suji', 'kuwa_wide', D.kuro, C.asagi, 'okegawa', 'saito'], ['竹中重元', 'zunari', 'none', D.sabi, C.hanada, 'okegawa', 'saito'],
+  ['矢沢頼綱', 'suji', 'none', D.shutame, C.kon, 'okegawa', 'sanada'], ['矢沢頼康', 'zunari', 'kuwa', D.tame, C.hi, 'kebiki', 'sanada'],
+  ['真田信尹', 'suji', 'kuwa', D.shu, C.kuchiba, 'okegawa', 'sanada'], ['真田信吉', 'momonari', 'sun', D.kuro, C.kurenai, 'okegawa', 'sanada'],
+  ['真田信政', 'zunari', 'moon', D.kuro, C.kon, 'kebiki', 'sanada'], ['小山田茂誠', 'suji', 'cross', D.kuro, C.murasaki, 'okegawa', null],
+  ['河原綱家', 'eboshi', 'none', D.shutame, C.kaki, 'okegawa', 'sanada'], ['出浦盛清', 'zunari', 'none', D.kuro, C.nezu, 'kebiki', 'sanada'],
+  ['常田隆永', 'zunari', 'kuwa', D.kuro, C.moegi, 'okegawa', 'sanada'], ['鎌原重春', 'momonari', 'moon', D.tame, C.asagi, 'kebiki', null],
+  ['横谷幸重', 'zunari', 'none', D.kintame, C.fuji, 'okegawa', 'sanada'], ['高梨内記', 'suji', 'sun', D.chaurushi, C.hanada, 'kebiki', null],
+  ['猿飛佐助', 'zunari', 'cross', D.kuro, C.nezu, 'okegawa', null], ['霧隠才蔵', 'namban', 'none', D.kuro, C.kuro, 'kebiki', null],
+  ['望月六郎', 'suji', 'moon', D.shu, C.kon, 'okegawa', 'sanada'], ['海野六郎', 'momonari', 'none', D.shutame, C.hi, 'kebiki', 'sanada'],
+  ['尼子経久', 'suji', 'kuwa_ken', D.kuro, C.hanada, 'okegawa', null], ['斎藤孫四郎', 'momonari', 'kuwa', D.shutame, C.hanada, 'okegawa', 'saito'], ['斎藤喜平次', 'zunari', 'sun', D.chaurushi, C.hi, 'kebiki', 'saito'],
+  ['佐藤忠能', 'suji', 'moon', D.kuro, C.kuchiba, 'okegawa', 'saito'], ['岸信周', 'eboshi', 'kuwa', D.sabi, C.moegi, 'kebiki', 'saito'],
+  ['三好清海入道', 'namban', 'cross', D.kuro, C.kon, 'okegawa', null], ['穴山小助', 'zunari', 'cross', D.kuro, C.nezu, 'kebiki', null],
+  ['足利義昭', 'eboshi', 'kuwa_wide', D.kintame, C.kon, 'kebiki', null], ['浦上宗景', 'zunari', 'kuwa', D.kuro, C.moegi, 'kebiki', null],
+  ['小田氏治', 'suji', 'none', D.sabi, C.cha, 'okegawa', null],
+];
+// 足した人が前からいる人と同じに見えた組（K642 と同じ道具で数えた）：前からいる側の威か前立を一つ替える
+for (const [nm, crest, lace] of [['安藤守就', null, 0x8a6a3a], ['真田昌輝', null, 0x9a2e20], ['九戸政実', 'sun', null]]) {
+  REQUIRED_KACCHU.push([nm, null, crest, null, lace, null, null, null, null, lace ? { shikoroLace: lace, kusazuriBands: Array(5).fill(lace) } : {}, 'K646：足した人と同じに見えた組から分けた']);
+}
+for (const [nm, bowl, crest, doC, lace, style, m] of K646_ROWS) {
+  REQUIRED_KACCHU.push([nm, bowl, crest, doC, lace, style, 0, m || 'none', m ? (m === 'sanada' ? 'sanada' : mon(m)) : null,
+    { helm: doC, lac: 'kuro', fuki: 'kuro', plateDo: null, shikoroLace: lace, kusazuriBands: Array(5).fill(lace), noHaori: true, haori: 0, horo: 0, shinodare: false },
+    '本人所用品は未確認。同じ家・同じ時代の当世具足に推した復元案（K646）。旗は家の紋' + (m ? '' : '（家紋の旗は伝わらないので無し）')]);
+}
 // 同じ人の別名（戦の定義が使う名）。同じ具足を指す
 export const REQUIRED_ALIAS = {
   浅野長吉: '浅野長政', 池田照政: '池田輝政', 前田利勝: '前田利長', 雑賀孫一: '鈴木孫一',   // 11/9 豊臣B：戦の中の別名
   島津義珍: '島津義弘', 真田信幸: '真田信之',
   織田信行: '織田信勝', 佐久間盛重: '佐久間大学', 六角承禎: '六角義賢', 原田直政: '塙直政', 竹中重治: '竹中半兵衛',
   森成利: '森蘭丸', 豊臣秀長: '羽柴秀長', 豊臣秀次: '羽柴秀次', 三好信吉: '羽柴秀次', 蜂須賀正勝: '蜂須賀小六', 氏家直元: '氏家卜全',
-  戸次鑑連: '立花道雪', 内藤昌秀: '内藤昌豊',   // K628：オンラインの名（同じ人）
+  戸次鑑連: '立花道雪', 内藤昌秀: '内藤昌豊', 長井衛安: '長井甲斐守', 日比野清実: '日比野下野守',   // K646：オンラインの名（同じ人）／K628：オンラインの名（同じ人）
   稲葉良通: '稲葉一鉄', 渡辺了: '渡辺勘兵衛', 横地吉信: '横地監物', 毛利秀頼: '毛利長秀', 春日虎綱: '高坂昌信',
 };
 // 具足を着せない必須人物：お市（小谷を出る人。小袖のまま）。おつやの方は岩村の女城主で、名簿の具足のまま

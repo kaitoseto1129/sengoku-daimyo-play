@@ -457,6 +457,14 @@ export function mountFujin(root, opts) {
   jinRow.append(...jinBtns);
   bottom.append(list, jinRow);
   wrap.append(bar, side, stage, right, bottom); root.appendChild(wrap);
+  // K646（kaito 11/24「下の布陣のマップがちょっと小さい」）：軍団の画面に埋め込む時は、地図の幅を取っていた右の欄（詳しい札・布陣帳＝上の軍団の札と布陣帳が持つ）と
+  //   下の武将の一覧（上の札から引いて置ける）を外し、左の釦（地形・情報・配置クリア・おすすめ）を下の段の陣形の横へ移して、地図を横いっぱいにする
+  if (opts.embed) {
+    right.style.display = 'none'; list.style.display = 'none';
+    side.style.flexDirection = 'row'; side.style.flex = '1'; bottom.insertBefore(side, jinRow);
+    for (const b of side.querySelectorAll('.fj-b')) { b.style.width = 'auto'; b.style.whiteSpace = 'nowrap'; b.style.padding = '0 10px'; b.style.fontSize = '13px'; }   // 横に並べる時は字の幅に合わせ、二行に折らない
+    stage.style.gridColumn = '1/4';
+  }
   const g2 = cv.getContext('2d');
   const snap = () => pieces.map((p) => ({ name: p.name, slot: p.slot, pos: p.pos, formation: p.formation }));
   const applyBook = (bk) => { for (const q of bk) { const p = pieces.find((x) => x.name === q.name); if (p && q.slot && slots.some((s) => s.name === q.slot)) { p.slot = q.slot; p.pos = { ...q.pos }; p.formation = q.formation || p.formation; p.honjin = q.slot === '本陣'; } } };

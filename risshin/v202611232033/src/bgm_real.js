@@ -88,7 +88,7 @@ export function createRealBgm(ctx, dest, onFail = null) {
   //   長く遊ぶほど数百MBになり、携帯で落ちる元になる）。鳴っている曲と、今の戦の三曲（静か・押し合い・山場）と節だけ残す。外した曲は要る時に読み直す（ファイルは手元の HTTP の控えから）
   function trim() {
     const keep = new Set([...Object.keys(live), ...Object.keys(mixOf(cur) || {})]);   // 読み込み中の場面の曲も外さない
-    for (const b of ['pre', 'warLow', 'warHigh']) keep.add(tune ? b + tune : b);
+    if (cur && REAL_WAR.has(cur)) for (const b of ['pre', 'warLow', 'warHigh']) keep.add(tune ? b + tune : b);   // 戦の曲でない時（戦を出た後）は戦の三曲を持たない（K643 音）
     if (bkey) keep.add(bkey);
     for (const k of Object.keys(bufs)) if (!keep.has(k) && !loading[k]) delete bufs[k];
   }
@@ -115,6 +115,11 @@ export function createRealBgm(ctx, dest, onFail = null) {
       if (!need.length) apply();
       else Promise.all(keys.map((k) => (k === bkey ? load(k).catch(() => { delete mix[k]; }) : load(k)))).then(apply).catch(() => { if (my === token) { cur = null; try { onFail?.(name, o); } catch (e) { /* 戻せなければ無音 */ } } });
       return true;
+    },
+    // 戦を出る時（K643 音）：鳴っていない・読み込み中でない曲の解いた入れ物を全部手放し、戦ごとの節の札も外す。要る時は読み直す
+    release() {
+      bkey = null;
+      for (const k of Object.keys(bufs)) if (!live[k] && !loading[k]) delete bufs[k];
     },
     stop(fade = 2) {
       token++; cur = null;
