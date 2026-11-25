@@ -1,0 +1,63 @@
+// 今川家編 七戦目「寺部城の戦い」（永禄元年〔1558〕二月・三河国 寺部城）。軽い型・H3（docs/house_imagawa.md ②）
+//   史実：寺部城主の鈴木重辰が織田方に付いた。今川義元は松平元康（のち家康）に初陣を命じ、元康は寺部城の周りを焼き攻めにした（『三河物語』B・豊田市の解説 C）。
+//   元康の先手に主人公。帯（b_i10_okehazama.js の obiTick）を切らさず城下まで進む。字・札・ボタンは足さない。
+import { lightBattle, uS, uA, uG, busho } from './light_battle.js';
+import { gauss } from './bhelp.js';
+import { jinmaku, nobori, yagura } from './props.js';
+import { obiTick } from './b_i10_okehazama.js';
+
+const SPAWN = { x: -170, z: 90 }, TERA = { x: 40, z: -10 }, HON = { x: -110, z: 60 }, ATO = { x: -150, z: 80 };
+const MID = { x: -50, z: 30 }, FACE = (3 * Math.PI) / 4;
+const IMAGAWA = { flag: 'imagawa', armor: 0x302e2a }, ODA = { flag: 'oda', armor: 0x24221f };
+const height = (x, z) => 3 * Math.sin(x * 0.02 + 2) * Math.cos(z * 0.021) + 10 * gauss(x, z, TERA.x, TERA.z, 1700);
+
+export const i07_terabe = lightBattle({
+  id: 'i07_terabe',
+  date: '永禄元年（1558）二月　三河国 寺部城',
+  intro: '寺部城の鈴木重辰が、織田に付いた。松平元康の初陣じゃ。あなたは元康の先手の足軽。',
+  history: '永禄元年（1558）二月、寺部城主の鈴木重辰が今川を離れて織田に付いた。義元は松平元康に初陣を命じ、元康は城下を焼いて攻め、城方を追い込んだ（『三河物語』B・豊田市の解説 C）。',
+  sides: { a: { name: '松平元康の先手', mon: 'imagawa', faction: 'imagawa' }, b: { name: '鈴木重辰の城方', mon: 'oda', faction: 'oda' } },
+  force: { a: 1500, b: 400 }, allyLook: IMAGAWA, foeLook: ODA,
+  allyDmg: 0.4, foeDmg: 0.55, friendsSend: 1, minutes: 5,
+  spawn: { x: SPAWN.x, z: SPAWN.z, heading: FACE },
+  world: { seed: 1558, time: 'day', fogFar: 360 },
+  allies: [
+    { name: '松平元康の手', at: { x: SPAWN.x + 16, z: SPAWN.z - 12 }, face: FACE, list: [busho('松平元康'), uS(3), uA(8)] },
+    { name: '今川の本隊', at: HON, face: FACE, list: [uS(2), uA(8)] },
+    { name: '後ろの備', at: ATO, face: FACE, list: [uS(2), uA(6)] },
+  ],
+  steps: [
+    { kind: 'rest', dur: 9, heal: 0, say: [['松平元康', '初陣じゃ。寺部の城下まで、列を切らさず詰める', 3.4], ['組頭', '帯が細うなったら、走って本隊を寄せよ', 3.2]] },
+    { kind: 'move', at: MID, label: '城下の手前', obj: '細った帯をたどり、本隊を寄せながら進む', r: 16, max: 100,
+      say: [['組頭', '先手だけ出れば、城から押し返される。本隊を寄せよ', 3.4]] },
+    { kind: 'fight', at: { x: 10, z: 0 }, obj: '城下に出た寺部の城方を討つ', title: '城下', sub: '鈴木重辰の手', max: 120, limit: 110,
+      say: [['鈴木重辰', '織田様が援けに来られる。城下で食い止めよ', 3.2]],
+      foes: [{ name: '寺部の城方', from: { x: TERA.x - 6, z: TERA.z - 14 }, list: [busho('鈴木重辰', { horse: false }), uS(4), uA(13), uG(3)] }],
+      later: [{ t: 30, say: ['組頭', '城の脇からも出た！　囲まれるな'], foes: [{ name: '寺部の別手', from: { x: TERA.x - 30, z: TERA.z + 20 }, list: [uS(2), uA(7)] }] }],
+      reward: '寺部の城下で城方を退けた' },
+    { kind: 'move', at: { x: TERA.x + 4, z: TERA.z - 2 }, label: '寺部城', obj: '城の門まで詰める', r: 14, max: 110,
+      say: [['松平元康', '押せ。門まで詰めよ。これが初陣の手柄じゃ', 3.2]] },
+  ],
+  win: { banner: '寺部城', sub: '初陣を果たした', award: '寺部城の城下を破り、元康の初陣を支えた', say: [['松平元康', 'よう働いた。城は追い込んだ。この先、大きな戦が待っておる', 3.4]] },
+  setup(rt) {
+    const W = rt.world, F = rt.flags;
+    try { rt.scene.add(yagura(W, TERA.x + 4, TERA.z - 6)); } catch (e) { /* なし */ }
+    for (const [dx, dz] of [[-8, 6], [8, 6]]) rt.scene.add(nobori(W, TERA.x + dx, TERA.z + dz, 'oda', 6));
+    rt.scene.add(jinmaku(W, HON.x, HON.z, 12, 9, 6, { mon: 'imagawa' }));
+    for (const [dx, dz] of [[-6, 4], [6, 4]]) rt.scene.add(nobori(W, HON.x + dx, HON.z + dz, 'imagawa', 5));
+    F.obi = { a: 1, b: 1, t: 0 };
+  },
+  update(rt, dt) {
+    const O = rt.flags.obi, i = rt.flags.dp?.on ? rt.flags.dp.i : -1;
+    if (!O) return;
+    if (i === 1) { O.a = Math.max(0.28, O.a - dt / 35); O.b = Math.max(0.28, O.b - dt / 45); }
+    else if (i >= 2) { O.a = Math.min(1, O.a + dt / 6); O.b = Math.min(1, O.b + dt / 6); }
+    obiTick(rt, dt);
+  },
+});
+Object.assign(i07_terabe.world, {
+  height, muddy: 0.2, groundHalf: 400, moveLim: 360,
+  paths: [[[-260, 120], [-170, 90], [-50, 30], [40, -10]]],
+  treeDensity: () => 0.9, clear: (x, z) => [SPAWN, TERA, HON, ATO].some((p) => Math.hypot(x - p.x, z - p.z) < 24), trees: 440, tufts: 1700,
+});
+export default i07_terabe;
