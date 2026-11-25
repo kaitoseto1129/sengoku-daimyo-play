@@ -1,0 +1,85 @@
+// 毛利家編 十五戦目「関ヶ原・南宮山の戦い」（慶長五年〔1600〕九月十五日・美濃国 南宮山）。軽い型（light_battle.js）・K647（docs/house_mori.md ⑥）
+//   史実：西軍の総大将は毛利輝元。毛利秀元と吉川広家らは南宮山に陣を敷いたが、広家は東軍の黒田長政を通じて家康と内通し、先陣として動かなかった。
+//   秀元の出陣の催促にも「兵に弁当を使わせている」と答えたという（宰相殿の空弁当）。毛利勢一万数千は一戦もせず、西軍は一日で敗れた（『吉川家文書』A・『関原軍記大成』B・大垣市・垂井町の解説C。数は推）。
+//   調略の糸：麓の東軍の一備へ「戦わぬ」約束の密書を届け切ると、その備は旗の縁が赤→藍に変わり毛利には矛を向けない（推・史実は黒田長政を通じた内応）。
+//   仕組み：毛利が「動かず負ける側」の戦。山腹の陣を守り、麓から来る手を受け、退く。勝ちは「戦わず生きて退く」。字・札・ボタンは足さない
+import { lightBattle, uS, uA, uB, busho } from './light_battle.js';
+import { nobori, palisade } from './props.js';
+
+const MORI = { flag: 'mori', armor: 0x2a2622 };
+const TOHGUN = { flag: 'tokugawa', armor: 0x2e2c2a };
+const SPAWN = { x: 80, z: -90 };           // 毛利秀元の本陣（南宮山の山上）
+const JIN = { x: 20, z: -40 };             // 吉川広家の陣（山腹の先陣・動かぬ陣）
+const TURN = { x: -20, z: 10 };            // 麓の東軍の一備（密書の相手）
+const FUMOTO = { x: -10, z: 50 };          // 麓（池田・浅野の備が来る所）
+const EXIT = { x: 160, z: -110 };          // 退き口（伊勢路へ）
+
+function scene(rt) {
+  const W = rt.world;
+  try {
+    rt.scene.add(palisade(W, [JIN.x - 30, JIN.z + 12, JIN.x + 30, JIN.z + 12], { solid: true, h: 2.4 }));
+    for (const [dx, dz] of [[-6, -6], [8, -4]]) rt.scene.add(nobori(W, JIN.x + dx, JIN.z + dz, 'mori', 5.5));
+  } catch (e) { /* 小道具が無くても戦は続ける */ }
+}
+
+export const m15_nangu = lightBattle({
+  id: 'm15_nangu',
+  date: '慶長五年（1600）九月十五日　朝　美濃国 南宮山',
+  intro: '関ヶ原の東に、毛利の一万数千が陣を敷く。だが吉川広家は動かない。麓の東軍へ「戦わぬ」の密書を届け、山を守る。',
+  history: '慶長五年（1600）九月十五日、西軍の総大将は毛利輝元である。毛利秀元と吉川広家らは関ヶ原の東、南宮山に陣を敷いた。しかし広家は東軍の黒田長政を通じて家康と内通しており、先陣として動かなかった。秀元の出陣の催促にも「兵に弁当を使わせている」と答えたという。毛利勢一万数千は一戦もせず、西軍は一日で敗れた。戦わなかったことが、毛利の負けにつながった（『吉川家文書』・垂井町の解説。数は推）。',
+  sides: { a: { name: '毛利秀元・吉川広家の軍', mon: 'mori', faction: 'mori' }, b: { name: '東軍の軍', mon: 'tokugawa', faction: 'tokugawa' } },
+  force: { a: 15000, b: 6000 },
+  allyLook: MORI, foeLook: TOHGUN,
+  thick: true,
+  allyDmg: 0.3,
+  foeDmg: 0.7,
+  minutes: 6,
+  spawn: { x: SPAWN.x, z: SPAWN.z, heading: Math.PI * 0.75 },
+  world: {
+    seed: 1600, time: 'day', fogFar: 300, overcast: true, mist: 0.3,
+    hills: [[80, -100, 60, 30], [20, -50, 46, 18], [-60, -30, 40, 10], [140, 10, 50, 10], [-140, 40, 50, 8]],
+    paths: [{ pts: [[80, -90], [20, -40], [-20, 10], [-10, 50]], w: 2.8 }, { pts: [[80, -90], [160, -110]], w: 2.6 }],
+    groves: [{ x: -100, z: 70, r: 30, n: 26 }, { x: 110, z: 40, r: 32, n: 28 }, { x: 30, z: 90, r: 28, n: 22 }],
+    trees: 440, tufts: 1500,
+  },
+  allies: [
+    { name: '毛利秀元の旗本', at: { x: SPAWN.x + 6, z: SPAWN.z + 4 }, fixed: true, list: [busho('毛利秀元'), uS(5), uA(8)] },
+    { name: '吉川広家の手', at: { x: JIN.x + 6, z: JIN.z + 4 }, list: [busho('吉川広家'), uS(3), uA(12)] },
+    { name: '弓衆', at: { x: JIN.x - 10, z: JIN.z + 8 }, list: [uS(1), uB(8)] },
+  ],
+  turncoats: [{ key: 'tohgun', name: '東軍の一備', at: TURN, face: Math.PI * 0.2, list: [uS(2), uA(13), uB(4), { type: 'ashigaru', n: 1, o: { standard: 'tokugawa', flag: null, weapon: 'none', dmg: 0 } }] }],
+  setup: scene,
+  steps: [
+    { kind: 'rest', dur: 14, heal: 0, say: [
+      ['吉川広家', '毛利は一万五千。だが、この戦は輝元様の戦ではない。毛利の家を残す', 3.6],
+      ['毛利秀元', '広家殿、なぜ動かれぬ。早く出陣を！', 3.2],
+      ['吉川広家', '兵に弁当を使わせておる。お主は麓の備へ走れ。戦わぬ文を渡せ', 3.8]] },
+    { kind: 'move', at: JIN, label: '広家の陣', obj: '山腹の吉川広家の陣まで進む', r: 12, max: 120,
+      say: [['組頭', '関ヶ原の方で鉄砲の音が聞こえる。まだ山は動かぬ', 3]] },
+    { kind: 'chouryaku', target: 'tohgun', at: TURN, label: '麓の備', obj: '麓の東軍の一備へ、戦わぬ約束の密書を届ける', r: 9, max: 90,
+      say: [['吉川広家', '黒田殿を通じて話はついておる。この備へ、約束の文を確かに渡せ', 3.8]],
+      turnSay: ['東軍の備の頭', '約束は聞いておる。毛利には手を出さぬ', 3.6],
+      failSay: ['組頭', '間に合わなんだか。あの備は敵のままじゃ、構えよ！', 3.2],
+      reward: '密書を届け、麓の東軍の一備に矛を収めさせた' },
+    { kind: 'hold', at: JIN, label: '広家の陣', obj: '山腹の陣を空けず、麓から来る東軍の手を受け止める', r: 18, dur: 65,
+      title: '動かぬ山', sub: '毛利の陣は、山の上から動かない',
+      say: [['吉川広家', '麓から来る。ここを守れ。だが山は下りるな', 3.4]],
+      waves: [
+        { t: 6, say: ['東軍の侍', '南宮山の毛利が動かぬ今のうちに、先手を押さえよ！'], foes: [{ name: '東軍の押さえの備', from: { x: JIN.x - 6, z: JIN.z + 46 }, list: [uS(3), uA(14)] }] },
+        { t: 34, say: ['組頭', '別の備じゃ！　陣の柵を越させるな！'], foes: [{ name: '東軍の二の備', from: { x: JIN.x + 24, z: JIN.z + 44 }, list: [uS(2), uA(12), uB(4)] }] }],
+      reward: '山腹の陣を空けず、麓から来る手を受け止めた' },
+    { kind: 'move', at: EXIT, label: '退き口', obj: '西軍が敗れた。伊勢路へ退く', r: 14, max: 150,
+      say: [['毛利秀元', '関ヶ原は終わった。西軍は敗れた。毛利は一兵も失わず退く', 3.6], ['組頭', '追手が来る前に、山を下りて伊勢路へ。急げ', 3]] },
+    { kind: 'fight', at: EXIT, obj: '追ってくる東軍の手を払い、伊勢路へ退く', title: '殿', sub: '一戦もせずに負けた軍の殿',
+      say: [['吉川広家', 'これで毛利の家は残せる。だが、この負けは重いぞ', 3.4]],
+      foes: [{ name: '東軍の追手', from: { x: EXIT.x - 40, z: EXIT.z + 24 }, list: [uS(3), uA(12)] }],
+      reward: '追手を払って伊勢路へ退いた' },
+  ],
+  win: {
+    banner: '南宮山の退き戦', sub: '毛利は戦わず、生きて退いた', award: '関ヶ原の負け戦を戦わずに生き延びて退いた',
+    say: [['吉川広家', '戦わなかったことで、毛利は家を残した。だが、領地は大きく減るであろう', 3.4],
+      ['毛利秀元', '一万五千の兵を動かさずに負けた。この悔しさを忘れるな', 3.4],
+      ['組頭 与三左', '生きて帰れた。戦わぬ勇気も、足軽の勤めの一つじゃ', 3.2]],
+  },
+});
+export default m15_nangu;
