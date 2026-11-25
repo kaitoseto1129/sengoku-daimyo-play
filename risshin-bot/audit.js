@@ -162,13 +162,17 @@ export class Auditor {
     if (!b || b.disposed || !b.army || !b.player?.u || !b.world) return;
     this.where = `${this.label}・${Math.round(b.t)}秒・${b.phase || ''}`;
     const army = b.army;
+    // K667 本人が一コマで 6m 超飛んだ（ワープ）。ボタンを押して移した時は b.warpOk=true を立てれば数えない
+    { const pu = b.player.u, lp = this._pLast;
+      if (lp && Number.isFinite(pu.pos.x) && Math.hypot(pu.pos.x - lp.x, pu.pos.z - lp.z) > 6 && !b.warpOk && !lp.dead && (b.t || 0) >= 2) this.add('辻褄', 'pjump', '本人が一コマで飛んだ（6m 超・K667）', `(${Math.round(lp.x)},${Math.round(lp.z)})→(${Math.round(pu.pos.x)},${Math.round(pu.pos.z)})・${Math.round(Math.hypot(pu.pos.x - lp.x, pu.pos.z - lp.z))}m`, '勝手に移さず歩かせる。離れ過ぎは書いたボタンを押した時だけ', 'player');
+      b.warpOk = false; this._pLast = { x: pu.pos.x, z: pu.pos.z, dead: !pu.alive }; }
     // 一息で飛ぶ兵（毎コマ）
     for (const u of army.units) {
       if (!u.alive || u.gone) { this.last.delete(u); continue; }
       const p = this.last.get(u);
       if (!Number.isFinite(u.pos.x) || !Number.isFinite(u.pos.z)) { this.add('数と文', 'posNaN:' + u.type, '兵の位置が数でない', who(u), '動きの計算で 0 で割っていないか見る', who(u)); continue; }
       // 暗転の場面替え（k15Fade：scene を隠す間に兵を置き直す）は飛びに数えない（11/10 木ノ芽峠の尾根道）
-      if (p && p.appearance === u.appearance && Math.hypot(u.pos.x - p.x, u.pos.z - p.z) > 6 && !u.isPlayer && !u.warpedOnce && !(u.isCourier && (u.gone || p.gone)) && b.scene?.visible !== false && !(b.cutT != null && b.t - b.cutT < 1.5)) this.add('辻褄', 'jump:' + u.type, '兵が一息で飛んだ（6m 超）', `${who(u)}【組：${u.group?.name || u.group?.label || '名なし'}・号令：${u.group?.order || '―'}・使番：${u.courier ? '有' : '無'}】：(${Math.round(p.x)},${Math.round(p.z)}) → (${Math.round(u.pos.x)},${Math.round(u.pos.z)})`, '位置を直接書き換えている所を探す（出し直し・押し出し）', who(u));
+      if (p && p.appearance === u.appearance && Math.hypot(u.pos.x - p.x, u.pos.z - p.z) > 6 && !(b.player?.u && Math.hypot(u.pos.x - b.player.u.pos.x, u.pos.z - b.player.u.pos.z) > 130 && Math.hypot(u.pos.x - p.x, u.pos.z - p.z) < 14) && !u.isPlayer && !u.warpedOnce && !(u.isCourier && (u.gone || p.gone)) && b.scene?.visible !== false && !(b.cutT != null && b.t - b.cutT < 1.5)) this.add('辻褄', 'jump:' + u.type, '兵が一息で飛んだ（6m 超）', `${who(u)}【組：${u.group?.name || u.group?.label || '名なし'}・号令：${u.group?.order || '―'}・使番：${u.courier ? '有' : '無'}】：(${Math.round(p.x)},${Math.round(p.z)}) → (${Math.round(u.pos.x)},${Math.round(u.pos.z)})`, '位置を直接書き換えている所を探す（出し直し・押し出し）', who(u));
       const lim = b.world.def.moveLim || 176;
       if (Math.abs(u.pos.x) > lim + 0.5 || Math.abs(u.pos.z) > lim + 0.5) this.add('辻褄', 'out:' + u.type, '兵が戦場の外に出た', `${who(u)}：(${Math.round(u.pos.x)},${Math.round(u.pos.z)})`, '行き先を戦場の内側に収める', who(u));
       u.warpedOnce = false;   // 筋書きが見えない所で意図して移した一度だけは飛びと数えない
