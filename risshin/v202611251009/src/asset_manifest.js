@@ -1,0 +1,100 @@
+// 読み口の一覧。素材本体は開かず、各利用側の読み込みからまとめる。
+export const ASSET_CONSUMERS = {
+  humans: ['mhbody', 'soldier', 'mhhead', 'head', 'mhhand', 'domaru', 'kabuto', 'menpo', 'horse', 'yoroi'],
+  props_ext: ['props_ext', 'bldg', 'kiyosu'], cgt: ['cgt', 'cgt_naibu'], yumi: ['yumi'],
+  units_model: ['weapons'], generated_tex: ['tex_generated'], people_tex: ['tex_people'], war_speech: ['voice'],
+  // 表の戦名に対応する b_*.js が利用する。小谷は castles/odani.js、比叡山と志賀は terrain_hiei.js。
+};
+export const TERRAIN = {
+  moribe: 'moribe', okehazama: 'okehazama', inou: 'inou', sunomata: 'sunomata',
+  shitaragahara: 'shitaragahara', anegawa: 'anegawa', arioka: 'arioka',
+  inabayama: 'inabayama', mitsukuri: 'mitsukuri', odani: 'odani', iga: 'hijiyama',
+  kanegasaki: 'kanegasaki', kinome: 'kinome', echizen: 'kinome', takato: 'takato', takato_siege: 'takato', takato_old: 'takato',
+  mikatagahara: 'mikatagahara', tonezaka: 'tonezaka', tottori: 'tottori',
+  tano: 'tano', iwamura: 'iwamura', shigisan: 'shigisan', miki: 'miki', t02_shizugatake: 'shizugatake',
+  shiga: 'hiei_wide', hieizan: 'hiei_wide', hieizan_old: 'hiei_wide', hiei_mtn: 'hiei_wide',
+  t06_hetsugi: 'hetsugi', k06_sekigahara: 'sekigahara',
+  c07_hetsugi: 'hetsugi', s05_hetsugi: 'hetsugi',   // K651 長宗我部編・島津編 戸次川：豊臣編の戸次川の標高と戦場を使い回す
+  m14_tottori: 'tottori',   // K651 毛利家編 鳥取城救援：織田家編の鳥取城の標高と戦場を使い回す
+  d14_takato: 'takato',   // K651 武田編 高遠城（城兵の側）：織田家編の高遠城の標高と戦場を使い回す
+  d11_shitaragahara: 'shitaragahara',   // K651 武田編 設楽原（武田の側）：織田家編の設楽原の標高と戦場を使い回す
+  s08_sekigahara: 'sekigahara',   // H3 島津編 退き口：k06 の標高を使い回す
+  i10_okehazama: 'okehazama',   // H3 今川編 桶狭間（今川の側）：織田家編の桶狭間の標高を使い回す
+};
+// 森部：低い湿地の標高、人・具足・兜・武器・弓・馬、陣と室内の部品、模様と声。
+// 顔と体の旧素材は、従来どおり指定された時と読み込み失敗時にだけ読む。
+const COMMON = ['mhbody', 'mhhead', 'mhhand', 'domaru', 'kabuto', 'menpo', 'weapons', 'yumi',
+  'horse', 'props_ext', 'bldg', 'cgt', 'cgt_naibu', 'tex_generated', 'tex_people', 'voice'];
+export const BATTLE_ASSETS = Object.fromEntries(Object.entries(TERRAIN).map(([battle, dem]) =>
+  [battle, Object.freeze([...COMMON, 'dem_' + dem])]));
+export function assetsForBattle(id) { return BATTLE_ASSETS[id] || COMMON; }
+export const UNUSED_ASSETS = ['dem_azuchi', 'dem_nagashino', 'dem_okawachi', 'dem_usayama'];
+export const OPTIONAL_ASSETS = ['soldier', 'head', 'yoroi', 'kiyosu'];
+// 展示の甲冑は長篠城だけ。清洲の遠景は呼び出し側が置いた時だけ。
+BATTLE_ASSETS.nagashinojo = Object.freeze([...COMMON, 'yoroi']);
+ASSET_CONSUMERS['b_anegawa'] = ['dem_anegawa'];
+ASSET_CONSUMERS['b_arioka'] = ['dem_arioka'];
+ASSET_CONSUMERS['b_iga'] = ['dem_hijiyama'];
+ASSET_CONSUMERS['b_inabayama'] = ['dem_inabayama'];
+ASSET_CONSUMERS['b_inou'] = ['dem_inou'];
+ASSET_CONSUMERS['b_iwamura'] = ['dem_iwamura'];
+ASSET_CONSUMERS['b_miki'] = ['dem_miki'];
+ASSET_CONSUMERS['b_kanegasaki'] = ['dem_kanegasaki'];
+ASSET_CONSUMERS['b_kinome'] = ['dem_kinome'];
+ASSET_CONSUMERS['b_mikatagahara'] = ['dem_mikatagahara'];
+ASSET_CONSUMERS['b_mitsukuri'] = ['dem_mitsukuri'];
+ASSET_CONSUMERS['b_moribe'] = ['dem_moribe'];
+ASSET_CONSUMERS['b_okehazama'] = ['dem_okehazama'];
+ASSET_CONSUMERS['b_shigisan'] = ['dem_shigisan'];
+ASSET_CONSUMERS['b_shitaragahara'] = ['dem_shitaragahara'];
+ASSET_CONSUMERS['b_sunomata'] = ['dem_sunomata'];
+ASSET_CONSUMERS['b_takato_siege'] = ['dem_takato'];
+ASSET_CONSUMERS['b_tano'] = ['dem_tano'];
+ASSET_CONSUMERS['b_tonezaka'] = ['dem_tonezaka'];
+// 豊臣編：山崎（天王山と円明寺川）
+BATTLE_ASSETS.t01_yamazaki = Object.freeze([...COMMON, 'dem_yamazaki']);
+ASSET_CONSUMERS['b_t01_yamazaki'] = ['dem_yamazaki'];
+ASSET_CONSUMERS['b_tottori'] = ['dem_tottori'];
+ASSET_CONSUMERS['b_t02_shizugatake'] = ['dem_shizugatake'];
+ASSET_CONSUMERS['b_t06_hetsugi'] = ['dem_hetsugi'];
+ASSET_CONSUMERS['b_s08_sekigahara'] = ['dem_sekigahara'];
+ASSET_CONSUMERS['b_i10_okehazama'] = ['dem_okehazama'];
+ASSET_CONSUMERS['castles/odani'] = ['dem_odani'];
+ASSET_CONSUMERS['terrain_hiei'] = ['dem_hiei_wide'];
+ASSET_CONSUMERS['castles/hiei1571'] = ['dem_hieizan'];
+for (const id of ['hiei_mtn', 'hieizan', 'hieizan_old']) BATTLE_ASSETS[id] = Object.freeze([...BATTLE_ASSETS[id], 'dem_hieizan']);
+for (const id of ['nagashinojo', 'tobinosu', 'suwahara', 'sekigahara', 'sanadamaru', 'sune', 'domyoji', 'nodafukushima', 'nagashima', 'honnoji', 'tennoji', 'miki', 'tedorigawa', 'echizen_old', 'kizugawa', 'saika', 'okawachi', 'echizen_ikko', 'mvp_yasen', 'mvp_shiro', 'mvp_toride', 'mvp_rojo']) {
+  BATTLE_ASSETS[id] ||= Object.freeze([...COMMON]);
+}
+const users = new Map();
+const active = new Map();
+// K581：一つの戦の支度の中で読めなかった標高は覚え、二度目の支度（定義の後）で同じ30秒を待ち直さない
+const failed = new Map();  // 名 → 読めなかった時刻（ホームの先読みの一時の失敗は2分で忘れ、出陣でもう一度読む）
+let generation = 0;
+// 登録だけでは読まない。支度で選ばれた標高だけを渡し、終戦時には参照も外す。
+export const terrainData = (name) => active.get(name) || null;
+export function useTerrain(name, receive) {
+  if (!users.has(name)) users.set(name, []);
+  users.get(name).push(receive);
+}
+export async function prepareBattleAssets(id, current = () => true) {
+  const seq = generation;
+  const { readAsset } = await import('./asset_reader.js');
+  for (const name of assetsForBattle(id)) {
+    if (!name.startsWith('dem_')) continue;
+    // 標高が読めない時（通信・古い版の消えた公開）は、戦を止めずに手書きの地形（各 b_*.js の base）で始める
+    if (performance.now() - (failed.get(name) ?? -1e9) < 120000) continue;
+    const data = active.get(name) || await readAsset(name, 'dem').catch((e) => { console.warn('標高を読めず、手書きの地形で続けます', name, e); return null; });
+    if (seq !== generation || !current()) return false;
+    if (!data) { failed.set(name, performance.now()); continue; }
+    active.set(name, data);
+    for (const receive of users.get(name) || []) receive(data);
+  }
+  return seq === generation && current();
+}
+export function releaseBattleAssets() {
+  generation++;
+  failed.clear();
+  for (const name of active.keys()) for (const receive of users.get(name) || []) receive(null);
+  active.clear();
+}
