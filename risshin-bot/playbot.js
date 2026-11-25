@@ -2267,7 +2267,7 @@ function listPlayable() {
   // 11/21 cloud-41（章の通し・tools/chapter_walk.mjs）：?campscn=<筋書き> はその筋書きを織田家編と同じ「続けて遊ぶ」（camp）で並べる
   const CS = Q.get('campscn');
   if (CS && CS !== 'oda' && SCENARIOS[CS]) { L.length = 0; setScenario(CS); BATTLES.forEach((bt, i) => L.push({ kind: 'camp', scn: CS, i, id: bt.id, name: bt.name, rank: 0 })); return L; }
-  for (const sk of [...SCENARIO_ORDER, 'toyotomi', 'tokugawa', 'takeda', 'uesugi']) {   // K563 武田編（cloud-41）・上杉編も bot で流せるように
+  for (const sk of [...SCENARIO_ORDER, 'toyotomi', 'tokugawa', 'takeda', 'uesugi', 'date', 'shimazu', 'mori', 'imagawa', 'chosokabe', 'hojo']) {   // H3 伊達家編・島津家編・毛利家編も。K563 武田編（cloud-41）・上杉編も bot で流せるように
     if (!SCENARIOS[sk]) continue;
     setScenario(sk);
     BATTLES.forEach((bt, i) => {
