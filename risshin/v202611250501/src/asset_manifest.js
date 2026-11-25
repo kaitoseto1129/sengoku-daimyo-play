@@ -14,6 +14,7 @@ export const TERRAIN = {
   tano: 'tano', iwamura: 'iwamura', shigisan: 'shigisan', miki: 'miki', t02_shizugatake: 'shizugatake',
   shiga: 'hiei_wide', hieizan: 'hiei_wide', hieizan_old: 'hiei_wide', hiei_mtn: 'hiei_wide',
   t06_hetsugi: 'hetsugi', k06_sekigahara: 'sekigahara',
+  d11_shitaragahara: 'shitaragahara',   // K651 武田編 設楽原（武田の側）：織田家編の設楽原の標高と戦場を使い回す
   s08_sekigahara: 'sekigahara',   // H3 島津編 退き口：k06 の標高を使い回す
   i10_okehazama: 'okehazama',   // H3 今川編 桶狭間（今川の側）：織田家編の桶狭間の標高を使い回す
 };

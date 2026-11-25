@@ -19,7 +19,8 @@ export const c14_takao = chosoBattle({
   sides: { a: { name: '長宗我部の軍', mon: 'chosokabe', faction: 'chosokabe' }, b: { name: '小早川の軍', mon: 'kobayakawa', faction: 'mori' } },
   force: { a: 2000, b: 30000 },
   foeLook: KOBA,
-  foeDmg: 0.5,
+  foeDmg: 0.58,
+  thick: true,   // 11/25 act bot 討ち取り1（4分）＝厚みを足す（追手の弱め過ぎ）
   spawn: { x: SPAWN.x, z: SPAWN.z, heading: 0 },
   world: {
     seed: 1585, time: 'day', fogFar: 400, overcast: true,

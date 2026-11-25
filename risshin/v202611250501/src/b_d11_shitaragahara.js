@@ -5,25 +5,22 @@
 // 11/21 cloud-10：act bot で四分より短く討ち取り2〜6だったので、41 の前半と同じく敵の組の足軽を一・六倍・侍を一人ずつ足し、味方の刃を〇・二五・守りの段を十五秒延ばした（K467）
 
 import { lightBattle, uS, uA, uG, uB, busho } from './light_battle.js';
-import { fence } from './castle_parts.js';
+import { shitaraField, SHITARA_WORLD, SHITARA_AT } from './b_shitaragahara.js';   // K651：織田の設楽原の戦場をそのまま使う（素材は写さない）
 import { isEn, addEn } from './i18n.js';
 if (isEn()) import('./i18n_en_takeda.js').then((m) => addEn(m.default)).catch(() => {});   // K516 英語の時だけ武田編の字の表を読む
 
+// 11/25 K651（kaito「今の織田の長篠をコピーしたらできるじゃん。立場を入れ替えるだけでできるやつはそうしよう」）：
+//   前の別の戦場（手書きの丘と一筋の柵）をやめ、織田の設楽原（b_shitaragahara.js）の地形・連吾川・三重の馬防柵・野の小物を shitaraField で建てる。
+//   遊ぶ側を武田（柵の外から馬防柵へ攻める）に入れ替え、行き先は織田の戦場の物差し（SHITARA_AT）で置く。山県昌景は南の竹広（徳川の大久保の前）へ寄せた（布陣図 docs/fujin/shitaragahara.md）
 const AKA = { flag: 'akazonae', armor: 0x8e1f16 };
 const ODA = { flag: 'oda', armor: 0x2a2622 };
-const SPAWN = { x: 0, z: 150 };
-const RENGO = [[-220, 40], [-100, 46], [0, 40], [100, 48], [220, 42]];   // 連吾川（柵の手前の浅い川）
-const KAWA = { x: 6, z: 62 };        // 連吾川の岸（柵の三十歩手前）
-const SAKU1 = { x: -30, z: 22 };     // 一の柵（徳川の大久保の前）
-const SAKU2 = { x: 40, z: 20 };      // 二の柵の破れ目
-const SHINGARI = { x: 0, z: 120 };   // 退き口（馬場の殿）
-// 11/21 cloud-10（cloud-31 の頼み・司令塔）：馬防柵を連吾川の西（z 14）に一筋。柵は兵を止める（共通の柵 castle_parts.js fence・壊せる）。
-//   口は四つ（x -80・-30・40・80 のあたり、十二歩ずつ）：設楽原の柵は所々に出入りの口を空け、そこから打って出た（『信長公記』）。
-//   鉄砲の組は柵の三十〜四十歩後ろ（z -18〜-22）に下げ、持ち場（off）も柵の後ろに置いて柵越しに撃つ（前は柵の口から前へ出て来た）
-const FENCE_Z = 14;
-const FENCE = [[-120, FENCE_Z], [120, FENCE_Z]];
-const FENCE_GAPS = [6, 7, 15, 16, 26, 27, 33, 34];   // 六歩の区画の番号（x = -120 + 6k）
-
+const FX = SHITARA_AT.fenceX, GAP = SHITARA_AT.gap, TAKE = SHITARA_AT.gates[2];   // 一の柵の x・柵の間・竹広の虎口の z
+const SPAWN = { x: 82, z: TAKE - 6 };                         // 柵から七十m 東の野（田の東の縁。味方の組と一緒に寄せる。百三十m では本人だけ先に着いて囲まれた・act bot 11/25）
+const KAWA = { x: SHITARA_AT.rengoX(TAKE + 4) + 9, z: TAKE + 4 };   // 連吾川の東の岸（柵の前の田）
+const SAKU1 = { x: FX + 5, z: TAKE - 10 };     // 一の柵（徳川の大久保の前・竹広の虎口の北）
+const SAKU2 = { x: FX + 5, z: TAKE - 55 };     // 二の柵の破れ目（竹広から北へ）
+const SHINGARI = { x: 125, z: TAKE - 40 };     // 退き口（馬場の殿）
+const GUN_Z = FX - 2 * GAP - 4;                // 柵の鉄砲は三の柵の後ろ（柵越しに撃つ）
 export const d11_shitaragahara = lightBattle({
   id: 'd11_shitaragahara',
   date: '天正三年（1575）五月二十一日　雨上がりの朝　三河国 設楽原',
@@ -33,21 +30,13 @@ export const d11_shitaragahara = lightBattle({
   force: { a: 15000, b: 38000 },
   allyLook: AKA, foeLook: ODA,
   minutes: 6,
-  playerTaken: 0.45,   // 11/21 cloud-10（章の通し：組の無い足軽の本人が倒れる回があった）。敵は変えず、本人の受ける傷の割合だけ 0.6→0.45
-  spawn: { x: SPAWN.x, z: SPAWN.z, heading: Math.PI },
-  world: {
-    seed: 15750521, time: 'morning', wetStart: 0.55, mist: 0.5, fogFar: 380,
-    river: RENGO, riverW: 8, riverDepth: 0.4,
-    hills: [[0, -60, 70, 14], [-140, -10, 60, 12], [140, -20, 60, 12], [0, 170, 60, 8]],
-    // 11/21 cloud-19（K563 地形・手書き。標高の asset が来るまで）：連吾川の岸・一の柵・二の柵の破れ目・退き口 を結ぶ道と、丘の森（木の数は森の分を引いて同じ）
-    paths: [{ pts: [[0, 150], [0, 120], [6, 62], [-30, 22], [40, 20]], w: 3 }],
-    groves: [{ x: 0, z: -60, r: 30, n: 30 }, { x: -140, z: -10, r: 30, n: 30 }],
-    trees: 400, tufts: 2000,
-  },
+  playerTaken: 0.35,   // 11/25 K651：織田の設楽原の田と沼（muddy・horiAt で足が落ちる）で寄せるので 0.45→0.35。11/21 cloud-10（章の通し：組の無い足軽の本人が倒れる回があった）。敵は変えず、本人の受ける傷の割合だけ 0.6→0.45
+  spawn: { x: SPAWN.x, z: SPAWN.z, heading: -Math.PI / 2 },   // 西（柵）を向く
+  world: { seed: 57 },   // 下で織田の設楽原の world に置き換える（K651）
   allies: [
-    { name: '山県昌景の赤備え', at: { x: SPAWN.x - 12, z: SPAWN.z - 8 }, dmg: 0.15, list: [busho('山県昌景', { armor: AKA.armor }), uS(4), uA(16)] },
-    { name: '内藤昌豊の手', at: { x: SPAWN.x + 16, z: SPAWN.z - 6 }, dmg: 0.15, list: [busho('内藤昌豊'), uS(3), uA(14)] },
-    { name: '馬場信春の手', at: { x: SPAWN.x, z: SPAWN.z + 12 }, dmg: 0.15, list: [busho('馬場信春'), uS(3), uA(12)] },
+    { name: '山県昌景の赤備え', at: { x: SPAWN.x - 8, z: SPAWN.z - 12 }, dmg: 0.15, list: [busho('山県昌景', { armor: AKA.armor }), uS(4), uA(16)] },
+    { name: '内藤昌豊の手', at: { x: SPAWN.x - 6, z: SPAWN.z + 16 }, dmg: 0.15, list: [busho('内藤昌豊'), uS(3), uA(14)] },
+    { name: '馬場信春の手', at: { x: SPAWN.x + 12, z: SPAWN.z }, dmg: 0.15, list: [busho('馬場信春'), uS(3), uA(12)] },
   ],
   steps: [
     { kind: 'rest', dur: 10, heal: 0, say: [
@@ -59,23 +48,23 @@ export const d11_shitaragahara = lightBattle({
     { kind: 'fight', at: SAKU1, obj: '一の柵へ寄せ、柵の前に出た徳川の兵を討つ', title: '一の柵', sub: '柵の内から鉄砲が鳴る',
       say: [['山県昌景', '怯むな！　柵に取り付け！', 2.8], ['大久保忠世', '一人も柵を越えさせるな！', 2.6]],
       foes: [
-        { name: '大久保の手', from: { x: SAKU1.x + 4, z: SAKU1.z - 10 }, list: [uS(5), uA(35)] },
-        { name: '柵の内の鉄砲', seek: 6, off: { x: -8, z: FENCE_Z - 32 - SAKU1.z }, from: { x: SAKU1.x - 8, z: FENCE_Z - 32 }, list: [uG(10)] }],
-      later: [{ t: 25, say: ['物見', '柵の口から徳川の新手！'], foes: [{ name: '柵の口の新手', from: { x: SAKU1.x - 14, z: SAKU1.z - 8 }, list: [uS(3), uA(26)] }] }, { t: 55, say: ['組頭', 'まだ来るぞ！'], foes: [{ name: '大久保の二の手', from: { x: SAKU1.x + 14, z: SAKU1.z - 10 }, list: [uS(3), uA(22)] }] }],
+        { name: '大久保の手', from: { x: SAKU1.x + 4, z: TAKE + 6 }, list: [uS(5), uA(35)] },
+        { name: '柵の内の鉄砲', seek: 6, off: { x: GUN_Z - SAKU1.x, z: -4 }, from: { x: GUN_Z, z: SAKU1.z - 4 }, list: [uG(10)] }],
+      later: [{ t: 25, say: ['物見', '柵の口から徳川の新手！'], foes: [{ name: '柵の口の新手', from: { x: FX + 3, z: TAKE + 10 }, list: [uS(3), uA(26)] }] }, { t: 55, say: ['組頭', 'まだ来るぞ！'], foes: [{ name: '大久保の二の手', from: { x: FX + 4, z: TAKE + 14 }, list: [uS(3), uA(22)] }] }],
       reward: '一の柵へ取り付いた' },
     { kind: 'fight', at: SAKU2, obj: '二の柵の破れ目で、出て来た織田の兵を押し返す', title: '二の柵', sub: '山県様が撃たれた——',
       say: [['赤備えの侍', '山県様、お討死！', 2.8], ['内藤昌豊', '山県の仇じゃ！　破れ目から押し込め！', 3]],
       foes: [
-        { name: '織田の柵の兵', from: { x: SAKU2.x, z: SAKU2.z - 12 }, list: [uS(6), uA(35)] },
-        { name: '二の柵の鉄砲', seek: 6, off: { x: 10, z: FENCE_Z - 36 - SAKU2.z }, from: { x: SAKU2.x + 10, z: FENCE_Z - 36 }, list: [uG(8)] }],
-      later: [{ t: 25, say: ['織田の侍', '破れ目を塞げ！'], foes: [{ name: '破れ目の新手', from: { x: SAKU2.x - 12, z: SAKU2.z - 10 }, list: [uS(3), uA(26)] }] }],
+        { name: '織田の柵の兵', from: { x: SAKU2.x + 3, z: SAKU2.z - 12 }, list: [uS(6), uA(35)] },
+        { name: '二の柵の鉄砲', seek: 6, off: { x: GUN_Z - SAKU2.x, z: 4 }, from: { x: GUN_Z, z: SAKU2.z + 4 }, list: [uG(8)] }],
+      later: [{ t: 25, say: ['織田の侍', '破れ目を塞げ！'], foes: [{ name: '破れ目の新手', from: { x: SAKU2.x + 3, z: SAKU2.z + 14 }, list: [uS(3), uA(26)] }] }],
       reward: '二の柵の破れ目で戦った' },
     { kind: 'hold', at: SHINGARI, label: '退き口', obj: '退き口で馬場信春の殿と共に、追う織田・徳川を食い止める', r: 18, dur: 65,
       title: '殿', sub: '御屋形様を甲斐へ落とせ',
       say: [['馬場信春', 'わしが殿じゃ。御屋形様を落とせ。若い者は生きて甲斐へ帰れ', 3.6]],
       waves: [
-        { t: 6, say: ['徳川の侍', '逃がすな！　追え！'], foes: [{ name: '追う徳川の手', from: { x: SHINGARI.x - 20, z: SHINGARI.z - 40 }, list: [uS(5), uA(32)] }] },
-        { t: 28, say: ['織田の侍', '武田の殿を討て！'], foes: [{ name: '追う織田の手', from: { x: SHINGARI.x + 20, z: SHINGARI.z - 40 }, list: [uS(5), uA(29)] }] }],
+        { t: 6, say: ['徳川の侍', '逃がすな！　追え！'], foes: [{ name: '追う徳川の手', from: { x: SHINGARI.x - 45, z: SHINGARI.z - 20 }, list: [uS(5), uA(32)] }] },
+        { t: 28, say: ['織田の侍', '武田の殿を討て！'], foes: [{ name: '追う織田の手', from: { x: SHINGARI.x - 45, z: SHINGARI.z + 20 }, list: [uS(5), uA(29)] }] }],
       reward: '退き口で殿を支えた' },
   ],
   // 11/21 cloud-31（司令塔「柵越しの鉄砲が武田の騎馬を撃ち、撃たれて崩れる感じ」）：描かずの192秒で柵の鉄砲は10発だけ（1分に3発）だった。
@@ -93,10 +82,12 @@ export const d11_shitaragahara = lightBattle({
       ['組頭', '……生きて帰れ、か。馬場様の言葉、忘れぬ', 3.4]],
   },
 });
-// 柵を立てる（軽い型の setup の後）
-{ const s0 = d11_shitaragahara.setup; d11_shitaragahara.setup = function (rt) { s0.call(this, rt); try { rt.flags.d11Fence = fence(rt, FENCE, { team: 1, hp: 300, segLen: 6, gaps: FENCE_GAPS }); } catch (e) { console.warn('d11 柵', e); } }; }
+// K651：織田の設楽原の地面・川・田・道・柵の道筋をそのまま使う（getter も写すため descriptor ごと）。武田の寄せの朝に合わせ霧と時刻だけ足す
+d11_shitaragahara.world = Object.defineProperties({}, Object.getOwnPropertyDescriptors(SHITARA_WORLD));
+// 戦場を建てる（織田の設楽原と同じ所）→ 軽い型の setup（武田の組・段）
+{ const s0 = d11_shitaragahara.setup; d11_shitaragahara.setup = function* (rt) { yield* shitaraField(rt); s0.call(this, rt); }; }
 // 柵の後ろの鉄砲の組は、段の動きに寄せ直されても一秒ごとに持ち場（柵の三十〜三十六歩後ろ）へ戻して構えさせる（撃つ間合いは鉄砲の決まりのまま）
-const GUN_POST = { '柵の内の鉄砲': { x: SAKU1.x - 8, z: FENCE_Z - 32 }, '二の柵の鉄砲': { x: SAKU2.x + 10, z: FENCE_Z - 36 } };
+const GUN_POST = { '柵の内の鉄砲': { x: GUN_Z, z: SAKU1.z - 4 }, '二の柵の鉄砲': { x: GUN_Z, z: SAKU2.z + 4 } };
 { const u0 = d11_shitaragahara.update; d11_shitaragahara.update = function (rt, dt) {
   u0.call(this, rt, dt);
   const F = rt.flags; if ((F.d11GunT = (F.d11GunT || 0) - dt) > 0) return; F.d11GunT = 1;

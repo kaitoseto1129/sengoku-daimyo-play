@@ -4435,7 +4435,7 @@ export function pauseMenu(el, o) {
       <button class="btn primary" id="pm-resume">再開する</button>
       <button class="btn" id="pm-settings" aria-expanded="false" aria-controls="pm-set">設定</button>
       <button class="btn" id="pm-help">操作の一覧を見る</button>
-      <button class="btn" id="pm-retry">${o.town ? '町に入り直す' : 'やり直す'}</button>
+      ${o.town || o.error ? `<button class="btn" id="pm-retry">${o.town ? '町に入り直す' : 'やり直す'}</button>` : ''}
       <button class="btn" id="pm-title">${o.town || o.home ? 'ホームへ戻る' : 'タイトルへ'}</button>
       <a class="btn" id="pm-bug" href="${esc(bugMailUrl())}" style="min-height:44px;display:inline-flex;align-items:center;justify-content:center">不具合を送る</a>
     </div><p id="pm-bug-msg" role="status" class="note" style="margin:0"></p>
@@ -4487,7 +4487,9 @@ export function pauseMenu(el, o) {
   };
   const box = el.querySelector('#pm-confirm');
   // 不具合の後は既存の釦一つで復帰。通常の確認も押した釦のすぐ下に置く。
-  el.querySelector('#pm-retry').onclick = () => {
+  // K648（kaito 11/25）：戦の中の無料の『この戦をやり直す』は無くした。町に入り直すのと、不具合の後の復帰だけ残す
+  const pmRetry = el.querySelector('#pm-retry');
+  if (pmRetry) pmRetry.onclick = () => {
     if (o.error) { o.retry(); return; }
     el.querySelector('#pm-retry').after(box);
     confirmBox(box, o.town ? '町に入り直します。' : 'この戦を最初からやり直します。', o.town ? '町に入り直す' : 'やり直す', o.retry, { sub: o.town ? '城下までの記録は残ります。' : 'この戦で得た戦功は消えます。城下までの記録は残ります。' });

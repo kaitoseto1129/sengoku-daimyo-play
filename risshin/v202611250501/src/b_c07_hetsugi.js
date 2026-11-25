@@ -21,6 +21,7 @@ export const c07_hetsugi = chosoBattle({
   force: { a: 6000, b: 18000 },
   foeLook: SHIMAZU,
   foeDmg: 0.7,
+  thick: true,   // 11/25 act bot 討ち取り3（5分）＝受けの段に三の手・激突の段に新手
   spawn: { x: SPAWN.x, z: SPAWN.z, heading: 0 },
   world: {
     seed: 1586, time: 'dusk', fogFar: 380, winter: true, overcast: true,

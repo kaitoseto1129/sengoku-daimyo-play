@@ -42,7 +42,7 @@ const FLAG_BG = {
   tokugawa: '#ebe5d4', takeda: '#e6dfcd', akazonae: '#8e2a1e', okudaira: '#e8e2d2',
   katabami: '#ece6d6', okubo: '#e8e2d2', onri: '#efe9da', furin: '#1f2a44', sakakibara: '#efe9da',
   // 日本地図の諸家
-  hojo: '#ece6d6', uesugi: '#ece6d6', mori: '#ece6d6', sue: '#ece6d6', shimazu: '#ece6d6', ito: '#ece6d6', ryuzoji: '#ece6d6', takahashi: '#ece6d6', date: '#ece6d6', ashina: '#ece6d6', sanada: '#9a2a20',
+  hojo: '#ece6d6', uesugi: '#ece6d6', mori: '#ece6d6', sue: '#ece6d6', shimazu: '#ece6d6', ito: '#ece6d6', ryuzoji: '#ece6d6', kamou: '#ece6d6', hishikari: '#ece6d6', sagara: '#ece6d6', takahashi: '#ece6d6', date: '#ece6d6', ashina: '#ece6d6', sanada: '#9a2a20',
   uesugi_bi: '#ece6d6', uesugi_ryu: '#ece6d6',
   toyotomi: '#e6dfcd', kiri53: '#e6dfcd', ishida: '#ece6d6', azai: '#ece6d6', asakura: '#ece6d6', chosokabe: '#ece6d6',
   otomo: '#ece6d6', satake: '#ece6d6', maeda: '#ece6d6', miyoshi: '#ece6d6', kuroda: '#ece6d6',
@@ -74,7 +74,7 @@ const FLAG_DYE = {
   // H3（11/24 Sanae・docs/house_gear_1124.md）：毛利は下を紅（毛利輝元の赤地に白の一文字三星の旗に寄せる）、島津は白地に黒の丸に十字だけ（染めの帯を地と同じ白に）、
   //   伊達は紺（伊達の紺地に金の日の丸の旗に寄せる）。前は三家とも灰茶の帯で、上杉・徳川の旗と遠目に同じに見えた
   mori: '#8e2a22', sue: '#3a3834', murakami: '#ece6d6', uesugi: '#5b5448', akechi: '#8a7a55',
-  hojo: '#bca25c', shimazu: '#ece6d6', ito: '#4c4a44', ryuzoji: '#4a4640', takahashi: '#4a4448', date: '#1f2a4a', ashina: '#4e4a42', sanada: '#9a2a20', sanada2: '#9a2a20',
+  hojo: '#bca25c', shimazu: '#ece6d6', ito: '#4c4a44', ryuzoji: '#4a4640', kamou: '#4a4a40', hishikari: '#444a4c', sagara: '#46423e', takahashi: '#4a4448', date: '#1f2a4a', ashina: '#4e4a42', sanada: '#9a2a20', sanada2: '#9a2a20',
   toyotomi: '#8a6418', kiri53: '#8a6418', ishida: '#4a4a52', chosokabe: '#3e3c36', otomo: '#7a6448',   // 11/8 critic60（十5・樫井）：生成りの地に淡い金で、遠目に紋の無い白い板に見えた。濃い金茶に（11/8：この注が石田・長宗我部・大友の色を消していたので行末へ移した）
   satake: '#8b772b', maeda: '#6a4a48', miyoshi: '#685348', kuroda: '#343331',
   todo: '#6e6a5a', otani: '#504a46', kobayakawa: '#a58b44', wakisaka: '#5a6a78', kyogoku: '#76685a', kutsuki: '#76685a', furuta: '#76685a', ikoma: '#76685a', konishi: '#6d5a48',
@@ -681,6 +681,10 @@ const MON = {
   },
   // 日足（肥前の龍造寺）：丸の日と八方の光。H3 島津編 s03 沖田畷の敵（紋帳を簡略にした）
   ryuzoji(g) { disk(g, 0, 0, 0.42); for (let i = 0; i < 8; i++) at(g, 0, 0, i * TAU / 8, 1, () => poly(g, [[-0.1, -0.52], [0.1, -0.52], [0, -0.95]])); },
+  // H3 島津編 s09〜s14 の敵（紋帳を簡略にした）：蒲生＝輪に桔梗の五つの花びら・菱刈＝四つの菱・相良＝輪に五つの梅鉢
+  kamou(g) { ring(g, 1, 0.1); for (let i = 0; i < 5; i++) at(g, 0, 0, i * TAU / 5, 1, () => poly(g, [[0, -0.1], [0.2, -0.7], [0, -0.6], [-0.2, -0.7]])); },
+  hishikari(g) { for (let i = 0; i < 4; i++) at(g, 0, 0, i * Math.PI / 2, 1, () => poly(g, [[0, -0.1], [0.28, -0.5], [0, -0.9], [-0.28, -0.5]])); },
+  sagara(g) { ring(g, 1, 0.1); for (let i = 0; i < 5; i++) at(g, 0, 0, i * TAU / 5, 1, () => disk(g, 0, -0.5, 0.22)); disk(g, 0, 0, 0.16); },
   // 杏葉（筑前の高橋）：輪に三つの葉。H3 島津編 s04 岩屋城の城方（紋帳を簡略にした）
   takahashi(g) { ring(g, 1, 0.12); for (let i = 0; i < 3; i++) at(g, 0, 0, i * TAU / 3, 1, () => { g.beginPath(); g.ellipse(0, -0.5, 0.2, 0.36, 0, 0, TAU); g.fill(); }); },
   // 竪三引両（伊達）：丸の内を七つに分け、二・四・六本目を墨に

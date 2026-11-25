@@ -3166,20 +3166,20 @@ const game = {
       const fin = won && { k15_tennoji_okayama: ['史実の終わりへ', () => import('./finale.js').then((m) => m.historyEndScreen({ ...G, mainSave: readProgress(S.slot).game }, { onIF: () => this.startAsSamurai('tokugawa', 'k16_secret'), onHome: () => this.leaveBattle() }))], k16_secret: ['数年後へ', () => this.startAsSamurai('tokugawa', 'k17_shuumaku')] }[BATTLES[i].id];
       if (fin) actions.push({ label: fin[0], primary: true, fn: fin[1] });
       else if (won && (backTo === 'hub' || backTo === 'samurai')) actions.push({ label: backTo === 'samurai' && !BATTLES[i + 1] && NEXT_CHAPTER[scenarioKey()] ? NEXT_CHAPTER[scenarioKey()].label : '次の戦へ', primary: true, fn: () => this.nextFromResult(i) });
-      actions.push(retry);
+      if (won) actions.push(retry);   // K648：負けた後の無料の『もう一度』は無し（続けるのは戦の中の小判のコンティニューだけ）
       actions.push({ label: '戦の一覧へ戻る', home: true, primary: !won, fn: () => (backTo || this.homeSaved() ? this.backToHub() : this.title()) });   // K476：試しの戦の後も、本編の保存があれば題でなくホーム
     // 11/21 cloud-41（章の通し）：豊臣・徳川・武田・上杉編の最初の戦の「しくじり」を G.rank === 0 で見ていたため、手柄の点（merit.js）で
     //   勝っても位が雑兵のまま（武田編・上杉編）だと、勝ったのに城下へ進む釦が出ず「もう一度・戦の一覧へ戻る」だけで止まった。任務を果たしたかで見る
     } else if (i === 0 && !r.mainDone) {
       // 最初の戦をしくじった時は、もう一度（織田家編は、しくじっても戦功なしで城下へ進める）
-      actions.push({ ...retry, primary: true });
+      // K648（kaito 11/25）：負けた後の無料の『もう一度』は出さない。城下へが主
       // 11/21 cloud-06（08 の章の通し：豊臣編の山崎に負けた後に止まった）：本編（practice でない）ではこの釦は城下へ進む（base）のに字が『戦の一覧へ戻る』で、
       //   遊ぶ人も bot も城下への道と読めず『もう一度』だけを押し続けた。本編の時は字を『城下へ』にする（中身は同じ）
-      actions.push({ label: (scenarioKey() === 'oda' || !G.practice) ? '城下へ' : '戦の一覧へ戻る', home: true, fn: () => { save(G); if (scenarioKey() === 'oda' || !G.practice) this.base(); else if (this.homeSaved()) this.backToHub(); else this.title(); } });   // K476：豊臣・徳川編の最初の戦の後も題でなくホームへ
+      actions.push({ label: (scenarioKey() === 'oda' || !G.practice) ? '城下へ' : '戦の一覧へ戻る', home: true, primary: true, fn: () => { save(G); if (scenarioKey() === 'oda' || !G.practice) this.base(); else if (this.homeSaved()) this.backToHub(); else this.title(); } });   // K476：豊臣・徳川編の最初の戦の後も題でなくホームへ
     } else if (i === BATTLES.length - 1) {
       save(G);
       actions.push({ label: '後日譚へ', primary: true, fn: () => epilogueScreen(G, () => finalScreen(G, () => this.title(), () => this.japanMap('final'), this.toyoNext())) });
-      actions.push(retry);
+      if (won) actions.push(retry);
       actions.push({ label: '戦の一覧へ戻る', home: true, fn: () => this.base() });
     } else {
       save(G);
@@ -3187,7 +3187,7 @@ const game = {
       const toTown = () => inkBand(`${(BATTLES[G.battle] && BATTLES[G.battle].town) || '城下'}へ戻る`, BATTLES[i].name, () => this.base());
       const sign = (f, to) => () => (G.rank >= 1 && !G.aijirushi ? aijirushiScreen(G, () => { save(G); f(); }, to) : f());
       if (won) actions.push({ label: '次の戦へ', primary: true, fn: sign(() => this.nextFromResult(i), '次の戦の支度') });
-      actions.push(retry);
+      if (won) actions.push(retry);   // K648
       actions.push({ label: '城下へ', home: true, primary: !won, fn: sign(toTown) });
       // 戦と戦の間の選び（11/8）：次の戦へが一番目立つ。装備と配下は城下の札をそのまま開く
       if (!G.lord) {

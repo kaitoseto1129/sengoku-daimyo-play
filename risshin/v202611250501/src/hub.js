@@ -14,6 +14,8 @@ import { TOKUGAWA_PLAN } from './tokugawa_plan.js';
 import { secretOpen, secretLeft, tokuWon } from './tokugawa_secret.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+// 同じ戦の絵がある家の戦は、自前の絵ができるまでその絵を使う（K652・kaito 11/25 サムネが無い）
+const HOUSE_THUMB = { d15_tenmokuzan: 'tano', d07_mikatagahara: 'mikatagahara', d11_shitaragahara: 'shitaragahara', d14_takato: 'takato', u12_tedorigawa: 'tedorigawa', i10_okehazama: 'okehazama', h15_yamanaka: 't09_yamanaka', h08_hachioji: 't11_hachioji', h10_odawara_h: 't12_odawara', e06_odawara: 't12_odawara', c06_ichinomiya: 't05_ichinomiya', c07_hetsugi: 't06_hetsugi', s05_hetsugi: 't06_hetsugi', s06_nejirozaka: 't08_nejirozaka', c10_sekigahara: 'k06_sekigahara', s08_sekigahara: 'k06_sekigahara', m15_nangu: 'k06_sekigahara', c15_yao: 'k14_yao_wakae', e10_domyoji: 'k13_domyoji', m14_tottori: 'tottori'};
 export const thumbURL = (id) => new URL(`../assets/thumbs/${id}.webp`, import.meta.url).href;
 // あらすじ（二行・一文を短く）。screens.js の LORE に無い二戦だけここに
 const battleName = (b) => b.id === 'inou' ? '稲生の戦い' : b.name;
@@ -369,11 +371,11 @@ export function pickScreen(G, game, o) {
   const toku = rows.length;
   rows.push(...tokuRows(toku, rows.filter((r) => r.state !== 'done' && !r.soon).length));
   // 11/24 kaito「武田とか web で遊べるように」：Web だけ、ほかの家の編も並びの下に出す（豊臣編と同じ試しの出陣。アプリの並びは変えない）
-  const base = rows.length, houses = [];
+  const base = rows.length, houses = [], houseWon = new Set(clearedIds());
   if (isWebOpen()) for (const k of SCENARIO_PICK) {
     if (k === 'oda' || k === 'toyotomi' || !SCENARIOS[k]?.battles?.length) continue;
     const from = rows.length;
-    SCENARIOS[k].battles.forEach((b) => rows.push({ b, k: rows.length, j: -1, state: 'next', won: false, grade: null, best: 0, pay: false, scn: k }));
+    SCENARIOS[k].battles.forEach((b) => rows.push({ b: HOUSE_THUMB[b.id] ? { ...b, thumb: HOUSE_THUMB[b.id] } : b, k: rows.length, j: -1, state: houseWon.has(b.id) ? 'done' : 'next', won: houseWon.has(b.id), grade: null, best: 0, pay: false, scn: k }));
     houses.push({ name: SCENARIOS[k].name, from, to: rows.length });
   }
   const recommended = houses.length && rows.slice(base).find((r) => r.scn === G.scenario) || rows.find((r) => r.state === 'next' && !r.pay && !r.soon && !r.b.bangai);   // 番外（K295）は次の戦のピンに選ばない
@@ -448,7 +450,7 @@ export function preCard(G, game, o, r, scrollX) {
   const go = () => { if (done) return; done = true; release(); sfx('ui'); if (r.b.id === 'inou') o.onLaunch(r); else playTalk(r.b.id, 'b', () => o.onLaunch(r)); };
   const back = () => { if (done) return; done = true; release(); sfx('ui'); pickScreen(G, game, { ...o, scrollX }); };
   const s = showScreen(`${CSS}<div class="pc">
-    <div class="pc-art"><img src="${thumbURL(r.b.id)}" alt="" decoding="async"></div>
+    <div class="pc-art"><img src="${thumbURL(r.b.thumb || r.b.id)}" alt="" decoding="async"></div>
     <div><h2>${esc(battleName(r.b))}</h2><div class="yr">${r.b.id === 'inou' ? esc(yearNum(r.b)) : `${esc(String(r.b.year || '').replace(/（\d+）.*$/, ''))}　${esc(yearNum(r.b))}　${esc(r.b.place || '')}`}</div>
       ${r.best ? `<div class="pc-st"><span class="pk-best" aria-label="最高の手柄 ${r.best}">${ICON.merit}${r.best}</span></div>` : ''}
       ${lore.slice(0, 2).map((t) => `<p>${esc(t)}。</p>`).join('')}

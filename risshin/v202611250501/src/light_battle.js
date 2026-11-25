@@ -245,9 +245,30 @@ export function lightBattle(S) {
     if (!b.player.u.alive || b.flags.ending) return;
     depthBot(b, inp, goTo);
   };
+  // K652（11/25 kaito 天目山「自軍170人・敵が4000→急に2600」）：段が進むたびに敵を飛ばして下げず、段の進みをなだらかにならし、
+  //   目の前の討ち取り（敵も味方も）の割合でも少しずつ減らす。自軍も減る。史実の損害の目安は S.force.lb（敵の減る割合の上限）・la（味方）
+  //   兵の少ない戦は、戦場に立っている味方の数を初めの数にして、札（両軍の人数）と目の前の数を合わせる
   def.force = (rt) => {
-    const F = rt.flags, st = Math.min(GOALS.length, F.step || 0) / Math.max(1, GOALS.length);
-    return { a: S.force.a, a0: S.force.a, b: Math.round(S.force.b * (1 - 0.5 * st)), b0: S.force.b };
+    const F = rt.flags, now = rt.t || 0;
+    let C = F._fc;
+    if (!C) C = F._fc = { t: -9, a: 0, b: 0, a0: 0, b0: 0, pf: 0, pt: now, pa: 0, pb: 0 };
+    if (now - C.t > 0.4 || now < C.t) {
+      let a = 0, b = 0;
+      for (const u of rt.army?.units || []) {
+        if (!u || u.isPlayer || u.civ || u.isStruct || (u.noTarget && !u.name) || u.type === 'dummy' || u.type === 'porter' || u.team > 1) continue;
+        if (!u.alive || u.gone || u.dying) continue;
+        if (u.team === 0) a++; else b++;
+      }
+      C.t = now; C.a = a; C.b = b; C.a0 = Math.max(C.a0, a); C.b0 = Math.max(C.b0, b);
+    }
+    const N = Math.max(1, GOALS.length), tgt = Math.min(1, (F.step || 0) / N);
+    const dt = Math.max(0, Math.min(1, now - C.pt)); C.pt = now;
+    C.pf += (tgt - C.pf) * Math.min(1, dt / 25);   // 段の進みは二十五秒ほどかけてなだらかに
+    const ra = C.a0 > 0 ? 1 - C.a / C.a0 : 0, rb = C.b0 > 0 ? 1 - C.b / C.b0 : 0;
+    C.pa += (Math.max(C.pf, ra) - C.pa) * Math.min(1, dt / 6); C.pb += (Math.max(C.pf, rb) - C.pb) * Math.min(1, dt / 6);
+    const a0 = Math.max(S.force.a, C.a0 > 0 && S.force.a < 400 ? C.a0 : 0), b0 = S.force.b;
+    const la = S.force.la ?? 0.2, lb = S.force.lb ?? 0.5;
+    return { a: Math.round(a0 * (1 - la * Math.min(1, C.pa))), a0, b: Math.round(b0 * (1 - lb * Math.min(1, C.pb))), b0 };
   };
   return def;
 }

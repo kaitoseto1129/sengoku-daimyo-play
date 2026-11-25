@@ -1,11 +1,17 @@
 // 読み込みや舞台の作り直しをせず、同じ兵・隊・任務・時限の参照を保って戻す。
 // 形・材質・素材・音・画面は写さない。開戦時と、十二秒おきの二点だけを持つ。
-import { cpStep, clearCheckpoint } from './battle_checkpoint.js';
+import { cpStep } from './battle_checkpoint.js';
 import { setAssist } from './battle_assist.js';
 import { fiveGoals } from './goals5.js';
 import { musicNow, playMusic } from './audio.js';
 import { MEM_TIGHT } from './settings.js';
 import { Unit } from './units_group.js';
+import { CONTINUE_KOBAN, canContinue, payContinue, refundContinue } from './continue_koban.js';
+import { addEn } from './i18n.js';
+// K648：続けるのは小判のコンティニューだけ（無料の『直前から再開』『戦の最初から』『援護を強くする』『この局面を易しくする』は無くした）
+addEn([[/^コンティニュー　小判(\d+)枚$/, (m) => `Continue (${m[1]} koban)`], [/^小判(\d+)枚を使って、倒れた所から続けます。$/, (m) => `Spend ${m[1]} koban to continue from where you fell.`],
+  [/^小判(\d+)枚で続ける$/, (m) => `Pay ${m[1]} koban and continue`], ['使った小判は戻りません。', 'Spent koban cannot be returned.'], ['やめる', 'Cancel']]);
+let payTag = 0;
 // 負けと再開（docs/rank_interlude_retry_spec_1108.md 3・kaito 11/8「14分目に死んで最初から、は絶対に避ける」）
 // - 区切り（チェックポイント）：段（任務の①②③…）が変わった所・目標を果たした所で写す。加えて、導入の後（2〜4分）・戦況の変わり目（6〜9分）・
 //   最終局面の前（10〜13分）の三つの窓のうちに区切りが無ければ、窓の終わりに一つ写す。写しは戦の全部（体力・持ち物・味方と武将の生死・
@@ -18,7 +24,10 @@ const LOSSES = new WeakMap();   // その戦で負けた数（写しに入らな
 const memories = new WeakMap();
 export const RETRY_STAT = { n: 0, records: 0, fresh: 0 };   // 確かめ用：最後の写しの記録の数と、新しく作った記録の数
 const HUMAN_KEYS = new Set(['human', '_humanBuild', '_humanBuildLook', '_hq', 'humanPending']);
-const ROOT_KEEP = new Set(['game', 'hud', 'camera', 'def', 'environmentSound', 'warVoices', 'warSpeech', 'freezer', 'frustum', 'projView']);
+// 11/25 K643 Sanae：replay3d（勝った後の 3D の見返しの記録の輪・replay_3d.js）は写さない。輪の nodes・par（1300 の配列×60）を
+//   十二秒ごとに鍵と値の組で写し、一回の写しの記録の四割（41万の枠と添え字の字 15万）がこれだった。WebKit（iPhone）では
+//   JS の山が開戦4分で約125MB 多かった（wk_soak.mjs・WebKitGTK）。中の姿の数（Float32Array）は元から写していないので、戻しても輪は今のまま使う
+const ROOT_KEEP = new Set(['game', 'hud', 'camera', 'def', 'environmentSound', 'warVoices', 'warSpeech', 'freezer', 'frustum', 'projView', 'replay3d']);
 
 // 写しは数百ミリ秒かかるので、一ミリ秒ずつ何コマかに分けて取る。
 // 分けて取る間に動いた分は、物ごとに取った時のまま残る（戻す先は八秒前なので、数コマのずれは見えない）
@@ -41,7 +50,9 @@ export function startRemember(rt, extra, prev = null) {
   // 舞台の動かない表（草木の間引きの升・近い草の置き場・矢が刺さる木の箱・木の点）は数千の物。戻す物ではないので写さない
   for (const k of ['cullList', 'nearOff', 'missileWood', 'treePoints']) if (rt.world?.[k]) blocked.add(rt.world[k]);
   const keep = (o, k) => (o === rt && ROOT_KEEP.has(k)) || (o === rt.army && (k === 'batch' || k === 'solo'));
-  const seen = new Set(), records = [], stack = [extra, rt], time = rt.t;
+  // seen・stack は写し終わりに手放す（restore の閉包がこの場の変数を全部つかむので、空にしただけの入れ物も写しの数だけ残っていた。11/25 K643）
+  let seen = new Set(), stack = [extra, rt], done = null;
+  const records = [], time = rt.t;
   let byObject = new Map();
   // 参照の索引も一ミリ秒の枠で作る。最後に全記録を反転・再走査する山を残さない。
   let fresh = 0;
@@ -100,6 +111,26 @@ export function startRemember(rt, extra, prev = null) {
     // 消えた兵（沈み終えた亡骸・退いて消えた者）は自分の鍵だけ覚えて中へは入らない。もう動かず、戻す先でも消えたまま
     //   （10/31：援軍のたびに消えた兵の中身まで三つの写しが抱え、iPhone の記憶が毎分 6〜7MB 増えて三木・設楽原が落ちた）
     const shallow = !!(o.root && o.root.userData && o.root.userData.hum === o) || (isUnit && o.gone && !o.alive);
+    // 11/25 K643 Sanae：穴も名前の鍵も無い配列（写しの配列のほとんど）は、値だけを並べて持つ（vals）。鍵と値の組（kv）だと
+    //   添え字の字（"0"〜"1299"）が要素ごとに一つずつ作られて写しに残り、WebKit（iPhone）では写し一つが JSC の山で約 32MB になっていた。
+    //   戻す時は長さと値を同じに戻すので、今までと同じ物に戻る。穴・名前の鍵・延ばせない配列は今まで通り kv
+    if (Array.isArray(o) && Object.isExtensible(o) && keys.length === o.length && (o.length === 0 || keys[o.length - 1] === String(o.length - 1))) {
+      const n = o.length;
+      if (r && r.vals && r.vals.length === n) {
+        let same = true;
+        const vals = r.vals;
+        for (let i = 0; i < n; i++) if (vals[i] !== o[i]) { same = false; break; }
+        if (same) {
+          record(r);
+          for (let i = 0; i < n; i++) { const v = vals[i]; if (v && typeof v === 'object') stack.push(v); }
+          return;
+        }
+      }
+      const vals = o.slice();
+      for (let i = 0; i < n; i++) { const v = vals[i]; if (v && typeof v === 'object') stack.push(v); }
+      record({ o, kind: 'array', vals, length: n });
+      return;
+    }
     // 前の写しと同じ鍵・同じ値なら、前の記録をそのまま使う（中の物はこれまでどおりたどる）
     // 鍵と値は一つの平らな配列 [鍵, 値, 鍵, 値…] に持つ（10/31 c_leak2：記録ごとの Map が三つの写しで数万個になり、
     //   記憶の多くを占めていた）。鍵の順は Object.keys の順なので、前の記録とは順に見比べる
@@ -119,18 +150,22 @@ export function startRemember(rt, extra, prev = null) {
         return;
       }
     }
-    const kv = [];
+    // 入れ物はちょうどの大きさで先に取る（push で伸ばすと、余りの枠が写しの数だけ残る。11/25 K643）
+    const kv = keys.length < 4096 ? new Array(keys.length * 2) : [];
+    let j = 0;
     for (const k of keys) {
       if (keep(o, k) || (isUnit && HUMAN_KEYS.has(k))) continue;
       const d = Object.getOwnPropertyDescriptor(o, k);
       if (!d?.writable) continue;
       const v = o[k];
-      kv.push(k, v); if (!shallow && v && typeof v === 'object') stack.push(v);
+      kv[j++] = k; kv[j++] = v; if (!shallow && v && typeof v === 'object') stack.push(v);
     }
+    kv.length = j;
     record({ o, kind: Array.isArray(o) ? 'array' : 'object', kv, length: o.length });
   }
   // budgetMs ずつ進める。終われば写し（restore を持つ物）を返し、まだなら null
   return { step(budgetMs) {
+    if (done) return done;
     const t0 = performance.now();
     let n = 0;
     while (stack.length) {
@@ -141,11 +176,11 @@ export function startRemember(rt, extra, prev = null) {
   } };
   function finish() {
   // 写し終わりに前の写し・seen・blocked を手放す（閉包が戦の始めからの写しを鎖でつかまないように）
-  prevMap = null; seen.clear(); blocked.clear(); stack.length = 0;
+  prevMap = null; seen = null; blocked.clear(); stack = null;
   RETRY_STAT.records = records.length; RETRY_STAT.fresh = fresh; RETRY_STAT.n++;
   // 索引は返す物だけが持つ（restore の閉包に残すと、外しても捨てられない）
   const index = byObject; byObject = null;
-  return { time, byObject: index, restore() {
+  return (done = { time, byObject: index, restore() {
     // 記録の順は変えず、戻す時だけ末尾からたどって従来の復元順を保つ。
     for (let i = records.length - 1; i >= 0; i--) {
       const r = records[i], o = r.o;
@@ -165,6 +200,13 @@ export function startRemember(rt, extra, prev = null) {
         o.dead = r.dead; o.deadT = r.deadT;
       } else if (r.kind === 'map' || r.kind === 'set') {
         o.clear(); for (const e of r.entries) { if (r.kind === 'map') o.set(e[0], e[1]); else o.add(e); }
+      } else if (r.vals) {
+        // 値だけで持った配列：長さと値を戻し、写しの後に足された名前の鍵があれば外す（kv の時と同じ姿に戻す）
+        const vals = r.vals, n = vals.length;
+        o.length = n;
+        for (let i = 0; i < n; i++) o[i] = vals[i];
+        const ks = Object.keys(o);
+        if (ks.length !== n) for (const k of ks) if (String(+k) !== k) { const d = Object.getOwnPropertyDescriptor(o, k); if (d?.writable && d.configurable) delete o[k]; }
       } else {
         // 11/18 夜50-47 K210：骨の人を一度も借りなかった兵（遠い兵）は 'human' の鍵を持たず、兵と見なされずに退場した後も中まで写されていた
     //   （稲葉山 300 秒で退場兵 3190 人分・中の物 8 万個・約 20MB が三つの写しに残り、記憶が毎分 7〜11MB 伸びた）。兵の作り（Unit）でも見る
@@ -186,7 +228,7 @@ export function startRemember(rt, extra, prev = null) {
     //   forNear が undefined の兵を渡して戦が止まる（樫井：討たれて「少し前から」で player.js:48）。戻した兵で升目を作り直す
     try { rt.army?.rebuildGrid?.(); } catch (e) { /* 次のコマの更新で作り直される */ }
     try { reseatRiders(rt.army); } catch (e) { /* 乗り直しが出来なくても戦は続ける */ }
-  } };
+  } });
   }
 }
 // 写しの形の記録の children は three の生きた配列そのもの（写しの後に足し引きしても同じ配列）なので、親子の付け替えは戻らない。
@@ -455,6 +497,8 @@ export function offerRetry(rt, info, delay) {
     return true;
   }
   if (!info.down && rt.tracker.main !== false) return false;
+  // K648：オンライン対戦（rt.flags.match）は小判で続けると勝ち負けを買える形になるので、コンティニューの札を出さず、試合の結果へ
+  if (rt.flags?.match) return false;
   // 勝ちが決まった後（締めの場面・結果待ち）の傷では、やり直しの札を出さない。初めの戦の札は選ぶまで閉じず、勝った戦が終わらなかった（11/8 真田丸・関ヶ原）
   if (rt.tracker.main === true && (rt.over || rt._closing || rt.flags.ending)) return false;
   if (info.down && !m.downShown) {
@@ -480,8 +524,9 @@ export function offerRetry(rt, info, delay) {
   d.style.overflowY = 'auto';
   const B = (k, t, main) => `<button class="btn${main ? ' primary' : ''}" ${k} style="min-height:44px">${t}</button>`;
   d.innerHTML = '<h2 id="battle-retry-title" style="font-size:20px;margin:0"></h2><p data-reason style="white-space:pre-line;font-size:max(20px, calc(20px * var(--text-scale, 1)));line-height:1.5;margin:8px 0"></p><p data-hint hidden style="font-size:16px;line-height:1.5;margin:0 0 8px;color:#f3e2b4"></p><div class="retry-actions" style="display:flex;flex-direction:column;gap:8px">' +
-    (lost >= 3 ? B('data-support', '援護を強くする') + B('data-near', 'このまま戦う', true) + (lost >= 4 ? B('data-easy', 'この局面を易しくする') : '') : B('data-near', '直前から再開', true)) +
-    B('data-start', '戦の最初から') + B('data-result', '結果を見る') + '</div><div class="retry-reading" hidden><p data-cause></p><p></p></div>';
+    // K648：小判が足りない時は押せない印（錠の形・薄い色）にして、結果（その先のホーム・城下）へだけ進める
+    (canContinue() ? B('data-near', `コンティニュー　小判${CONTINUE_KOBAN}枚`, true) : `<button class="btn" data-near disabled aria-disabled="true" style="min-height:44px;opacity:.45;cursor:not-allowed"><svg aria-hidden="true" width="14" height="16" viewBox="0 0 14 16" style="vertical-align:-2px;margin-right:8px"><path d="M3.5 7V4.5a3.5 3.5 0 0 1 7 0V7" fill="none" stroke="currentColor" stroke-width="2"/><rect x="1" y="7" width="12" height="9" rx="2" fill="currentColor"/></svg>コンティニュー　小判${CONTINUE_KOBAN}枚</button>`) +
+    B('data-result', '結果を見る', !canContinue()) + '</div><div data-pay hidden style="margin-top:8px"></div><div class="retry-reading" hidden><p data-cause></p><p></p></div>';
   if (lost >= 2) { const h = d.querySelector('[data-hint]'); h.textContent = retryHint(rt, info); h.hidden = false; }
   d.querySelector('h2').textContent = info.down ? (info.dead ? '討死' : '負傷') : '戦に負けた';
   d.querySelector('[data-reason]').textContent = info.down ? '' : retryText(rt, info);
@@ -491,7 +536,7 @@ export function offerRetry(rt, info, delay) {
   // 開戦の札や、自分で開いた一時停止の状態には触れない。
   document.body.appendChild(d); d.setAttribute('open', '');
   // 鍵盤でも選べるが、釦の字は日本語だけにする。
-  const keys = { r: '[data-near]', t: '[data-start]', q: '[data-result]' };
+  const keys = { r: '[data-near]', q: '[data-result]' };
   const onKey = (e) => {
     const b = !e.repeat && !e.ctrlKey && !e.metaKey && !e.altKey && keys[e.key.toLowerCase()];
     if (b) { e.preventDefault(); e.stopPropagation(); d.querySelector(b)?.click(); }
@@ -542,16 +587,22 @@ export function offerRetry(rt, info, delay) {
     // 時間切れで負けた後に直前から戻すと、すぐ同じ打ち切りに当たって負け直した（11/9 稲葉山・1.7.1 と揃える）。負けた数だけ打ち切りを四分ずつ延ばす
     if (!m.info?.down) rt.pacingBonus = 240 * (LOSSES.get(rt) || 1);
   };
-  d.querySelector('[data-near]').onclick = () => near(null);
-  const sup = d.querySelector('[data-support]'), easy = d.querySelector('[data-easy]');
-  if (sup) sup.onclick = () => near({ support: true });
-  if (easy) easy.onclick = () => near({ support: true, easy: true });
-  // 最初から：途中の保存も消す（保存から続けた戦では、続けた段の始まり）
-  // K363 kaito 11/17「途中の記録から続けた戦で『最初から』を押すと、任務は途中なのに中身は始めと同じ」：続けた戦の開戦の写しは途中の段なので、
-  //   続けた戦では記録を消して戦を始めから組み直す（任務・討死・兵・段を全部ゼロへ）
-  d.querySelector('[data-start]').onclick = () => {
-    if (rt.resumedFrom !== undefined && rt.game?.startBattle && !rt.def.mapCastle) { close(); clearCheckpoint(rt); try { rt.game.G = JSON.parse(rt.game.snapshot) || rt.game.G; } catch (e) { /* 今の G のまま */ } rt.game.startBattle(rt.index, 'fresh'); return; }
-    clearCheckpoint(rt); m.goal = null; m.cp = null; m.cpAt = -1; m.win = 0; restore(m.start);
+  // K648：押すと確かめの札（取り消せない）→［小判○枚で続ける］で一度だけ減らして、倒れた所（八秒前の写し）から続ける。失敗したら小判を戻す
+  const tag = ++payTag;
+  const pay = d.querySelector('[data-pay]');
+  const go = () => {
+    if (m.dialog !== d || !canContinue() || !payContinue(tag)) return;
+    try { near(null); } catch (e) { refundContinue(tag); console.error(e); }
+  };
+  d.querySelector('[data-near]').onclick = () => {
+    if (!canContinue() || !pay.hidden) return;
+    pay.innerHTML = `<p style="font-size:16px;line-height:1.5;margin:0 0 4px">小判${CONTINUE_KOBAN}枚を使って、倒れた所から続けます。</p><p style="font-size:14px;margin:0 0 8px;color:#cdbf9f">使った小判は戻りません。</p><div style="display:flex;flex-direction:column;gap:8px">` +
+      B('data-pay-go', `小判${CONTINUE_KOBAN}枚で続ける`, true) + B('data-pay-no', 'やめる') + '</div>';
+    pay.hidden = false;
+    const yes = pay.querySelector('[data-pay-go]');
+    yes.onclick = () => { yes.disabled = true; go(); };
+    pay.querySelector('[data-pay-no]').onclick = () => { pay.hidden = true; pay.innerHTML = ''; d.querySelector('[data-near]').focus({ preventScroll: true }); };
+    yes.focus({ preventScroll: true });
   };
   m.accept = () => {
     close(); m.accepting = true;
@@ -561,7 +612,7 @@ export function offerRetry(rt, info, delay) {
   if (first) {
     if (document.pointerLockElement) document.exitPointerLock?.();
     m.input.clear?.();
-    d.querySelector('[data-near]').focus({ preventScroll: true });
+    d.querySelector(canContinue() ? '[data-near]' : '[data-result]').focus({ preventScroll: true });
   }
   return true;
 }

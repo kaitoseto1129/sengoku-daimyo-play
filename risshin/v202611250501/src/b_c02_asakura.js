@@ -19,7 +19,8 @@ export const c02_asakura = chosoBattle({
   sides: { a: { name: '長宗我部の軍', mon: 'chosokabe', faction: 'chosokabe' }, b: { name: '本山の軍', mon: 'maru', faction: 'miyoshi' } },
   force: { a: 3000, b: 2000 },
   foeLook: MOTO,
-  foeDmg: 0.72,   // 11/25 act bot「無傷で15人」＝本山の刃を少し強く（厳島と同じ手）
+  foeDmg: 0.62,   // 11/25 act bot「無傷で15人」＝本山の刃を少し強く（厳島と同じ手）
+  thick: true,   // 11/25 act bot 討ち取り4（5分）＝厚みを足す
   spawn: { x: SPAWN.x, z: SPAWN.z, heading: 0 },
   world: {
     seed: 1562, time: 'day', fogFar: 440, autumn: true,

@@ -21,6 +21,7 @@ export const c15_yao = chosoBattle({
   sides: { a: { name: '長宗我部の軍', mon: 'chosokabe', faction: 'chosokabe' }, b: { name: '藤堂の軍', mon: 'todo', faction: 'tokugawa' } },
   force: { a: 5000, b: 5000 },
   foeLook: TODO,
+  foeDmg: 0.5,   // 11/25 act bot が197秒で倒れた（藤堂の二陣の段）＝刃を弱める
   spawn: { x: SPAWN.x, z: SPAWN.z, heading: 0 },
   world: {
     seed: 1615, time: 'morning', fogFar: 340, mist: 0.5,
