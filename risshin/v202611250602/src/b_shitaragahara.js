@@ -3542,18 +3542,6 @@ const shitaragahara = {
 
   *setup(rt) {   // K112：段の間で一コマ返す（yield。battle.js finishBuild）
     SH_PURSUIT = false;   // K356②：戦の始めは柵の守り（all_out を止める）
-    // 11/17 K341 長より（n-look-armor の拡大写真）：右の野の黒い点々は、高い引きで見た遠くの木の茂みが灰黒に潰れた物だった。
-    //   遠くの木は一枚の葉の板（world_vegetation.js の遠景の葉・色 b4bea6）に替わり、奥ほど色を抜いて沈める（farTreeLit）ので、晴れた設楽原の野では黒い塊になる。
-    //   この戦の遠景の葉の板だけ、空の光を受けた緑へ持ち上げる（材質は戦ごとに作られる＝ほかの戦に響かない。近くの木の葉・幹は変えない）
-    { const all = [];
-      for (const m of rt.world.treeMeshes || []) { all.push(m); if (m.userData?.farFoliage) all.push(m.userData.farFoliage); }
-      for (const m of all) {
-        const mt = m.material;
-        if (!mt?.color || Array.isArray(mt) || mt.userData.shLift || mt.color.getHex() !== 0xb4bea6) continue;
-        mt.userData.shLift = true;
-        // 上から見ると葉の板に日が当たらず、色を三倍にしても暗いままだった。空の光の分を葉の絵の形のまま自ら光らせて足す（emissive。形・描く回数は変えない）
-        if (mt.emissive) { mt.emissive.setRGB(0.2, 0.26, 0.16); mt.emissiveMap = mt.map; mt.needsUpdate = true; }
-      } }
     { const P = rt.player, td = P.takeDamage, k = rt.def.cutFloor; P.takeDamage = function (a, s) { const m = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow'; const d = td.call(this, a, s); return s && !s.isStruct && !m && d > 0 ? d * k : d; }; }   // 11/1：刃の一太刀を def.cutFloor 倍に（共通の一太刀五割・六割は変えず、この戦だけ）
     rt.player.startGun = true;   // 火縄銃を持って始める（player.js が最初のコマで持ち替える）
     const W = rt.world;
@@ -3561,618 +3549,7 @@ const shitaragahara = {
     SH_RT = rt; { const _r = SH_RT; _r?.cleanupTasks?.add?.(() => { if (SH_RT === _r) SH_RT = null; }); }   // K481 cloud-28：戦を閉じたら手放す（残ると次の戦の間も兵・地形が丸ごと残った）
     // 戦を出たら手放す（持ったままだと戦がまるごと残った。11/8 docs/crash_1108.md）
     rt.cleanupTasks?.add(() => { if (SH_RT === rt) SH_RT = null; });
-    const openingDetail = SETTINGS.quality === 'high';
-    // 持ち場の正面、川向こうの田だけに低い畦を据える。道幅と兵の通り方は保つ。
-    if (openingDetail) {
-      const vertices = [], indices = [];
-      const ridge = (ax, az, bx, bz) => {
-        const length = Math.hypot(bx - ax, bz - az), steps = Math.ceil(length / 0.7);
-        const nx = -(bz - az) / length, nz = (bx - ax) / length;
-        const base = vertices.length / 3;
-        for (let i = 0; i <= steps; i++) {
-          const t = i / steps, x = ax + (bx - ax) * t, z = az + (bz - az) * t;
-          const lift = Math.min(1, i / 2, (steps - i) / 2);
-          for (let j = -1; j <= 1; j++) {
-            const px = x + nx * j * 0.48, pz = z + nz * j * 0.48;
-            vertices.push(px, drawGroundAt(W, px, pz) + 0.025 + (j === 0 ? 0.24 * lift : 0), pz);
-          }
-          if (i) for (let j = 0; j < 2; j++) {
-            const a = base + (i - 1) * 3 + j, b = a + 3;
-            indices.push(a, a + 1, b, a + 1, b + 1, b);
-          }
-        }
-      };
-      ridge(29, -298, 57, -296);
-      ridge(29, -253, 57, -251);
-      ridge(42, -298, 43, -283);
-      ridge(43, -267, 44, -252);
-      const geo = new THREE.BufferGeometry();
-      geo.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
-      geo.setIndex(indices); geo.computeVertexNormals(); geo.computeBoundingSphere();
-      const mesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: 0x697044 }));
-      mesh.receiveShadow = true; rt.scene.add(mesh);
-    }
-    timeslipField(rt);   // 身の回りの踏み荒らした地面・倒れた槍と旗・夏草（def.timeslip）
-    // 連吾川の川石は朝日で白い丸い塊に見えた（10/28）。濡れて苔の付いた暗い石へ。形と数は変えない。
-    for (const st of W.def.streams || []) if (st.rockMesh) {
-      const m = st.rockMesh.material.clone(); m.color.setHex(0x47443b); m.roughness = 0.95; st.rockMesh.material = m;
-    }
-    // 支度の途中で増える柵も、毎回同じ一覧から転送前に準備する。
-    const beforeScenery = rt.scene.onBeforeRender;
-    rt.scene.onBeforeRender = function (renderer, scene, camera, target) {
-      beforeScenery.call(this, renderer, scene, camera, target);
-      if (W.materialDrawPreparers) for (const prepare of W.materialDrawPreparers) prepare(renderer, scene, camera);
-    };
-    // 人の姿と体格は矢の更新後にも替わる。描く束へ写す直前に実寸へ戻す。
-    // この戦の軍勢だけを包み、共有の形・矢の当たり・寿命は変えない。
-    const batchDraw = rt.army.batchDraw;
-    rt.army.batchDraw = function (camera) {
-      this.syncPinnedArrowScales?.();   // 共有の側で外された時も描くのを止めない
-      return batchDraw.call(this, camera);
-    };
-    // 坂を壁と同じ処理で抜くと、足元に白い遠景が三角形に露出する。
-    // 地面は残し、視点の潜り込みは既存の地形判定へ任せる。この戦の材質だけ。
-    W.terrain.material.userData.camNearSolid = true;
-    // 朝の色を保ち、笠の下と黒い具足へ空からの光を少し足す。この戦だけ。
-    const lookOf = W.lookOf.bind(W);
-    W.lookOf = (key) => {
-      const look = lookOf(key);
-      if (key === 'day' || key === 'morning' || key === 'noon') {
-        look.sunI *= 1.06; look.hemiI *= 1.35;
-      }
-      return look;
-    };
-    // 時刻の仕組みは設営より先に朝と昼の色を控える。その控えにも補いを渡す。
-    if (W.dayClock) {
-      W.dayClock.morning = W.lookOf('morning');
-      W.dayClock.noon = W.lookOf('noon');
-      W.dayClock.tick(0);
-    }
-    F.faceMats = new Map();
-    // 視点直前で本人を隠す部材だけ避け、脇と前方の柵は木の実体を保つ。
-    // 奥の柵と影は残し、材質の並べ替えや毎コマの複製を増やさない。
-    // 材質の複製は開戦時だけ。影・当たり・壊れる区画は元のまま。
-    const fadeMats = new Map();
-    const nearMaterial = (source) => {
-      if (fadeMats.has(source)) return fadeMats.get(source);
-      const mat = source.clone(), compile = source.onBeforeCompile, key = source.customProgramCacheKey.bind(source);
-      mat.onBeforeRender = source.onBeforeRender;
-      mat.transparent = false; mat.depthWrite = true;
-      mat.userData.camNearSolid = true; // 専用の透かしに共通の点描を重ねない。
-      // 複製は userData を写し直すので、本物に替わる輪の広さ（軽い兵の形を選ぶ物差し）は元の入れ物を指したままにする。
-      if (source.userData.armyU) mat.userData.armyU = source.userData.armyU;
-      mat.onBeforeCompile = (sh, renderer) => {
-        compile(sh, renderer);
-        sh.vertexShader = 'varying vec3 vShNear;\nvarying vec2 vShProjection;\n' + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n vShNear = mvPosition.xyz; vShProjection = vec2(projectionMatrix[0][0], projectionMatrix[1][1]);');
-        sh.fragmentShader = 'varying vec3 vShNear;\nvarying vec2 vShProjection;\n' + sh.fragmentShader.replace('#include <alphatest_fragment>', `
-          vec2 shScreen = abs(vShNear.xy * vShProjection / max(0.01, -vShNear.z));
-          float shEdge = smoothstep(0.22, 0.38, max(shScreen.x, shScreen.y));
-          float shFront = smoothstep(2.0, 4.0, length(vShNear));
-          // 画面端でも視点へ寄り過ぎた丸太を避け、柵の中から前を見渡せるようにする。
-          float shFenceCover = min(smoothstep(2.5, 4.5, length(vShNear)), max(shEdge, shFront));
-          vec2 shFencePixel = mod(floor(gl_FragCoord.xy), 2.0);
-          float shFencePattern = (2.0 * mod(shFencePixel.x + shFencePixel.y, 2.0) + shFencePixel.y + 0.5) / 4.0;
-          if (shFenceCover < shFencePattern) discard;
-          #include <alphatest_fragment>
-        `);
-      };
-      mat.customProgramCacheKey = () => key() + '_設楽原の柵の透かし';
-      fadeMats.set(source, mat);
-      return mat;
-    };
-    const groundMat = W.terrain.material, groundCompile = groundMat.onBeforeCompile;
-    const groundKey = groundMat.customProgramCacheKey.bind(groundMat);
-    const lowPuddles = false;
-    groundMat.onBeforeCompile = (sh, renderer) => {
-      groundCompile(sh, renderer);
-      // 共通の泥の窪みを野一面へ並べない。設楽原だけ小さく疎らにし、
-      // 実際に踏まれた所へ浅く残す。歩行・川床・他の戦の材質は変えない。
-      sh.fragmentShader = sh.fragmentShader
-        // 元の泥の絵にも丸い穴がある。追加の窪みだけを弱めても消えないため、
-        // 同じ一回の絵の読みで粒を細かくし、土の色を混ぜて明るい縁を抑える。
-        .replace('vec3 mud = texture2D(tMud, wuv * 0.26).rgb;',
-          'vec3 mud = mix(dirt * vec3(0.46, 0.45, 0.43), texture2D(tMud, wuv * 0.65).rgb, 0.25);')
-        .replace('ruv * vec2(1.6, 2.4)', 'ruv * vec2(3.2, 4.8)')
-        .replace('mix(0.35, 1.0, trod) * (1.0 - slopeK)',
-          'trod * step(0.78, clodSeed) * 0.28 * (1.0 - slopeK)')
-        .replace('clodRim * 0.016 - clodHollow * 0.035', 'clodRim * 0.004 - clodHollow * 0.008');
-      // 粗い地形の格子で水色を補間すると四角く光る。水の縁は地面の座標から描く。
-      // 足を取る田の範囲は保ち、形・材質・毎コマの物を増やさない。
-      sh.fragmentShader = `
-        float shPuddle(vec2 p) {
-          if (p.x <= 28.0 || p.x >= 58.0) return 0.0;
-          vec2 cell = floor(p / vec2(11.0, 16.0));
-          if (mod(cell.x + cell.y, 2.0) > 0.5) return 0.0;
-          // 田一枚ごとに水を張り、縁の畦だけを残す（歩みの遅れる田の範囲と同じ升）。
-          vec2 m = mod(p, vec2(11.0, 16.0)), e = min(m, vec2(11.0, 16.0) - m);
-          float wob = sin(p.y * 0.9 + cell.x * 2.0) * 0.12 + sin(p.x * 1.3 + cell.y) * 0.1;
-          float edge = min(min(e.x, e.y), min(p.x - 28.0, 58.0 - p.x)) + wob;
-          return smoothstep(0.8, 1.4, edge) * ${W.field.wet ? '1.0' : '0.0'};
-        }
-        // 田の升の縁の畦。水の無い升も同じ畦で囲み、田の並びを見せる。
-        float shAze(vec2 p) {
-          if (p.x <= 27.0 || p.x >= 59.0) return 0.0;
-          vec2 m = mod(p, vec2(11.0, 16.0)), e = min(m, vec2(11.0, 16.0) - m);
-          float wob = sin(p.y * 0.9 + floor(p.x / 11.0) * 2.0) * 0.12 + sin(p.x * 1.3 + floor(p.y / 16.0)) * 0.1;
-          float edge = min(min(e.x, e.y), min(abs(p.x - 28.0), abs(58.0 - p.x))) + wob;
-          return 1.0 - smoothstep(0.35, 0.8, edge);
-        }
-      ` + sh.fragmentShader
-        .replace('vec2 wuv = vWP.xz;', 'vec2 wuv = vWP.xz; float shPaddyWater = shPuddle(wuv);')
-        // 共通の泥の窪みは各升に明るい輪を作り、湿った平場で型押しに見える。
-        // この戦だけ輪の色・凹凸・水溜まり・艶をまとめて外す。小石と実際の歩行跡、
-        // 虎口の不規則な泥塊・轍・まばらな蹄跡は残す。
-        .replace(/float clodK = [^;]+;/, 'float clodK = 0.0;')
-        .replaceAll('smoothstep(0.3, 0.8, vWater)', 'shPaddyWater')
-        // 低では地面の水に空を映さず、ほかの画質でも泥の艶に留める。
-        .replace('wat * 0.24 + pool * 0.2', 'wat * 0.025 + pool * 0.06')
-        // 空の映り込みを外しても、濡れた土の強い鏡面光は残る。
-        // 水のある田だけ艶を残し、岸と草地には広い白い光の帯を作らない。
-        .replace('roughnessFactor = mix(roughnessFactor, 0.12, pool);',
-          'roughnessFactor = max(roughnessFactor, mix(0.86, 0.62, shPaddyWater));')
-        .replace('reflectedLight.indirectDiffuse += uSoilSky * sheen * reflectedCloud;',
-          lowPuddles ? '' : 'reflectedLight.indirectDiffuse += uSoilSky * sheen * reflectedCloud;')
-        .replace('vec3(0.075, 0.08, 0.06) + mud * 0.22 + grass * 0.05',
-          // 田の水は濁った暗い泥水に（霧の空を映して灰の板に見えた 10/28）。
-          'col * vec3(0.4, 0.4, 0.32) + mud * 0.07')
-        .replace('float wat = shPaddyWater;', `float wat = shPaddyWater;
-          // 水際だけ湿った泥色につなぎ、青い紙のような輪郭を消す。
-          float shMudRim = smoothstep(0.0, 0.3, wat) * (1.0 - wat);
-          col = mix(col, mud * vec3(0.8, 0.7, 0.55), shMudRim * 0.65);
-          // 田植えから三週ほどの苗の列（天正三年五月二十一日は今の七月上旬）。水を張った田にだけ、
-          // 列に並ぶ若い緑の株を地面の絵で描く。遠くは細かい縞がちらつくので、列の平均の緑に溶かす。
-          vec2 shNaeP = vec2(wuv.x / 0.33, wuv.y / 0.24 + sin(wuv.x * 0.21) * 0.6);
-          vec2 shNaeD = abs(fract(shNaeP) - 0.5);
-          float shNae = (1.0 - smoothstep(0.1, 0.28, shNaeD.x)) * (1.0 - smoothstep(0.14, 0.34, shNaeD.y));
-          float shNaeAA = 1.0 - smoothstep(0.25, 0.6, max(fwidth(shNaeP.x), fwidth(shNaeP.y)));
-          col = mix(col, vec3(0.25, 0.35, 0.11), wat * mix(0.45, shNae * 0.9, shNaeAA));`);
-      sh.fragmentShader = sh.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
-        // 地面の絵の上に土の筋と踏み跡を描く。板や毎こまの物は増やさない。
-        float shFence = (1.0 - smoothstep(490.0, 505.0, abs(vWP.z)))
-          * (1.0 - smoothstep(35.0, 55.0, abs(vWP.x + 12.0)));
-        // 土の筋は進路に沿って途切れさせ、均等な横縞にしない。
-        float shRuts = smoothstep(0.82, 0.98, sin(vWP.z * 7.0 + sin(vWP.x * 0.41) * 2.0 + macro2 * 9.0))
-          * smoothstep(0.1, 0.7, sin(vWP.x * 0.77 + vWP.z * 0.23))
-          * (1.0 - smoothstep(8.0, 24.0, length(vWP - cameraPosition)));
-        // 足跡は小さく散らし、全ての升目に同じ輪郭を刻まない。
-        vec2 shStepCell = floor(vWP.xz / vec2(2.7, 0.85));
-        float shStepSeed = fract(sin(dot(shStepCell, vec2(127.1, 311.7))) * 43758.5453);
-        vec2 shStep = fract(vWP.xz / vec2(2.7, 0.85)) - 0.5;
-        shStep -= vec2(sin(shStepCell.y * 2.1), cos(shStepCell.x * 1.7)) * 0.22;
-        float shFoot = (1.0 - smoothstep(0.65, 1.0, length(shStep * vec2(12.0, 3.2))))
-          * step(0.65, shStepSeed) * shFence * (1.0 - smoothstep(8.0, 20.0, length(vWP - cameraPosition)));
-        float shDitch = (1.0 - smoothstep(0.35, 1.35, abs(vWP.x - 16.6)))
-          * (1.0 - smoothstep(490.0, 505.0, abs(vWP.z)));
-        float shWater = shDitch * smoothstep(0.35, 0.8, sin(vWP.z * 1.7) * 0.5 + 0.5);
-        diffuseColor.rgb = diffuseColor.rgb * (1.0 - shFence * shRuts * 0.16 - shFoot * 0.30);
-        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.18, 0.22, 0.20), shWater * 0.4);
-        // 柵の内の野を暗い一枚の土に見せない（10/28）：夏草の青い斑と、乾いて白んだ土の斑を大きく混ぜる。
-        // 斑は 10m ほどの細かさも混ぜる。足もとの十数 m が一つの斑に入って一色に見えないように。
-        float shPatchN = texture2D(tMacro, vWP.xz * 0.085 + 0.71).r * 0.6 + macro2 * 0.4;
-        float shSummer = smoothstep(0.5, 0.6, shPatchN) * step(vWP.x, 27.0) * (1.0 - shFoot);
-        diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.9, 1.45, 0.7) + vec3(0.03, 0.07, 0.01), shSummer * 0.7);
-        float shDry = (1.0 - smoothstep(0.38, 0.46, shPatchN)) * step(vWP.x, 27.0) * (1.0 - shSummer);
-        diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(1.4, 1.28, 1.05) + vec3(0.06, 0.05, 0.03), shDry * 0.6);
-        // 柵の内の野（持ち場の足もと）は暗い緑の一枚に沈んでいた。朝の日の当たる夏の野の明るさへ持ち上げる。
-        float shInner = (1.0 - smoothstep(20.0, 27.0, vWP.x)) * smoothstep(-70.0, -50.0, vWP.x) * (1.0 - smoothstep(490.0, 505.0, abs(vWP.z)));
-        diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(1.3, 1.32, 1.12) + vec3(0.035, 0.035, 0.015), shInner * (0.55 + shPatchN * 0.5));
-        // 野の緑が平らな一枚に見えた（10/29 15:10 採点）。二〜三 m の草叢の陰と、五十 cm の葉の粒の明暗を重ね、
-        // 刈られぬ夏草の株の凹凸を色で見せる。近くほど強く、遠くは粒がちらつかないよう弱める。
-        float shTuftN = texture2D(tMacro, vWP.xz * 0.42 + 0.31).r;
-        float shGrainN = texture2D(tMacro, vWP.xz * 1.85 + 0.13).r;
-        float shNearG = 1.0 - smoothstep(30.0, 90.0, length(vWP - cameraPosition));
-        float shMeadow = step(vWP.x, 27.0) * (1.0 - shFoot);
-        diffuseColor.rgb *= mix(1.0, mix(0.66, 1.14, smoothstep(0.28, 0.72, shTuftN)) * mix(0.86, 1.1, shGrainN * shNearG + 0.5 * (1.0 - shNearG)), shMeadow);
-        diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(1.18, 1.05, 0.72), shMeadow * smoothstep(0.62, 0.8, shGrainN) * shNearG * 0.5);
-        // 虎口の周囲にだけ踏み荒らしを集め、乾いた一枚の平面から湿った土へつなぐ。
-        float shBattle = 0.0;
-        ${MOUTHS.map((m) => `shBattle = max(shBattle, 1.0 - smoothstep(9.0, 38.0,
-          length((vWP.xz - vec2(16.0, ${(m.z + 4.5).toFixed(1)})) * vec2(0.8, 1.0))));`).join('\n')}
-        // 土の斑は既存の不規則な絵から拾う。周期的な正弦波を並べない。
-        float shClods = (macro2 - 0.5) * (0.6 + macro * 0.8);
-        float shWetSoil = shBattle * smoothstep(-0.6, 0.7, shClods);
-        vec2 shHoofCell = floor(vWP.xz / vec2(1.7, 1.15));
-        vec2 shHoof = fract(vWP.xz / vec2(1.7, 1.15)) - 0.5;
-        shHoof -= vec2(sin(shHoofCell.y * 4.1), sin(shHoofCell.x * 2.7)) * 0.18;
-        float shHoofSeed = fract(sin(dot(shHoofCell, vec2(269.5, 183.3))) * 43758.5453);
-        float shHoofAngle = shHoofSeed * 6.28318;
-        shHoof = mat2(cos(shHoofAngle), -sin(shHoofAngle), sin(shHoofAngle), cos(shHoofAngle)) * shHoof;
-        float shHoofR = length(shHoof * vec2(12.0, 9.0));
-        float shHoofMark = (1.0 - smoothstep(0.7, 1.0, shHoofR))
-          * smoothstep(0.3, 0.55, shHoofR) * step(-0.015, shHoof.y)
-          * step(0.72, shHoofSeed) * shBattle
-          * (1.0 - smoothstep(8.0, 22.0, length(vWP - cameraPosition)));
-        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.19, 0.155, 0.105), shWetSoil * ${openingDetail ? '0.30' : '0.56'});
-        ${openingDetail ? `
-        // 柵の影の中も乾いた土・濡れた窪み・草の斑で分ける。絵の読みと形は増やさない。
-        // 上の夏の野の shDry と名が重なり、地面の絵が作れず白い一枚に抜けていた（10/30）。
-        float shDryF = shFence * smoothstep(0.30, 0.76, macro2) * (1.0 - shWetSoil * 0.7);
-        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.39, 0.33, 0.22), shDryF * 0.36);
-        ` : ''}
-        diffuseColor.rgb *= 1.0 - shHoofMark * 0.34;
-        // 既存の土と草の絵から、踏み倒された葉と泥塊の斑を拾う。
-        float shLitter = shFence * (1.0 - shBattle * 0.65)
-          * smoothstep(0.38, 0.64, grass.g - grass.r * 0.3)
-          * smoothstep(0.3, 0.6, macro2);
-        diffuseColor.rgb = mix(diffuseColor.rgb, grass * vec3(0.66, 0.68, 0.43), shLitter * 0.42);
-        // 古い畦の草と湿った斑。既存の雑音を使い、平行な波を作らない。
-        float shField = smoothstep(-58.0, -35.0, vWP.x) * (1.0 - smoothstep(100.0, 150.0, vWP.x))
-          * (1.0 - smoothstep(490.0, 505.0, abs(vWP.z)));
-        float shRidge = smoothstep(0.48, 0.64, macro2) * (1.0 - smoothstep(0.64, 0.78, macro2));
-        float shDrain = (1.0 - smoothstep(0.3, 0.48, macro2)) * smoothstep(0.4, 0.65, macro);
-        // 畦は田の端の短い跡に留める。丘まで続く等間隔の波と強い法線を作らない。
-        float shFieldEnd = 1.0 - smoothstep(48.0, 65.0, vWP.x);
-        float shRidgeBreak = smoothstep(0.3, 0.65, macro);
-        float shEdge = shField * shFieldEnd * shRidgeBreak * (1.0 - shBattle * 0.9)
-          * (1.0 - smoothstep(18.0, 40.0, length(vWP - cameraPosition)));
-        float shPatch = macro2;
-        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.23, 0.27, 0.115), shRidge * shEdge * (0.3 + shPatch * 0.3));
-        diffuseColor.rgb *= 1.0 - shDrain * shEdge * 0.24;
-        // 田の畦：草の生えた細い土手。
-        float shAzeK = shAze(vWP.xz);
-        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.30, 0.33, 0.15) * (0.85 + macro2 * 0.3), shAzeK * 0.8);
-      `).replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
-        // 色だけの足跡を浅い窪みにする。画面内の微分で、追加の絵の読みを省く。
-        // 遠い川岸まで周期的な法線を足すと、平場が波打つ布のように見える。
-        float shHeight = (shClods * shBattle * 0.045 - shHoofMark * 0.025 - shFoot * 0.018
-          - shFence * shRuts * 0.012) * (1.0 - smoothstep(8.0, 22.0, length(vWP - cameraPosition)));
-        vec3 shDx = dFdx(-vViewPosition), shDy = dFdy(-vViewPosition);
-        vec3 shR1 = cross(shDy, normal), shR2 = cross(normal, shDx);
-        float shDet = dot(shDx, shR1) * faceDirection;
-        normal = normalize(abs(shDet) * normal - sign(shDet)
-          * (dFdx(shHeight) * shR1 + dFdy(shHeight) * shR2));
-      `).replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
-        roughnessFactor = mix(roughnessFactor, 0.53, shWetSoil * 0.65);
-        roughnessFactor = mix(roughnessFactor, 0.94, max(shLitter, shHoofMark) * 0.7);
-      `).replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
-        // 柵の影でも土の形を残す。低では空堀にも青い照り返しを足さない。
-        // 柵の内の野は影でも夏の土と草の色を見せ、暗い一枚に沈めない（10/28）。
-        reflectedLight.indirectDiffuse += diffuseColor.rgb * (0.10 + 0.22 * (1.0 - smoothstep(14.0, 20.0, vWP.x)))
-          ${lowPuddles ? '' : '+ vec3(0.025, 0.028, 0.025) * shWater'};
-        // 田の水面：朝の空の薄い灰を映す。低い角度ほど明るく、泥の穴に見せない。
-        float shPaddySky = shPuddle(vWP.xz);
-        if (shPaddySky > 0.001) {
-          float shGraze = 1.0 - clamp(normalize(cameraPosition - vWP).y, 0.0, 1.0);
-          float shRipple = 0.85 + 0.15 * sin(vWP.x * 1.9 + vWP.z * 0.7 + sin(vWP.z * 0.5) * 2.0);
-          reflectedLight.indirectDiffuse += vec3(0.30, 0.31, 0.29) * shPaddySky * (0.18 + shGraze * shGraze * 0.32) * shRipple;
-          // 遠くの田は早苗の列が一株ずつ見えない。列の緑を水の色に混ぜ、灰の板でなく植えた田に見せる（10/28）。
-          float shFar = smoothstep(16.0, 40.0, length(vWP - cameraPosition));
-          float shRow = 0.65 + 0.35 * smoothstep(0.2, 0.8, abs(fract(vWP.z / 0.8) - 0.5) * 2.0);
-          reflectedLight.indirectDiffuse = mix(reflectedLight.indirectDiffuse, vec3(0.07, 0.12, 0.035) * shRow, shPaddySky * shFar * 0.7);
-          reflectedLight.directDiffuse = mix(reflectedLight.directDiffuse, reflectedLight.directDiffuse * vec3(0.75, 1.15, 0.55), shPaddySky * shFar * 0.6);
-        }
-      `);
-    };
-    groundMat.customProgramCacheKey = () => groundKey() + '_設楽原の踏み荒らし_' + lowPuddles + openingDetail;
-    groundMat.needsUpdate = true;
-    // 既存の流れの筋を強め、朝の照り返しが白い帯になるのを抑える。
-    for (const st of W.def.streams) {
-      const mat = st.mesh.material, compile = mat.onBeforeCompile, key = mat.customProgramCacheKey.bind(mat);
-      // 岸だけでなく川の中央も一度調べ、地面との浅い接点を泥へつなぐ。
-      // 水面の高さと渡渉用の記録は保つ。一メートル以下の間隔で岸の接点を読む。
-      // 設営時だけの分割で、描く回数と毎コマの処理は増やさない。
-      const oldGeo = st.mesh.geometry, src = oldGeo.attributes;
-      const columns = 9, divisions = 4;
-      const sourceRows = src.position.count / 2, rows = (sourceRows - 1) * divisions + 1, count = rows * columns;
-      const positions = new Float32Array(count * 3), colors = new Float32Array(count * 3);
-      const flows = new Float32Array(count * 2), edge = new Float32Array(count), depth = new Float32Array(count);
-      // 11/18 クラウド（K169）：共通の川の絵は waterBed（水深・岸からの横の位置）で浅瀬の小石と白波を決める。
-      // 作り直した網にこれが無く、全面が「深さ0の浅瀬」と読まれて、川が灰の小石の帯に見えていた → 元の値を同じく補う。
-      const bedSrc = src.waterBed, beds = bedSrc ? new Float32Array(count * 2) : null;
-      const indices = [];
-      for (let row = 0; row < rows; row++) for (let col = 0; col < columns; col++) {
-        const i = row * columns + col, t = col / (columns - 1);
-        const a = Math.floor(row / divisions) * 2, b = a + 1;
-        const c = Math.min(a + 2, (sourceRows - 1) * 2), d = c + 1, along = (row % divisions) / divisions;
-        for (let k = 0; k < 3; k++) {
-          const start = src.position.array[a * 3 + k] * (1 - t) + src.position.array[b * 3 + k] * t;
-          const end = src.position.array[c * 3 + k] * (1 - t) + src.position.array[d * 3 + k] * t;
-          positions[i * 3 + k] = start + (end - start) * along;
-          colors[i * 3 + k] = src.color.array[a * 3 + k] * (1 - t) + src.color.array[b * 3 + k] * t;
-        }
-        for (let k = 0; k < 2; k++) flows[i * 2 + k] = src.waterFlow.array[a * 2 + k] * (1 - t) + src.waterFlow.array[b * 2 + k] * t;
-        if (beds) for (let k = 0; k < 2; k++) {
-          const s0 = bedSrc.array[a * 2 + k] * (1 - t) + bedSrc.array[b * 2 + k] * t, s1 = bedSrc.array[c * 2 + k] * (1 - t) + bedSrc.array[d * 2 + k] * t;
-          beds[i * 2 + k] = s0 + (s1 - s0) * along;
-        }
-        // 元の水深は岸の急な落ち込みで 0 に近く、中ほどまで浅瀬の小石になる。中ほどは決めた川の深さ（st.depth）で深みの色に。
-        if (beds) beds[i * 2] = Math.max(beds[i * 2], st.depth * Math.max(0, 1 - Math.abs(1 - t * 2) / 0.8));
-        edge[i] = 1 - t * 2;
-        const floor = drawGroundAt(W, positions[i * 3], positions[i * 3 + 2]);
-        // 長い川面の補間が描く地面へ埋まる所だけ救う。正面の細い流れを途切れさせない。
-        // 11/18 クラウド（K169）：川の中ほどの頂点の四割が地面から 6cm 未満で、透けて川床の灰の石の帯に見えた。
-        // 正面だけでなく川の全長で、中ほどの描く水面を床から 14cm 上に保つ（渡りの水深の判定は変えない）。
-        if (st.pts === RENGO) {
-          const centre = Math.max(0, 1 - Math.abs(1 - t * 2) / 0.72);
-          const lift = openingDetail && Math.abs(positions[i * 3 + 2] + 275.5) < 55 ? 0.16 : 0.14;
-          positions[i * 3 + 1] = Math.max(positions[i * 3 + 1], floor + lift * centre);
-        }
-        depth[i] = positions[i * 3 + 1] - floor;
-        if (row && col < columns - 1) indices.push(i - columns, i, i - columns + 1, i - columns + 1, i, i + 1);
-      }
-      const geo = new THREE.BufferGeometry();
-      geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-      geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-      geo.setAttribute('waterFlow', new THREE.BufferAttribute(flows, 2));
-      geo.setAttribute('shStreamEdge', new THREE.BufferAttribute(edge, 1));
-      if (beds) geo.setAttribute('waterBed', new THREE.BufferAttribute(beds, 2));
-      // 水の上塗り（water_body.js）は waterAcross（横の位置）と waterDepth2（岸の深さ・中ほどの深さ）で浅瀬の泡と川床を決める。
-      // 無いと頂点の描く深さ（中ほどでも 0.14m）を読み、帯の全面を浅瀬の灰の泡にした。中ほどは決めた川の深さ（st.depth）。
-      if (st.pts === RENGO) {
-        const across = new Float32Array(count), d2 = new Float32Array(count * 2);
-        for (let i = 0; i < count; i++) {
-          const tt = (i % columns) / (columns - 1); across[i] = tt * 2 - 1;
-          d2[i * 2] = depth[i]; d2[i * 2 + 1] = Math.max(depth[i], st.depth);
-        }
-        geo.setAttribute('waterAcross', new THREE.BufferAttribute(across, 1));
-        geo.setAttribute('waterDepth2', new THREE.BufferAttribute(d2, 2));
-      }
-      geo.setAttribute('shStreamDepth', new THREE.BufferAttribute(depth, 1));
-      geo.setIndex(indices); geo.computeVertexNormals();
-      st.mesh.geometry = geo; oldGeo.dispose();
-      // 共通の水面は不透明。岸の薄さを実際に描き、透明な端は深さも書かない。
-      // 水の高さ・浅瀬の判定は保ち、この戦の材質だけを変える。
-      mat.transparent = true; mat.alphaTest = 0.01; mat.depthWrite = false;
-      mat.color.setHex(0x2c362f); mat.roughness = 0.42; mat.envMapIntensity = 0.38;   // 霧の空を映して白い幅広の帯に見えた（10/30）。照りを細く、濁りを濃く   // 灰の道に見えた（10/28）。岸より暗い濁り水に、朝の光の照りを細く   // 柵越しの低い目で、濁った流れが空を映して川筋と分かるように（10/28）
-      mat.onBeforeCompile = (sh, renderer) => {
-        compile(sh, renderer);
-        sh.vertexShader = 'attribute float shStreamEdge; attribute float shStreamDepth; varying float vShStreamEdge; varying float vShStreamDepth;\n' + sh.vertexShader
-          .replace('#include <begin_vertex>', '#include <begin_vertex>\n vShStreamEdge = shStreamEdge; vShStreamDepth = shStreamDepth;');
-        sh.fragmentShader = 'varying float vShStreamEdge; varying float vShStreamDepth;\n' + sh.fragmentShader
-          .replace('#include <color_fragment>', `#include <color_fragment>
-            float shBankNoise = texture2D(tMacro, vWPw.xz * 0.21).r;
-            float shBank = abs(vShStreamEdge) + (shBankNoise - 0.5) * 0.16;
-            float shShallow = 1.0 - smoothstep(0.02, 0.12, vShStreamDepth);   // 11/18：中ほどまで泥色にせず水の色を残す
-            float shMud = max(smoothstep(0.4, 0.9, shBank), shShallow);
-            diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.25, 0.22, 0.16), shMud * 0.65);
-            // 浅瀬と岸ぎわに白い小波の筋（流れに沿って動く）。灰の板でなく流れる川に見せる。
-            float shFoamN = texture2D(tMacro, vec2(vWPw.x * 0.9, vWPw.z * 0.18 - uTime * 0.12)).r;
-            float shFoam = smoothstep(0.62, 0.8, shFoamN) * smoothstep(0.4, 0.62, shBank) * (1.0 - smoothstep(0.62, 0.85, shBank));
-            // 11/18：浅い所一面の泡の斑が、遠目に川床の白い小石の帯に見えた → 泡は岸ぎわの細い筋だけ・薄く
-            diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.62, 0.64, 0.60), shFoam * 0.3);
-            float shRim = (shBankNoise - 0.5) * 0.12;
-            diffuseColor.a *= (1.0 - smoothstep(0.58 + shRim, 0.96, shBank))
-              * smoothstep(0.0, 0.12, vShStreamDepth);`);
-        // 等間隔の明暗を横一杯へ並べず、既存の濃淡で短い流れに崩す。
-        sh.fragmentShader = sh.fragmentShader
-          .replace('sin(streamAcross * 4.8 + sin(streamAlong * 0.22 - uTime * 0.8) * 0.7)',
-            '(texture2D(tMacro, vec2(streamAcross * 0.35, streamAlong * 0.12 - uTime * 0.04)).r - 0.5)')
-          .replace('streamNear * 0.065', 'streamNear * 0.10')
-          .replace('(0.08 + waterEdge * 0.3)', '(0.025 + waterEdge * 0.09)')
-          // 11/18（K169）：幅五メートルに満たない小川では、共通の川の「岸寄りの小石」と白波が帯の半分を覆い、石の帯に見えた。薄くする
-          .replace('max(rBank * 0.55, rShallowRun * 0.4)', 'max(rBank * 0.22, rShallowRun * 0.25)')
-          .replace('clamp(rFoam, 0.0, 1.0) * 0.6', 'clamp(rFoam, 0.0, 1.0) * 0.25')
-          // 細かな波の面の向きが強く、霞んだ空の映りが画素ごとに砕けて灰の小石の斑に見えた。小川の緩い流れに合わせて穏やかに
-          .replace('mix(0.8, 0.25, waveFar)', 'mix(0.22, 0.08, waveFar)');
-      };
-      // 11/18 追い（K169）：柵の上からの目では、映る雲の濃淡と波の向きの映り分けが画素ごとに砕け、灰の斑の帯に見えた。
-      // 幅の狭い濁った小川は空を弱く・平らに映し、水の暗さで川筋と分からせる（水の上塗り water_body.js の後に掛ける。共通の水の絵は触らない）
-      mat.userData.surfacePatch = (fs) => fs
-        .replace('(0.72 + sfCloud * 0.56)', '(0.88 + sfCloud * 0.2)')
-        .replace('* 6.0, 0.3, 1.6), 0.35', '* 2.0, 0.6, 1.2), 0.35')
-        .replace('sfFres * 0.60 * sfFacet', 'sfFres * 0.42 * sfFacet')
-        // 斑の根：瀬の白い泡（水深28cmまで）が、中ほどでも14cmほどのこの小川の全面に千切れて灰の斑になっていた。瀬の泡は水際の数センチだけ
-        .replace('float sfRif = 1.0 - smoothstep(0.04, 0.28, sfBD);', 'float sfRif = (1.0 - smoothstep(0.0, 0.05, sfBD)) * 0.5;')
-        .replace('float sfFoam = (1.0 - smoothstep(0.04, 0.28, sfBD))', 'float sfFoam = (1.0 - smoothstep(0.0, 0.05, sfBD)) * 0.5');   // 携帯の短い水の絵も同じ
-      mat.customProgramCacheKey = () => key() + '_設楽原の流れ'; mat.needsUpdate = true;
-      // 九列の岸と水深で仕上げた面。開戦時に共通の二列の川へ戻さない。
-      // 岸の石と草も下で配置するので、共通の岸飾りを川中へ重ねない。
-      st.mesh.userData.waterSurfaceReady = true;
-      // 共通の川石は艶のある丸石で、朝の空を映して柵の向こうに白い丸い塊として浮いていた。
-      // 濡れた暗い石の色にし、照りを消して半ば川床へ沈める。形と数は変えない。
-      if (st.rockMesh) {
-        const rm = st.rockMesh.material;
-        rm.color.setHex(0x6b6455); rm.roughness = 0.95; rm.metalness = 0;   // 11/18：0x3f3a31 は朝でも真っ黒な塊に見えた。濡れた灰茶へ
-        // 11/18 14:30 クラウド：照り返しを 0.05 まで消すと陰の面に回る光も消え、柵の上から川面に黒い楕円が六つ浮いた（連絡帳 09:17）。
-        // 艶は粗さ 1 で消したまま、空からの回り込みの光は残す。石を少し深く沈め、水面から頭だけ出す。
-        rm.roughness = 1;
-        if ('envMapIntensity' in rm) rm.envMapIntensity = 0.55;
-        st.rockMesh.position.y -= 0.2;
-      }
-    }
-    // 少ない草を広い戦場へ均等に撒かず、柵の足元と追い道の脇へ寄せる。
-    // 短く曲がる葉と材質を全株で共有し、開戦時だけ並べる。
-    const blades = rockTuftShape(true);
-    const grassMesh = new THREE.InstancedMesh(blades,
-      new THREE.MeshLambertMaterial({ color: 0xffffff, vertexColors: true, side: THREE.DoubleSide }), 720);
-    const grassPose = new THREE.Object3D(), grassColor = new THREE.Color();
-    let grassCount = 0;
-    for (let i = 0; i < 720; i++) {
-      const nearFence = i < 540, k = i % 180, mouth = MOUTHS[Math.floor(i / 180) % 3];
-      // 株数は保ち、柵際の乱戦とその脇へ短い草の群落を寄せる。
-      let z = mouth.z - 37 + k * 0.43 + Math.sin(i * 1.37) * 1.5;
-      const x = nearFence ? -24 + (0.5 + 0.5 * Math.sin(i * 2.399)) * 52
-        : 38 + (0.5 + 0.5 * Math.sin(i * 2.399)) * 122;
-      // 同じ株数を寄せ道の畦へ移す。泥の中央へ均等に生やさない。
-      if (!nearFence) {
-        const bend = Math.sin(x * 0.045) * 0.32;
-        z = (Math.round((z * 0.17 + bend) / (Math.PI * 2)) * Math.PI * 2 - bend) / 0.17
-          + Math.sin(i * 1.71) * 0.8;
-      }
-      // 水田で大きさゼロにしていた株は束へ送らない。見える株の位置と色は元の番号で保つ。
-      if (W.def.paddy(x, z) > 0.3) continue;
-      // 柵の口は踏み固めた土のまま。草は進路を塞がない小さな株にする。
-      grassPose.position.set(x, drawGroundAt(W, x, z) - 0.025, z);
-      const size = 0.6 + (0.5 + 0.5 * Math.sin(i * 1.71)) * 0.8;
-      const trampled = SB.gates.some((g) => z - g > -9.5 && z - g < 20.5);
-      // 通り道は低く広がる倒れ草、脇は立つ葉。同じ株の形を使い回す。
-      const spread = size * (trampled ? 1.65 : 1.25);
-      grassPose.scale.set(spread, size * (trampled ? 0.16 : 0.85), spread);
-      grassPose.rotation.y = i * 2.399; grassPose.updateMatrix(); grassMesh.setMatrixAt(grassCount, grassPose.matrix);
-      const tone = 0.5 + 0.5 * Math.sin(i * 0.81);
-      grassColor.setRGB(0.32 + tone * 0.18, 0.40 + tone * 0.13, 0.19 + tone * 0.09);
-      if (trampled) grassColor.multiplyScalar(0.86);
-      grassMesh.setColorAt(grassCount++, grassColor);
-    }
-    grassMesh.count = grassCount;
-    grassMesh.receiveShadow = true;   // 10/24：草は作らない
-    // 株数と並びは保ち、画面に入る草だけ同じ束へ詰める。
-    W.viewCull([grassMesh], 0, Infinity, false);
-    // 連吾川の岸の葦と、川向こうの田の畦（10/28）。柵の後ろ低い目から、柵越しに川筋と田の並びが分かるように。
-    // 形と材質は一つずつ、開戦時に並べるだけ。毎コマの物は増やさない。
-    const rengoX = (z) => {
-      for (let i = 1; i < RENGO.length; i++) {
-        const a = RENGO[i - 1], b = RENGO[i];
-        if (z >= a[1] && z <= b[1]) return a[0] + (b[0] - a[0]) * (z - a[1]) / (b[1] - a[1]);
-      }
-      return 22;
-    };
-    // 夏の葦：細い葉を八枚、少し開いて一株に。人の背を越える丈。
-    const reedShape = (segments) => {
-      const reedParts = [];
-      for (let j = 0; j < 8; j++) {
-        const leaf = new THREE.PlaneGeometry(0.07, 1, 1, segments), lp = leaf.attributes.position;
-        const lean = 0.10 + (j % 3) * 0.08, a = j * 2.399, r = 0.05 + (j % 4) * 0.06;
-        for (let k = 0; k < lp.count; k++) {
-          const t = lp.getY(k) + 0.5;
-          lp.setXYZ(k, lp.getX(k) * (1 - t * 0.85) + r + lean * t * t, t * (0.78 + (j % 2) * 0.22), 0);
-        }
-        leaf.rotateY(a); reedParts.push(leaf);
-      }
-      const geo = mergeGeometries(reedParts);
-      for (const part of reedParts) part.dispose();
-      geo.computeVertexNormals();
-      return geo;
-    };
-    const reedGeo = reedShape(3);
-    const reedSpots = [];
-    for (const m of MOUTHS) {
-      const ford = m.z + 4.5;
-      for (let z = ford - 46; z <= ford + 46; z += 0.85) {
-        if (Math.abs(z - ford) < 4) continue;   // 渡り口の浅瀬は空ける
-        for (const side of [-1, 1]) {
-          const n = Math.sin(z * 0.37 + side * 1.3) + Math.sin(z * 1.13 + side) * 0.6;
-          if (n < -0.55) continue;   // 群れの切れ目から水面を見せる
-          const x = rengoX(z) + side * (2.7 + (0.5 + 0.5 * Math.sin(z * 2.9 + side)) * 1.6);
-          // 柵の側の岸は低く疎らに、向こう岸を高く。柵越しに水面が見える。
-          if (side < 0 && n < 0.2) continue;
-          reedSpots.push([x, z + Math.sin(z * 5.1) * 0.3, (side < 0 ? 0.9 : 1.5) + (0.5 + 0.5 * Math.sin(z * 0.71 + side * 2)) * (side < 0 ? 0.5 : 0.9)]);
-        }
-      }
-    }
-    const reeds = new THREE.InstancedMesh(reedGeo,
-      new THREE.MeshLambertMaterial({ color: 0xffffff, side: THREE.DoubleSide }), reedSpots.length);
-    const reedPose = new THREE.Object3D(), reedColor = new THREE.Color();
-    reedSpots.forEach(([x, z, h], i) => {
-      reedPose.position.set(x, drawGroundAt(W, x, z) - 0.08, z);
-      reedPose.scale.set(1 + h * 0.2, h, 1 + h * 0.2);
-      reedPose.rotation.set(Math.sin(i * 1.7) * 0.08, i * 2.399, Math.sin(i * 2.3) * 0.08);
-      reedPose.updateMatrix(); reeds.setMatrixAt(i, reedPose.matrix);
-      const tone = 0.5 + 0.5 * Math.sin(i * 0.93);
-      reedColor.setRGB(0.20 + tone * 0.10, 0.29 + tone * 0.08, 0.11 + tone * 0.04);
-      reeds.setColorAt(i, reedColor);
-    });
-    rt.scene.add(reeds);
-    // 三十二メートル先は葉の曲がりの節だけ省く。八枚の葉と株数・色・丈は保つ。
-    const farReeds = new THREE.InstancedMesh(reedShape(1), reeds.material, reedSpots.length);
-    farReeds.count = 0; farReeds.frustumCulled = false; farReeds.userData.noFreeze = true;
-    reeds.userData.foliageDetailNear = 32;
-    reeds.userData.farFoliage = farReeds; rt.scene.add(farReeds);
-    W.viewCull([reeds], 0, Infinity, false);
-    // 田の畦：草をかぶった細い土手。升の縁（11m×16m）に沿い、4m ごとに地面へ合わせて置く。
-    const azeSpots = [];
-    for (const m of MOUTHS) {
-      const z0 = Math.floor((m.z - 40) / 16) * 16, z1 = m.z + 52;
-      for (let z = z0; z <= z1; z += 16) for (let x = 28; x < 58; x += 4) azeSpots.push([x + 2, z, 0]);
-      for (const x of [28, 33, 44, 55, 58]) for (let z = z0; z < z1; z += 4) azeSpots.push([x, z + 2, 1]);
-    }
-    // 箱でなく、上の丸い土手（半ば埋めた横倒しの円柱）。角の立った緑の板に見せない。
-    // 幅広く低い土の盛り（高さ十五センチほど）にする。細く黒い丸太の格子が原一面に散り、馬防柵の一列が読めなかった（10/29 差の表）。
-    const azeGeo = new THREE.CylinderGeometry(0.8, 0.8, 4.15, 9, 1, true);
-    azeGeo.rotateZ(Math.PI / 2); azeGeo.scale(1, 0.24, 1); azeGeo.translate(0, -0.05, 0);
-    const aze = new THREE.InstancedMesh(azeGeo, new THREE.MeshLambertMaterial({ color: 0xffffff }), azeSpots.length);
-    azeSpots.forEach(([x, z, along], i) => {
-      reedPose.position.set(x, drawGroundAt(W, x, z), z);
-      reedPose.rotation.set(0, along ? Math.PI / 2 : 0, 0);
-      reedPose.scale.set(1, 0.85 + 0.3 * (0.5 + 0.5 * Math.sin(i * 1.9)), 1);
-      reedPose.updateMatrix(); aze.setMatrixAt(i, reedPose.matrix);
-      const tone = 0.5 + 0.5 * Math.sin(i * 0.77);
-      reedColor.setRGB(0.40 + tone * 0.05, 0.38 + tone * 0.05, 0.25 + tone * 0.03);   // 草の株の下は土の色。周りの田より少し明るい草土で、暗い丸太の筋に見せない
-      aze.setColorAt(i, reedColor);
-    });
-    aze.receiveShadow = true;
-    yield;   // K112：ここで一コマ返す（組み立ての固まりを分ける）
-    // 11/6 fixc1721（八1）：横倒しの円柱の畦は、遠くから茶色の角ばった板が並ぶように見えた。畦は地面の絵（shAze）と草の株だけで見せる
-    // 畦の肩に夏草の株を（葦と同じ形を低く使い回す。描くのは一回だけ）。
-    const azeGrass = new THREE.InstancedMesh(reedGeo, reeds.material, azeSpots.length);
-    azeSpots.forEach(([x, z, along], i) => {
-      const o = Math.sin(i * 2.71) * 1.6, gx = along ? x : x + o, gz = along ? z + o : z;
-      const h = 0.38 + 0.3 * (0.5 + 0.5 * Math.sin(i * 1.31));
-      reedPose.position.set(gx, drawGroundAt(W, gx, gz) + 0.06, gz);
-      reedPose.scale.set(1.5, h, 1.5); reedPose.rotation.set(0, i * 2.399, 0);
-      reedPose.updateMatrix(); azeGrass.setMatrixAt(i, reedPose.matrix);
-      const tone = 0.5 + 0.5 * Math.sin(i * 1.13);
-      reedColor.setRGB(0.26 + tone * 0.12, 0.33 + tone * 0.08, 0.13 + tone * 0.04);
-      azeGrass.setColorAt(i, reedColor);
-    });
-    rt.scene.add(azeGrass);
-    W.viewCull([azeGrass], 0, Infinity, false);
-    // 植えて間もない早苗の列（旧暦五月二十一日・田植えの後）。灰の水の板でなく、水を張った田に見せる。
-    // 一株は細い葉三枚、八株を一列に合わせた形を使い回す。開戦時に並べるだけ。
-    const naeParts = [];
-    for (let s = 0; s < 8; s++) for (let j = 0; j < 3; j++) {
-      const leaf = new THREE.PlaneGeometry(0.06, 1, 1, 1), lp = leaf.attributes.position;
-      for (let k = 0; k < lp.count; k++) {
-        const t = lp.getY(k) + 0.5;
-        lp.setXYZ(k, lp.getX(k) * (1 - t * 0.8) + 0.07 * t * t, t * (0.42 + (j % 2) * 0.1), 0);
-      }
-      leaf.rotateY(j * 2.094 + s * 0.7);
-      leaf.translate(s * 0.62, 0, Math.sin(s * 2.3) * 0.04);
-      naeParts.push(leaf);
-    }
-    const naeGeo = mergeGeometries(naeParts);
-    for (const part of naeParts) part.dispose();
-    naeGeo.computeVertexNormals();
-    const inPaddy = (x, z) => {
-      if (x < 28.6 || x > 57.4) return false;
-      if ((Math.floor(x / 11) + Math.floor(z / 16)) % 2) return false;
-      const ex = Math.min(((x % 11) + 11) % 11, 11 - ((x % 11) + 11) % 11), ez = Math.min(((z % 16) + 16) % 16, 16 - ((z % 16) + 16) % 16);
-      return Math.min(ex, ez) > 1.1;
-    };
-    const naeSpots = [];
-    for (const m of MOUTHS) {
-      const z0 = Math.floor((m.z - 40) / 16) * 16, z1 = m.z + 52;
-      for (let z = z0 + 0.35; z < z1; z += 0.8) for (let x = 28.6; x < 57.4; x += 5.2) {
-        if (inPaddy(x, z) && inPaddy(x + 4.4, z)) naeSpots.push([x, z]);
-      }
-    }
-    const nae = new THREE.InstancedMesh(naeGeo,
-      new THREE.MeshLambertMaterial({ color: 0xffffff, side: THREE.DoubleSide }), naeSpots.length);
-    naeSpots.forEach(([x, z], i) => {
-      reedPose.position.set(x, drawGroundAt(W, x + 2.2, z) - 0.03, z);
-      reedPose.rotation.set(0, Math.sin(i * 1.7) * 0.02, 0);
-      reedPose.scale.set(1, 0.9 + 0.25 * (0.5 + 0.5 * Math.sin(i * 0.61)), 1);
-      reedPose.updateMatrix(); nae.setMatrixAt(i, reedPose.matrix);
-      const tone = 0.5 + 0.5 * Math.sin(i * 0.37 + Math.floor(z / 16));
-      reedColor.setRGB(0.26 + tone * 0.08, 0.50 + tone * 0.1, 0.10 + tone * 0.03);
-      nae.setColorAt(i, reedColor);
-    });
-    rt.scene.add(nae);
-    W.viewCull([nae], 0, Infinity, false);
-    // 連吾川の岸の丸石は、柵の向こうで白い丸い塊に見えていた。岸には置かず、追い道の脇だけに散らす。
-    const banks = [];
-    // 追い道の脇にも同じ石を散らす。道の中央と田は空ける。
-    for (let i = 0; i < 72; i++) {
-      const z = 24 - i * 5, x = 100 + (0.5 + 0.5 * Math.sin(i * 2.399)) * 165;
-      banks.push([x, z, 0.18 + (0.5 + 0.5 * Math.sin(i * 1.71)) * 0.24]);
-    }
-    const stones = new THREE.InstancedMesh(rockShape(1, true, 1), new THREE.MeshLambertMaterial({ color: 0xffffff, vertexColors: true, side: THREE.DoubleSide }), banks.length);
-    yield;   // K626：重い段をさらに割る（描く支度はここで一コマ返す）
-    const stoneMatrix = new THREE.Matrix4();
-    banks.forEach(([x, z, r], i) => {
-      stoneMatrix.makeScale(r * 1.3, r * 0.6, r);
-      stoneMatrix.setPosition(x, W.heightAt(x, z) + r * 0.2, z); stones.setMatrixAt(i, stoneMatrix);
-    });
-    groundRocks(W, stones); rt.scene.add(stones);
-    // 三十二メートル先の小石は割れ目だけ省き、本数・位置・色を保つ。
-    // 既存の草木の距離切替で詰め、近づけば元の形と影へ戻す。
-    const farStones = new THREE.InstancedMesh(rockShape(1, true, 0), stones.material, banks.length);
-    farStones.count = 0; farStones.receiveShadow = true; farStones.frustumCulled = false;
-    farStones.userData.noFreeze = true;
-    stones.userData.foliageDetailNear = 32;
-    stones.userData.farFoliage = farStones; rt.scene.add(farStones);
-    // 川岸から追い道までの石を、画面の外も全て描いていた。
-    W.viewCull([stones], 0, Infinity, false);
+    const nearMaterial = yield* SHITARA_FIELD.look(rt);   // K651：地面・川・草・畦・苗・石の見た目（武田の d11 と同じ所から建てる）
     // 浅い水面をさらに下げると粗い地面に埋まる。幅を格子に届かせ、膝以下の流れを残す。
     // 遠景の足元も、四隅の平均ではなく描いている地面の三角形に合わせる。
     // この戦の世界だけに付ける。形・材質は使い回し、毎コマの並べ直しはしない。
@@ -4284,58 +3661,7 @@ const shitaragahara = {
     F.holdFlag = nobori(W, -12, MOUTHS[0].z + 10.5, scenarioKey() === 'oda' ? 'oda' : 'tokugawa', 4.5);
     F.holdFlag.visible = false; rt.scene.add(F.holdFlag);
     yield;   // K626：重い段をさらに割る（描く支度はここで一コマ返す）
-    F.fence = [];
-    const fenceStart = rt.scene.children.length;
-    // 携帯で描く地面は歩行用より粗い。丸太と土の根元を実際の面へ据える。
-    // 柵を作る間だけ高さの読み口を替え、道・当たり・地面の頂点数は保つ。
-    const fenceWorld = Object.create(W);
-    fenceWorld.heightAt = (x, z) => drawGroundAt(W, x, z);
-    F.fenceGround = fenceWorld;
-    const fenceRt = { world: fenceWorld, army: rt.army, scene: rt.scene };
-    // 10/31 iPhone の記憶：口から百メートル先の間の柵は、杭ごと・横木ごとの縄の巻き（一区画で二千六百頂点）を省く。
-    //   斬り合う三つの口の前（前後九十六メートル）は交差の杭と縄を保つ。
-    const plainWorld = Object.create(fenceWorld);
-    yield;   // K626：重い段をさらに割る（描く支度はここで一コマ返す）
-    plainWorld.def = { ...W.def, bobosakuCrossed: false };
-    const plainRt = { ...fenceRt, world: plainWorld };
-    let edge = SB.z0;
-    for (const mouth of MOUTHS) {
-      const z0 = mouth.z - 96, z1 = mouth.z + 96;
-      // 交戦口は六メートル、間の柵は三十メートル単位でまとめ、壊せる区画の増え方を抑える。
-      if (edge < z0) buildBobosaku(plainRt, { x0: SB.x0, z0: edge, z1: z0, gap: SB.gap, segLen: 30, facing: 1, sealSeams: true }).forEach((f) => F.fence.push(f));
-      F.fence.push(...buildBobosaku(fenceRt, { x0: SB.x0, z0, z1, gap: SB.gap, gates: [mouth.z], gateOff: SH_GATE_OFF, sealSeams: true,
-        // 一の柵の z〜z+6 の区画は尻まで結ぶ（二・三の柵の口が重なる z+5.1〜z+6 を、区画の継ぎ目の〇・九m で素通しにしない）
-        closeEnd: (r, a) => r === 0 && a === mouth.z, facing: 1 }));
-      // 11/20 iMac：三の柵の口の奥の蔀（しとみ）の柵。一区画（z+10.5〜z+18.6）。列の札は三の柵と同じ（逆茂木は置かない）
-      { const mi = MOUTHS.indexOf(mouth);
-        for (const f of buildBobosaku(fenceRt, { x0: SH_BAF[mi] - bobosakuBend(mouth.z + 15, 0), z0: mouth.z + 10.5, z1: mouth.z + 19.5, rows: 1, gap: SB.gap, segLen: 9, facing: 1, sealSeams: true })) { f.row = 2; f.shBaffle = true; F.fence.push(f); } }
-      edge = z1;
-    }
-    yield;   // K626：重い段をさらに割る（描く支度はここで一コマ返す）
-    if (edge < SB.z1) F.fence.push(...buildBobosaku(plainRt, { x0: SB.x0, z0: edge, z1: SB.z1, gap: SB.gap, segLen: 30, facing: 1, sealSeams: true }));
-    // 10/31 iPhone の記憶：馬防柵は口ごとに一つの束（三十八万頂点）。一区画が倒れる 0.8 秒のあいだ毎コマ傾けると、
-    //   そのたびに束を丸ごと書き直して送り直していた（三十秒で数百 MB の屑）。倒れる間の傾きは 0.3 ずつ・倒れ切りだけ書く。
-    const fenceSet = new Set(F.fence), army = rt.army, tilt = army.structTilt;
-    army.structTilt = function (st, ang) {
-      if (fenceSet.has(st) && ang < 1.349 && Math.abs(ang - (st._tiltW ?? -9)) < 0.3 && this.falling?.some((q) => q.s === st)) return true;
-      if (fenceSet.has(st)) st._tiltW = ang;
-      return tilt.call(this, st, ang);
-    };
-    for (let i = fenceStart; i < rt.scene.children.length; i++) rt.scene.children[i].traverse((m) => {
-      if (m.isMesh && m.material) {
-        m.material = nearMaterial(m.material);
-        // 結合した柵は大きな球で囲まれる。視点が球の内でも束ごと消さず、近い面だけ透かす。
-        m.userData.camSurfaceFade = true;
-      }
-    });
-    tagZones(F.fence, ZONES);
-    shFenceFoot(rt, F.fence, F.fenceGround);
-    // 三列の虎口が重なる所を道筋に使う。遊び手の頭に古い座標を残さない。
-    //   outOffset・lane・row0：一の柵の口（z−3）と、一と二の柵の間の筋・一の柵の東西位置（bot の道筋 playbot.js shitaraPost）
-    F.fenceRoute = { gates: SB.gates, offset: 4.5, rearX: SB.x0 - 2 * SB.gap - 6, frontX: SB.x0 + 6, outOffset: SH_OUT, lane: SH_LANE, row0: SH_ROW0,
-      cross: SH_CROSS, rows: [SH_ROW0, SH_ROW1, SH_ROW2], baf: SH_BAF, lanes: [null, SH_LANE, SH_LANE2, SH_POC] };
-    // 内部の史実札（HIST_A=根拠強い／HIST_B=推定復元／GAME_C=ゲーム補完。表には出さない）
-    F.hist = { fence: 'HIST_A', tripleFence: 'HIST_B', rengoRiver: 'HIST_A', honjinOda: 'HIST_B', honjinTokugawa: 'HIST_B', takedaWaves: 'GAME_C', fenceTrap: 'GAME_C', dorui: 'HIST_B', orderDelay: 'GAME_C', footFirst: 'GAME_C' };
+    yield* SHITARA_FIELD.fence(rt, nearMaterial);   // K651：三重の馬防柵と虎口（武田の d11 と同じ所から建てる）
     yield;   // K112：ここで一コマ返す（組み立ての固まりを分ける）
     // 三重目の柵の後ろの土盛りと、前の浅い空堀は地形（height）だけで作る。
     F.broken = 0;
@@ -4687,8 +4013,6 @@ const shitaragahara = {
     // 11/20 クラウド35（K474「進んだ先で敵が陣を敷いているのが見える」）：川向こうの武田の備は幟と兵だけだった。
     //   各備の後ろに花菱の陣幕と篝火、勝頼の本陣（才ノ神）の後ろに陣小屋を置く（見た目だけ。当たり無し）。山県は家康の前へ出た備なので幕は張らない
     try { enemyJin(rt, { mon: 'takeda', facing: -Math.PI / 2, pts: TAKEDA_POSTS.filter((p) => p[0] !== '山県昌景').map(([, x, z]) => ({ x, z, big: true })), honjin: { x: KATSUYORI.x, z: KATSUYORI.z }, hutName: '武田の陣小屋' }); } catch (e) { console.warn(e); }
-    shFieldWorks(rt);
-    shSummerGrass(rt);
     // 本陣の旗本は陣を守る。共通の「近い敵へ出る」判断で、柵や川へ追い出さない。
     for (const c of F.camps) {
       c.guard.guard = true; c.guard.stay = true;
@@ -4704,51 +4028,7 @@ const shitaragahara = {
     yield;   // K626：重い段をさらに割る（描く支度はここで一コマ返す）
     F.katsCamp.guard.stay = true; F.katsCamp.guard.guardSight = 22; F.katsCamp.guard.guardLeash = 8; // 勝頼の馬廻は退きの下知まで本陣を守る
 
-    for (const [x, z, k, h] of [[IEYASU.x - 10, IEYASU.z + 10, 'onri', 6.5], [CHAUSU.x + 10, CHAUSU.z + 10, 'eiraku', 6.5]]) rt.scene.add(nobori(W, x, z, k, h));
-    // 柵の内の旗（織田が北寄り、徳川が南）
-    // 11/5 BP：柵の間に旗がずらり。二の柵と三の柵の間は二十二メートルごと、一の柵と二の柵の間にも口を避けて互い違いに。
-    for (let z = SB.z0 + 34; z <= SB.z1 - 12; z += 44) {
-      if (SB.gates.some((g) => Math.abs(z + 5 - (g + 4.5)) < 16)) continue;
-      const post = ALLIED_POSTS.find((p) => Math.abs(p[2] - z - 5) <= 23);
-      rt.scene.add(nobori(W, SB.x0 - 2.6, z + 5, post ? post[4] : z < odaZ ? 'oda' : 'tokugawa', 4.6));
-    }
-    for (let z = SB.z0 + 12; z <= SB.z1 - 12; z += 22) {
-      let mon = z < odaZ ? (oda && z % 44 === 0 ? 'maeda' : 'oda') : (z % 44 === 0 ? 'okubo' : 'tokugawa');
-      if (true) {
-        // 余りの一致で選ぶと固有の紋が一度も出ない。既存の備えの持ち場で選ぶ。
-        const post = ALLIED_POSTS.find((p) => Math.abs(p[2] - z - 5) <= 23);
-        mon = post ? post[4] : z < odaZ ? 'oda' : 'tokugawa';
-      }
-      rt.scene.add(nobori(W, SB.x0 - SB.gap - 3, z + 5, mon, 5));
-    }
-    rt.scene.add(tawara(W, -30, 30, 0.3, 6), tawara(W, -34, -20, -0.4, 5));
-    // 南の口の持ち場（二重の柵の間）の脇に、兵が担いで来た予備の柵木の山と俵（信長公記：柵の木を各自に持たせた）。
-    // 25秒の画面の右手前に入る所。口（z -280）から十歩以上離し、当たりは足さない（10/28 採点：柵の内が草の野だけ）。
-    rt.scene.add(lumber(W, 9.6, -266, 0.12), lumber(W, 10.8, -262.6, -0.18), tawara(W, 12.2, -268.6, 0.6, 4, { solid: false }));
-    // 柵際と避難路を空けた南北の集落。戸数を保ち、各家の戸口から入れる。
-    // 室内は推定。長篠城と鳶ヶ巣山の砦は東の遠景に置く（11/15 K329・shitaragahara/nagashino_far.js。当たりは無い）。
-    try { rt.flags.nagaFar = nagashinoFar(rt); } catch (e) { console.warn(e); }
-    try { nagashinoNear(rt); } catch (e) { console.warn(e); }   // 11/17 K356⑤：行けば在る長篠城と武田の包囲（shitaragahara/nagashino_far.js）
-    for (const [i, v] of PEOPLE_VILLAGES.entries()) KT.farVillage(rt, v.x, v.z,
-      { rot: i ? 0 : Math.PI, n: i ? 5 : 6, fields: 0, seed: 21 + i,
-        interiorHomes: { name: i ? '南の集落の民家' : '北の集落の民家', kind: 'minka', profile: 'shitaragahara' } });
-    // 村外れの小堂は外陣・内陣・須弥壇を備える推定の姿。避難先を攻撃の的にしない。
-    const villageHall = goten(rt, PEOPLE_TEMPLE.x, PEOPLE_TEMPLE.z,
-      { w: 8, d: 6, name: '村外れの寺の堂', kind: 'hondo', profile: 'shitaragahara',
-        naka: true, noTarget: true, templePaper: true, interiorH: 2.35, doorX: 0, oku: 0,
-        doorFire: false, // 避難先の小堂に本陣用の篝を並べず、内陣の灯明を使う。
-        // 御殿の大将用の場所を空けて須弥壇を消さない。明かり障子は外壁の正面二間に合わせる。
-        // 隅柱の内面と窓枠の間を空ける。外観の窓も一間の左右を四十二センチずつ残す。
-        wins: () => [-8 / 3, 8 / 3].map(t => ({ face: 'z', s: 1, t,
-          w: 8 / 3 - (SETTINGS.quality === 'high' ? .84 : .24),
-          y0: 1.375 - .55, y1: 2.525 - .55, shoji: true, sliding: SETTINGS.quality === 'high' }))
-          // 来迎壁と本尊の背後は壁を残し、左右の柱間から内陣へ採光する推定の姿。
-          // 外の格子の内側に引違いの明かり障子を納め、裏窓も閉じられるようにする。
-          // 格子は外観を共用し、紙戸と溝だけを既存の室内の仕組みで組む。
-          .concat(SETTINGS.quality === 'high' ? [-8 / 3, 8 / 3].map(t => ({ face: 'z', s: -1, t,
-            w: (8 / 3 - .24) * .7, y0: 1.5 - .55, y1: 2.3 - .55,
-            exteriorLattice: true, shoji: true, sliding: true })) : []) });
-    villageHall.naka.templePaper = true;
+    SHITARA_FIELD.scenery(rt);   // K651：野の小物・旗・集落・堂（武田の d11 と同じ所から建てる）
     // 大軍：織田・徳川三万八千、武田一万五千。備ごとに名と持ち場を分ける。
     const DA = (x, z, w, d, count, facing, armor, flag, seed, kind) => KT.farHost(rt, x, z, w, d, count, facing, armor, flag, seed, kind);
     // 一隊の体・旗・馬をそのまま使い、四つの備えを一度に描く。毎コマの並べ直しはしない。
@@ -5587,6 +4867,754 @@ KILLS.shitaragahara = { 0: (rt) => {
 } };
 // 命懸けの戦場（docs/lethal_howto.md）。柵の前の鉄砲と騎馬の突き。開戦の二分は静かに、間を広く（11/9 先取りの列）
 shitaragahara.lethal = { max: 5, firstAt: 120, gap: 55 };
+
+// K651（kaito 11/25「今の織田の長篠をコピーしたらできるじゃん。立場を入れ替えるだけでできるやつはそうしよう」）：
+//   設楽原の「戦場を建てる所」（地形の見た目・川・草・三重の馬防柵・野の小物・旗・集落）だけをここに分けた。織田の setup は前と同じ所で呼ぶ。
+//   ほかの家の同じ戦（武田編 d11）は shitaraField(rt) 一つを呼び、遊ぶ側・備・行き先・勝ち負けだけ入れ替える（docs/k651_howto.md）
+export const SHITARA_FIELD = {
+  *look(rt) {
+    const W = rt.world, F = rt.flags;
+    // 11/17 K341 長より（n-look-armor の拡大写真）：右の野の黒い点々は、高い引きで見た遠くの木の茂みが灰黒に潰れた物だった。
+    //   遠くの木は一枚の葉の板（world_vegetation.js の遠景の葉・色 b4bea6）に替わり、奥ほど色を抜いて沈める（farTreeLit）ので、晴れた設楽原の野では黒い塊になる。
+    //   この戦の遠景の葉の板だけ、空の光を受けた緑へ持ち上げる（材質は戦ごとに作られる＝ほかの戦に響かない。近くの木の葉・幹は変えない）
+    { const all = [];
+      for (const m of rt.world.treeMeshes || []) { all.push(m); if (m.userData?.farFoliage) all.push(m.userData.farFoliage); }
+      for (const m of all) {
+        const mt = m.material;
+        if (!mt?.color || Array.isArray(mt) || mt.userData.shLift || mt.color.getHex() !== 0xb4bea6) continue;
+        mt.userData.shLift = true;
+        // 上から見ると葉の板に日が当たらず、色を三倍にしても暗いままだった。空の光の分を葉の絵の形のまま自ら光らせて足す（emissive。形・描く回数は変えない）
+        if (mt.emissive) { mt.emissive.setRGB(0.2, 0.26, 0.16); mt.emissiveMap = mt.map; mt.needsUpdate = true; }
+      } }
+    const openingDetail = SETTINGS.quality === 'high';
+    // 持ち場の正面、川向こうの田だけに低い畦を据える。道幅と兵の通り方は保つ。
+    if (openingDetail) {
+      const vertices = [], indices = [];
+      const ridge = (ax, az, bx, bz) => {
+        const length = Math.hypot(bx - ax, bz - az), steps = Math.ceil(length / 0.7);
+        const nx = -(bz - az) / length, nz = (bx - ax) / length;
+        const base = vertices.length / 3;
+        for (let i = 0; i <= steps; i++) {
+          const t = i / steps, x = ax + (bx - ax) * t, z = az + (bz - az) * t;
+          const lift = Math.min(1, i / 2, (steps - i) / 2);
+          for (let j = -1; j <= 1; j++) {
+            const px = x + nx * j * 0.48, pz = z + nz * j * 0.48;
+            vertices.push(px, drawGroundAt(W, px, pz) + 0.025 + (j === 0 ? 0.24 * lift : 0), pz);
+          }
+          if (i) for (let j = 0; j < 2; j++) {
+            const a = base + (i - 1) * 3 + j, b = a + 3;
+            indices.push(a, a + 1, b, a + 1, b + 1, b);
+          }
+        }
+      };
+      ridge(29, -298, 57, -296);
+      ridge(29, -253, 57, -251);
+      ridge(42, -298, 43, -283);
+      ridge(43, -267, 44, -252);
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+      geo.setIndex(indices); geo.computeVertexNormals(); geo.computeBoundingSphere();
+      const mesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: 0x697044 }));
+      mesh.receiveShadow = true; rt.scene.add(mesh);
+    }
+    timeslipField(rt);   // 身の回りの踏み荒らした地面・倒れた槍と旗・夏草（def.timeslip）
+    // 連吾川の川石は朝日で白い丸い塊に見えた（10/28）。濡れて苔の付いた暗い石へ。形と数は変えない。
+    for (const st of W.def.streams || []) if (st.rockMesh) {
+      const m = st.rockMesh.material.clone(); m.color.setHex(0x47443b); m.roughness = 0.95; st.rockMesh.material = m;
+    }
+    // 支度の途中で増える柵も、毎回同じ一覧から転送前に準備する。
+    const beforeScenery = rt.scene.onBeforeRender;
+    rt.scene.onBeforeRender = function (renderer, scene, camera, target) {
+      beforeScenery.call(this, renderer, scene, camera, target);
+      if (W.materialDrawPreparers) for (const prepare of W.materialDrawPreparers) prepare(renderer, scene, camera);
+    };
+    // 人の姿と体格は矢の更新後にも替わる。描く束へ写す直前に実寸へ戻す。
+    // この戦の軍勢だけを包み、共有の形・矢の当たり・寿命は変えない。
+    const batchDraw = rt.army.batchDraw;
+    rt.army.batchDraw = function (camera) {
+      this.syncPinnedArrowScales?.();   // 共有の側で外された時も描くのを止めない
+      return batchDraw.call(this, camera);
+    };
+    // 坂を壁と同じ処理で抜くと、足元に白い遠景が三角形に露出する。
+    // 地面は残し、視点の潜り込みは既存の地形判定へ任せる。この戦の材質だけ。
+    W.terrain.material.userData.camNearSolid = true;
+    // 朝の色を保ち、笠の下と黒い具足へ空からの光を少し足す。この戦だけ。
+    const lookOf = W.lookOf.bind(W);
+    W.lookOf = (key) => {
+      const look = lookOf(key);
+      if (key === 'day' || key === 'morning' || key === 'noon') {
+        look.sunI *= 1.06; look.hemiI *= 1.35;
+      }
+      return look;
+    };
+    // 時刻の仕組みは設営より先に朝と昼の色を控える。その控えにも補いを渡す。
+    if (W.dayClock) {
+      W.dayClock.morning = W.lookOf('morning');
+      W.dayClock.noon = W.lookOf('noon');
+      W.dayClock.tick(0);
+    }
+    F.faceMats = new Map();
+    // 視点直前で本人を隠す部材だけ避け、脇と前方の柵は木の実体を保つ。
+    // 奥の柵と影は残し、材質の並べ替えや毎コマの複製を増やさない。
+    // 材質の複製は開戦時だけ。影・当たり・壊れる区画は元のまま。
+    const fadeMats = new Map();
+    const nearMaterial = (source) => {
+      if (fadeMats.has(source)) return fadeMats.get(source);
+      const mat = source.clone(), compile = source.onBeforeCompile, key = source.customProgramCacheKey.bind(source);
+      mat.onBeforeRender = source.onBeforeRender;
+      mat.transparent = false; mat.depthWrite = true;
+      mat.userData.camNearSolid = true; // 専用の透かしに共通の点描を重ねない。
+      // 複製は userData を写し直すので、本物に替わる輪の広さ（軽い兵の形を選ぶ物差し）は元の入れ物を指したままにする。
+      if (source.userData.armyU) mat.userData.armyU = source.userData.armyU;
+      mat.onBeforeCompile = (sh, renderer) => {
+        compile(sh, renderer);
+        sh.vertexShader = 'varying vec3 vShNear;\nvarying vec2 vShProjection;\n' + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n vShNear = mvPosition.xyz; vShProjection = vec2(projectionMatrix[0][0], projectionMatrix[1][1]);');
+        sh.fragmentShader = 'varying vec3 vShNear;\nvarying vec2 vShProjection;\n' + sh.fragmentShader.replace('#include <alphatest_fragment>', `
+          vec2 shScreen = abs(vShNear.xy * vShProjection / max(0.01, -vShNear.z));
+          float shEdge = smoothstep(0.22, 0.38, max(shScreen.x, shScreen.y));
+          float shFront = smoothstep(2.0, 4.0, length(vShNear));
+          // 画面端でも視点へ寄り過ぎた丸太を避け、柵の中から前を見渡せるようにする。
+          float shFenceCover = min(smoothstep(2.5, 4.5, length(vShNear)), max(shEdge, shFront));
+          vec2 shFencePixel = mod(floor(gl_FragCoord.xy), 2.0);
+          float shFencePattern = (2.0 * mod(shFencePixel.x + shFencePixel.y, 2.0) + shFencePixel.y + 0.5) / 4.0;
+          if (shFenceCover < shFencePattern) discard;
+          #include <alphatest_fragment>
+        `);
+      };
+      mat.customProgramCacheKey = () => key() + '_設楽原の柵の透かし';
+      fadeMats.set(source, mat);
+      return mat;
+    };
+    const groundMat = W.terrain.material, groundCompile = groundMat.onBeforeCompile;
+    const groundKey = groundMat.customProgramCacheKey.bind(groundMat);
+    const lowPuddles = false;
+    groundMat.onBeforeCompile = (sh, renderer) => {
+      groundCompile(sh, renderer);
+      // 共通の泥の窪みを野一面へ並べない。設楽原だけ小さく疎らにし、
+      // 実際に踏まれた所へ浅く残す。歩行・川床・他の戦の材質は変えない。
+      sh.fragmentShader = sh.fragmentShader
+        // 元の泥の絵にも丸い穴がある。追加の窪みだけを弱めても消えないため、
+        // 同じ一回の絵の読みで粒を細かくし、土の色を混ぜて明るい縁を抑える。
+        .replace('vec3 mud = texture2D(tMud, wuv * 0.26).rgb;',
+          'vec3 mud = mix(dirt * vec3(0.46, 0.45, 0.43), texture2D(tMud, wuv * 0.65).rgb, 0.25);')
+        .replace('ruv * vec2(1.6, 2.4)', 'ruv * vec2(3.2, 4.8)')
+        .replace('mix(0.35, 1.0, trod) * (1.0 - slopeK)',
+          'trod * step(0.78, clodSeed) * 0.28 * (1.0 - slopeK)')
+        .replace('clodRim * 0.016 - clodHollow * 0.035', 'clodRim * 0.004 - clodHollow * 0.008');
+      // 粗い地形の格子で水色を補間すると四角く光る。水の縁は地面の座標から描く。
+      // 足を取る田の範囲は保ち、形・材質・毎コマの物を増やさない。
+      sh.fragmentShader = `
+        float shPuddle(vec2 p) {
+          if (p.x <= 28.0 || p.x >= 58.0) return 0.0;
+          vec2 cell = floor(p / vec2(11.0, 16.0));
+          if (mod(cell.x + cell.y, 2.0) > 0.5) return 0.0;
+          // 田一枚ごとに水を張り、縁の畦だけを残す（歩みの遅れる田の範囲と同じ升）。
+          vec2 m = mod(p, vec2(11.0, 16.0)), e = min(m, vec2(11.0, 16.0) - m);
+          float wob = sin(p.y * 0.9 + cell.x * 2.0) * 0.12 + sin(p.x * 1.3 + cell.y) * 0.1;
+          float edge = min(min(e.x, e.y), min(p.x - 28.0, 58.0 - p.x)) + wob;
+          return smoothstep(0.8, 1.4, edge) * ${W.field.wet ? '1.0' : '0.0'};
+        }
+        // 田の升の縁の畦。水の無い升も同じ畦で囲み、田の並びを見せる。
+        float shAze(vec2 p) {
+          if (p.x <= 27.0 || p.x >= 59.0) return 0.0;
+          vec2 m = mod(p, vec2(11.0, 16.0)), e = min(m, vec2(11.0, 16.0) - m);
+          float wob = sin(p.y * 0.9 + floor(p.x / 11.0) * 2.0) * 0.12 + sin(p.x * 1.3 + floor(p.y / 16.0)) * 0.1;
+          float edge = min(min(e.x, e.y), min(abs(p.x - 28.0), abs(58.0 - p.x))) + wob;
+          return 1.0 - smoothstep(0.35, 0.8, edge);
+        }
+      ` + sh.fragmentShader
+        .replace('vec2 wuv = vWP.xz;', 'vec2 wuv = vWP.xz; float shPaddyWater = shPuddle(wuv);')
+        // 共通の泥の窪みは各升に明るい輪を作り、湿った平場で型押しに見える。
+        // この戦だけ輪の色・凹凸・水溜まり・艶をまとめて外す。小石と実際の歩行跡、
+        // 虎口の不規則な泥塊・轍・まばらな蹄跡は残す。
+        .replace(/float clodK = [^;]+;/, 'float clodK = 0.0;')
+        .replaceAll('smoothstep(0.3, 0.8, vWater)', 'shPaddyWater')
+        // 低では地面の水に空を映さず、ほかの画質でも泥の艶に留める。
+        .replace('wat * 0.24 + pool * 0.2', 'wat * 0.025 + pool * 0.06')
+        // 空の映り込みを外しても、濡れた土の強い鏡面光は残る。
+        // 水のある田だけ艶を残し、岸と草地には広い白い光の帯を作らない。
+        .replace('roughnessFactor = mix(roughnessFactor, 0.12, pool);',
+          'roughnessFactor = max(roughnessFactor, mix(0.86, 0.62, shPaddyWater));')
+        .replace('reflectedLight.indirectDiffuse += uSoilSky * sheen * reflectedCloud;',
+          lowPuddles ? '' : 'reflectedLight.indirectDiffuse += uSoilSky * sheen * reflectedCloud;')
+        .replace('vec3(0.075, 0.08, 0.06) + mud * 0.22 + grass * 0.05',
+          // 田の水は濁った暗い泥水に（霧の空を映して灰の板に見えた 10/28）。
+          'col * vec3(0.4, 0.4, 0.32) + mud * 0.07')
+        .replace('float wat = shPaddyWater;', `float wat = shPaddyWater;
+          // 水際だけ湿った泥色につなぎ、青い紙のような輪郭を消す。
+          float shMudRim = smoothstep(0.0, 0.3, wat) * (1.0 - wat);
+          col = mix(col, mud * vec3(0.8, 0.7, 0.55), shMudRim * 0.65);
+          // 田植えから三週ほどの苗の列（天正三年五月二十一日は今の七月上旬）。水を張った田にだけ、
+          // 列に並ぶ若い緑の株を地面の絵で描く。遠くは細かい縞がちらつくので、列の平均の緑に溶かす。
+          vec2 shNaeP = vec2(wuv.x / 0.33, wuv.y / 0.24 + sin(wuv.x * 0.21) * 0.6);
+          vec2 shNaeD = abs(fract(shNaeP) - 0.5);
+          float shNae = (1.0 - smoothstep(0.1, 0.28, shNaeD.x)) * (1.0 - smoothstep(0.14, 0.34, shNaeD.y));
+          float shNaeAA = 1.0 - smoothstep(0.25, 0.6, max(fwidth(shNaeP.x), fwidth(shNaeP.y)));
+          col = mix(col, vec3(0.25, 0.35, 0.11), wat * mix(0.45, shNae * 0.9, shNaeAA));`);
+      sh.fragmentShader = sh.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
+        // 地面の絵の上に土の筋と踏み跡を描く。板や毎こまの物は増やさない。
+        float shFence = (1.0 - smoothstep(490.0, 505.0, abs(vWP.z)))
+          * (1.0 - smoothstep(35.0, 55.0, abs(vWP.x + 12.0)));
+        // 土の筋は進路に沿って途切れさせ、均等な横縞にしない。
+        float shRuts = smoothstep(0.82, 0.98, sin(vWP.z * 7.0 + sin(vWP.x * 0.41) * 2.0 + macro2 * 9.0))
+          * smoothstep(0.1, 0.7, sin(vWP.x * 0.77 + vWP.z * 0.23))
+          * (1.0 - smoothstep(8.0, 24.0, length(vWP - cameraPosition)));
+        // 足跡は小さく散らし、全ての升目に同じ輪郭を刻まない。
+        vec2 shStepCell = floor(vWP.xz / vec2(2.7, 0.85));
+        float shStepSeed = fract(sin(dot(shStepCell, vec2(127.1, 311.7))) * 43758.5453);
+        vec2 shStep = fract(vWP.xz / vec2(2.7, 0.85)) - 0.5;
+        shStep -= vec2(sin(shStepCell.y * 2.1), cos(shStepCell.x * 1.7)) * 0.22;
+        float shFoot = (1.0 - smoothstep(0.65, 1.0, length(shStep * vec2(12.0, 3.2))))
+          * step(0.65, shStepSeed) * shFence * (1.0 - smoothstep(8.0, 20.0, length(vWP - cameraPosition)));
+        float shDitch = (1.0 - smoothstep(0.35, 1.35, abs(vWP.x - 16.6)))
+          * (1.0 - smoothstep(490.0, 505.0, abs(vWP.z)));
+        float shWater = shDitch * smoothstep(0.35, 0.8, sin(vWP.z * 1.7) * 0.5 + 0.5);
+        diffuseColor.rgb = diffuseColor.rgb * (1.0 - shFence * shRuts * 0.16 - shFoot * 0.30);
+        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.18, 0.22, 0.20), shWater * 0.4);
+        // 柵の内の野を暗い一枚の土に見せない（10/28）：夏草の青い斑と、乾いて白んだ土の斑を大きく混ぜる。
+        // 斑は 10m ほどの細かさも混ぜる。足もとの十数 m が一つの斑に入って一色に見えないように。
+        float shPatchN = texture2D(tMacro, vWP.xz * 0.085 + 0.71).r * 0.6 + macro2 * 0.4;
+        float shSummer = smoothstep(0.5, 0.6, shPatchN) * step(vWP.x, 27.0) * (1.0 - shFoot);
+        diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.9, 1.45, 0.7) + vec3(0.03, 0.07, 0.01), shSummer * 0.7);
+        float shDry = (1.0 - smoothstep(0.38, 0.46, shPatchN)) * step(vWP.x, 27.0) * (1.0 - shSummer);
+        diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(1.4, 1.28, 1.05) + vec3(0.06, 0.05, 0.03), shDry * 0.6);
+        // 柵の内の野（持ち場の足もと）は暗い緑の一枚に沈んでいた。朝の日の当たる夏の野の明るさへ持ち上げる。
+        float shInner = (1.0 - smoothstep(20.0, 27.0, vWP.x)) * smoothstep(-70.0, -50.0, vWP.x) * (1.0 - smoothstep(490.0, 505.0, abs(vWP.z)));
+        diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(1.3, 1.32, 1.12) + vec3(0.035, 0.035, 0.015), shInner * (0.55 + shPatchN * 0.5));
+        // 野の緑が平らな一枚に見えた（10/29 15:10 採点）。二〜三 m の草叢の陰と、五十 cm の葉の粒の明暗を重ね、
+        // 刈られぬ夏草の株の凹凸を色で見せる。近くほど強く、遠くは粒がちらつかないよう弱める。
+        float shTuftN = texture2D(tMacro, vWP.xz * 0.42 + 0.31).r;
+        float shGrainN = texture2D(tMacro, vWP.xz * 1.85 + 0.13).r;
+        float shNearG = 1.0 - smoothstep(30.0, 90.0, length(vWP - cameraPosition));
+        float shMeadow = step(vWP.x, 27.0) * (1.0 - shFoot);
+        diffuseColor.rgb *= mix(1.0, mix(0.66, 1.14, smoothstep(0.28, 0.72, shTuftN)) * mix(0.86, 1.1, shGrainN * shNearG + 0.5 * (1.0 - shNearG)), shMeadow);
+        diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(1.18, 1.05, 0.72), shMeadow * smoothstep(0.62, 0.8, shGrainN) * shNearG * 0.5);
+        // 虎口の周囲にだけ踏み荒らしを集め、乾いた一枚の平面から湿った土へつなぐ。
+        float shBattle = 0.0;
+        ${MOUTHS.map((m) => `shBattle = max(shBattle, 1.0 - smoothstep(9.0, 38.0,
+          length((vWP.xz - vec2(16.0, ${(m.z + 4.5).toFixed(1)})) * vec2(0.8, 1.0))));`).join('\n')}
+        // 土の斑は既存の不規則な絵から拾う。周期的な正弦波を並べない。
+        float shClods = (macro2 - 0.5) * (0.6 + macro * 0.8);
+        float shWetSoil = shBattle * smoothstep(-0.6, 0.7, shClods);
+        vec2 shHoofCell = floor(vWP.xz / vec2(1.7, 1.15));
+        vec2 shHoof = fract(vWP.xz / vec2(1.7, 1.15)) - 0.5;
+        shHoof -= vec2(sin(shHoofCell.y * 4.1), sin(shHoofCell.x * 2.7)) * 0.18;
+        float shHoofSeed = fract(sin(dot(shHoofCell, vec2(269.5, 183.3))) * 43758.5453);
+        float shHoofAngle = shHoofSeed * 6.28318;
+        shHoof = mat2(cos(shHoofAngle), -sin(shHoofAngle), sin(shHoofAngle), cos(shHoofAngle)) * shHoof;
+        float shHoofR = length(shHoof * vec2(12.0, 9.0));
+        float shHoofMark = (1.0 - smoothstep(0.7, 1.0, shHoofR))
+          * smoothstep(0.3, 0.55, shHoofR) * step(-0.015, shHoof.y)
+          * step(0.72, shHoofSeed) * shBattle
+          * (1.0 - smoothstep(8.0, 22.0, length(vWP - cameraPosition)));
+        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.19, 0.155, 0.105), shWetSoil * ${openingDetail ? '0.30' : '0.56'});
+        ${openingDetail ? `
+        // 柵の影の中も乾いた土・濡れた窪み・草の斑で分ける。絵の読みと形は増やさない。
+        // 上の夏の野の shDry と名が重なり、地面の絵が作れず白い一枚に抜けていた（10/30）。
+        float shDryF = shFence * smoothstep(0.30, 0.76, macro2) * (1.0 - shWetSoil * 0.7);
+        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.39, 0.33, 0.22), shDryF * 0.36);
+        ` : ''}
+        diffuseColor.rgb *= 1.0 - shHoofMark * 0.34;
+        // 既存の土と草の絵から、踏み倒された葉と泥塊の斑を拾う。
+        float shLitter = shFence * (1.0 - shBattle * 0.65)
+          * smoothstep(0.38, 0.64, grass.g - grass.r * 0.3)
+          * smoothstep(0.3, 0.6, macro2);
+        diffuseColor.rgb = mix(diffuseColor.rgb, grass * vec3(0.66, 0.68, 0.43), shLitter * 0.42);
+        // 古い畦の草と湿った斑。既存の雑音を使い、平行な波を作らない。
+        float shField = smoothstep(-58.0, -35.0, vWP.x) * (1.0 - smoothstep(100.0, 150.0, vWP.x))
+          * (1.0 - smoothstep(490.0, 505.0, abs(vWP.z)));
+        float shRidge = smoothstep(0.48, 0.64, macro2) * (1.0 - smoothstep(0.64, 0.78, macro2));
+        float shDrain = (1.0 - smoothstep(0.3, 0.48, macro2)) * smoothstep(0.4, 0.65, macro);
+        // 畦は田の端の短い跡に留める。丘まで続く等間隔の波と強い法線を作らない。
+        float shFieldEnd = 1.0 - smoothstep(48.0, 65.0, vWP.x);
+        float shRidgeBreak = smoothstep(0.3, 0.65, macro);
+        float shEdge = shField * shFieldEnd * shRidgeBreak * (1.0 - shBattle * 0.9)
+          * (1.0 - smoothstep(18.0, 40.0, length(vWP - cameraPosition)));
+        float shPatch = macro2;
+        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.23, 0.27, 0.115), shRidge * shEdge * (0.3 + shPatch * 0.3));
+        diffuseColor.rgb *= 1.0 - shDrain * shEdge * 0.24;
+        // 田の畦：草の生えた細い土手。
+        float shAzeK = shAze(vWP.xz);
+        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.30, 0.33, 0.15) * (0.85 + macro2 * 0.3), shAzeK * 0.8);
+      `).replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+        // 色だけの足跡を浅い窪みにする。画面内の微分で、追加の絵の読みを省く。
+        // 遠い川岸まで周期的な法線を足すと、平場が波打つ布のように見える。
+        float shHeight = (shClods * shBattle * 0.045 - shHoofMark * 0.025 - shFoot * 0.018
+          - shFence * shRuts * 0.012) * (1.0 - smoothstep(8.0, 22.0, length(vWP - cameraPosition)));
+        vec3 shDx = dFdx(-vViewPosition), shDy = dFdy(-vViewPosition);
+        vec3 shR1 = cross(shDy, normal), shR2 = cross(normal, shDx);
+        float shDet = dot(shDx, shR1) * faceDirection;
+        normal = normalize(abs(shDet) * normal - sign(shDet)
+          * (dFdx(shHeight) * shR1 + dFdy(shHeight) * shR2));
+      `).replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
+        roughnessFactor = mix(roughnessFactor, 0.53, shWetSoil * 0.65);
+        roughnessFactor = mix(roughnessFactor, 0.94, max(shLitter, shHoofMark) * 0.7);
+      `).replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
+        // 柵の影でも土の形を残す。低では空堀にも青い照り返しを足さない。
+        // 柵の内の野は影でも夏の土と草の色を見せ、暗い一枚に沈めない（10/28）。
+        reflectedLight.indirectDiffuse += diffuseColor.rgb * (0.10 + 0.22 * (1.0 - smoothstep(14.0, 20.0, vWP.x)))
+          ${lowPuddles ? '' : '+ vec3(0.025, 0.028, 0.025) * shWater'};
+        // 田の水面：朝の空の薄い灰を映す。低い角度ほど明るく、泥の穴に見せない。
+        float shPaddySky = shPuddle(vWP.xz);
+        if (shPaddySky > 0.001) {
+          float shGraze = 1.0 - clamp(normalize(cameraPosition - vWP).y, 0.0, 1.0);
+          float shRipple = 0.85 + 0.15 * sin(vWP.x * 1.9 + vWP.z * 0.7 + sin(vWP.z * 0.5) * 2.0);
+          reflectedLight.indirectDiffuse += vec3(0.30, 0.31, 0.29) * shPaddySky * (0.18 + shGraze * shGraze * 0.32) * shRipple;
+          // 遠くの田は早苗の列が一株ずつ見えない。列の緑を水の色に混ぜ、灰の板でなく植えた田に見せる（10/28）。
+          float shFar = smoothstep(16.0, 40.0, length(vWP - cameraPosition));
+          float shRow = 0.65 + 0.35 * smoothstep(0.2, 0.8, abs(fract(vWP.z / 0.8) - 0.5) * 2.0);
+          reflectedLight.indirectDiffuse = mix(reflectedLight.indirectDiffuse, vec3(0.07, 0.12, 0.035) * shRow, shPaddySky * shFar * 0.7);
+          reflectedLight.directDiffuse = mix(reflectedLight.directDiffuse, reflectedLight.directDiffuse * vec3(0.75, 1.15, 0.55), shPaddySky * shFar * 0.6);
+        }
+      `);
+    };
+    groundMat.customProgramCacheKey = () => groundKey() + '_設楽原の踏み荒らし_' + lowPuddles + openingDetail;
+    groundMat.needsUpdate = true;
+    // 既存の流れの筋を強め、朝の照り返しが白い帯になるのを抑える。
+    for (const st of W.def.streams) {
+      const mat = st.mesh.material, compile = mat.onBeforeCompile, key = mat.customProgramCacheKey.bind(mat);
+      // 岸だけでなく川の中央も一度調べ、地面との浅い接点を泥へつなぐ。
+      // 水面の高さと渡渉用の記録は保つ。一メートル以下の間隔で岸の接点を読む。
+      // 設営時だけの分割で、描く回数と毎コマの処理は増やさない。
+      const oldGeo = st.mesh.geometry, src = oldGeo.attributes;
+      const columns = 9, divisions = 4;
+      const sourceRows = src.position.count / 2, rows = (sourceRows - 1) * divisions + 1, count = rows * columns;
+      const positions = new Float32Array(count * 3), colors = new Float32Array(count * 3);
+      const flows = new Float32Array(count * 2), edge = new Float32Array(count), depth = new Float32Array(count);
+      // 11/18 クラウド（K169）：共通の川の絵は waterBed（水深・岸からの横の位置）で浅瀬の小石と白波を決める。
+      // 作り直した網にこれが無く、全面が「深さ0の浅瀬」と読まれて、川が灰の小石の帯に見えていた → 元の値を同じく補う。
+      const bedSrc = src.waterBed, beds = bedSrc ? new Float32Array(count * 2) : null;
+      const indices = [];
+      for (let row = 0; row < rows; row++) for (let col = 0; col < columns; col++) {
+        const i = row * columns + col, t = col / (columns - 1);
+        const a = Math.floor(row / divisions) * 2, b = a + 1;
+        const c = Math.min(a + 2, (sourceRows - 1) * 2), d = c + 1, along = (row % divisions) / divisions;
+        for (let k = 0; k < 3; k++) {
+          const start = src.position.array[a * 3 + k] * (1 - t) + src.position.array[b * 3 + k] * t;
+          const end = src.position.array[c * 3 + k] * (1 - t) + src.position.array[d * 3 + k] * t;
+          positions[i * 3 + k] = start + (end - start) * along;
+          colors[i * 3 + k] = src.color.array[a * 3 + k] * (1 - t) + src.color.array[b * 3 + k] * t;
+        }
+        for (let k = 0; k < 2; k++) flows[i * 2 + k] = src.waterFlow.array[a * 2 + k] * (1 - t) + src.waterFlow.array[b * 2 + k] * t;
+        if (beds) for (let k = 0; k < 2; k++) {
+          const s0 = bedSrc.array[a * 2 + k] * (1 - t) + bedSrc.array[b * 2 + k] * t, s1 = bedSrc.array[c * 2 + k] * (1 - t) + bedSrc.array[d * 2 + k] * t;
+          beds[i * 2 + k] = s0 + (s1 - s0) * along;
+        }
+        // 元の水深は岸の急な落ち込みで 0 に近く、中ほどまで浅瀬の小石になる。中ほどは決めた川の深さ（st.depth）で深みの色に。
+        if (beds) beds[i * 2] = Math.max(beds[i * 2], st.depth * Math.max(0, 1 - Math.abs(1 - t * 2) / 0.8));
+        edge[i] = 1 - t * 2;
+        const floor = drawGroundAt(W, positions[i * 3], positions[i * 3 + 2]);
+        // 長い川面の補間が描く地面へ埋まる所だけ救う。正面の細い流れを途切れさせない。
+        // 11/18 クラウド（K169）：川の中ほどの頂点の四割が地面から 6cm 未満で、透けて川床の灰の石の帯に見えた。
+        // 正面だけでなく川の全長で、中ほどの描く水面を床から 14cm 上に保つ（渡りの水深の判定は変えない）。
+        if (st.pts === RENGO) {
+          const centre = Math.max(0, 1 - Math.abs(1 - t * 2) / 0.72);
+          const lift = openingDetail && Math.abs(positions[i * 3 + 2] + 275.5) < 55 ? 0.16 : 0.14;
+          positions[i * 3 + 1] = Math.max(positions[i * 3 + 1], floor + lift * centre);
+        }
+        depth[i] = positions[i * 3 + 1] - floor;
+        if (row && col < columns - 1) indices.push(i - columns, i, i - columns + 1, i - columns + 1, i, i + 1);
+      }
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+      geo.setAttribute('waterFlow', new THREE.BufferAttribute(flows, 2));
+      geo.setAttribute('shStreamEdge', new THREE.BufferAttribute(edge, 1));
+      if (beds) geo.setAttribute('waterBed', new THREE.BufferAttribute(beds, 2));
+      // 水の上塗り（water_body.js）は waterAcross（横の位置）と waterDepth2（岸の深さ・中ほどの深さ）で浅瀬の泡と川床を決める。
+      // 無いと頂点の描く深さ（中ほどでも 0.14m）を読み、帯の全面を浅瀬の灰の泡にした。中ほどは決めた川の深さ（st.depth）。
+      if (st.pts === RENGO) {
+        const across = new Float32Array(count), d2 = new Float32Array(count * 2);
+        for (let i = 0; i < count; i++) {
+          const tt = (i % columns) / (columns - 1); across[i] = tt * 2 - 1;
+          d2[i * 2] = depth[i]; d2[i * 2 + 1] = Math.max(depth[i], st.depth);
+        }
+        geo.setAttribute('waterAcross', new THREE.BufferAttribute(across, 1));
+        geo.setAttribute('waterDepth2', new THREE.BufferAttribute(d2, 2));
+      }
+      geo.setAttribute('shStreamDepth', new THREE.BufferAttribute(depth, 1));
+      geo.setIndex(indices); geo.computeVertexNormals();
+      st.mesh.geometry = geo; oldGeo.dispose();
+      // 共通の水面は不透明。岸の薄さを実際に描き、透明な端は深さも書かない。
+      // 水の高さ・浅瀬の判定は保ち、この戦の材質だけを変える。
+      mat.transparent = true; mat.alphaTest = 0.01; mat.depthWrite = false;
+      mat.color.setHex(0x2c362f); mat.roughness = 0.42; mat.envMapIntensity = 0.38;   // 霧の空を映して白い幅広の帯に見えた（10/30）。照りを細く、濁りを濃く   // 灰の道に見えた（10/28）。岸より暗い濁り水に、朝の光の照りを細く   // 柵越しの低い目で、濁った流れが空を映して川筋と分かるように（10/28）
+      mat.onBeforeCompile = (sh, renderer) => {
+        compile(sh, renderer);
+        sh.vertexShader = 'attribute float shStreamEdge; attribute float shStreamDepth; varying float vShStreamEdge; varying float vShStreamDepth;\n' + sh.vertexShader
+          .replace('#include <begin_vertex>', '#include <begin_vertex>\n vShStreamEdge = shStreamEdge; vShStreamDepth = shStreamDepth;');
+        sh.fragmentShader = 'varying float vShStreamEdge; varying float vShStreamDepth;\n' + sh.fragmentShader
+          .replace('#include <color_fragment>', `#include <color_fragment>
+            float shBankNoise = texture2D(tMacro, vWPw.xz * 0.21).r;
+            float shBank = abs(vShStreamEdge) + (shBankNoise - 0.5) * 0.16;
+            float shShallow = 1.0 - smoothstep(0.02, 0.12, vShStreamDepth);   // 11/18：中ほどまで泥色にせず水の色を残す
+            float shMud = max(smoothstep(0.4, 0.9, shBank), shShallow);
+            diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.25, 0.22, 0.16), shMud * 0.65);
+            // 浅瀬と岸ぎわに白い小波の筋（流れに沿って動く）。灰の板でなく流れる川に見せる。
+            float shFoamN = texture2D(tMacro, vec2(vWPw.x * 0.9, vWPw.z * 0.18 - uTime * 0.12)).r;
+            float shFoam = smoothstep(0.62, 0.8, shFoamN) * smoothstep(0.4, 0.62, shBank) * (1.0 - smoothstep(0.62, 0.85, shBank));
+            // 11/18：浅い所一面の泡の斑が、遠目に川床の白い小石の帯に見えた → 泡は岸ぎわの細い筋だけ・薄く
+            diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.62, 0.64, 0.60), shFoam * 0.3);
+            float shRim = (shBankNoise - 0.5) * 0.12;
+            diffuseColor.a *= (1.0 - smoothstep(0.58 + shRim, 0.96, shBank))
+              * smoothstep(0.0, 0.12, vShStreamDepth);`);
+        // 等間隔の明暗を横一杯へ並べず、既存の濃淡で短い流れに崩す。
+        sh.fragmentShader = sh.fragmentShader
+          .replace('sin(streamAcross * 4.8 + sin(streamAlong * 0.22 - uTime * 0.8) * 0.7)',
+            '(texture2D(tMacro, vec2(streamAcross * 0.35, streamAlong * 0.12 - uTime * 0.04)).r - 0.5)')
+          .replace('streamNear * 0.065', 'streamNear * 0.10')
+          .replace('(0.08 + waterEdge * 0.3)', '(0.025 + waterEdge * 0.09)')
+          // 11/18（K169）：幅五メートルに満たない小川では、共通の川の「岸寄りの小石」と白波が帯の半分を覆い、石の帯に見えた。薄くする
+          .replace('max(rBank * 0.55, rShallowRun * 0.4)', 'max(rBank * 0.22, rShallowRun * 0.25)')
+          .replace('clamp(rFoam, 0.0, 1.0) * 0.6', 'clamp(rFoam, 0.0, 1.0) * 0.25')
+          // 細かな波の面の向きが強く、霞んだ空の映りが画素ごとに砕けて灰の小石の斑に見えた。小川の緩い流れに合わせて穏やかに
+          .replace('mix(0.8, 0.25, waveFar)', 'mix(0.22, 0.08, waveFar)');
+      };
+      // 11/18 追い（K169）：柵の上からの目では、映る雲の濃淡と波の向きの映り分けが画素ごとに砕け、灰の斑の帯に見えた。
+      // 幅の狭い濁った小川は空を弱く・平らに映し、水の暗さで川筋と分からせる（水の上塗り water_body.js の後に掛ける。共通の水の絵は触らない）
+      mat.userData.surfacePatch = (fs) => fs
+        .replace('(0.72 + sfCloud * 0.56)', '(0.88 + sfCloud * 0.2)')
+        .replace('* 6.0, 0.3, 1.6), 0.35', '* 2.0, 0.6, 1.2), 0.35')
+        .replace('sfFres * 0.60 * sfFacet', 'sfFres * 0.42 * sfFacet')
+        // 斑の根：瀬の白い泡（水深28cmまで）が、中ほどでも14cmほどのこの小川の全面に千切れて灰の斑になっていた。瀬の泡は水際の数センチだけ
+        .replace('float sfRif = 1.0 - smoothstep(0.04, 0.28, sfBD);', 'float sfRif = (1.0 - smoothstep(0.0, 0.05, sfBD)) * 0.5;')
+        .replace('float sfFoam = (1.0 - smoothstep(0.04, 0.28, sfBD))', 'float sfFoam = (1.0 - smoothstep(0.0, 0.05, sfBD)) * 0.5');   // 携帯の短い水の絵も同じ
+      mat.customProgramCacheKey = () => key() + '_設楽原の流れ'; mat.needsUpdate = true;
+      // 九列の岸と水深で仕上げた面。開戦時に共通の二列の川へ戻さない。
+      // 岸の石と草も下で配置するので、共通の岸飾りを川中へ重ねない。
+      st.mesh.userData.waterSurfaceReady = true;
+      // 共通の川石は艶のある丸石で、朝の空を映して柵の向こうに白い丸い塊として浮いていた。
+      // 濡れた暗い石の色にし、照りを消して半ば川床へ沈める。形と数は変えない。
+      if (st.rockMesh) {
+        const rm = st.rockMesh.material;
+        rm.color.setHex(0x6b6455); rm.roughness = 0.95; rm.metalness = 0;   // 11/18：0x3f3a31 は朝でも真っ黒な塊に見えた。濡れた灰茶へ
+        // 11/18 14:30 クラウド：照り返しを 0.05 まで消すと陰の面に回る光も消え、柵の上から川面に黒い楕円が六つ浮いた（連絡帳 09:17）。
+        // 艶は粗さ 1 で消したまま、空からの回り込みの光は残す。石を少し深く沈め、水面から頭だけ出す。
+        rm.roughness = 1;
+        if ('envMapIntensity' in rm) rm.envMapIntensity = 0.55;
+        st.rockMesh.position.y -= 0.2;
+      }
+    }
+    // 少ない草を広い戦場へ均等に撒かず、柵の足元と追い道の脇へ寄せる。
+    // 短く曲がる葉と材質を全株で共有し、開戦時だけ並べる。
+    const blades = rockTuftShape(true);
+    const grassMesh = new THREE.InstancedMesh(blades,
+      new THREE.MeshLambertMaterial({ color: 0xffffff, vertexColors: true, side: THREE.DoubleSide }), 720);
+    const grassPose = new THREE.Object3D(), grassColor = new THREE.Color();
+    let grassCount = 0;
+    for (let i = 0; i < 720; i++) {
+      const nearFence = i < 540, k = i % 180, mouth = MOUTHS[Math.floor(i / 180) % 3];
+      // 株数は保ち、柵際の乱戦とその脇へ短い草の群落を寄せる。
+      let z = mouth.z - 37 + k * 0.43 + Math.sin(i * 1.37) * 1.5;
+      const x = nearFence ? -24 + (0.5 + 0.5 * Math.sin(i * 2.399)) * 52
+        : 38 + (0.5 + 0.5 * Math.sin(i * 2.399)) * 122;
+      // 同じ株数を寄せ道の畦へ移す。泥の中央へ均等に生やさない。
+      if (!nearFence) {
+        const bend = Math.sin(x * 0.045) * 0.32;
+        z = (Math.round((z * 0.17 + bend) / (Math.PI * 2)) * Math.PI * 2 - bend) / 0.17
+          + Math.sin(i * 1.71) * 0.8;
+      }
+      // 水田で大きさゼロにしていた株は束へ送らない。見える株の位置と色は元の番号で保つ。
+      if (W.def.paddy(x, z) > 0.3) continue;
+      // 柵の口は踏み固めた土のまま。草は進路を塞がない小さな株にする。
+      grassPose.position.set(x, drawGroundAt(W, x, z) - 0.025, z);
+      const size = 0.6 + (0.5 + 0.5 * Math.sin(i * 1.71)) * 0.8;
+      const trampled = SB.gates.some((g) => z - g > -9.5 && z - g < 20.5);
+      // 通り道は低く広がる倒れ草、脇は立つ葉。同じ株の形を使い回す。
+      const spread = size * (trampled ? 1.65 : 1.25);
+      grassPose.scale.set(spread, size * (trampled ? 0.16 : 0.85), spread);
+      grassPose.rotation.y = i * 2.399; grassPose.updateMatrix(); grassMesh.setMatrixAt(grassCount, grassPose.matrix);
+      const tone = 0.5 + 0.5 * Math.sin(i * 0.81);
+      grassColor.setRGB(0.32 + tone * 0.18, 0.40 + tone * 0.13, 0.19 + tone * 0.09);
+      if (trampled) grassColor.multiplyScalar(0.86);
+      grassMesh.setColorAt(grassCount++, grassColor);
+    }
+    grassMesh.count = grassCount;
+    grassMesh.receiveShadow = true;   // 10/24：草は作らない
+    // 株数と並びは保ち、画面に入る草だけ同じ束へ詰める。
+    W.viewCull([grassMesh], 0, Infinity, false);
+    // 連吾川の岸の葦と、川向こうの田の畦（10/28）。柵の後ろ低い目から、柵越しに川筋と田の並びが分かるように。
+    // 形と材質は一つずつ、開戦時に並べるだけ。毎コマの物は増やさない。
+    const rengoX = (z) => {
+      for (let i = 1; i < RENGO.length; i++) {
+        const a = RENGO[i - 1], b = RENGO[i];
+        if (z >= a[1] && z <= b[1]) return a[0] + (b[0] - a[0]) * (z - a[1]) / (b[1] - a[1]);
+      }
+      return 22;
+    };
+    // 夏の葦：細い葉を八枚、少し開いて一株に。人の背を越える丈。
+    const reedShape = (segments) => {
+      const reedParts = [];
+      for (let j = 0; j < 8; j++) {
+        const leaf = new THREE.PlaneGeometry(0.07, 1, 1, segments), lp = leaf.attributes.position;
+        const lean = 0.10 + (j % 3) * 0.08, a = j * 2.399, r = 0.05 + (j % 4) * 0.06;
+        for (let k = 0; k < lp.count; k++) {
+          const t = lp.getY(k) + 0.5;
+          lp.setXYZ(k, lp.getX(k) * (1 - t * 0.85) + r + lean * t * t, t * (0.78 + (j % 2) * 0.22), 0);
+        }
+        leaf.rotateY(a); reedParts.push(leaf);
+      }
+      const geo = mergeGeometries(reedParts);
+      for (const part of reedParts) part.dispose();
+      geo.computeVertexNormals();
+      return geo;
+    };
+    const reedGeo = reedShape(3);
+    const reedSpots = [];
+    for (const m of MOUTHS) {
+      const ford = m.z + 4.5;
+      for (let z = ford - 46; z <= ford + 46; z += 0.85) {
+        if (Math.abs(z - ford) < 4) continue;   // 渡り口の浅瀬は空ける
+        for (const side of [-1, 1]) {
+          const n = Math.sin(z * 0.37 + side * 1.3) + Math.sin(z * 1.13 + side) * 0.6;
+          if (n < -0.55) continue;   // 群れの切れ目から水面を見せる
+          const x = rengoX(z) + side * (2.7 + (0.5 + 0.5 * Math.sin(z * 2.9 + side)) * 1.6);
+          // 柵の側の岸は低く疎らに、向こう岸を高く。柵越しに水面が見える。
+          if (side < 0 && n < 0.2) continue;
+          reedSpots.push([x, z + Math.sin(z * 5.1) * 0.3, (side < 0 ? 0.9 : 1.5) + (0.5 + 0.5 * Math.sin(z * 0.71 + side * 2)) * (side < 0 ? 0.5 : 0.9)]);
+        }
+      }
+    }
+    const reeds = new THREE.InstancedMesh(reedGeo,
+      new THREE.MeshLambertMaterial({ color: 0xffffff, side: THREE.DoubleSide }), reedSpots.length);
+    const reedPose = new THREE.Object3D(), reedColor = new THREE.Color();
+    reedSpots.forEach(([x, z, h], i) => {
+      reedPose.position.set(x, drawGroundAt(W, x, z) - 0.08, z);
+      reedPose.scale.set(1 + h * 0.2, h, 1 + h * 0.2);
+      reedPose.rotation.set(Math.sin(i * 1.7) * 0.08, i * 2.399, Math.sin(i * 2.3) * 0.08);
+      reedPose.updateMatrix(); reeds.setMatrixAt(i, reedPose.matrix);
+      const tone = 0.5 + 0.5 * Math.sin(i * 0.93);
+      reedColor.setRGB(0.20 + tone * 0.10, 0.29 + tone * 0.08, 0.11 + tone * 0.04);
+      reeds.setColorAt(i, reedColor);
+    });
+    rt.scene.add(reeds);
+    // 三十二メートル先は葉の曲がりの節だけ省く。八枚の葉と株数・色・丈は保つ。
+    const farReeds = new THREE.InstancedMesh(reedShape(1), reeds.material, reedSpots.length);
+    farReeds.count = 0; farReeds.frustumCulled = false; farReeds.userData.noFreeze = true;
+    reeds.userData.foliageDetailNear = 32;
+    reeds.userData.farFoliage = farReeds; rt.scene.add(farReeds);
+    W.viewCull([reeds], 0, Infinity, false);
+    // 田の畦：草をかぶった細い土手。升の縁（11m×16m）に沿い、4m ごとに地面へ合わせて置く。
+    const azeSpots = [];
+    for (const m of MOUTHS) {
+      const z0 = Math.floor((m.z - 40) / 16) * 16, z1 = m.z + 52;
+      for (let z = z0; z <= z1; z += 16) for (let x = 28; x < 58; x += 4) azeSpots.push([x + 2, z, 0]);
+      for (const x of [28, 33, 44, 55, 58]) for (let z = z0; z < z1; z += 4) azeSpots.push([x, z + 2, 1]);
+    }
+    // 箱でなく、上の丸い土手（半ば埋めた横倒しの円柱）。角の立った緑の板に見せない。
+    // 幅広く低い土の盛り（高さ十五センチほど）にする。細く黒い丸太の格子が原一面に散り、馬防柵の一列が読めなかった（10/29 差の表）。
+    const azeGeo = new THREE.CylinderGeometry(0.8, 0.8, 4.15, 9, 1, true);
+    azeGeo.rotateZ(Math.PI / 2); azeGeo.scale(1, 0.24, 1); azeGeo.translate(0, -0.05, 0);
+    const aze = new THREE.InstancedMesh(azeGeo, new THREE.MeshLambertMaterial({ color: 0xffffff }), azeSpots.length);
+    azeSpots.forEach(([x, z, along], i) => {
+      reedPose.position.set(x, drawGroundAt(W, x, z), z);
+      reedPose.rotation.set(0, along ? Math.PI / 2 : 0, 0);
+      reedPose.scale.set(1, 0.85 + 0.3 * (0.5 + 0.5 * Math.sin(i * 1.9)), 1);
+      reedPose.updateMatrix(); aze.setMatrixAt(i, reedPose.matrix);
+      const tone = 0.5 + 0.5 * Math.sin(i * 0.77);
+      reedColor.setRGB(0.40 + tone * 0.05, 0.38 + tone * 0.05, 0.25 + tone * 0.03);   // 草の株の下は土の色。周りの田より少し明るい草土で、暗い丸太の筋に見せない
+      aze.setColorAt(i, reedColor);
+    });
+    aze.receiveShadow = true;
+    yield;   // K112：ここで一コマ返す（組み立ての固まりを分ける）
+    // 11/6 fixc1721（八1）：横倒しの円柱の畦は、遠くから茶色の角ばった板が並ぶように見えた。畦は地面の絵（shAze）と草の株だけで見せる
+    // 畦の肩に夏草の株を（葦と同じ形を低く使い回す。描くのは一回だけ）。
+    const azeGrass = new THREE.InstancedMesh(reedGeo, reeds.material, azeSpots.length);
+    azeSpots.forEach(([x, z, along], i) => {
+      const o = Math.sin(i * 2.71) * 1.6, gx = along ? x : x + o, gz = along ? z + o : z;
+      const h = 0.38 + 0.3 * (0.5 + 0.5 * Math.sin(i * 1.31));
+      reedPose.position.set(gx, drawGroundAt(W, gx, gz) + 0.06, gz);
+      reedPose.scale.set(1.5, h, 1.5); reedPose.rotation.set(0, i * 2.399, 0);
+      reedPose.updateMatrix(); azeGrass.setMatrixAt(i, reedPose.matrix);
+      const tone = 0.5 + 0.5 * Math.sin(i * 1.13);
+      reedColor.setRGB(0.26 + tone * 0.12, 0.33 + tone * 0.08, 0.13 + tone * 0.04);
+      azeGrass.setColorAt(i, reedColor);
+    });
+    rt.scene.add(azeGrass);
+    W.viewCull([azeGrass], 0, Infinity, false);
+    // 植えて間もない早苗の列（旧暦五月二十一日・田植えの後）。灰の水の板でなく、水を張った田に見せる。
+    // 一株は細い葉三枚、八株を一列に合わせた形を使い回す。開戦時に並べるだけ。
+    const naeParts = [];
+    for (let s = 0; s < 8; s++) for (let j = 0; j < 3; j++) {
+      const leaf = new THREE.PlaneGeometry(0.06, 1, 1, 1), lp = leaf.attributes.position;
+      for (let k = 0; k < lp.count; k++) {
+        const t = lp.getY(k) + 0.5;
+        lp.setXYZ(k, lp.getX(k) * (1 - t * 0.8) + 0.07 * t * t, t * (0.42 + (j % 2) * 0.1), 0);
+      }
+      leaf.rotateY(j * 2.094 + s * 0.7);
+      leaf.translate(s * 0.62, 0, Math.sin(s * 2.3) * 0.04);
+      naeParts.push(leaf);
+    }
+    const naeGeo = mergeGeometries(naeParts);
+    for (const part of naeParts) part.dispose();
+    naeGeo.computeVertexNormals();
+    const inPaddy = (x, z) => {
+      if (x < 28.6 || x > 57.4) return false;
+      if ((Math.floor(x / 11) + Math.floor(z / 16)) % 2) return false;
+      const ex = Math.min(((x % 11) + 11) % 11, 11 - ((x % 11) + 11) % 11), ez = Math.min(((z % 16) + 16) % 16, 16 - ((z % 16) + 16) % 16);
+      return Math.min(ex, ez) > 1.1;
+    };
+    const naeSpots = [];
+    for (const m of MOUTHS) {
+      const z0 = Math.floor((m.z - 40) / 16) * 16, z1 = m.z + 52;
+      for (let z = z0 + 0.35; z < z1; z += 0.8) for (let x = 28.6; x < 57.4; x += 5.2) {
+        if (inPaddy(x, z) && inPaddy(x + 4.4, z)) naeSpots.push([x, z]);
+      }
+    }
+    const nae = new THREE.InstancedMesh(naeGeo,
+      new THREE.MeshLambertMaterial({ color: 0xffffff, side: THREE.DoubleSide }), naeSpots.length);
+    naeSpots.forEach(([x, z], i) => {
+      reedPose.position.set(x, drawGroundAt(W, x + 2.2, z) - 0.03, z);
+      reedPose.rotation.set(0, Math.sin(i * 1.7) * 0.02, 0);
+      reedPose.scale.set(1, 0.9 + 0.25 * (0.5 + 0.5 * Math.sin(i * 0.61)), 1);
+      reedPose.updateMatrix(); nae.setMatrixAt(i, reedPose.matrix);
+      const tone = 0.5 + 0.5 * Math.sin(i * 0.37 + Math.floor(z / 16));
+      reedColor.setRGB(0.26 + tone * 0.08, 0.50 + tone * 0.1, 0.10 + tone * 0.03);
+      nae.setColorAt(i, reedColor);
+    });
+    rt.scene.add(nae);
+    W.viewCull([nae], 0, Infinity, false);
+    // 連吾川の岸の丸石は、柵の向こうで白い丸い塊に見えていた。岸には置かず、追い道の脇だけに散らす。
+    const banks = [];
+    // 追い道の脇にも同じ石を散らす。道の中央と田は空ける。
+    for (let i = 0; i < 72; i++) {
+      const z = 24 - i * 5, x = 100 + (0.5 + 0.5 * Math.sin(i * 2.399)) * 165;
+      banks.push([x, z, 0.18 + (0.5 + 0.5 * Math.sin(i * 1.71)) * 0.24]);
+    }
+    const stones = new THREE.InstancedMesh(rockShape(1, true, 1), new THREE.MeshLambertMaterial({ color: 0xffffff, vertexColors: true, side: THREE.DoubleSide }), banks.length);
+    yield;   // K626：重い段をさらに割る（描く支度はここで一コマ返す）
+    const stoneMatrix = new THREE.Matrix4();
+    banks.forEach(([x, z, r], i) => {
+      stoneMatrix.makeScale(r * 1.3, r * 0.6, r);
+      stoneMatrix.setPosition(x, W.heightAt(x, z) + r * 0.2, z); stones.setMatrixAt(i, stoneMatrix);
+    });
+    groundRocks(W, stones); rt.scene.add(stones);
+    // 三十二メートル先の小石は割れ目だけ省き、本数・位置・色を保つ。
+    // 既存の草木の距離切替で詰め、近づけば元の形と影へ戻す。
+    const farStones = new THREE.InstancedMesh(rockShape(1, true, 0), stones.material, banks.length);
+    farStones.count = 0; farStones.receiveShadow = true; farStones.frustumCulled = false;
+    farStones.userData.noFreeze = true;
+    stones.userData.foliageDetailNear = 32;
+    stones.userData.farFoliage = farStones; rt.scene.add(farStones);
+    // 川岸から追い道までの石を、画面の外も全て描いていた。
+    W.viewCull([stones], 0, Infinity, false);
+    return nearMaterial;
+  },
+  *fence(rt, nearMaterial) {
+    const W = rt.world, F = rt.flags;
+    F.fence = [];
+    const fenceStart = rt.scene.children.length;
+    // 携帯で描く地面は歩行用より粗い。丸太と土の根元を実際の面へ据える。
+    // 柵を作る間だけ高さの読み口を替え、道・当たり・地面の頂点数は保つ。
+    const fenceWorld = Object.create(W);
+    fenceWorld.heightAt = (x, z) => drawGroundAt(W, x, z);
+    F.fenceGround = fenceWorld;
+    const fenceRt = { world: fenceWorld, army: rt.army, scene: rt.scene };
+    // 10/31 iPhone の記憶：口から百メートル先の間の柵は、杭ごと・横木ごとの縄の巻き（一区画で二千六百頂点）を省く。
+    //   斬り合う三つの口の前（前後九十六メートル）は交差の杭と縄を保つ。
+    const plainWorld = Object.create(fenceWorld);
+    yield;   // K626：重い段をさらに割る（描く支度はここで一コマ返す）
+    plainWorld.def = { ...W.def, bobosakuCrossed: false };
+    const plainRt = { ...fenceRt, world: plainWorld };
+    let edge = SB.z0;
+    for (const mouth of MOUTHS) {
+      const z0 = mouth.z - 96, z1 = mouth.z + 96;
+      // 交戦口は六メートル、間の柵は三十メートル単位でまとめ、壊せる区画の増え方を抑える。
+      if (edge < z0) buildBobosaku(plainRt, { x0: SB.x0, z0: edge, z1: z0, gap: SB.gap, segLen: 30, facing: 1, sealSeams: true }).forEach((f) => F.fence.push(f));
+      F.fence.push(...buildBobosaku(fenceRt, { x0: SB.x0, z0, z1, gap: SB.gap, gates: [mouth.z], gateOff: SH_GATE_OFF, sealSeams: true,
+        // 一の柵の z〜z+6 の区画は尻まで結ぶ（二・三の柵の口が重なる z+5.1〜z+6 を、区画の継ぎ目の〇・九m で素通しにしない）
+        closeEnd: (r, a) => r === 0 && a === mouth.z, facing: 1 }));
+      // 11/20 iMac：三の柵の口の奥の蔀（しとみ）の柵。一区画（z+10.5〜z+18.6）。列の札は三の柵と同じ（逆茂木は置かない）
+      { const mi = MOUTHS.indexOf(mouth);
+        for (const f of buildBobosaku(fenceRt, { x0: SH_BAF[mi] - bobosakuBend(mouth.z + 15, 0), z0: mouth.z + 10.5, z1: mouth.z + 19.5, rows: 1, gap: SB.gap, segLen: 9, facing: 1, sealSeams: true })) { f.row = 2; f.shBaffle = true; F.fence.push(f); } }
+      edge = z1;
+    }
+    yield;   // K626：重い段をさらに割る（描く支度はここで一コマ返す）
+    if (edge < SB.z1) F.fence.push(...buildBobosaku(plainRt, { x0: SB.x0, z0: edge, z1: SB.z1, gap: SB.gap, segLen: 30, facing: 1, sealSeams: true }));
+    // 10/31 iPhone の記憶：馬防柵は口ごとに一つの束（三十八万頂点）。一区画が倒れる 0.8 秒のあいだ毎コマ傾けると、
+    //   そのたびに束を丸ごと書き直して送り直していた（三十秒で数百 MB の屑）。倒れる間の傾きは 0.3 ずつ・倒れ切りだけ書く。
+    const fenceSet = new Set(F.fence), army = rt.army, tilt = army.structTilt;
+    army.structTilt = function (st, ang) {
+      if (fenceSet.has(st) && ang < 1.349 && Math.abs(ang - (st._tiltW ?? -9)) < 0.3 && this.falling?.some((q) => q.s === st)) return true;
+      if (fenceSet.has(st)) st._tiltW = ang;
+      return tilt.call(this, st, ang);
+    };
+    for (let i = fenceStart; i < rt.scene.children.length; i++) rt.scene.children[i].traverse((m) => {
+      if (m.isMesh && m.material) {
+        m.material = nearMaterial(m.material);
+        // 結合した柵は大きな球で囲まれる。視点が球の内でも束ごと消さず、近い面だけ透かす。
+        m.userData.camSurfaceFade = true;
+      }
+    });
+    tagZones(F.fence, ZONES);
+    shFenceFoot(rt, F.fence, F.fenceGround);
+    // 三列の虎口が重なる所を道筋に使う。遊び手の頭に古い座標を残さない。
+    //   outOffset・lane・row0：一の柵の口（z−3）と、一と二の柵の間の筋・一の柵の東西位置（bot の道筋 playbot.js shitaraPost）
+    F.fenceRoute = { gates: SB.gates, offset: 4.5, rearX: SB.x0 - 2 * SB.gap - 6, frontX: SB.x0 + 6, outOffset: SH_OUT, lane: SH_LANE, row0: SH_ROW0,
+      cross: SH_CROSS, rows: [SH_ROW0, SH_ROW1, SH_ROW2], baf: SH_BAF, lanes: [null, SH_LANE, SH_LANE2, SH_POC] };
+    // 内部の史実札（HIST_A=根拠強い／HIST_B=推定復元／GAME_C=ゲーム補完。表には出さない）
+    F.hist = { fence: 'HIST_A', tripleFence: 'HIST_B', rengoRiver: 'HIST_A', honjinOda: 'HIST_B', honjinTokugawa: 'HIST_B', takedaWaves: 'GAME_C', fenceTrap: 'GAME_C', dorui: 'HIST_B', orderDelay: 'GAME_C', footFirst: 'GAME_C' };
+  },
+  scenery(rt) {
+    const W = rt.world, oda = scenarioKey() === 'oda' && !rt.G.lord, odaZ = 190, KT = nagashinojo.kit;
+    shFieldWorks(rt);
+    shSummerGrass(rt);
+    for (const [x, z, k, h] of [[IEYASU.x - 10, IEYASU.z + 10, 'onri', 6.5], [CHAUSU.x + 10, CHAUSU.z + 10, 'eiraku', 6.5]]) rt.scene.add(nobori(W, x, z, k, h));
+    // 柵の内の旗（織田が北寄り、徳川が南）
+    // 11/5 BP：柵の間に旗がずらり。二の柵と三の柵の間は二十二メートルごと、一の柵と二の柵の間にも口を避けて互い違いに。
+    for (let z = SB.z0 + 34; z <= SB.z1 - 12; z += 44) {
+      if (SB.gates.some((g) => Math.abs(z + 5 - (g + 4.5)) < 16)) continue;
+      const post = ALLIED_POSTS.find((p) => Math.abs(p[2] - z - 5) <= 23);
+      rt.scene.add(nobori(W, SB.x0 - 2.6, z + 5, post ? post[4] : z < odaZ ? 'oda' : 'tokugawa', 4.6));
+    }
+    for (let z = SB.z0 + 12; z <= SB.z1 - 12; z += 22) {
+      let mon = z < odaZ ? (oda && z % 44 === 0 ? 'maeda' : 'oda') : (z % 44 === 0 ? 'okubo' : 'tokugawa');
+      if (true) {
+        // 余りの一致で選ぶと固有の紋が一度も出ない。既存の備えの持ち場で選ぶ。
+        const post = ALLIED_POSTS.find((p) => Math.abs(p[2] - z - 5) <= 23);
+        mon = post ? post[4] : z < odaZ ? 'oda' : 'tokugawa';
+      }
+      rt.scene.add(nobori(W, SB.x0 - SB.gap - 3, z + 5, mon, 5));
+    }
+    rt.scene.add(tawara(W, -30, 30, 0.3, 6), tawara(W, -34, -20, -0.4, 5));
+    // 南の口の持ち場（二重の柵の間）の脇に、兵が担いで来た予備の柵木の山と俵（信長公記：柵の木を各自に持たせた）。
+    // 25秒の画面の右手前に入る所。口（z -280）から十歩以上離し、当たりは足さない（10/28 採点：柵の内が草の野だけ）。
+    rt.scene.add(lumber(W, 9.6, -266, 0.12), lumber(W, 10.8, -262.6, -0.18), tawara(W, 12.2, -268.6, 0.6, 4, { solid: false }));
+    // 柵際と避難路を空けた南北の集落。戸数を保ち、各家の戸口から入れる。
+    // 室内は推定。長篠城と鳶ヶ巣山の砦は東の遠景に置く（11/15 K329・shitaragahara/nagashino_far.js。当たりは無い）。
+    try { rt.flags.nagaFar = nagashinoFar(rt); } catch (e) { console.warn(e); }
+    try { nagashinoNear(rt); } catch (e) { console.warn(e); }   // 11/17 K356⑤：行けば在る長篠城と武田の包囲（shitaragahara/nagashino_far.js）
+    for (const [i, v] of PEOPLE_VILLAGES.entries()) KT.farVillage(rt, v.x, v.z,
+      { rot: i ? 0 : Math.PI, n: i ? 5 : 6, fields: 0, seed: 21 + i,
+        interiorHomes: { name: i ? '南の集落の民家' : '北の集落の民家', kind: 'minka', profile: 'shitaragahara' } });
+    // 村外れの小堂は外陣・内陣・須弥壇を備える推定の姿。避難先を攻撃の的にしない。
+    const villageHall = goten(rt, PEOPLE_TEMPLE.x, PEOPLE_TEMPLE.z,
+      { w: 8, d: 6, name: '村外れの寺の堂', kind: 'hondo', profile: 'shitaragahara',
+        naka: true, noTarget: true, templePaper: true, interiorH: 2.35, doorX: 0, oku: 0,
+        doorFire: false, // 避難先の小堂に本陣用の篝を並べず、内陣の灯明を使う。
+        // 御殿の大将用の場所を空けて須弥壇を消さない。明かり障子は外壁の正面二間に合わせる。
+        // 隅柱の内面と窓枠の間を空ける。外観の窓も一間の左右を四十二センチずつ残す。
+        wins: () => [-8 / 3, 8 / 3].map(t => ({ face: 'z', s: 1, t,
+          w: 8 / 3 - (SETTINGS.quality === 'high' ? .84 : .24),
+          y0: 1.375 - .55, y1: 2.525 - .55, shoji: true, sliding: SETTINGS.quality === 'high' }))
+          // 来迎壁と本尊の背後は壁を残し、左右の柱間から内陣へ採光する推定の姿。
+          // 外の格子の内側に引違いの明かり障子を納め、裏窓も閉じられるようにする。
+          // 格子は外観を共用し、紙戸と溝だけを既存の室内の仕組みで組む。
+          .concat(SETTINGS.quality === 'high' ? [-8 / 3, 8 / 3].map(t => ({ face: 'z', s: -1, t,
+            w: (8 / 3 - .24) * .7, y0: 1.5 - .55, y1: 2.3 - .55,
+            exteriorLattice: true, shoji: true, sliding: true })) : []) });
+    villageHall.naka.templePaper = true;
+  },
+};
+export function* shitaraField(rt) {
+  const nearMaterial = yield* SHITARA_FIELD.look(rt);
+  yield* SHITARA_FIELD.fence(rt, nearMaterial);
+  SHITARA_FIELD.scenery(rt);
+}
+// 戦場の目印（柵の東西・虎口の z・退き口・勝頼の本陣）。他家の戦が行き先を置く物差し
+export const SHITARA_AT = { fenceX: SB.x0, gap: SB.gap, gates: SB.gates, rear: NF_REAR, katsuyori: KATSUYORI, rengoX };
+// 戦場の地形と見た目の決まり（高さ・川・田・道・柵の道筋）。他家の戦は ...SHITARA_WORLD で同じ地面を使う
+export const SHITARA_WORLD = shitaragahara.world;
 export { shitaragahara };
 // 11/13 K119 クラウドさ：待つ備・前を埋める新手（depth_reserve.js）の置き場。武田の新手は柵の外（連吾川の側）だけ、味方の新手は柵の内だけ。
 //   柵の内の道に武田の新手が三秒ごとに湧き、本人が大宮前で斬り合い続けて柳田前の段が 228→912秒・583→1260秒 終わらなかった（act bot 四回）
