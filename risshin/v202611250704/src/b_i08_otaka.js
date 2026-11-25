@@ -4,7 +4,7 @@
 import { lightBattle, uS, uA, busho } from './light_battle.js';
 import { gauss } from './bhelp.js';
 import { jinmaku, nobori, tawara } from './props.js';
-import { obiTick } from './b_i10_okehazama.js';
+import { obiTick } from './imagawa_obi.js';
 
 const SPAWN = { x: -200, z: 120 }, OTAKA = { x: 100, z: -20 }, HON = { x: -120, z: 90 }, ATO = { x: -170, z: 110 };
 const MID = { x: -40, z: 40 }, FACE = (2 * Math.PI) / 3;

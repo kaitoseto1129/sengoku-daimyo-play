@@ -1,10 +1,8 @@
 // 読み込みや舞台の作り直しをせず、同じ兵・隊・任務・時限の参照を保って戻す。
-// 形・材質・素材・音・画面は写さない。開戦時と、十二秒おきの二点だけを持つ。
-import { cpStep } from './battle_checkpoint.js';
+// 形・材質・素材・音・画面は写さない。十二秒おきの写しを一つだけ持つ（小判のコンティニューの戻り先・K648。開戦の写しは最初の一つ）。
 import { setAssist } from './battle_assist.js';
 import { fiveGoals } from './goals5.js';
 import { musicNow, playMusic } from './audio.js';
-import { MEM_TIGHT } from './settings.js';
 import { Unit } from './units_group.js';
 import { CONTINUE_KOBAN, canContinue, payContinue, refundContinue } from './continue_koban.js';
 import { addEn } from './i18n.js';
@@ -19,7 +17,6 @@ let payTag = 0;
 // - 倒れたら 3〜5 秒は戦場が続き（音は遠のく）、それから「直前から再開」（既定）／「戦の最初から」。
 // - 再開では長い会話・済んだ場面を流さず、2 秒だけ「前回まで／現在」を出す。体力が極端に低ければ四割五分まで戻す。
 // - 二度目の負けで手がかり一行、三度目で「援護を強くする」「このまま戦う」、四度目から「この局面を易しくする」も（battle_assist.js。その戦だけ）
-const CP_WIN = [[120, 240], [360, 540], [600, 780]];   // 区切りの三つの窓（秒）
 const LOSSES = new WeakMap();   // その戦で負けた数（写しに入らない）
 const memories = new WeakMap();
 export const RETRY_STAT = { n: 0, records: 0, fresh: 0 };   // 確かめ用：最後の写しの記録の数と、新しく作った記録の数
@@ -279,7 +276,7 @@ export function recoverBattle(rt) {
   m.dialog?.close(); m.dialog?.remove(); m.dialog = null;
   m.pending = null; m.accept = null; m.accepting = false; m.downShown = false; m.job = null;
   m.input.clear?.(); point.restore();
-  m.recent = m.previous = point; m.next = rt.t + 12;
+  m.recent = point; m.start = m.previous = null; m.next = rt.t + 12;
   rt.retryOpen = false;
   rt.game.G = rt.G; rt.game.hitstop = rt.game.slowmo = 0;
   settlePlayer(rt);
@@ -355,7 +352,7 @@ export function retryTick(rt, input, extra, dt) {
   if (m.startJob) {
     const start = m.startJob.step(1.0);
     if (!start) return false;
-    m.start = m.recent = m.previous = start; m.startJob = null; m.next = rt.t + 12;
+    m.start = m.recent = start; m.previous = null; m.startJob = null; m.next = rt.t + 12;
   }
   // 倒れた動きを同じ視点で一秒見せてから札を開く。
   if (m.pending) {
@@ -373,42 +370,22 @@ export function retryTick(rt, input, extra, dt) {
     if (m.left <= 0) m.accept();
     return !!rt.def.pauseRetry && !!m.dialog;
   }
-  // 目標を一つ果たした時の点を残す（「少し前から」はここから始める）
-  const doneN = rt.def.retryGoalCount?.(rt) ?? (rt.objectives ? rt.objectives.filter((o) => o.kind === 'main' && o.state === 'done').length : 0);
-  if (m.doneN === undefined) m.doneN = doneN;
-  // 段（任務の①②③…）が変わった時も、その段の始まりを残す（kaito 11/8：同じ id の任務を書き換えて段を進める戦では
-  //   済みの数が増えず、「少し前から」が戦の始めに戻っていた。天王寺・岡山）。段の始まりは体力を問わない（戻す時に満たす）
-  const sk = cpStep(rt);
-  if (m.sk === undefined) m.sk = sk;
-  if (sk !== m.sk && !m.goalJob && !rt.over && rt.player.u.alive) {
-    m.sk = sk; m.doneN = Math.max(m.doneN, doneN); m.goalJob = startRemember(rt, extra, m.goal || m.recent);
-  } else if (doneN > m.doneN && !m.goalJob && !rt.over && rt.player.u.alive && (rt.def.retryGoalCount || rt.player.u.hp >= rt.player.u.maxHp * 0.5)) {
-    m.doneN = doneN; m.goalJob = startRemember(rt, extra, m.goal || m.recent);
-  } else if (doneN < m.doneN) m.doneN = doneN;
-  // 三つの窓：窓のうちに区切りが無ければ、窓の終わりに写す（段の無い戦・長い段の戦でも、最初からに戻らない）
-  if (m.win === undefined) m.win = 0;
-  while (m.win < CP_WIN.length && (m.cpAt ?? -1) >= CP_WIN[m.win][0]) m.win++;
-  if (m.win < CP_WIN.length && rt.t >= CP_WIN[m.win][1] && !m.goalJob && !rt.over && rt.player.u.alive && rt.player.u.hp >= rt.player.u.maxHp * 0.3) {
-    m.win++; m.goalJob = startRemember(rt, extra, m.goal || m.recent); m.goalLabel = cpLabel(rt);
-  }
-  if (m.goalJob) {
-    if (!m.goalLabel) m.goalLabel = cpLabel(rt);
-    const g = m.goalJob.step(slice);
-    if (g) { if (m.goal) m.goal.byObject = null; m.goal = g; m.goalJob = null; m.cpAt = g.time; m.cp = m.goalLabel; m.goalLabel = null; }
-  }
+  // 11/25 K643・K648 Sanae：無料の『直前から再開・最初から・易しく』を無くした後に要るのは、小判のコンティニュー（倒れた所から続ける）の写し一つだけ。
+  //   区切り（段・目標・三つの窓）の写しと開戦の写しと『その前』の写しを抱えるのをやめ、十二秒おきの写しを一つだけ持つ（新しい写しが出来たら古い物は捨てる）。
+  //   WebKit（iPhone）では写し一つが約16MB・開戦と区切りとその前で三つ多く抱え、桶狭間15分の伸びの主因だった（k643_all.md）
+  // 金ヶ崎の退き口（def.retryBeforeT）：「この時刻より前へ」と言う間は、その前の写しを残し、新しく写さない（もう勝てない形の後の写しで上書きしない）
+  const lim = rt.def.retryBeforeT?.(rt);
+  if (lim != null && m.recent && m.recent.time < lim) { if (m.job) m.job = null; return false; }
   // 深手になる前の時点を残す。直前の八秒を必ず空け、戻った瞬間の同じ一撃を避ける。
   if (m.job) {
     const done = m.job.step(slice);   // 一ミリ秒ずつ（重いコマは半分）。終わるまで前の写しを残す
     if (done) {
-      // 索引（byObject）は次の写しの見比べにだけ使う。古い写しからは外し、三つの写しが全部の索引を抱えないように
+      // 新しい写しが出来たら古い写しは捨てる（持つのは一つだけ。K643・K648）。同じ値の記録は新しい写しが使い回すので、捨てるのは変わった物の分だけ
       if (m.recent) m.recent.byObject = null;
-      // iPhone（MEM_TIGHT）は「その前」の写しを持たない（天王寺の山 約520MB のうち写しが約70MB。一つ分を減らす。11/17 司令塔の決め）。
-      //   少し前が八秒未満の間は、区切り・開戦の写しのうち八秒以上前の新しい方へ戻す（olderPoint）
-      m.previous = MEM_TIGHT ? null : m.recent; m.recent = done; m.next = rt.t + 12; m.job = null;
+      m.start = m.previous = null; m.recent = done; m.next = rt.t + 12; m.job = null;
     }
   } else if (!rt.over && rt.player.u.alive && rt.player.u.hp >= rt.player.u.maxHp * 0.3 && rt.t >= m.next) {   // 1.7.1 と揃える：深手の続く戦でも写しを取り続ける
-    // 写す間は、十二秒以上前の recent が「少し前」の戻り先。その前の写しは要らないので先に捨てる（写しを三つ重ねて抱えない）
-    m.previous = m.recent;
+    // 写す間は、十二秒以上前の recent が倒れた時の戻り先（写し終わるまで残す）
     m.job = startRemember(rt, extra, m.recent);
   }
   return false;
@@ -482,7 +459,7 @@ function retryText(rt, info) {
 
 export function offerRetry(rt, info, delay) {
   const m = memories.get(rt);
-  if (!m || m.accepting || !m.start) return false;
+  if (!m || m.accepting || !m.recent) return false;
   if (m.dialog || m.pending) {
     // 攻め止めの札を読んでいる間に倒れた時も、実際の傷と理由を結果へ渡す。
     if (info.down) {
@@ -550,7 +527,7 @@ export function offerRetry(rt, info, delay) {
     // 再開で長い会話を流し直さない：字幕の列と読み上げを捨てる
     window.speechSynthesis?.cancel(); if (rt.hud.subQ) { rt.hud.subQ.length = 0; rt.hud.subT = 0; }
     // 未来の点へは戻さない。次の保存も、戻した戦の時刻から数える。
-    m.recent = m.previous = point; m.next = rt.t + 12;
+    m.recent = point; m.start = m.previous = null; m.next = rt.t + 12;
     rt.player.u.graceUntil = rt.army.time + 8;
     rt.game.G = rt.G; rt.game.hitstop = rt.game.slowmo = 0;
     settlePlayer(rt);

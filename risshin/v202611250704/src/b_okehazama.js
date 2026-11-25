@@ -2087,12 +2087,6 @@ html:root body #hud#hud#hud.oke-goals :is(#armybar, #h-prog, #jk-vit) { z-index:
     { const P = rt.player, td = P.takeDamage, k = rt.def.cutFloor; P.takeDamage = function (a, s) { const m = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow'; const d = td.call(this, a, s); return s && !s.isStruct && !m && d > 0 ? d * k : d; }; }   // 11/1：刃の一太刀を def.cutFloor 倍に（この戦だけ）
     // 実際に命を減らした敵だけ、既存の頭上の▼で命中を返す。
     timeslipField(rt);   // 身の回りの踏み荒らした地面・倒れた槍と旗・季節の草（def.timeslip）
-    rainPuddles(rt);
-    okeTerraces(rt);
-    // 豪雨のぬかるみが空を映して鈍く照るよう、地面の映りだけを強める（材質は一つのまま）。
-    rt.world.terrain.material.envMapIntensity = 0.95;
-    // 雨に濡れた土は暗く、色が沈み、少しだけ照る（10/29：乾いた赤土の明るさのままだった）。この戦の地面だけ。
-    rt.world.terrain.material.color.setHex(0xc9c6bf); rt.world.terrain.material.roughness = 0.8;
     const meritHit = rt.army.hooks.onMeritHit;
     rt.army.hooks.onMeritHit = function (target, source, kind, amount) {
       if (source?.isPlayer && target.team !== source.team && amount > 0) {
@@ -2143,47 +2137,7 @@ html:root body #hud#hud#hud.oke-goals :is(#armybar, #h-prog, #jk-vit) { z-index:
       // 「横へ走ってよける」は遊び方の説明（五1）。組頭の短い声だけ
       rt.say('組頭', '矢じゃ！', 2);
     };
-    // 足もとの追従する草も、この戦の房と同じ色にする。材質はこの世界の専用品。
-    if (rt.world.nearGrass) rt.world.nearGrass.material.color.setHex(this.world.tuftTint);
-    // 坂を壁と同じように抜くと、下の無地の遠景が白い破れに見える。
-    // この戦の地面は残し、視点の潜り込みは既存の地形判定で防ぐ。
-    rt.world.terrain.material.userData.camNearSolid = true;
-    // 濡れた土の下地を褐色へ。既存の草・泥・踏み跡の絵と凹凸はそのまま使う。
-    rt.world.terrain.material.color.setHex(0xc4b69d);
-    // 空の照り返しで濡れ土の色を消さず、草・踏み跡の濃淡を残す。
-    rt.world.terrain.material.envMapIntensity = 0.5;
-    // 浅い泥の窪みは共通の照り抑えから外れるため、曇天を白く映しやすい。
-    // この戦の裸地だけ上限を設ける。田の水・草・既存の土粒と踏み跡は残す。
-    const soilMaterial = rt.world.terrain.material;
-    const soilCompile = soilMaterial.onBeforeCompile;
-    const soilKey = soilMaterial.customProgramCacheKey();
-    soilMaterial.onBeforeCompile = function (shader, renderer) {
-      soilCompile.call(this, shader, renderer);
-      shader.fragmentShader = shader.fragmentShader
-        .replace('roughnessFactor = mix(roughnessFactor, 0.26, pool);',
-          `roughnessFactor = mix(roughnessFactor, 0.3, pool);
-          // 雨の間は泥と裸の土に水の膜を張り、曇り空を鈍く照り返させる。
-          roughnessFactor = mix(roughnessFactor, 0.36, clamp(w.z + w.y * 0.5, 0.0, 1.0) * uWet * 0.75);`)
-        .replace('reflectedLight.directSpecular *= 1.0 - wat * 0.6;', `
-          reflectedLight.directSpecular *= 1.0 - wat * 0.6;
-          float okeBareSoil = clamp(w.y + w.z, 0.0, 1.0) * (1.0 - wat);
-          reflectedLight.indirectSpecular = mix(reflectedLight.indirectSpecular,
-            min(reflectedLight.indirectSpecular, diffuseColor.rgb * 0.38 + vec3(0.012)), okeBareSoil);
-          reflectedLight.directSpecular *= 1.0 - okeBareSoil * 0.15;
-        `);
-    };
-    soilMaterial.customProgramCacheKey = () => soilKey + '|okeWetSoil';
-    yield;   // K626：読み込みの一続きの止まりを割る（描く支度はここで一コマ返す・K112 の段分け）
-    soilMaterial.needsUpdate = true;
-    // 設営と荷運びで既に荒れた筋。直線の帯を敷かず、既存の踏み跡へ刻む。
-    // 草の房も同じ跡で倒れ、戦闘中は兵の足でさらに泥が広がる。
-    for (const side of [-1, 1]) {
-      rt.world.stampTrail([[-18 + side * 0.8, -28], [-9 + side * 0.8, -48],
-        [5 + side * 0.8, -69], [17 + side * 0.8, -91], [18 + side * 0.8, -105]]
-        .map(fieldPathPoint), 0.85, 105);
-      rt.world.stampTrail([[side * 43, -74], [side * 29, -88],
-        [side * 18, -98], [18, -106]].map(fieldPathPoint), 2.1, 55);
-    }
+    yield* OKE_FIELD.ground(rt);   // K651：雨の水たまり・田楽狭間の段・濡れた土と踏み跡（今川の i10 と同じ所から建てる）
     // 携帯の横画面では、任務札がある間だけ重なる相手の一行を隠す。この戦を離れたら戻す。
     const taskStyle = document.createElement('style');
     taskStyle.textContent = `
@@ -2489,76 +2443,22 @@ html:root body #hud:has(#h-prog[data-battle="okehazama"]):has(#intro:not([hidden
         '今川義元「うろたえるな！　陣を固めよ！」' :
         `${killer.name || (killer.team === this.player.u.team ? '織田の兵' : '今川の兵')}「${killer.team === this.player.u.team ? this.flags.victory ? '追うな！　帰る組の旗へ集まれ！' : '道を開け！　本陣へ寄せるぞ！' : '陣を固めよ！'}」`);
     };
-    // 未の刻ごろの豪雨。鉛色の雲の下でも、顔・具足・旗に昼の散乱光を回す。
-    const rainWorld = rt.world, lookOf = rainWorld.lookOf;
-    rainWorld.lookOf = function (key) {
-      const look = lookOf.call(this, key);
-      if (key === 'storm') {
-        look.sky.setHex(0x858f94); look.fog.setHex(0x909b9d); look.top.setHex(0x68777f);
-        // 雲越しの方向光と暗い地面からの反射で、草鞋と具足の陰を残す。
-        // 雨上がりと同じ午後の方角にし、晴れる間に影が反対へ回るのも防ぐ。
-        look.sunDir.set(-65, 100, 45).normalize();
-        // 11/6：厚い雨雲の下では日の影がくっきり落ちない（写真）。方向光を弱め、空の散乱光で顔と具足を照らす。
-        // 11/6 critic60：雨待ちの最中に兵の影がくっきり落ち、もう晴れて見えた。豪雨の間の日の光はさらに絞る（影はほぼ消える）。
-        look.sun.setHex(0xe2e4de); look.sunI = 0.16;
-        look.hemiSky.setHex(0xd2d9da); look.hemiGround.setHex(0x777064);
-        look.hemiI = 2.1;
-        look.cloudDark = 0.35;
-      } else if (key === 'after') {
-        // 公記の攻撃は未の刻。仲夏の午後の高い南西の光とし、低い夕日の色を避ける。
-        // 細かな太陽の位置は復元。既存の光の入れ物を使い、形や描画数は増やさない。
-        look.sunDir.set(-65, 100, 45).normalize();
-        look.sun.setHex(0xfff0d8); look.glowK = 0;
-      }
-      return look;
-    };
-    // 配列の窓を開戦時に縮める。雨量・雷・ぬかるみは保ち、毎コマ動かす雨筋を減らす。
-    rainWorld.rainData = rainWorld.rainData.subarray(0, 720 * 3);
-    // 描画側も同じ長さにし、使わない雨粒まで毎コマ転送しない。入れ物は設営時だけ作る。
-    const rainPosition = rainWorld.rain.geometry.attributes.position.array.subarray(0, 720 * 6);
-    rainWorld.rain.geometry.setAttribute('position', new THREE.BufferAttribute(rainPosition, 3).setUsage(THREE.DynamicDrawUsage));
-    // 跳ねも既存の配列の先頭だけを使う。地面を白い印で埋めず、更新も減らす。
-    rainWorld.splash = rainWorld.splash.subarray(0, 160 * 3);
-    rainWorld.splashT = rainWorld.splashT.subarray(0, 160);
-    rainWorld.splashLine = rainWorld.splashLine.subarray(0, 160 * 18);
-    rainWorld.splashPts.geometry.setAttribute('position', new THREE.BufferAttribute(rainWorld.splashLine, 3).setUsage(THREE.DynamicDrawUsage));
-    rainWorld.splashPts.geometry.setDrawRange(0, 160 * 6);
-    rainWorld.splashPts.material.opacity = 0.55;
-    rainWorld.rain.material.color.setHex(0xdde4e8);
-    // 近い雨は細いまま通し、画面全体を覆う雨の板は重ねない。
-    // 11/6 critic60：描いて遊ぶと谷の雨筋がほとんど見えなかった（細い雨が少し見えただけ）。手前の太い筋は全部使い、濃さも共通の上限まで。
-    const nearRainUpdate = rainWorld.updateNearRain;
-    rainWorld.updateNearRain = function (dt, r, wdx, wdz) {
-      nearRainUpdate.call(this, dt, r, wdx, wdz);
-      this.rainNear.material.uniforms.op.value = r * 0.36;
-    };
+    OKE_FIELD.rain(rt);   // K651：豪雨の空と雨筋（今川の i10 と同じ所から建てる）
     // 初陣の打撃・同時に打ち込む人数は共通設定を保つ。倒れた後の救済は使わない。
     rt.firstFights = false; rt.flags.rescued = true;
     // 忍んで寄せる間は太鼓で進めと促さない。かかれの合図で解く。
     rt.flags.quiet = true;
     fieldSurroundings(rt);
     yield;   // K626：読み込みの一続きの止まりを割る（描く支度はここで一コマ返す・K112 の段分け）
-    const scenery = fieldScenery(rt);
-    const W = scenery.world;
-    // 今川本陣：陣幕の内に床几と馬印、脇に旗竿・兵糧・馬の杭（義元と旗本は戦う兵で置く）
+    const { scenery } = yield* OKE_FIELD.camp(rt);   // K651：本陣の幕・柵・輿・幟・焚火と林の色（今川の i10 と同じ所から建てる）
     const KT = KIT;
-    const camp = KT.honjin(scenery, HONJIN.x, HONJIN.z, { mon: 'imagawa', w: 26, d: 18, gap: 10, people: false, tate: false });
-    for (const [a, b] of [[4, 11.8], [24.2, 32]]) scenery.scene.add(okePalisade(W, a, b));
-    okeCloth(camp, W);
-    // 今川の陣幕と大きな旗印は義元の本陣の一か所だけ（kaito 11/2 T：幕がたくさんあって義元の居所が分からない）。前備の幕・幟は置かない。
-    // 11/6 critic60：本陣の西（井伊の備えの後ろ）と坂道の脇の茅葺きの家が、本陣が農家に見える元だった。戦う範囲の家は谷の下の村の側だけに。
-    for (const [x, z, r] of [[10, 28, 0.5], [-42, 46, 1.9], [49, -1, -0.4]]) scenery.scene.add(hut(W, x, z, 6.5, 4.4, r));
-    // （-41, -30）の家は谷の出口の丘の肩で宙に浮いて写った（11/6 描いて遊ぶ）。置かない。
     // 母衣だけの形を複製して使い回す。共有の甲冑や次の戦には書き込まない。
     rt.flags.horoShapes = new Map();
-    const okeWetFlag = new Map();
     const dispose = rt.world.dispose.bind(rt.world);
     rt.world.dispose = () => {
       for (const [original, copy] of rt.flags.horoShapes) if (original !== copy) copy.dispose();
       rt.flags.horoShapes.clear();
       for (const v of rt.flags.wetStd?.values() || []) v.dispose(); rt.flags.wetStd?.clear();
-      supplyCloth.dispose();
-      for (const m of okeWetFlag.values()) m.dispose();
       for (const [m, hex] of rt.flags.wetFlagMats || []) { m.color.setHex(hex); if (rt.flags.wetFlagGone) m.removeEventListener('dispose', rt.flags.wetFlagGone); }
       rt.flags.wetFlagMats?.clear();
       rt.hud.say = hudSay; rt.hud.bark = hudBark; rt.hud.banner = hudBanner;
@@ -2568,74 +2468,6 @@ html:root body #hud:has(#h-prog[data-battle="okehazama"]):has(#intro:not([hidden
       rt.hud.root.removeAttribute('data-oke-combat-task');
       dispose();
     };
-    // 本陣の脇に兵糧の俵
-    scenery.scene.add(tawara(W, HONJIN.x - 16, HONJIN.z + 4, 0.3, 6), tawara(W, HONJIN.x + 16, HONJIN.z - 3, -0.5, 5));
-    const supplyCloth = okeSupplyCovers(scenery);
-    okeCampTools(scenery);
-    for (const [x, z] of [[6, -106], [30, -106]]) scenery.scene.add(nobori(W, x, z, 'imagawa', 5.5));
-    // 今川の赤鳥の幟：白地に朱の赤鳥（櫛の形）。本陣の奥に混ぜる
-    customFlag('akadori', (g) => {
-      g.save(); g.fillStyle = g.strokeStyle = '#a8281c';
-      g.translate(64, 84);
-      g.beginPath(); g.ellipse(0, -8, 34, 16, 0, Math.PI, 0); g.lineTo(34, 2); g.lineTo(-34, 2); g.closePath(); g.fill();
-      for (let i = 0; i < 15; i++) { const x = -31 + i * 4.4; g.fillRect(x, 2, 2.4, 26); }
-      g.fillStyle = '#e8e2d2'; g.beginPath(); g.ellipse(0, -8, 22, 8, 0, Math.PI, 0); g.fill();
-      g.restore();
-    });
-    for (const [x, z] of [[12, -132], [26, -132]]) scenery.scene.add(nobori(W, x, z, 'akadori', 5.5));
-    // 谷の林が晴れの日の明るい黄緑の板に見えた（10/29 点付け：手本は雨に濡れた濃い青緑の杉と広葉樹）。
-    // 株ごとの色だけを濡れた深い緑へ沈め、株ごとに濃淡を散らす（設営時に一度だけ。形・本数・当たりは変えない）。
-    okeTintTrees(W, (i, r, g, b) => {
-      const k = 0.82 + ((i * 0.6180339) % 1) * 0.3;
-      // 雨空と葉房の陰影でも暗くなる。掛け色を重ねすぎて黒い切り絵にしない。
-      return [r * 0.62 * k, g * 0.72 * k, b * 0.68 * k];
-    });
-    // 雨の谷では奥の林ほど雨霧に沈む（10/29 点付け：谷の木が霧に薄れない）。共通の林の霞は葉の霧を六〜八割に弱めるので、
-    // この戦の林の材質だけ、その弱めを外して地面と同じ霧の掛かり方にする（材質はこの戦の林の物。色・形・本数は変えない）。
-    for (const m of new Set((W.treeMeshes || []).map((t) => t.material).flat())) {
-      if (!m?.onBeforeCompile || m.userData.okeMist) continue;
-      const prev = m.onBeforeCompile, key = m.customProgramCacheKey();
-      m.userData.okeMist = true;
-      m.onBeforeCompile = function (sh, r) {
-        prev.call(this, sh, r);
-        sh.fragmentShader = sh.fragmentShader.replace('fogFactor *= mix(mix(0.58, 0.78, smoothstep(30.0, 100.0, fogD)), 1.0, smoothstep(105.0, 145.0, fogD));',
-          'fogFactor = min(1.0, fogFactor * mix(0.9, 1.12, smoothstep(14.0, 60.0, fogD)));');
-        // 幹だけでなく、目の前の枝葉も透かす。奥の林・木の当たり・影は保つ。
-        // 材質の準備時だけ差し込み、毎コマの探索や透過の重ね描きを増やさない。
-        if (!this.bumpMap) {
-          sh.vertexShader = 'varying vec3 vOkeLeafView;\n' + sh.vertexShader.replace('#include <logdepthbuf_vertex>',
-            '#include <logdepthbuf_vertex>\nvOkeLeafView = mvPosition.xyz;');
-          sh.fragmentShader = 'varying vec3 vOkeLeafView;\n' + sh.fragmentShader.replace('#include <clipping_planes_fragment>', `#include <clipping_planes_fragment>
-          { float leafDistance = length(vOkeLeafView);
-            if (leafDistance < 5.0) {
-              vec2 cell = floor(gl_FragCoord.xy);
-              float threshold = fract((cell.x * 2.0 + cell.y * 3.0) * 0.2 + fract(cell.y * 0.5) * 0.5);
-              if (smoothstep(0.7, 5.0, leafDistance) < threshold) discard;
-            }
-          }`);
-        }
-      };
-      m.customProgramCacheKey = () => key + '|okeMistNearLeaves';
-      m.needsUpdate = true;
-    }
-    // 雨に濡れた幟は白い板に光らない。この戦で立てた幟の布だけを濡れた生成りへ沈める（材質は戦の中で使い回す）。
-    scenery.scene.traverse((o) => {
-      const f = o.userData?.flag;
-      if (!f?.material?.color) return;
-      const src = f.material;
-      if (!okeWetFlag.has(src)) {
-        const m = src.clone(); m.onBeforeCompile = src.onBeforeCompile; m.customProgramCacheKey = src.customProgramCacheKey;
-        m.color.setHex(0x9a978d); m.userData.okeWet = true; okeWetFlag.set(src, m);
-      }
-      f.material = okeWetFlag.get(src);
-    });
-    // 隊の中心へ攻め寄せた兵が焚火の当たりで止まらないよう、火は備えの脇に置く。
-    // 円陣の中心（18, -114）と退く口も空ける。
-    for (const [x, z] of [[-10, -96], [50, -92], [-32, -118], [10, -116]]) { scenery.scene.add(campfire(W, x, z)); rt.world.addFire(fieldX(x, z), fieldZ(x, z)); }
-    // 義元の塗輿：本陣の幕の内、床几の脇に据えてある
-    rt.flags.koshi = okeKoshi(W, HONJIN.x + 5, HONJIN.z - 3, 0.3);
-    yield;   // K626：読み込みの一続きの止まりを割る（描く支度はここで一コマ返す・K112 の段分け）
-    scenery.scene.add(rt.flags.koshi);
 
     // 味方の行軍（先手・一の組・自分の槍組・後備）
     // 釜ヶ谷を思わせる林の低地から、十六歩ほど隠れて寄せる（場所・距離は推定）。
@@ -4259,3 +4091,200 @@ function okeTintTrees(W, fn) {
   for (const m of trees) if (m.instanceColor) { apply(m.instanceColor.array); m.instanceColor.needsUpdate = true; }
   for (const C of W.cullList || []) for (const o of C.orig || []) if (o.col && trees.has(o.m)) apply(o.col);
 }
+
+// K651（kaito 11/25「立場を入れ替えるだけでできるやつはそうしよう」）：桶狭間の戦場を建てる所。織田の setup も、今川家編の i10（b_i10_okehazama.js）も同じ所から建てる。
+//   兵・組・台詞・段・遊びの旗は作らない（見た目と地面だけ）。ほかの家の同じ戦は okeField(rt) 一つを呼び、遊ぶ側・備・行き先・勝ち負けだけ入れ替える（docs/k651_howto.md）
+export const OKE_FIELD = {
+  *ground(rt) {
+  rainPuddles(rt);
+  okeTerraces(rt);
+  // 豪雨のぬかるみが空を映して鈍く照るよう、地面の映りだけを強める（材質は一つのまま）。
+  rt.world.terrain.material.envMapIntensity = 0.95;
+  // 雨に濡れた土は暗く、色が沈み、少しだけ照る（10/29：乾いた赤土の明るさのままだった）。この戦の地面だけ。
+  rt.world.terrain.material.color.setHex(0xc9c6bf); rt.world.terrain.material.roughness = 0.8;
+  // 足もとの追従する草も、この戦の房と同じ色にする。材質はこの世界の専用品。
+  if (rt.world.nearGrass) rt.world.nearGrass.material.color.setHex(okehazama.world.tuftTint);
+  // 坂を壁と同じように抜くと、下の無地の遠景が白い破れに見える。
+  // この戦の地面は残し、視点の潜り込みは既存の地形判定で防ぐ。
+  rt.world.terrain.material.userData.camNearSolid = true;
+  // 濡れた土の下地を褐色へ。既存の草・泥・踏み跡の絵と凹凸はそのまま使う。
+  rt.world.terrain.material.color.setHex(0xc4b69d);
+  // 空の照り返しで濡れ土の色を消さず、草・踏み跡の濃淡を残す。
+  rt.world.terrain.material.envMapIntensity = 0.5;
+  // 浅い泥の窪みは共通の照り抑えから外れるため、曇天を白く映しやすい。
+  // この戦の裸地だけ上限を設ける。田の水・草・既存の土粒と踏み跡は残す。
+  const soilMaterial = rt.world.terrain.material;
+  const soilCompile = soilMaterial.onBeforeCompile;
+  const soilKey = soilMaterial.customProgramCacheKey();
+  soilMaterial.onBeforeCompile = function (shader, renderer) {
+    soilCompile.call(this, shader, renderer);
+    shader.fragmentShader = shader.fragmentShader
+      .replace('roughnessFactor = mix(roughnessFactor, 0.26, pool);',
+        `roughnessFactor = mix(roughnessFactor, 0.3, pool);
+        // 雨の間は泥と裸の土に水の膜を張り、曇り空を鈍く照り返させる。
+        roughnessFactor = mix(roughnessFactor, 0.36, clamp(w.z + w.y * 0.5, 0.0, 1.0) * uWet * 0.75);`)
+      .replace('reflectedLight.directSpecular *= 1.0 - wat * 0.6;', `
+        reflectedLight.directSpecular *= 1.0 - wat * 0.6;
+        float okeBareSoil = clamp(w.y + w.z, 0.0, 1.0) * (1.0 - wat);
+        reflectedLight.indirectSpecular = mix(reflectedLight.indirectSpecular,
+          min(reflectedLight.indirectSpecular, diffuseColor.rgb * 0.38 + vec3(0.012)), okeBareSoil);
+        reflectedLight.directSpecular *= 1.0 - okeBareSoil * 0.15;
+      `);
+  };
+  soilMaterial.customProgramCacheKey = () => soilKey + '|okeWetSoil';
+  yield;   // K626：読み込みの一続きの止まりを割る（描く支度はここで一コマ返す・K112 の段分け）
+  soilMaterial.needsUpdate = true;
+  // 設営と荷運びで既に荒れた筋。直線の帯を敷かず、既存の踏み跡へ刻む。
+  // 草の房も同じ跡で倒れ、戦闘中は兵の足でさらに泥が広がる。
+  for (const side of [-1, 1]) {
+    rt.world.stampTrail([[-18 + side * 0.8, -28], [-9 + side * 0.8, -48],
+      [5 + side * 0.8, -69], [17 + side * 0.8, -91], [18 + side * 0.8, -105]]
+      .map(fieldPathPoint), 0.85, 105);
+    rt.world.stampTrail([[side * 43, -74], [side * 29, -88],
+      [side * 18, -98], [18, -106]].map(fieldPathPoint), 2.1, 55);
+  }
+  },
+  rain(rt) {
+  // 未の刻ごろの豪雨。鉛色の雲の下でも、顔・具足・旗に昼の散乱光を回す。
+  const rainWorld = rt.world, lookOf = rainWorld.lookOf;
+  rainWorld.lookOf = function (key) {
+    const look = lookOf.call(this, key);
+    if (key === 'storm') {
+      look.sky.setHex(0x858f94); look.fog.setHex(0x909b9d); look.top.setHex(0x68777f);
+      // 雲越しの方向光と暗い地面からの反射で、草鞋と具足の陰を残す。
+      // 雨上がりと同じ午後の方角にし、晴れる間に影が反対へ回るのも防ぐ。
+      look.sunDir.set(-65, 100, 45).normalize();
+      // 11/6：厚い雨雲の下では日の影がくっきり落ちない（写真）。方向光を弱め、空の散乱光で顔と具足を照らす。
+      // 11/6 critic60：雨待ちの最中に兵の影がくっきり落ち、もう晴れて見えた。豪雨の間の日の光はさらに絞る（影はほぼ消える）。
+      look.sun.setHex(0xe2e4de); look.sunI = 0.16;
+      look.hemiSky.setHex(0xd2d9da); look.hemiGround.setHex(0x777064);
+      look.hemiI = 2.1;
+      look.cloudDark = 0.35;
+    } else if (key === 'after') {
+      // 公記の攻撃は未の刻。仲夏の午後の高い南西の光とし、低い夕日の色を避ける。
+      // 細かな太陽の位置は復元。既存の光の入れ物を使い、形や描画数は増やさない。
+      look.sunDir.set(-65, 100, 45).normalize();
+      look.sun.setHex(0xfff0d8); look.glowK = 0;
+    }
+    return look;
+  };
+  // 配列の窓を開戦時に縮める。雨量・雷・ぬかるみは保ち、毎コマ動かす雨筋を減らす。
+  rainWorld.rainData = rainWorld.rainData.subarray(0, 720 * 3);
+  // 描画側も同じ長さにし、使わない雨粒まで毎コマ転送しない。入れ物は設営時だけ作る。
+  const rainPosition = rainWorld.rain.geometry.attributes.position.array.subarray(0, 720 * 6);
+  rainWorld.rain.geometry.setAttribute('position', new THREE.BufferAttribute(rainPosition, 3).setUsage(THREE.DynamicDrawUsage));
+  // 跳ねも既存の配列の先頭だけを使う。地面を白い印で埋めず、更新も減らす。
+  rainWorld.splash = rainWorld.splash.subarray(0, 160 * 3);
+  rainWorld.splashT = rainWorld.splashT.subarray(0, 160);
+  rainWorld.splashLine = rainWorld.splashLine.subarray(0, 160 * 18);
+  rainWorld.splashPts.geometry.setAttribute('position', new THREE.BufferAttribute(rainWorld.splashLine, 3).setUsage(THREE.DynamicDrawUsage));
+  rainWorld.splashPts.geometry.setDrawRange(0, 160 * 6);
+  rainWorld.splashPts.material.opacity = 0.55;
+  rainWorld.rain.material.color.setHex(0xdde4e8);
+  // 近い雨は細いまま通し、画面全体を覆う雨の板は重ねない。
+  // 11/6 critic60：描いて遊ぶと谷の雨筋がほとんど見えなかった（細い雨が少し見えただけ）。手前の太い筋は全部使い、濃さも共通の上限まで。
+  const nearRainUpdate = rainWorld.updateNearRain;
+  rainWorld.updateNearRain = function (dt, r, wdx, wdz) {
+    nearRainUpdate.call(this, dt, r, wdx, wdz);
+    this.rainNear.material.uniforms.op.value = r * 0.36;
+  };
+  },
+  surroundings: fieldSurroundings,
+  *camp(rt) {
+  const scenery = fieldScenery(rt);
+  const W = scenery.world;
+  // 今川本陣：陣幕の内に床几と馬印、脇に旗竿・兵糧・馬の杭（義元と旗本は戦う兵で置く）
+  const camp = KIT.honjin(scenery, HONJIN.x, HONJIN.z, { mon: 'imagawa', w: 26, d: 18, gap: 10, people: false, tate: false });
+  for (const [a, b] of [[4, 11.8], [24.2, 32]]) scenery.scene.add(okePalisade(W, a, b));
+  okeCloth(camp, W);
+  // 今川の陣幕と大きな旗印は義元の本陣の一か所だけ（kaito 11/2 T：幕がたくさんあって義元の居所が分からない）。前備の幕・幟は置かない。
+  // 11/6 critic60：本陣の西（井伊の備えの後ろ）と坂道の脇の茅葺きの家が、本陣が農家に見える元だった。戦う範囲の家は谷の下の村の側だけに。
+  for (const [x, z, r] of [[10, 28, 0.5], [-42, 46, 1.9], [49, -1, -0.4]]) scenery.scene.add(hut(W, x, z, 6.5, 4.4, r));
+  // （-41, -30）の家は谷の出口の丘の肩で宙に浮いて写った（11/6 描いて遊ぶ）。置かない。
+  // 本陣の脇に兵糧の俵
+  scenery.scene.add(tawara(W, HONJIN.x - 16, HONJIN.z + 4, 0.3, 6), tawara(W, HONJIN.x + 16, HONJIN.z - 3, -0.5, 5));
+  const supplyCloth = okeSupplyCovers(scenery);
+  const okeWetFlag = new Map();
+  { const dispose = rt.world.dispose.bind(rt.world);   // 戦場の小物の布と濡れた幟の材質は、戦場を建てた所で手放す
+    rt.world.dispose = () => { supplyCloth.dispose(); for (const m of okeWetFlag.values()) m.dispose(); dispose(); }; }
+  okeCampTools(scenery);
+  for (const [x, z] of [[6, -106], [30, -106]]) scenery.scene.add(nobori(W, x, z, 'imagawa', 5.5));
+  // 今川の赤鳥の幟：白地に朱の赤鳥（櫛の形）。本陣の奥に混ぜる
+  customFlag('akadori', (g) => {
+    g.save(); g.fillStyle = g.strokeStyle = '#a8281c';
+    g.translate(64, 84);
+    g.beginPath(); g.ellipse(0, -8, 34, 16, 0, Math.PI, 0); g.lineTo(34, 2); g.lineTo(-34, 2); g.closePath(); g.fill();
+    for (let i = 0; i < 15; i++) { const x = -31 + i * 4.4; g.fillRect(x, 2, 2.4, 26); }
+    g.fillStyle = '#e8e2d2'; g.beginPath(); g.ellipse(0, -8, 22, 8, 0, Math.PI, 0); g.fill();
+    g.restore();
+  });
+  for (const [x, z] of [[12, -132], [26, -132]]) scenery.scene.add(nobori(W, x, z, 'akadori', 5.5));
+  // 谷の林が晴れの日の明るい黄緑の板に見えた（10/29 点付け：手本は雨に濡れた濃い青緑の杉と広葉樹）。
+  // 株ごとの色だけを濡れた深い緑へ沈め、株ごとに濃淡を散らす（設営時に一度だけ。形・本数・当たりは変えない）。
+  okeTintTrees(W, (i, r, g, b) => {
+    const k = 0.82 + ((i * 0.6180339) % 1) * 0.3;
+    // 雨空と葉房の陰影でも暗くなる。掛け色を重ねすぎて黒い切り絵にしない。
+    return [r * 0.62 * k, g * 0.72 * k, b * 0.68 * k];
+  });
+  // 雨の谷では奥の林ほど雨霧に沈む（10/29 点付け：谷の木が霧に薄れない）。共通の林の霞は葉の霧を六〜八割に弱めるので、
+  // この戦の林の材質だけ、その弱めを外して地面と同じ霧の掛かり方にする（材質はこの戦の林の物。色・形・本数は変えない）。
+  for (const m of new Set((W.treeMeshes || []).map((t) => t.material).flat())) {
+    if (!m?.onBeforeCompile || m.userData.okeMist) continue;
+    const prev = m.onBeforeCompile, key = m.customProgramCacheKey();
+    m.userData.okeMist = true;
+    m.onBeforeCompile = function (sh, r) {
+      prev.call(this, sh, r);
+      sh.fragmentShader = sh.fragmentShader.replace('fogFactor *= mix(mix(0.58, 0.78, smoothstep(30.0, 100.0, fogD)), 1.0, smoothstep(105.0, 145.0, fogD));',
+        'fogFactor = min(1.0, fogFactor * mix(0.9, 1.12, smoothstep(14.0, 60.0, fogD)));');
+      // 幹だけでなく、目の前の枝葉も透かす。奥の林・木の当たり・影は保つ。
+      // 材質の準備時だけ差し込み、毎コマの探索や透過の重ね描きを増やさない。
+      if (!this.bumpMap) {
+        sh.vertexShader = 'varying vec3 vOkeLeafView;\n' + sh.vertexShader.replace('#include <logdepthbuf_vertex>',
+          '#include <logdepthbuf_vertex>\nvOkeLeafView = mvPosition.xyz;');
+        sh.fragmentShader = 'varying vec3 vOkeLeafView;\n' + sh.fragmentShader.replace('#include <clipping_planes_fragment>', `#include <clipping_planes_fragment>
+        { float leafDistance = length(vOkeLeafView);
+          if (leafDistance < 5.0) {
+            vec2 cell = floor(gl_FragCoord.xy);
+            float threshold = fract((cell.x * 2.0 + cell.y * 3.0) * 0.2 + fract(cell.y * 0.5) * 0.5);
+            if (smoothstep(0.7, 5.0, leafDistance) < threshold) discard;
+          }
+        }`);
+      }
+    };
+    m.customProgramCacheKey = () => key + '|okeMistNearLeaves';
+    m.needsUpdate = true;
+  }
+  // 雨に濡れた幟は白い板に光らない。この戦で立てた幟の布だけを濡れた生成りへ沈める（材質は戦の中で使い回す）。
+  scenery.scene.traverse((o) => {
+    const f = o.userData?.flag;
+    if (!f?.material?.color) return;
+    const src = f.material;
+    if (!okeWetFlag.has(src)) {
+      const m = src.clone(); m.onBeforeCompile = src.onBeforeCompile; m.customProgramCacheKey = src.customProgramCacheKey;
+      m.color.setHex(0x9a978d); m.userData.okeWet = true; okeWetFlag.set(src, m);
+    }
+    f.material = okeWetFlag.get(src);
+  });
+  // 隊の中心へ攻め寄せた兵が焚火の当たりで止まらないよう、火は備えの脇に置く。
+  // 円陣の中心（18, -114）と退く口も空ける。
+  for (const [x, z] of [[-10, -96], [50, -92], [-32, -118], [10, -116]]) { scenery.scene.add(campfire(W, x, z)); rt.world.addFire(fieldX(x, z), fieldZ(x, z)); }
+  // 義元の塗輿：本陣の幕の内、床几の脇に据えてある
+  const koshi = rt.flags.koshi = okeKoshi(W, HONJIN.x + 5, HONJIN.z - 3, 0.3);
+  yield;   // K626：読み込みの一続きの止まりを割る（描く支度はここで一コマ返す・K112 の段分け）
+  scenery.scene.add(koshi);
+    return { scenery };
+  },
+};
+// 戦場を一続きで建てる（ground → rain → 外周 → 本陣の小物）。小物の当たりの回しもここで済ませる
+export function* okeField(rt) {
+  yield* OKE_FIELD.ground(rt);
+  OKE_FIELD.rain(rt);
+  OKE_FIELD.surroundings(rt);
+  yield;
+  const { scenery } = yield* OKE_FIELD.camp(rt);
+  scenery.finish();
+}
+// 戦場の地形と見た目の決まり（高さ・雨・田・道・林）。他家の戦は descriptor ごと写して同じ地面を使う
+export const OKE_WORLD = okehazama.world;
+// 行き先を置く物差し：織田の戦場の内の座標（x・z）を世界の座標へ。本陣・幕の口・谷の出口・松井の坂・馬の道
+export const OKE_AT = { point: fieldPoint, turn: FIELD_TURN, honjin: FIELD_HONJIN, mouth: fieldPoint(18, -100), exit: fieldPoint(-8, -46), matsui: fieldPoint(-6, -62), horse: fieldPoint(-44, -30) };

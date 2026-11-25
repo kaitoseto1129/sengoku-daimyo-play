@@ -485,4 +485,9 @@ export default [
   ['掛川城の戦い', 'Battle of Kakegawa Castle'],
   ['遠江国 掛川城', 'Kakegawa Castle, Totomi Province'],
   ['永禄十二年', 'Eiroku 12 (1569)'],
+  // K651 i10（織田の桶狭間の戦場で今川の側）・K652⑥ 逸話の段（義元、服部小平太の膝を斬る）
+  ['幕の内で、義元様と共に服部小平太を斬り伏せる', 'Inside the curtain, cut down Hattori Koheita at Lord Yoshimoto\'s side'], ['膝の口', 'The Knee Wound'], ['義元、小平太の膝を斬る', 'Yoshimoto cuts Koheita\'s knee'],
+  ['義元公とお見受けいたす！', 'You must be Lord Yoshimoto!'], ['推参なり！', 'Insolence!'], ['御大将の脇を固めよ！　小平太を斬れ！', 'Guard our general\'s side! Cut down Koheita!'],
+  ['御大将が小平太の膝を斬った！　押し返せ！', 'Our general cut Koheita\'s knee! Push them back!'], ['義元様の脇で服部小平太を退けた', 'Drove off Hattori Koheita at Lord Yoshimoto\'s side'], ['織田の三の手', 'Oda third wave'],
+  ['本陣へは幕の口から入れ', 'Enter the camp through the curtain gate'],
 ];

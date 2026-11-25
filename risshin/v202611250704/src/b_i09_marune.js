@@ -5,7 +5,7 @@
 import { lightBattle, uS, uA, uG, busho } from './light_battle.js';
 import { gauss } from './bhelp.js';
 import { jinmaku, nobori, yagura } from './props.js';
-import { obiTick } from './b_i10_okehazama.js';
+import { obiTick } from './imagawa_obi.js';
 
 const MARU = { x: 0, z: 0 };          // 丸根砦
 const WASHI = { x: 170, z: -70 };     // 鷲津砦

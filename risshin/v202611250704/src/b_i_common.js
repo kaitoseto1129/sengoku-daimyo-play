@@ -3,7 +3,7 @@
 //   字・札・ボタンは足さない。本物の兵は一戦 250 人まで（各戦の list の和で 120 人ほど）。
 import { lightBattle } from './light_battle.js';
 import { jinmaku, nobori } from './props.js';
-import { obiTick } from './b_i10_okehazama.js';
+import { obiTick } from './imagawa_obi.js';
 
 export const IMAGAWA = { flag: 'imagawa', armor: 0x302e2a };
 export const ODA = { flag: 'oda', armor: 0x24221f };

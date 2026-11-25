@@ -549,7 +549,7 @@ const t06_hetsugi = {
   },
 
   // 鶴賀城：尾根の頂の主郭を土塁と柵で囲み、南西に虎口。櫓と大友の旗。柵には当たりを付ける（AQ の追い・ap_collide）
-  castle(rt) {
+  castle(rt, o = {}) {   // o.garrison＝false：城兵を置かない（K651 他家の戦は見た目だけ使う）
     const W = rt.world, q = CASTLE, batch = makeSimpleBatch(), n = 18;
     for (let i = 0; i < n; i++) {
       const a0 = i / n * Math.PI * 2, a1 = (i + 1) / n * Math.PI * 2, am = (a0 + a1) / 2;
@@ -569,11 +569,12 @@ const t06_hetsugi = {
     // 11/7 四5：小屋と櫓だけで城に見えなかった。虎口に冠木門、奥にもう一つの櫓（主郭は東西四十 m・南北二十五 m の山城。battle_learn）
     rt.scene.add(kabukimon(W, q.x + Math.sin(GATE_A) * FORT_R, q.z + Math.cos(GATE_A) * FORT_R, 4.6, GATE_A));
     rt.scene.add(yagura(W, q.x - 11, q.z + 7, { mon: 'otomo', team: 0, logFrame: true, kind: 'ro', height: 7, boarded: true }));
+    addSite(rt, 'castle', q.x, q.z, '鶴賀城');
+    if (o.garrison === false) return;
     // 城兵（大友方・利光の者）。主郭から出ない
     const g = allyGroup(rt, { name: '鶴賀城の城兵', fullStrength: true, anchor: { x: q.x, z: q.z }, facing: GATE_A, width: 4, aggro: 4, seekRange: 8, order: 'hold', fixed: true, noRout: true },
       fl([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 3 }, { type: 'gun', n: 2 }], 'otomo'));
     g.mon = 'otomo';
-    addSite(rt, 'castle', q.x, q.z, '鶴賀城');
   },
   // 鏡城の下の味方の陣（逃げる先。渡る前の岸）
   // 11/18 クラウド持ち主（⑥写真の悪い所(3)：中津留の河原が草地のままで河原の石が見えない）。
@@ -1835,5 +1836,29 @@ const K = {
   closeRing: (rt) => t06_hetsugi.closeRing(rt),
   sogoFall: (rt) => t06_hetsugi.sogoFall(rt),
 };
+
+// ======================================================================
+// K651（kaito 11/25「長宗我部の戸次川…既存のやつの立場を入れ替えるだけでできるやつはそうしよう」）：戸次川の戦場を建てる所だけを出す。
+//   長宗我部編 c07・島津編 s05 は hetsugiField(rt) 一つを呼び、遊ぶ側・備・行き先・勝ち負けだけ入れ替える（docs/k651_howto.md）。
+//   中身は豊臣の setup と同じ手（城・河原の礫・浅瀬の白波・身の回りの場・鏡城・日の向き・家久の本陣）。豊臣の戦の setup と順は変えない（ここは呼ぶだけ）
+export const HETSUGI_WORLD = t06_hetsugi.world;
+export const HETSUGI_TIMESLIP = t06_hetsugi.timeslip;
+export function* hetsugiField(rt) {
+  const T = t06_hetsugi;
+  T.castle(rt, { garrison: false });   // 鶴賀城（城兵は置かない：島津の側では敵、長宗我部の側では遠い）
+  T.riverStones(rt);
+  yield;
+  T.fordRiffles(rt);
+  timeslipField(rt);
+  T.kagami(rt);
+  yield;
+  T.sunTurn(rt);
+  rt.scene.add(jinmaku(rt.world, SEAT.x, SEAT.z, 12, 8, 4, { mon: 'shimazu' }));
+  rt.scene.add(shogi(rt.world, SEAT.x, SEAT.z, 0, { gunbai: true }));
+  try { enemyJin(rt, { mon: 'shimazu', facing: 0, honjin: { x: SEAT.x, z: SEAT.z }, hutName: '島津の陣小屋' }); } catch (e) { console.warn(e); }
+  for (const [dx, dz] of [[-8, 6], [8, 6], [-14, -2], [14, -2]]) rt.scene.add(nobori(rt.world, SEAT.x + dx, SEAT.z + dz, 'shimazu', 6));
+}
+// 行き先を置く物差し（手で数を写さない）。+z が渡る前の岸（豊臣方）、−z が鶴賀城の岸（島津）
+export const HETSUGI_AT = { start: START, ford: FORD, ford2: FORD2, riverZ, castle: CASTLE, camp: CAMP, ijuin: IJUIN, woods: WOODS, ring: RING, iehisa: IEHISA, seat: SEAT };
 
 export { t06_hetsugi };

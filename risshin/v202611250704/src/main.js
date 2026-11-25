@@ -523,8 +523,22 @@ function memResume(g) {
     if (rec.fn === 'startBattle' && rec.id) { const i = BATTLES.findIndex((b) => b.id === rec.id); if (i >= 0) rec.args = [i]; }
     g[rec.fn](...(rec.args || []));
   };
-  if (scenarioKey() === 'toyotomi') btLoad().then((m) => m.whenToyoReady()).then(run, run);
-  else run();
+  // 11/25 K643 Sanae：読み直した直後は、前の頁の JS の物（戦の終わりで 1〜2GB）が同じ WebContent にまだ残っていて、
+  //   WebKit の古い世代の片付けが走るまで約12秒返らない（WebKitGTK：桶狭間2分の後の読み直し 1213MB→直後 1435MB→12秒で 895MB）。
+  //   すぐ次の戦を組むと前の戦の残りの上に積み、シミュレーターで 2051MB のまま稲葉山の支度に入って WebContent が落ちた。
+  //   触らない大きな ArrayBuffer を作ってすぐ捨て（本当の記憶は使わない）、片付けを先に走らせてから三秒後に続ける（同じ流しで約4秒で 920MB へ返った）。
+  //   自動の遊びの x_noresumegc で今まで通り（比べ用）
+  const go = () => scenarioKey() === 'toyotomi' ? btLoad().then((m) => m.whenToyoReady()).then(run, run) : run();
+  if ((MEM_TIGHT || RELOAD_BETWEEN) && !APX.noresumegc) {
+    let n = 0;
+    const nudge = () => { try { void new ArrayBuffer(256 * 1048576); } catch (e) { /* 取れなければそのまま */ } if (++n < 4) setTimeout(nudge, 50); };
+    nudge();
+    const card = document.createElement('div');   // 待つ間も読み直す前と同じ札を出す（何も無い画面にしない）
+    card.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:#14110d;color:#f1e6cf;font-size:18px;letter-spacing:.1em';
+    card.textContent = '支度をしています';
+    try { document.body.appendChild(card); } catch (e) { /* 出せなくても続ける */ }
+    setTimeout(() => { card.remove(); go(); }, 3000);
+  } else go();
   return true;
 }
 // ?speed=N・window.__speed：norender で早送りする時、1コマ（real の1フレーム）に b.update を N 回回す（既定 1・最大 8）。

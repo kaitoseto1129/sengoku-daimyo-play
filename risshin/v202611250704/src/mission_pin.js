@@ -865,7 +865,11 @@ function drawMissionPin(rt) {
   // 火付けの札は家に付いて動く。右上の段の札や中央の青い札の下へ入ったら、上下へ逃がして読めるようにする（稲葉山 874×402・11/11）。
   if (want.fire && !label.hidden) {
     // 札の実の大きさで測る（長押しの札は進みの棒の分だけ52pxより高く、武器の札の上端にかかった・11/18 クラウドせ）
-    const lw = parseFloat(label.style.width) || label.offsetWidth || 152, lh = Math.max(52, label.offsetHeight || 0);
+    // 11/25 クラウドせ（K564 稲葉山の重さ）：offsetWidth・offsetHeight を毎コマ読むと、上の字の書き換えの後で画面の組み直しが毎コマ起き、
+    // drawMissionPin の自分の時間の六割を占めた。札の字・幅・字の大きさ・余白・長押しが変わった時だけ測り、ほかは前の値を使う
+    const lkey = `${label.style.width}|${label.style.fontSize}|${label.style.padding}|${working && action.hold ? 1 : 0}|${label.textContent}`;
+    if (pin._lmKey !== lkey) { pin._lmKey = lkey; pin._lmW = label.offsetWidth; pin._lmH = label.offsetHeight; if (!pin._lmH) pin._lmKey = null; }
+    const lw = parseFloat(label.style.width) || pin._lmW || 152, lh = Math.max(52, pin._lmH || 0);
     const lx = x - 40 + (parseFloat(label.style.left) || 40) - lw / 2, py = y - (outside ? 40 : 68);
     let top = py + (parseFloat(label.style.top) || 40);
     // 画面の四分の一を超える四角（左半分を覆う透明な操作の面など）は避け先に数えない。数えると、どこへ逃げても重なる事になり、目標札の上に居座った（岩村 874×402・11/18 クラウドヤ三）
