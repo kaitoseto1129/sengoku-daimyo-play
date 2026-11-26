@@ -980,7 +980,7 @@ async function playOne(game, i, G, aud, o = {}) {
   const rep = { battle: name, note: o.note || '', key: b.def.key || (b.def.mapCastle ? 'castle' : ''), errors: [], stuck: [], waits: [], flow: [] };
   const onErr = (ev) => rep.errors.push(`${ev.message}（${(ev.filename || '').split('/').pop()}:${ev.lineno}）`);
   window.addEventListener('error', onErr);
-  let t = 0, lastObj = '', lastObjT = 0, lastObjPh = '', lastPos = { x: 0, z: 0 }, idle = 0, frames = 0, ms = 0, lastMain = '';
+  let t = 0, lastObj = '', lastObjT = 0, lastObjPh = '', lastPos = { x: 0, z: 0 }, idle = 0, frames = 0, ms = 0, lastMain = '';   // 任務の流れ：数だけ変わる札（あと12人）は一つに数え、四十まで残す（11/26 クラウドか・K674 の続きの段の証拠）
   // 何に削られたか（矢・鉄砲・槍…）を数える。矢玉なら cover() が身を守る
   const hurt = {};
   const td = b.player.takeDamage.bind(b.player);
@@ -1019,7 +1019,7 @@ async function playOne(game, i, G, aud, o = {}) {
       // 任務の流れ（主な任務の文が変わった時だけ記す）
       // 戦略家の操作は専用の試験で扱う。この通常試験には人物別の操作係がいない。
       const mo = (b.objectives.some((q) => q.kind === 'main') ? b.objectives.filter((q) => q.kind === 'main') : b.objectives.filter((q) => q.kind === 'order' && !q.state)).map(   /* 11/17 owner-1：主の任務が無い間に出ている下知（行き先のピン付き）も任務として数える（墨俣の持ち場の下知が「任務なし」と出ていた） */(q) => q.text + (q.state ? `〔${q.state === 'done' ? '済' : '失'}〕` : '')).join('／');
-      if (mo !== lastMain) { lastMain = mo; if (rep.flow.length < 14) rep.flow.push(`${Math.round(b.t)}s ${mo || '（任務なし）'}`); }
+      if ((mo || '').replace(/[0-9０-９]+/g, '#') !== lastMain) { lastMain = (mo || '').replace(/[0-9０-９]+/g, '#'); if (rep.flow.length < 40) rep.flow.push(`${Math.round(b.t)}s ${mo || '（任務なし）'}`); }
       // 動けなくなった所
       const u = b.player.u.pos;
       if (!openingWait(game) && Math.hypot(u.x - lastPos.x, u.z - lastPos.z) < 0.02 && inp.k.has('KeyW')) idle += dt; else idle = 0;
@@ -2831,7 +2831,7 @@ async function playPersona(game, spec, aud, c) {
       idleWatch(b, rep);
       stackWatch(b, rep, (m) => c.add(`stack:${spec.id}`, '隊が一点に重なって動かない', m, 2, { cat: '辻褄', shot: true, fix: '兵の行き先が同じ一点になっていないか・押し合いが効いているかを見る（bot_stack.js）' }));
       const mo = (b.objectives.some((q) => q.kind === 'main') ? b.objectives.filter((q) => q.kind === 'main') : b.objectives.filter((q) => q.kind === 'order' && !q.state)).map(   /* 11/17 owner-1：主の任務が無い間に出ている下知（行き先のピン付き）も任務として数える（墨俣の持ち場の下知が「任務なし」と出ていた） */(q) => q.text + (q.state ? `〔${q.state === 'done' ? '済' : '失'}〕` : '')).join('／');
-      if (mo !== lastMain) { lastMain = mo; if (rep.flow.length < 14) rep.flow.push(`${Math.round(b.t)}s ${mo || '（任務なし）'}`); }
+      if ((mo || '').replace(/[0-9０-９]+/g, '#') !== lastMain) { lastMain = (mo || '').replace(/[0-9０-９]+/g, '#'); if (rep.flow.length < 40) rep.flow.push(`${Math.round(b.t)}s ${mo || '（任務なし）'}`); }
       { const sg = stageNow(b); const sk = sg ? `${sg.i + 1}/${sg.n}` : (b.flags && b.flags.dp && b.flags.dp.cur && b.flags.dp.cur.s && b.flags.dp.cur.s.title) || b.phase || '';   /* 11/18 クラウド：段の表が無い戦（b_depth の段・phase）でも段ごとの討ち取りを数える */ if (sk && sk !== rep.stgLast) { const dk = rep.kills - (rep.stgK || 0); rep.stgK = rep.kills; (rep.stg ||= []).push(`${Math.round(b.t)}s 段${sk}${rep.stgLast ? `（前の段で討${dk}）` : ''}`); rep.stgLast = sk; } }   // 11/18 クラウド k06：段ごとの本人の討ち取り（「斬り合う相手が少ない」段を探す）
       const up = P.pos;
       // 札に指を遮られた時は操作の問題として記録済み。地形に阻まれた歩みと取り違えない。
