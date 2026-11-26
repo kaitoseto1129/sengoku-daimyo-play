@@ -1,0 +1,1099 @@
+// 中景の兵（目安 8〜40m）を、前もって焼いた骨の動きの絵（VAT）で InstancedMesh として描く（10/24）。
+//   骨の入った人（humans.js）と同じ骨の並び（ALLB）と同じ束の形（crowdGeometry の全身の形）を使い、
+//   待ち・歩き・走り・構え・突き／振り・よろけ・倒れの骨の行列を、得物の組ごとに一度だけ絵（浮動小数の DataTexture）へ焼く。
+//   兵ごとには根の行列と、絵の行（動きの番号と時刻）・色の場所だけを渡し、頂点はシェーダーで動かす。骨の木も部品の木も辿らない。
+//   焼くのは場面の外の作り物の兵（Unit＋buildModel＋骨の入った人）。本物の兵の状態には触らない。
+//   近く（8m の内）・本人・武将・騎馬・一騎打ちの者は今の骨入りのまま。指物と足もとの影は軽い兵の束がそのまま描く。
+import * as THREE from 'three';
+import { MEM_TIGHT } from './settings.js';
+import { TIER } from './device_tier.js';
+import { HUM, SRC, ALLB, humanLook, isSohei, qualityKeeper, skinOpponent, realNear } from './humans_shared.js';
+import { crowdGeometry } from './humans_crowd_geometry.js';
+import { nearArmorParts, soldierTint, PLAIN_UV } from './humans_dress.js';
+import { K697, K697_ON, k697Want, k697VatGeo } from './k697_body.js';
+import { lookParts, Unit, buildModel, DEATH_END } from './units.js';
+import { MAT } from './units_model.js';
+import { gripPose, humans } from './humans_combat.js';
+import { driveHuman } from './humans_animate.js';
+import { dropHuman } from './humans_lifecycle.js';
+import { EFUDA } from './efuda.js';
+import { FLAT } from './flat_rule.js';
+import { isNoRender } from './world.js';
+import { COMPILE_ASYNC } from './humans_face_materials.js';
+import { simplifyAsync, geoArrays } from './qem_index.js';
+
+const qs = typeof location !== 'undefined' ? location.search : '';
+const K622_OLD = /[?&]k622old/.test(qs);   // 測り：VAT の近さを前の形（カメラからだけ）で
+export const VAT = {
+  on: !/[?&]vat=0/.test(qs) && !(typeof window !== 'undefined' && /x_novat/.test(String(window.__autoplay || ''))),
+  // 11/13 K065「3〜5m 先で急にリアルになる」：携帯も 15m 内の VAT は骨の人の近い形と同じ部品で描く（骨の枠十六人の境で形が替わって見えた）。
+  //   弱い端末だけは従来どおり遠い部品の全身。携帯は近い形を nearCap 姿までに抑える（形と色の絵を増やし過ぎない）
+  near: 8, hyst: 0.8, fps: 20, nearShape: !TIER.weak && !/[?&]vatnear=0/.test(qs), nearCap: MEM_TIGHT ? 10 : Infinity, nearN: 0,
+  nearD: 15, triFar: 0, triNear: 0,   // 中景の一人の三角の上限（0＝減らさない）。10/24 に 700・900 を試したが、QEM で陣笠が消え体が欠けたので止めた（部品ごとに減らす作りが要る）
+  hooks: { build: null },   // humans_runtime.js が buildHuman を渡す（循環の import を避ける）
+  stat: { units: 0, drawn: 0, rigs: 0, rows: 0, looks: 0, shapes: 0, bakeMs: 0, selMs: 0, drawMs: 0, fails: 0 },
+};
+// 色の絵の幅：携帯は 1024（three が弱い端末に答える絵の上限。2048 だと送るたびに「too big」の知らせが出ていた）
+const NB = ALLB.length + 1, WPN = ALLB.length, TW = NB * 3, ROWS = 3072, CW = MEM_TIGHT ? 1024 : 2048, COL_MAX_TIGHT = 512;
+const CLIP = { idle: 0, walk: 1, run: 2, guard: 3, atk: 4, hit: 5, dieF: 6, dieB: 7, dieS: 8, idleUp: 9, walkUp: 10, idleHedge: 11, kneel: 12 };
+// 長柄の構えの違い：前の味方の背につく者は槍を立て（Up）、槍衾の前の段は穂先を前へ寝かせる（Hedge）。長柄でない組は元の動きを使う
+const CLIPS = ['idle', 'walk', 'run', 'guard', 'atk', 'hit', 'dieF', 'dieB', 'dieS', 'idleUp', 'walkUp', 'idleHedge', 'kneel'];
+const VARIANT = { idleUp: 'idle', walkUp: 'walk', idleHedge: 'idle' };
+
+// ---- 絵（骨の行列）と色の置き場 ----
+let vatTex = null, vatData = null, rowsUsed = 0;
+let colTex = null, colData = null, colRows = 0, colUsed = 0;
+const colSeen = new Map();   // 形と色の並びの目印 → 色の置き場の場所（同じ色の姿で使い回す）
+let colScratch = new Float32Array(0);
+const U_VAT = { value: null }, U_COL = { value: null };
+// K622 三回目：兵ごとの漆と布の色の差・待つ間の動きの入り切り（window.__k622same で切って同じコマの前後を撮る）
+const U_K622 = { value: 1 };
+let k622T = 0, k622On = 1;
+function ensureTex() {
+  if (vatTex) return;
+  vatData = new Float32Array(TW * ROWS * 4);
+  vatTex = new THREE.DataTexture(vatData, TW, ROWS, THREE.RGBAFormat, THREE.FloatType);
+  vatTex.minFilter = vatTex.magFilter = THREE.NearestFilter; vatTex.generateMipmaps = false;
+  U_VAT.value = vatTex;
+  growCol(64);
+}
+function growCol(rows) {
+  const nd = new Float32Array(CW * rows * 4);
+  if (colData) nd.set(colData);
+  const old = colTex;
+  colTex = new THREE.DataTexture(nd, CW, rows, THREE.RGBAFormat, THREE.FloatType);
+  colTex.minFilter = colTex.magFilter = THREE.NearestFilter; colTex.generateMipmaps = false; colTex.needsUpdate = true;
+  colData = nd; colRows = rows; U_COL.value = colTex;
+  if (old) old.dispose();
+}
+function writeRow(row, b, m) {
+  const e = m.elements, o = (row * TW + b * 3) * 4;
+  vatData[o] = e[0]; vatData[o + 1] = e[4]; vatData[o + 2] = e[8]; vatData[o + 3] = e[12];
+  vatData[o + 4] = e[1]; vatData[o + 5] = e[5]; vatData[o + 6] = e[9]; vatData[o + 7] = e[13];
+  vatData[o + 8] = e[2]; vatData[o + 9] = e[6]; vatData[o + 10] = e[10]; vatData[o + 11] = e[14];
+}
+
+// ---- 材質（兵の材質に、骨の絵で頂点を動かす所と、色の絵から色を引く所を足す） ----
+const VAT_GLSL = `
+uniform highp sampler2D uVat;
+uniform highp sampler2D uVatCol;
+attribute vec4 aVat;
+// K622：aVar は得物の束にも入れてある（growBatch）。得物の傾き（二回目 85856bcbae）も読むので体だけに限らない（限ると得物の描き方が組み上がらない）
+attribute vec3 aVar;
+uniform float uK622;
+attribute vec4 skinIndex;
+attribute vec4 skinWeight;
+mat4 vatBone(int b, int row) {
+  int x = b * 3;
+  vec4 r0 = texelFetch(uVat, ivec2(x, row), 0), r1 = texelFetch(uVat, ivec2(x + 1, row), 0), r2 = texelFetch(uVat, ivec2(x + 2, row), 0);
+  return mat4(r0.x, r1.x, r2.x, 0.0, r0.y, r1.y, r2.y, 0.0, r0.z, r1.z, r2.z, 0.0, r0.w, r1.w, r2.w, 1.0);
+}
+vec3 vatUnpack(float p) { return vec3(floor(p / 65536.0), mod(floor(p / 256.0), 256.0), mod(p, 256.0)) / 255.0; }
+`;
+function vatMaterial(body, shp = false) {
+  const m = MAT.clone();
+  m.defines = Object.assign({}, MAT.defines, body ? { VAT_BODY: 1 } : { VAT_WPN: 1 }, shp ? { VAT_SHP: 1 } : {});
+  m.onBeforeCompile = (sh, r) => {
+    MAT.onBeforeCompile(sh, r);
+    sh.uniforms.uVat = U_VAT; sh.uniforms.uVatCol = U_COL; sh.uniforms.uK622 = U_K622;
+    if (shp) sh.uniforms.uShp = U_SHP;
+    let v = VAT_GLSL + sh.vertexShader;
+    // 11/21 K564（姿の組）：同じ面の並び・骨の重みの姿は一つの束で描く。姿ごとの位置・法線・絵の座標は uShp の絵から頂点の番号で読む
+    //   （以下の position・normal・uv は読んだ値に置き換わる。色は今まで通り uVatCol から）
+    if (shp) v = v.replace('void main() {', `attribute float aShp;
+uniform highp sampler2D uShp;
+vec3 vatShpPos; vec3 vatShpNrm; vec2 vatShpUv;
+void main() {
+  {
+    int shI = int(aShp + 0.5) + gl_VertexID * 2;
+    vec4 shA = texelFetch(uShp, ivec2(shI % ${SHW}, shI / ${SHW}), 0), shB = texelFetch(uShp, ivec2((shI + 1) % ${SHW}, (shI + 1) / ${SHW}), 0);
+    vatShpPos = shA.xyz; vatShpNrm = shB.xyz; vatShpUv = vec2(shA.w, shB.w);
+  }
+  #define position vatShpPos
+  #define normal vatShpNrm
+  #define uv vatShpUv`);
+    v = v.replace('#include <skinbase_vertex>', `
+      int vRowA = int(aVat.x + 0.5), vRowB = int(aVat.y + 0.5);
+      #ifdef VAT_BODY
+        int vb0 = int(skinIndex.x + 0.5), vb1 = int(skinIndex.y + 0.5);
+        mat4 vatM = (vatBone(vb0, vRowA) * skinWeight.x + vatBone(vb1, vRowA) * skinWeight.y) * (1.0 - aVat.z)
+          + (vatBone(vb0, vRowB) * skinWeight.x + vatBone(vb1, vRowB) * skinWeight.y) * aVat.z;
+      #else
+        mat4 vatM = vatBone(${WPN}, vRowA) * (1.0 - aVat.z) + vatBone(${WPN}, vRowB) * aVat.z;
+        // K622（11/22 kaito「足軽・侍・騎馬の見た目と動き」）：焼いた動きは全員同じ得物の角度なので、隊の長槍が一本の角度にそろい、
+        //   斬り合いへ駆ける列が同じ斜線の網に見えた（姉川 874×402）。兵ごとの数（aVar.z）で、持ち手を軸に前後へ ±4°・横へ ±3° ずらす
+        if (aVar.z > 0.001) {
+          float wax = (aVar.z - 0.5) * 0.14, waz = (fract(aVar.z * 7.31) - 0.5) * 0.1;
+          float wcx = cos(wax), wsx = sin(wax), wcz = cos(waz), wsz = sin(waz);
+          vatM = vatM * mat4(wcz, wsz, 0.0, 0.0, -wsz * wcx, wcz * wcx, wsx, 0.0, wsz * wsx, -wcz * wsx, wcx, 0.0, 0.0, 0.0, 0.0, 1.0);
+        }
+      #endif`)
+      .replace('#include <skinnormal_vertex>', 'objectNormal = mat3(vatM) * objectNormal;')
+      .replace('#include <skinning_vertex>', 'transformed = (vatM * vec4(transformed, 1.0)).xyz;');
+    if (body) v = v.replace(/vMtl = mtl; vCol2 = col2;/, `{
+        int vci = int(aVat.w + 0.5) + gl_VertexID;
+        vec4 vcc = texelFetch(uVatCol, ivec2(vci % ${CW}, vci / ${CW}), 0);
+        vColor = vatUnpack(vcc.x); vCol2 = vatUnpack(vcc.y); vMtl = vcc.z;
+        // 兵ごとの使い込み（aVar：x 日焼けの褪せ・y 明るさ・z 泥）。布と漆だけ。色相は家の色のまま、褪せは暖かい灰へ寄せる（青くしない）
+        float vmA = floor(vMtl + 0.001);
+        if (vmA < 1.5) {
+          float vfk = aVar.x * (vmA < 0.5 ? 1.0 : 0.5);
+          vColor = mix(vColor, vec3(dot(vColor, vec3(0.299, 0.587, 0.114))) * vec3(1.07, 1.0, 0.88) + 0.03, vfk) * aVar.y;
+          vCol2 = mix(vCol2, vec3(dot(vCol2, vec3(0.299, 0.587, 0.114))) * vec3(1.07, 1.0, 0.88) + 0.03, vfk) * aVar.y;
+          vMtl = vmA + min(0.9, vMtl - vmA + aVar.z * 0.25);
+          // K622 三回目（kaito「甲冑の色が一様」）：御貸具足でも塗りの古さと地金で色が違う。漆は 黒のまま・溜塗（赤茶）・錆地（鉄の灰茶）の三つ、
+          //   布は 生成り寄り・柿渋寄り・そのまま に兵ごとに分ける（青へは寄せない＝味方に青を使わない決まり）。明るさは保つ
+          float vk = fract(aVar.z * 5.17 + aVar.x * 3.1) * uK622;
+          if (uK622 > 0.5) {
+            float vl = dot(vColor, vec3(0.299, 0.587, 0.114));
+            //   暗い色は色相だけ変えても見えない（一回目の写真で差が見えなかった）ので、溜塗・錆地・柿渋・生成りは明るさも上げる（暗い色ほど強く。上限あり）
+            float vb = clamp(0.06 / max(vl, 0.004), 1.0, 2.6);
+            vec3 vt = vmA > 0.5 ? (vk < 0.34 ? vColor : vk < 0.67 ? vec3(0.62, 0.34, 0.2) * (vl / 0.39) * 1.3 * vb : vec3(0.5, 0.46, 0.42) * (vl / 0.465) * 1.5 * vb)
+                                : (vk < 0.34 ? vColor : vk < 0.67 ? vec3(0.58, 0.4, 0.26) * (vl / 0.443) * 1.25 * vb : vec3(0.52, 0.5, 0.44) * (vl / 0.5) * 1.4 * vb);
+            vColor = mix(vColor, vt, 0.75);
+          }
+        }
+      }`);
+    sh.vertexShader = v;
+  };
+  // 11/1：体は裏面も描く（袖口・草摺の裏から向こうが透けていた）。携帯は関節の内張りだけで埋め、面の数を増やさない
+  if (body && !MEM_TIGHT) m.side = THREE.DoubleSide;
+  m.customProgramCacheKey = () => (body ? (m.side === THREE.DoubleSide ? 'vatBody2d' : 'vatBody2') : 'vatWpn1') + (shp ? 'S' : '');
+  return m;
+}
+let MAT_BODY = null, MAT_WPN = null, MAT_SHP = null;
+function vatMats() { if (!MAT_BODY) { MAT_BODY = vatMaterial(true); MAT_WPN = vatMaterial(false); } if (!MAT_SHP) MAT_SHP = vatMaterial(true, true); }
+
+// ---- 姿の組（11/21 K564 iMac 立身）----
+//   遠い兵の束は姿の形ごとに一つの入れ物で、一コマ二十五〜四十回描いていた（一つの入れ物に一〜三人。全戦で同じ）。
+//   姿の形は、面の並び・骨の番号と重みが同じで、頂点の位置・法線・絵の座標だけが違う物が殆ど（三方ヶ原 29 姿が 2 つの並び）。
+//   同じ並びの姿を一つの組（一つの入れ物）で描き、姿ごとの位置・法線・絵の座標は一枚の浮動小数の絵（一頂点に二画素）へ入れて頂点の番号で読む。
+//   形・色・動き・兵の数は前のまま。絵に入りきらない姿・送る前の姿は前の通り姿ごとの入れ物で描く。?vatgrp=0 で前の描き方
+const SHW = 2048, SHP_MAX = MEM_TIGHT ? 128 : 256;
+const GRP_ON = !/[?&]vatgrp=0/.test(qs);
+VAT.grp = GRP_ON;   // 試し：window.__vat.grp = false で前の描き方（同じコマで見比べる）
+const U_SHP = { value: null };
+let shpTex = null, shpData = null, shpRows = 0, shpUsed = 0;
+const SHPUP = { dirty: false, gen: 0, at: -99 };
+const topo = new Map();      // 面の並びの鍵 → 組（newBatch の形・MAT_SHP）
+function growShp(rows) {
+  const nd = new Float32Array(SHW * rows * 4);
+  if (shpData) nd.set(shpData);
+  const old = shpTex;
+  shpTex = new THREE.DataTexture(nd, SHW, rows, THREE.RGBAFormat, THREE.FloatType);
+  shpTex.minFilter = shpTex.magFilter = THREE.NearestFilter; shpTex.generateMipmaps = false; shpTex.needsUpdate = true;
+  shpData = nd; shpRows = rows; U_SHP.value = shpTex;
+  old?.dispose();
+}
+function hashArr(a) {
+  let h1 = 0x811c9dc5, h2 = a.length | 0;
+  for (let i = 0; i < a.length; i++) { const q = a[i] | 0; h1 = Math.imul(h1 ^ q, 16777619); h2 = (Math.imul(h2, 31) + q) | 0; }
+  return (h1 >>> 0).toString(36) + (h2 >>> 0).toString(36);
+}
+// 姿 S を組へ入れる（位置・法線・絵の座標を絵へ写す）。入らない時は組に入れない（前の描き方）
+function joinGroup(S) {
+  if (!GRP_ON || VAT.triFar || VAT.triNear) return;
+  const g = S.geo, P = g.attributes.position, N = g.attributes.normal, U = g.attributes.uv;
+  if (!P || !N || !U || !g.index) return;
+  const n = P.count;
+  const key = n + '|' + g.index.count + '|' + hashArr(g.index.array) + '|' + hashArr(g.attributes.skinIndex.array) + '|' + hashArr(g.attributes.skinWeight.array);
+  const need = n * 2;
+  if (shpUsed + need > shpRows * SHW) {
+    let r = Math.max(16, shpRows); while (shpUsed + need > r * SHW) r *= 2;
+    if (r > SHP_MAX) { VAT.stat.shpFull = (VAT.stat.shpFull || 0) + 1; return; }
+    growShp(r);
+  }
+  let G = topo.get(key);
+  if (!G) {
+    vatMats();
+    const geo = new THREE.BufferGeometry();
+    for (const k in g.attributes) geo.setAttribute(k, g.attributes[k]);
+    geo.setIndex(g.index);
+    G = newBatch(geo, MAT_SHP); G.shp = true;
+    topo.set(key, G); VAT.stat.groups = topo.size;
+  }
+  const base = shpUsed; shpUsed += need;
+  for (let i = 0; i < n; i++) {
+    const o = (base + i * 2) * 4;
+    shpData[o] = P.getX(i); shpData[o + 1] = P.getY(i); shpData[o + 2] = P.getZ(i); shpData[o + 3] = U.getX(i);
+    shpData[o + 4] = N.getX(i); shpData[o + 5] = N.getY(i); shpData[o + 6] = N.getZ(i); shpData[o + 7] = U.getY(i);
+  }
+  S.grp = G; S.vbase = base; S.shpGen = SHPUP.gen + 1; SHPUP.dirty = true;
+}
+
+// ---- 形（姿ごとの全身の形と、得物の形） ----
+const shapes = new Map();   // 形の鍵 → { geo, mesh, n, cap, arr, vat }
+const looks = new Map();    // u.look → { shape, colBase } か null（描けない姿）
+// 11/16 K314：天王寺・岡山は兵ごとに別の姿の物（2165）を持ち、一コマ一つの形づくりが追いつかず、VAT に乗れる兵が数百人骨の人のまま残った。
+//   中身が同じ姿（1033 種）は同じ形を使い回す（見た目は同じ）。鍵の文字は姿の物ごとに一度だけ作る
+const looksC = new Map(), lookKeys = new WeakMap();
+function lookKey(L0) { let k = lookKeys.get(L0); if (k === undefined) { try { k = JSON.stringify(L0); } catch (e) { k = null; } lookKeys.set(L0, k); } return k; }
+const wpns = new Map();     // 得物の鍵 → { geo, mesh, ... } か null
+let scene = null;
+// 遠い VAT の兵（携帯・40m より先）は、面を半分にした形で描く（10/30 桶狭間の VAT が一コマ約 30 万三角）。
+//   頂点・色・骨の重みはそのまま、面の並びだけを替える。40m 先の兵は画面で二十画素ほどなので、陣笠と旗の形は残る割合に留める。出来るまでは元の形
+const XFAR2_D = +(/[?&]vatfar2=(\d+)/.exec(qs) || [])[1] || Infinity;   // 11/20 K460（kaito「遠い所は絵のような兵、近づくと本物の兵に変わる」）：面の 15% の形は陣笠・脚が欠けて黒い塊に見え、近づくと人に替わった。使わない（?vatfar2=60 で前の見え方）
+// 前：   // 11/13 K073：80m より先の本物は さらに軽い形（面の 15%）。11/15 K073：60m から（60m 先の兵は背丈十五画素ほど）
+const XFAR_D = (MEM_TIGHT || typeof navigator !== 'undefined' && (/iPad/.test(navigator.userAgent) || /Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1)) && !/[?&]vatxfar=0/.test(qs) ? 24 : Infinity;   // 11/15 K073：30→24m（24m 先の兵は背丈四十画素ほど）
+function farOf(S, key = 'far', ratio = 0.4) {
+  if (S[key] !== undefined) return S[key];
+  S[key] = null;
+  const ix = S.geo.index, pos = S.geo.attributes.position;
+  if (!ix || ix.count < 900) return null;
+  const { P, U, I } = geoArrays(S.geo);
+  simplifyAsync(P, U, I, Math.round(ix.count / 3 * ratio)).then((J) => {
+    if (!J) return;
+    J = dropBridges(S.geo, J);
+    const geo = new THREE.BufferGeometry();
+    for (const k in S.geo.attributes) geo.setAttribute(k, S.geo.attributes[k]);
+    geo.setIndex(new THREE.BufferAttribute(pos.count > 65535 ? J : Uint16Array.from(J), 1));
+    S[key] = newBatch(geo, S.mat); S[key].shp = !!S.shp;
+  });
+  return null;
+}
+// 面を減らした形（QEM）は、腕と胴・脚と脚のように別の骨で動く頂点を一つの三角でつなぐ事がある。動くと細長く伸びるので外す
+//   （主の骨が違い、かつ縁が 10cm を超える三角だけ。小さな継ぎ目の三角は残す）
+function dropBridges(geo, J) {
+  const P = geo.attributes.position, SI = geo.attributes.skinIndex, SW = geo.attributes.skinWeight;
+  if (!SI || !SW) return J;
+  const main = (i) => SW.getX(i) >= SW.getY(i) ? SI.getX(i) : SI.getY(i);
+  const d2 = (a, b) => (P.getX(a) - P.getX(b)) ** 2 + (P.getY(a) - P.getY(b)) ** 2 + (P.getZ(a) - P.getZ(b)) ** 2;
+  const out = [];
+  for (let t = 0; t + 2 < J.length; t += 3) {
+    const a = J[t], b = J[t + 1], c = J[t + 2];
+    if ((main(a) !== main(b) || main(b) !== main(c)) && Math.max(d2(a, b), d2(b, c), d2(a, c)) > 0.01) continue;
+    out.push(a, b, c);
+  }
+  return out.length === J.length ? J : ArrayBuffer.isView(J) ? J.constructor.from(out) : Uint32Array.from(out);
+}
+function newBatch(geo, mat) {
+  return { geo, mat, mesh: null, cap: 0, n: 0, vat: null };
+}
+function growBatch(b, need) {
+  let cap = Math.max(16, b.cap);
+  while (cap < need) cap *= 2;
+  const old = b.mesh;
+  const g = new THREE.BufferGeometry();
+  for (const k in b.geo.attributes) g.setAttribute(k, b.geo.attributes[k]);
+  g.setIndex(b.geo.index);
+  const vat = new THREE.InstancedBufferAttribute(new Float32Array(cap * 4), 4).setUsage(THREE.DynamicDrawUsage);
+  g.setAttribute('aVat', vat);
+  const vv = new THREE.InstancedBufferAttribute(new Float32Array(cap * 3), 3).setUsage(THREE.DynamicDrawUsage);
+  g.setAttribute('aVar', vv);
+  if (b.shp) { b.sh = new THREE.InstancedBufferAttribute(new Float32Array(cap), 1).setUsage(THREE.DynamicDrawUsage); g.setAttribute('aShp', b.sh); }
+  const mesh = new THREE.InstancedMesh(g, b.mat, cap);
+  mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  mesh.frustumCulled = false; mesh.castShadow = false; mesh.receiveShadow = true; mesh.matrixAutoUpdate = false;
+  mesh.name = 'vatCrowd'; mesh.userData.noFreeze = true; mesh.userData.armyBatch = true; mesh.count = 0;
+  // 11/15 K328：兵の根は左右に映してある（units_look.js mirrorMatrix・行列の向きが負）。束の一人ずつの行列が負だと three は表と裏を取り違え、
+  //   体の外側を「裏」として描いていた（裏の暗化 0.3・光も裏から）＝遠くの兵が黒い影の塊に見えた。束の側を左右に映し（three が表裏を返す）、
+  //   一人ずつの行列は put で映し返す（形の位置は同じ）
+  mesh.matrix.makeScale(-1, 1, 1); mesh.matrixWorld.copy(mesh.matrix);
+  if (old) { scene?.remove(old); old.geometry.dispose(); old.dispose(); }
+  b.mesh = mesh; b.vat = vat; b.var = vv; b.cap = cap;
+  scene?.add(mesh);
+}
+// 中景の形を軽くする（10/24）：一人の三角を VAT.triFar（15m より先）・VAT.triNear（8〜15m）までに減らす。
+//   頂点はそのまま、面の並びだけを替える（色・骨の重み・絵の座標はそのまま）。主の糸を止めないよう、別の糸（qem_index.js の simplifyAsync）で作る。
+//   出来るまでは元の形で描く。別の糸が使えない時は元の形のまま
+function lighten(S, target, key) {
+  const ix = S.geo.index, pos = S.geo.attributes.position;
+  if (!target || !ix || ix.count / 3 <= target * 1.15) return;
+  const { P, U, I } = geoArrays(S.geo);
+  simplifyAsync(P, U, I, target).then((J) => {
+    if (!J || shapes.get(key) !== S) return;
+    J = dropBridges(S.geo, J);
+    const attr = new THREE.BufferAttribute(pos.count > 65535 ? J : Uint16Array.from(J), 1);
+    S.fullIndex = S.geo.index; S.geo.setIndex(attr);   // fullIndex：前と比べる写真の時だけ使う
+    if (S.mesh) S.mesh.geometry.setIndex(attr);
+    VAT.stat.lightened = (VAT.stat.lightened || 0) + 1;
+  });
+}
+// 0〜1 の正規化した色を 8 bit の整数三つから一つの浮動小数へ
+const pack3 = (a, i) => {
+  const r = Math.round(Math.min(1, Math.max(0, a.getX(i))) * 255), g = Math.round(Math.min(1, Math.max(0, a.getY(i))) * 255), b = Math.round(Math.min(1, Math.max(0, a.getZ(i))) * 255);
+  return r * 65536 + g * 256 + b;
+};
+// 骨の重みを VAT の決まり（骨二本・重みの和 1・番号は得物の骨より前）にそろえる。
+//   重みが三本目以降に残る・和が 1 に足りない・番号が骨の絵の外、のどれでも頂点が原点へ縮み、黒い細長い三角が飛び出していた（11/1）
+// 11/2 1.6.5：番号と重みを 32 bit の数（一頂点 32 byte）で持たず、番号は 8 bit（骨は 256 本より少ない）、重みは 8 bit の 0〜1 で持つ（一頂点 8 byte）。
+//   この直しの入った取り込み（76c775f094）から iPhone の設楽原の5分が落ちるようになった分の記憶を減らす
+const SI_T = WPN < 256 ? Uint8Array : Uint16Array;
+function cleanSkin(geo, SI, SW) {
+  const n = SI.count, si = new SI_T(n * 4), sw = new Float32Array(n * 4);
+  const fb = Math.max(0, ALLB.indexOf('Spine1'));
+  let bad = 0;
+  for (let i = 0; i < n; i++) {
+    let b0 = -1, w0 = 0, b1 = -1, w1 = 0;
+    for (let k = 0; k < 4; k++) {
+      const b = SI.getComponent(i, k), w = SW ? SW.getComponent(i, k) : (k ? 0 : 1);
+      if (!(w > 0) || !(b >= 0) || b >= WPN) { if (w > 1e-4) bad++; continue; }
+      if (b === b0) { w0 += w; continue; }
+      if (b === b1) { w1 += w; continue; }
+      if (w > w0) { b1 = b0; w1 = w0; b0 = b; w0 = w; } else if (w > w1) { b1 = b; w1 = w; }
+    }
+    if (b0 < 0) { b0 = i > 0 ? si[(i - 1) * 4] : fb; w0 = 1; bad++; }
+    if (b1 < 0) { b1 = b0; w1 = 0; }
+    const t = w0 + w1;
+    si[i * 4] = b0; si[i * 4 + 1] = b1; sw[i * 4] = w0 / t; sw[i * 4 + 1] = w1 / t;
+  }
+  if (bad) VAT.stat.skinFixed = (VAT.stat.skinFixed || 0) + bad;
+  const sw8 = new Uint8Array(n * 4);
+  for (let i = 0; i < n * 4; i += 4) { const a = Math.round(sw[i] * 255); sw8[i] = a; sw8[i + 1] = sw[i + 1] > 0 ? 255 - a : 0; }   // 二つの和を 255 にそろえる
+  geo.setAttribute('skinIndex', new THREE.BufferAttribute(si, 4));
+  geo.setAttribute('skinWeight', new THREE.BufferAttribute(sw8, 4, true));
+}
+// 束の形 g を、形の束（形ごとに一つ）と色の置き場（姿ごと）へ入れる
+function addShape(g, near = false) {
+  if (!g || !g.index || !g.attributes.position.count || !g.attributes.skinIndex || !g.attributes.color) return null;
+  const sk = g.userData.shapeKey || g.uuid;
+  let S = shapes.get(sk);
+  if (!S) {
+    // 形の配列は自分の物に写す（束の形の表が掃除で手放しても、こちらは残る）
+    const geo = new THREE.BufferGeometry();
+    for (const k of ['position', 'normal', 'uv']) {
+      const a = g.attributes[k];
+      if (a) geo.setAttribute(k, new THREE.BufferAttribute(a.array.slice(), a.itemSize, a.normalized));
+    }
+    cleanSkin(geo, g.attributes.skinIndex, g.attributes.skinWeight);
+    geo.setIndex(new THREE.BufferAttribute(g.index.array.slice(), 1));
+    S = newBatch(geo, MAT_BODY);
+    shapes.set(sk, S); VAT.stat.shapes++;
+    lighten(S, near ? VAT.triNear : VAT.triFar, sk);
+    joinGroup(S);
+  }
+  const n = g.attributes.position.count;
+  const C = g.attributes.color, C2 = g.attributes.col2 || C, M = g.attributes.mtl;
+  // 10/30 夜：姿（u.look）は兵ごとに別の物なので、援軍が出るたびに同じ色の並びを足し、色の絵が 2048×1024（32MB）まで増え続けて
+  //   iPhone の WebContent が落ちていた（木津川口・設楽原）。同じ形・同じ色の並びは前の場所を使い回す（見た目は同じ）
+  if (colScratch.length < n * 3) colScratch = new Float32Array(n * 3 * 2);
+  let h1 = 0x811c9dc5, h2 = 0x9e3779b9;
+  for (let i = 0; i < n; i++) {
+    const a = pack3(C, i), b = pack3(C2, i), m = M ? M.getX(i) : 0;
+    colScratch[i * 3] = a; colScratch[i * 3 + 1] = b; colScratch[i * 3 + 2] = m;
+    const q = (a ^ (b * 31) ^ Math.round(m * 1024) * 7919) | 0;
+    h1 = Math.imul(h1 ^ q, 16777619); h2 = Math.imul(h2 + q, 2246822519) ^ (h2 >>> 13);
+  }
+  const ck = sk + '|' + n + '|' + (h1 >>> 0).toString(36) + (h2 >>> 0).toString(36);
+  const seen = colSeen.get(ck);
+  if (seen) { VAT.stat.colShared = (VAT.stat.colShared || 0) + 1; return { S, base: seen.base, gen: seen.gen }; }
+  if (colUsed + n > colRows * CW) {
+    let r = colRows; while (colUsed + n > r * CW) r *= 2;
+    // 携帯は色の絵を 1024×512（8MB）までにする。越えた姿は軽い兵の束のまま描く（記憶が時間で増え続けない）
+    if (MEM_TIGHT && r > COL_MAX_TIGHT) { VAT.stat.colFull = (VAT.stat.colFull || 0) + 1; return null; }
+    if (r > 1024) throw new Error('色の置き場があふれる');
+    growCol(r);
+  }
+  const base = colUsed; colUsed += n;
+  for (let i = 0; i < n; i++) {
+    const o = (base + i) * 4;
+    colData[o] = colScratch[i * 3]; colData[o + 1] = colScratch[i * 3 + 1]; colData[o + 2] = colScratch[i * 3 + 2]; colData[o + 3] = 0;
+  }
+  COLUP.dirty = true;
+  colSeen.set(ck, { base, gen: COLUP.gen + 1 });
+  VAT.stat.colRows = colRows;
+  return { S, base, gen: COLUP.gen + 1 };
+}
+const BUILD = { left: 0 };
+// 色の絵の送り直しは一度に全部を送るので、十五コマに一度にまとめる（新しい姿は送った後から描く）
+const COLUP = { dirty: false, gen: 0, at: -99 };
+const nearQ = [];
+// 近い形は後のコマで一つずつ作る（出来るまでは遠い形）
+function nearStep() {
+  const rec = nearQ.shift();
+  if (!rec) return;
+  try {
+    const P = nearArmorParts(lookParts(rec.look)); P.look.sohei = !!rec.sohei;
+    const near = addShape(crowdGeometry(P, P.look, null, true, true), true);
+    if (near) { rec.nS = near.S; rec.nB = near.base; rec.ngen = near.gen; }
+  } catch (e) { VAT.stat.fails++; VAT.stat.err = String(e.message || e).slice(0, 80); }
+}
+// 姿ごとの形：15m の内は近い部品の全身（骨の人の近い形と同じ部品）、その先は遠い部品の全身（骨の人の遠い形と同じ）
+function lookOf(u) {
+  const L0 = u.look;
+  if (looks.has(L0)) return looks.get(L0);
+  const ck = L0 && typeof L0 === 'object' && !(typeof window !== 'undefined' && window.__apx?.nolookc) ? (u.type === 'ashigaru' && K697_ON.on ? 'k6|' : '') + lookKey(L0) : null;   // x_nolookc：前と比べる時だけ切る
+  if (ck && looksC.has(ck)) { const r = looksC.get(ck); looks.set(L0, r); return r; }
+  // 新しい姿の形づくりは一コマに一つまで（束ねる形を作る重さを散らす）
+  if (BUILD.left <= 0) return undefined;
+  // K697 手順1：足軽は骨入りの本物の人の中の段（3,000 三角）を同じ焼いた骨で（k697_body.js k697VatGeo）。読めるまで・型が出来るまでは待つ
+  const k6 = (() => { try { return k697Want(u, humanLook(L0)); } catch (e) { return false; } })();
+  if (k6) {
+    const g = k697VatGeo(soldierTint(L0), PLAIN_UV);
+    if (!g) return undefined;
+    BUILD.left--;
+    let rec = null;
+    try { const far = addShape(g); if (far) {
+      // パソコンは 15m 内の束を近い段（12,000 三角）で（中の段は寄ると粗い）。携帯は中の段のまま（束の三角を増やさない）
+      const gn = !MEM_TIGHT && VAT.nearShape ? k697VatGeo(soldierTint(L0), PLAIN_UV, 0) : null, near = gn ? addShape(gn, true) : null;
+      rec = { shape: far.S, colBase: far.base, nshape: near ? near.S : far.S, ncolBase: near ? near.base : far.base, look: humanLook(L0), nq: true, gen: near ? Math.max(far.gen, near.gen) : far.gen, sohei: false, k697: true }; VAT.stat.looks++; VAT.stat.k697 = (VAT.stat.k697 || 0) + 1; } }
+    catch (e) { rec = null; VAT.stat.fails++; VAT.stat.err = String(e.message || e).slice(0, 80); }
+    looks.set(L0, rec); if (ck) looksC.set(ck, rec);
+    return rec;
+  }
+  if (K697_ON.on && !K697.ready && !K697.err && u.type === 'ashigaru') return undefined;   // 足軽の形が読めるまでは今の形を作らない（作ると戦の終わりまで今の形のまま）
+  BUILD.left--;
+  let rec = null;
+  try {
+    const look = humanLook(L0);
+    // 11/18 K365 僧兵（比叡山・長島）も束ねた形で：骨の人の枠から溢れた僧兵が古い人形の体のまま立っていた。
+    //   僧兵は MakeHuman の体を使わず、骨の人と同じ衣・袈裟・裹頭の部品（soheiBody）で全身を作る
+    const sohei = isSohei(L0);
+    if (!look.nanban && !look.hero && (!look.kosode || sohei)) {
+      const Plo = lookParts(look, false);
+      if (sohei) Plo.look.sohei = true;
+      const far = addShape(crowdGeometry(Plo, Plo.look, null, true, true));
+      if (far) {
+        rec = { shape: far.S, colBase: far.base, nshape: far.S, ncolBase: far.base, look, nq: false, gen: far.gen, sohei };
+        VAT.stat.looks++;
+      }
+    }
+  } catch (e) { rec = null; VAT.stat.fails++; VAT.stat.err = String(e.message || e).slice(0, 80); }
+  looks.set(L0, rec); if (ck) looksC.set(ck, rec);
+  return rec;
+}
+// 得物の形：得物の根（u.wpn）の座標に、見えている兵の材質の部品をまとめる
+const _wm = new THREE.Matrix4(), _wi = new THREE.Matrix4();
+function wpnKeyOf(u) { return u.wpn && u.wpn.geometry ? u.wpn.geometry.uuid + '|' + (u.wpn.userData.lod ? u.wpn.userData.lod[1].uuid : '') : null; }
+function wpnOf(u) {
+  const k = wpnKeyOf(u);
+  if (!k) return null;
+  if (wpns.has(k)) return wpns.get(k);
+  let rec = null;
+  try {
+    const w = u.wpn, list = [];
+    w.updateMatrixWorld(true);
+    _wi.copy(w.matrixWorld).invert();
+    const add = (o, geo) => {
+      const A = geo.attributes;
+      if (!A.position || !A.color || !A.mtl) return;
+      const g = new THREE.BufferGeometry();
+      _wm.multiplyMatrices(_wi, o.matrixWorld);
+      const n = A.position.count;
+      const P = new Float32Array(n * 3), N = new Float32Array(n * 3), UV = new Float32Array(n * 2), C = new Float32Array(n * 3), C2 = new Float32Array(n * 3), MT = new Float32Array(n);
+      for (let i = 0; i < n; i++) {
+        P[i * 3] = A.position.getX(i); P[i * 3 + 1] = A.position.getY(i); P[i * 3 + 2] = A.position.getZ(i);
+        if (A.normal) { N[i * 3] = A.normal.getX(i); N[i * 3 + 1] = A.normal.getY(i); N[i * 3 + 2] = A.normal.getZ(i); }
+        if (A.uv) { UV[i * 2] = A.uv.getX(i); UV[i * 2 + 1] = A.uv.getY(i); }
+        C[i * 3] = A.color.getX(i); C[i * 3 + 1] = A.color.getY(i); C[i * 3 + 2] = A.color.getZ(i);
+        const c2 = A.col2 || A.color;
+        C2[i * 3] = c2.getX(i); C2[i * 3 + 1] = c2.getY(i); C2[i * 3 + 2] = c2.getZ(i);
+        MT[i] = A.mtl.getX(i);
+      }
+      g.setAttribute('position', new THREE.BufferAttribute(P, 3)); g.setAttribute('normal', new THREE.BufferAttribute(N, 3));
+      g.setAttribute('uv', new THREE.BufferAttribute(UV, 2)); g.setAttribute('color', new THREE.BufferAttribute(C, 3));
+      g.setAttribute('col2', new THREE.BufferAttribute(C2, 3)); g.setAttribute('mtl', new THREE.BufferAttribute(MT, 1));
+      const ix = geo.index ? Array.from(geo.index.array) : Array.from({ length: n }, (_, i) => i);
+      g.setIndex(ix);
+      g.applyMatrix4(_wm);
+      list.push(g);
+    };
+    const walk = (o, top) => {
+      if (!o.visible && !top) return;
+      if (o.isMesh && o.material === MAT || o.isMesh && o.material?.userData?.batchAs === MAT) {
+        const L = o.userData.lod;
+        add(o, L ? L[1] : o.geometry);
+      }
+      for (const c of o.children) walk(c, false);
+    };
+    walk(w, true);
+    if (list.length) {
+      const merged = list.length === 1 ? list[0] : mergeAll(list);
+      if (merged) { rec = newBatch(merged, MAT_WPN); }
+    }
+  } catch (e) { rec = null; VAT.stat.fails++; VAT.stat.err = String(e.message || e).slice(0, 80); }
+  wpns.set(k, rec);
+  return rec;
+}
+function mergeAll(list) {
+  let nv = 0, ni = 0;
+  for (const g of list) { nv += g.attributes.position.count; ni += g.index.count; }
+  const out = new THREE.BufferGeometry();
+  for (const [k, s] of [['position', 3], ['normal', 3], ['uv', 2], ['color', 3], ['col2', 3], ['mtl', 1]]) {
+    const A = new Float32Array(nv * s); let o = 0;
+    for (const g of list) { A.set(g.attributes[k].array, o); o += g.attributes[k].array.length; }
+    out.setAttribute(k, new THREE.BufferAttribute(A, s));
+  }
+  const I = new Uint32Array(ni); let o = 0, base = 0;
+  for (const g of list) { const ix = g.index.array; for (let i = 0; i < ix.length; i++) I[o++] = ix[i] + base; base += g.attributes.position.count; }
+  out.setIndex(new THREE.BufferAttribute(I, 1));
+  return out;
+}
+
+// ---- 焼く（場面の外の作り物の兵と人で、動きの組ごとに一度だけ） ----
+const rigs = new Map();   // 得物の組の鍵 → { key, src, u, clips, done, failed }
+const RIG = { h: null, build: null, look: null, owner: null };
+// 動きの組は得物の種類だけで分ける（槍の長さ・兵の種類の違いは骨の動きにほとんど出ない。焼く数を減らす）
+const rigKey = (u) => (u.wpnKind || u.lookWeapon || 'none') + '|' + (u.look.swordHand || '');
+const _Ri = new THREE.Matrix4(), _M = new THREE.Matrix4();
+function capture(u, h, row) {
+  u.mesh.updateMatrixWorld(true);
+  _Ri.copy(u.mesh.matrixWorld).invert();
+  const arm = h.parts.armor, sk = arm.skeleton;
+  // 骨の数は読み込んだ時の並び（WPN）まで。ALLB は胴丸を読むと後から伸びる（小谷で 88→108。伸びた先を読んで焼きが全部落ち、近い兵が部品の姿で残った 10/29）
+  for (let i = 0; i < WPN; i++) {
+    _M.multiplyMatrices(sk.bones[i].matrixWorld, sk.boneInverses[i]).multiply(arm.bindMatrix).premultiply(_Ri);
+    writeRow(row, i, _M);
+  }
+  if (u.wpn) { _M.multiplyMatrices(_Ri, u.wpn.matrixWorld); writeRow(row, WPN, _M); }
+}
+function freshState(u) {
+  u.target = null; u.atk = null; u.swing = null; u.hit = null; u.poseTarget = null; u.watch = null; u.moving = 0;
+  u.charging = false; u.contactBrace = 0; u.guard = 0; u.guarding = 0; u.stagger = 0; u.recoil = 0; u.strikeT = 0; u.sweepT = 0;
+  u.alive = true; u.dying = false; u.death = null; u.deadT = 0; u.fall = 1; u.forceSpd = 0; u.cheer = 0; u.confused = 0;
+  u.mesh.rotation.set(0, 0, 0); u.mesh.position.set(0, 0, 0); u.pos.set(0, 0, 0); u.heading = 0;
+}
+function makeFoe(u) {
+  const f = new Unit({ type: 'ashigaru', team: 1 - (u.team || 0) });
+  f.pos.set(0, 0, 2.6); f.heading = Math.PI; f.target = u; f.lookWeapon = u.lookWeapon; f.wpnKind = u.wpnKind;
+  f.group = { morale: 100, units: [f] }; f.bakeFoe = true;
+  return f;
+}
+// 一つの動きを焼く。行の並びと長さを返す
+const DL = { t: 0 };   // 焼きの一コマの締め切り
+function* bakeClip(army, R, name) {
+  const u = R.u, h = RIG.h, F = VAT.fps;
+  freshState(u);
+  const foe = R.foe, g = u.group;
+  g.formation = null; g.order = null; g.marching = true; u._lineFront = null; u.pressBack = null;
+  if (VARIANT[name]) {
+    // 長柄でない組は元の動きの行を使う（焼かない）
+    if ((u.wpnKind || u.lookWeapon) !== 'spear') return { ...R.clips[CLIP[VARIANT[name]]] };
+    if (name === 'idleHedge') { g.formation = 'yari'; g.order = 'yari'; g.marching = false; g._stepCols = 1; u.slot = 0; }
+    else u._lineFront = R.friend;
+    name = VARIANT[name];
+  }
+  const step = (dt) => { army.animate(u, dt, true); gripPose(h, dt); driveHuman(h, dt, true, true); };
+  const idleA = h.act.idle, idleDur = idleA.getClip().duration / Math.max(0.01, idleA.timeScale);
+  const start = rowsUsed;
+  let n = 0, loop = false, len = 0;
+  const rec = () => { capture(u, h, rowsUsed++); n++; };
+  if (name === 'kneel') {
+    // 舟・台の上に屈む兵（u._crouch かつ u.perch）。膝をついた待ちを八枚だけ焼く（行を食わない）
+    loop = true; u._crouch = true; u.perch = { x: 0, y: 0, z: 0 }; h.kneelK = 0;
+    for (let k = 0; k < Math.round(0.8 * F); k++) step(1 / F); if (performance.now() > DL.t) yield;
+    const N = 8, dt = idleDur / N;
+    for (let k = 0; k < N; k++) { step(dt); if (performance.now() > DL.t) yield; rec(); }
+    len = idleDur; u._crouch = false; u.perch = null; h.kneelK = 0; h.model.position.y = 0;
+  } else if (name === 'idle' || name === 'guard') {
+    loop = true;
+    if (name === 'guard') { u.target = foe; u.poseTarget = foe; u.watch = foe; }
+    n = 0; const N = Math.max(8, Math.round(idleDur * 10)), dt = idleDur / N;   // 待ちと構えはゆっくりなので一秒に十枚（間は混ぜる）
+    for (let k = 0; k < Math.round(0.6 * F); k++) step(1 / F); if (performance.now() > DL.t) yield;
+    idleA.time = ((-dt) % idleDur + idleDur) % idleDur;
+    for (let k = 0; k < N; k++) { if (name === 'guard') { u.target = foe; } step(dt); if (performance.now() > DL.t) yield; rec(); }
+    len = idleDur;
+  } else if (name === 'walk' || name === 'run') {
+    loop = true;
+    const sp = name === 'walk' ? 1.3 : 4.5;
+    h.strideK = 1;
+    const wd = h.act.walk.getClip().duration, rd = h.act.run.getClip().duration;
+    const rate = name === 'walk' ? (sp / SRC.vWalk) / wd : Math.max(0.7, Math.min(1.35, sp / SRC.vRun)) / rd;
+    const N = Math.max(8, Math.round(F / rate)), dt = 1 / (N * rate);
+    u.moving = sp; u.forceSpd = sp; h.spd = sp;
+    h.gaitPhase = 1 - 1 / N;
+    for (let k = 0; k < N; k++) { h.spd = sp; h.last.copy(u.pos); step(dt); if (performance.now() > DL.t) yield; }
+    h.gaitPhase = 1 - 1 / N;
+    for (let k = 0; k < N; k++) { h.spd = sp; h.last.copy(u.pos); step(dt); if (performance.now() > DL.t) yield; rec(); }
+    len = 1;   // 一周（時刻は歩みの割合 0〜1）
+    u.forceSpd = undefined;
+  } else if (name === 'atk') {
+    u.target = foe; u.poseTarget = foe;
+    const w = u.wpnKind || u.lookWeapon;
+    for (let k = 0; k < Math.round(0.4 * F); k++) step(1 / F); if (performance.now() > DL.t) yield;
+    if (w === 'gun') {
+      const dur = 1.4; u.atk = { t: dur, dur, target: foe, ranged: true };
+      const N = Math.ceil(dur * F) + 1;
+      for (let k = 0; k < N; k++) { u.atk.t = Math.max(0, dur - k / F); step(1 / F); if (performance.now() > DL.t) yield; rec(); }
+      len = dur;
+    } else if (w === 'bow') {
+      const dur = 1.9; u.atk = { t: dur, dur, target: foe, bow: true };
+      const N = Math.ceil(dur * F) + 1;
+      for (let k = 0; k < N; k++) { u.atk.t = Math.max(0, dur - k / F); step(1 / F); if (performance.now() > DL.t) yield; rec(); }
+      len = dur;
+    } else {
+      const kind = w === 'spear' ? 'thrust' : 'kesa', S_ = kind === 'thrust' ? [0.22, 0.5] : [0.26, 0.55];
+      const dur = S_[0] + 0.3;
+      u.swing = { kind, t: 0, dur: S_[0], at: S_[1], target: foe, done: true, res: 'hit', d: 2.6, side: 1 };
+      u.strikeT = 0.2;
+      const N = Math.ceil(dur * F) + 1;
+      for (let k = 0; k < N; k++) { u.swing.t = k / F; if (u.strikeT > 0) u.strikeT = Math.max(0, 0.2 - k / F); step(1 / F); if (performance.now() > DL.t) yield; rec(); }
+      len = dur;
+    }
+  } else if (name === 'hit') {
+    for (let k = 0; k < Math.round(0.4 * F); k++) step(1 / F); if (performance.now() > DL.t) yield;
+    const dur = 0.55;
+    u.hit = { kind: 'recoil', t: 0, dur, side: 1, amp: 1, from: 'front', part: 'torso', res: 'hit', heavy: false, wkind: 'thrust' };
+    u.recoil = 0.22;
+    const N = Math.ceil(dur * F) + 1;
+    for (let k = 0; k < N; k++) { u.hit.t = k / F; step(1 / F); if (performance.now() > DL.t) yield; rec(); }
+    u.hit = null; len = dur;
+  } else if (name === 'dieF' || name === 'dieB' || name === 'dieS') {
+    for (let k = 0; k < Math.round(0.4 * F); k++) step(1 / F); if (performance.now() > DL.t) yield;
+    u.alive = false; u.dying = false; u.hp = 0;
+    u.death = { kind: name === 'dieF' ? 'forward' : name === 'dieB' ? 'back' : 'side', floor: true, side: 1, t: 0, fwd: name === 'dieF', pace: 1 };
+    h.still = false;
+    const N = Math.ceil(DEATH_END * F) + 1;
+    for (let k = 0; k < N; k++) { step(1 / F); if (performance.now() > DL.t) yield; rec(); }
+    len = DEATH_END;
+    // 11/25 K622（倒れた体の浮き）：焼いた録った倒れの名を覚える。本物の兵が別の録った倒れで根元を傾けると、焼いた手足と根元の傾きが食い違い、体が宙に浮いた
+    (R.mc || (R.mc = {}))[name] = u.death.mc ?? null;
+    u.alive = true; u.death = null;
+  }
+  return { start, n: rowsUsed - start, loop, len };
+}
+function rigUnit(src) {
+  const u = new Unit({ type: src.type, team: src.team || 0 });
+  u.group = { morale: 100, units: [u], faction: src.group?.faction };
+  buildModel(u, { ...src.look, flag: null, standard: null, uma: null });
+  u.mesh.scale.set(1, 1, 1);
+  u.bakeRig = true; u.camD = 999; u.qualityTier = 0; u.shOn = false;
+  u.wpnKind = src.wpnKind;
+  return u;
+}
+// 作り物の人を一つだけ作る（小分け）。出来たら true
+function rigHuman(src, budget) {
+  if (RIG.h) return true;
+  if (!VAT.hooks.build) return false;
+  if (!RIG.build) {
+    RIG.owner = rigUnit(src);
+    RIG.build = VAT.hooks.build(RIG.owner, RIG.owner.look);
+  }
+  const t0 = performance.now();
+  let s;
+  do { s = RIG.build.next(); } while (!s.done && performance.now() - t0 < budget);
+  if (!s.done) return false;
+  RIG.build = null;
+  const h = s.value;
+  if (!h) return false;   // 人の枠が空くまで待つ（iPhone の貸し出しの枠）
+  if (!h.parts.armor || !h.parts.armor.skeleton || h.parts.armor.skeleton.bones.length < WPN) { RIG.failed = true; VAT.stat.err = 'rig ' + (h.parts.armor?.skeleton ? h.parts.armor.skeleton.bones.length + '/' + WPN : 'noskel'); try { VAT.hooks.release?.(h); } catch (e) { /* 手放せなくても使わない */ } return false; }
+  RIG.h = h;
+  h.vatRig = true;   // 録った待ちの動きは焼かない（humans_mocap.js）
+  return true;
+}
+function attachRig(R) {
+  const h = RIG.h, u = R.u;
+  if (h.u === u && u.human === h) return;
+  if (h.u && h.u !== u) h.u.human = null;
+  h.u = u; u.human = h;
+  u.mesh.add(h.root);
+  h.root.visible = true;
+  h.poseReady = false; h.drove = false; h.still = false; h.acc = 0; h.spd = 0; h.last.set(0, 0, 0); h.kneelK = 0;
+  if (u.body) u.body.visible = false;
+  if (u.legL) { u.legL.visible = false; u.legR.visible = false; }
+  h.root.updateMatrixWorld(true);
+}
+// 一コマの焼きの仕事（ms の内）
+function bakeTick(army, budget) {
+  const t0 = performance.now();
+  for (const R of rigs.values()) {
+    if (R.done || R.failed) continue;
+    if (!rigHuman(R.src, budget)) {
+      // 作り物の人が骨の組を持たずに出来た時（混んだ機械で時々）、この戦の VAT が全部止まり、近い兵が部品の姿で残った（長島 10/29）。
+      //   同じ得物の別の兵を元にして三度まで作り直す
+      if (RIG.failed) {
+        RIG.failed = false; R.tries = (R.tries || 0) + 1;
+        const k = rigKey(R.src), alt = R.tries < 4 && army && army.units.find((o) => o !== R.src && !o.gone && !o.bakeRig && o.look && o.look !== R.src.look && eligible(o) && rigKey(o) === k);
+        if (alt) R.src = alt; else if (R.tries < 4) { /* 同じ兵でもう一度 */ } else R.failed = true;
+      }
+      return;
+    }
+    if (performance.now() - t0 > budget) return;
+    if (!R.u) { R.u = rigUnit(R.src); R.foe = makeFoe(R.u); R.friend = makeFoe(R.u); R.friend.team = R.u.team; R.friend.target = null; R.friend.pos.set(0, 0, 1.3); R.friend.heading = 0; R.clips = []; }
+    attachRig(R);
+    DL.t = t0 + budget;
+    while (R.clips.length < CLIPS.length) {
+      if (!R.gen) { if (rowsUsed + 64 > ROWS) { R.failed = true; return; } R.gen = bakeClip(army, R, CLIPS[R.clips.length]); }
+      let r;
+      try { r = R.gen.next(); }
+      catch (e) { R.gen = null; R.failed = true; VAT.stat.fails++; VAT.stat.err = 'bake ' + String(e.message || e).slice(0, 80) + ' @' + String(e.stack || '').split('\n').slice(1, 4).map((l) => l.replace(/.*\/src\//, '').replace(/\)$/, '')).join('<'); return; }
+      if (!r.done) break;   // 締め切り：続きは次のコマ
+      R.gen = null; R.clips.push(r.value);
+      if (performance.now() > DL.t) break;
+    }
+    if (R.clips.length === CLIPS.length) { R.done = true; vatTex.needsUpdate = true; VAT.stat.rigs++; VAT.stat.rows = rowsUsed; }
+    VAT.stat.bakeMs += performance.now() - t0;
+    return;
+  }
+  // 全部焼けたら作り物の人を手放す
+  if (RIG.h && ![...rigs.values()].some((R) => !R.done && !R.failed)) releaseRig();
+}
+function releaseRig() {
+  const h = RIG.h;
+  if (!h) return;
+  if (h.u) { h.u.human = null; h.root.parent?.remove(h.root); }
+  try { VAT.hooks.release?.(h); } catch (e) { /* 手放せなくても描きには使わない */ }
+  RIG.h = null;
+}
+
+// ---- 兵ごとの動きの番号と時刻 ----
+const fadeT = 0.18;
+function clipRow(C, t) {
+  // 戻り値：[行A, 行B, 割合]
+  if (C.loop) {
+    const f = (((t / C.len) % 1) + 1) % 1 * C.n, a = Math.floor(f) % C.n;
+    return [C.start + a, C.start + (a + 1) % C.n, f - Math.floor(f)];
+  }
+  const f = Math.min(C.n - 1, Math.max(0, t * VAT.fps)), a = Math.floor(f);
+  return [C.start + a, C.start + Math.min(C.n - 1, a + 1), f - a];
+}
+function stateOf(army, u, R, dt) {
+  const V = u.vat;
+  // 速さ（位置の動きから。骨の人と同じならし方）
+  const dx = u.pos.x - V.lx, dz = u.pos.z - V.lz; V.lx = u.pos.x; V.lz = u.pos.z;
+  // 舟・台の上の兵（perch）は足場ごと運ばれる。動いた分を歩みに数えない（長島の舟の門徒がその場で走っていた）
+  const inst = dt > 0 && !u.perch ? Math.min(12, Math.hypot(dx, dz) / dt) : 0;
+  V.sp += (inst - V.sp) * Math.min(1, dt * 6);
+  const sp = V.sp, w = u.wpnKind || u.lookWeapon;
+  const strideK = V.strideK;
+  // 歩みの割合は骨の人と同じ式で進める（近くで人へ替わる時に足がそろう）
+  const wd = R.wd, rd = R.rd;
+  const wRun = Math.max(0, Math.min(1, (sp - 2.6) / 1.6));
+  if (sp > 0.05) {
+    const tsW = Math.max(0.5, sp / (SRC.vWalk * strideK)), tsR = Math.max(0.7, Math.min(1.35, sp / (SRC.vRun * strideK)));
+    const rate = (1 - wRun) * tsW / wd + wRun * tsR / rd;
+    V.phase = ((V.phase + dt * rate) % 1 + 1) % 1;
+  }
+  let clip, t;
+  const g = u.group;
+  const up = w === 'spear' && !!(u._lineFront?.alive || u.pressBack?.alive);
+  const hedge = w === 'spear' && g && g.formation === 'yari' && !g.marching && !g.routed && !u.fleeing && (g.order === 'yari' || g.order === 'hold')
+    && Math.floor(u.slot / Math.max(1, g._stepCols || 1)) <= 1;
+  const melee = (w === 'spear' || w === 'sword') && u.swing;
+  if (!u.alive || u.dying) { clip = u.death ? (u.death.kind === 'forward' || u.death.kind === 'crumple' && u.death.fwd ? CLIP.dieF : u.death.kind === 'back' ? CLIP.dieB : CLIP.dieS) : CLIP.dieF; t = u.death ? u.death.t : u.deadT; }
+  else if (u.hit && u.hit.t < u.hit.dur) { clip = CLIP.hit; t = u.hit.t / u.hit.dur * R.clips[CLIP.hit].len; }
+  else if (melee) { clip = CLIP.atk; t = u.swing.t; }
+  else if (u.atk && (u.atk.ranged || u.atk.bow)) { clip = CLIP.atk; t = (u.atk.dur - u.atk.t) / u.atk.dur * R.clips[CLIP.atk].len; }
+  else if (u._crouch && u.perch && sp < 0.3 && R.clips[CLIP.kneel]) { clip = CLIP.kneel; t = army.time + V.seed * 9; }
+  // 11/20 K393：鉄砲は骨の入った近い者だけが膝をつき（u.idl.sit）、焼いた束の者は立ったままで、一つの列に立つ者と膝の者が混ざった。
+  //   膝をついて待つ・込める鉄砲は、狙う相手へ膝をついて構える焼いた動き（guard）で描く
+  else if (w === 'gun' && sp < 0.3 && (u.idl?.sit || 0) > 0.5 && (u.reload || u.target?.alive)) { clip = CLIP.guard; t = army.time + V.seed * 9; }
+  else if (sp > 3.4) { clip = CLIP.run; t = V.phase; }
+  else if (sp > 0.3) { clip = up ? CLIP.walkUp : CLIP.walk; t = V.phase; }
+  else if ((u.target && u.target.alive && u.target.pos && Math.hypot(u.target.pos.x - u.pos.x, u.target.pos.z - u.pos.z) < 6) || u.atk || (u.contactBrace || 0) > 0.3) { clip = CLIP.guard; t = army.time + V.seed * 9; }
+  else { clip = hedge ? CLIP.idleHedge : up ? CLIP.idleUp : CLIP.idle; t = army.time + V.seed * 9; }
+  const [a, b, f] = clipRow(R.clips[clip], t);
+  if (clip !== V.clip) {
+    if (V.clip >= 0) { V.fromRow = f < 0.5 ? V.rowA : V.rowB; V.fade = 0; }
+    V.clip = clip;
+  }
+  if (V.fade < 1) {
+    V.fade = Math.min(1, V.fade + dt / fadeT);
+    V.rowA = a; V.rowB = b;
+    // 入れ替えの間は、前の姿勢から新しい姿勢へ
+    V.out0 = V.fromRow; V.out1 = f < 0.5 ? a : b; V.outW = V.fade * V.fade * (3 - 2 * V.fade);
+  } else { V.rowA = a; V.rowB = b; V.out0 = a; V.out1 = b; V.outW = f; }
+}
+
+// ---- 選ぶ（updateHumans の初めに。カメラからの遠さで、骨の人・VAT・遠い描き方を決める） ----
+let lastArmy = null, frame = 0;
+const list = [];
+export function vatFar() { const f = EFUDA.on ? EFUDA.far - 2 : realNear(); return FLAT.on ? Math.max(f, FLAT.far + 2) : f; }   // 霧の手前は立体で描き切る（flat_rule.js）
+// K362（11/17）：台に据えた兵は既定で VAT に載せない（櫓の床の動き）。perchVat の兵（真田丸の武者走りの鉄砲衆）は台の高さのまま VAT で描く（骨の枠が埋まって透明にしない）
+function eligible(u) {
+  return !u.gone && u.mesh && u.look && !u.isPlayer && (!u.isSub || u.vatSubOk) && (!u.name || u.vatNameOk) && !u.mounted && !u.horse && !u.isStandard && !u.isStruct
+    && u.type !== 'busho' && u.type !== 'cavalry' && u.type !== 'dummy' && u.type !== 'porter' && !qualityKeeper(u)
+    && !u.climb && (!u.perch || u.perchVat) && !u.naka && !u.downed && !u.dragging && !u.tatake && !u.duelW && !u.efuda && !u.imp
+    && !(u.death && u.death.aid) && !u.standardFlag && !u.riderModel && !u.fall2;
+}
+function setOn(u, on, keepHand = false) {
+  if (!!u.vatOn === on) return;
+  u.vatOn = on;
+  if (on) {
+    const h = u.human;
+    if (h && humans.has(h) && h.drove) { u.vat.phase = h.gaitPhase || 0; u.vat.sp = h.spd || 0; }
+    if (h) dropHuman(u);
+    if (u.body) u.body.visible = false;
+    if (u.legL) { u.legL.visible = false; u.legR.visible = false; }
+    if (u.hand) u.hand.visible = false;
+  } else {
+    if (u.hand) { u.hand.visible = true; if (u.hand.parent) u.hand.updateMatrixWorld(true); }
+    const h = u.human, live = h && humans.has(h) && h.root.visible;
+    if (!live && !keepHand) { if (u.body) u.body.visible = true; if (u.legL) { u.legL.visible = true; u.legR.visible = true; } }
+    // 軽い兵の構えを今の状態で一度置き直す（手・得物が古い所に残らない）
+    try { lastArmy?.animate(u, 0, true); } catch (e) { /* 置き直せなくても次のコマで直る */ }
+  }
+}
+// 枠を超えた近景も、中景と同じ全身の形と焼いた動きで描く。
+function prepareVat(u) {
+  const key = rigKey(u);
+  let R = rigs.get(key);
+  if (!R) { R = { key, src: u, u: null, clips: [], done: false, failed: false }; rigs.set(key, R); }
+  if (!R.done) return false;
+  if (!R.wd) { R.wd = SRC.anims.walk.duration; R.rd = SRC.anims.run.duration; }
+  const L = lookOf(u), W = L ? wpnOf(u) : null;
+  if (!L || L.gen > COLUP.gen || (u.wpn && !W)) return false;
+  u.vatL = L; u.vatW = W; u.vatR = R;
+  return true;
+}
+function showVat(u) {
+  // 歩みの位相は兵ごとにずらして始める（皆 0 から歩き出すと、隊の足が揃って同じ人が並んで見えた）
+  if (!u.vat) u.vat = { lx: u.pos.x, lz: u.pos.z, sp: 0, phase: ((u.id || 1) * 0.3819660) % 1, clip: -1, fade: 1, rowA: 0, rowB: 0, fromRow: 0, out0: 0, out1: 0, outW: 0, seed: ((u.id || 1) * 0.6180339) % 1, strideK: 0 };
+  if (!u.vat.strideK) { const s = ((u.id || 1) * 0.6180339) % 1; u.vat.strideK = 0.9 + ((s * 17.3) % 1) * 0.2; }
+  if (!u.vat.var) u.vat.var = vatVar(u);
+  if (!u.vatOn) { u.vat.lx = u.pos.x; u.vat.lz = u.pos.z; u.vat.clip = -1; u.vat.fade = 1; }
+  setOn(u, true);
+}
+// VAT で描ける兵か（骨の人の選びが、VAT に乗らない兵を霧の手前まで先に人にするのに使う）
+export function vatCan(u) { return VAT.on && HUM.ready && !!SRC && !isNoRender() && eligible(u) && prepareVat(u); }
+// 調べ用：その兵が VAT に乗らない訳（flatcheck.mjs の DBG=1）
+if (typeof window !== 'undefined') window.__vatWhy = (u) => { const key = rigKey(u), R = rigs.get(key); const why = Object.entries({ mesh: !u.mesh, look: !u.look, sub: u.isSub, name: !!u.name, mt: u.mounted || u.horse, std: u.isStandard, qk: qualityKeeper(u), cl: u.climb || u.perch || u.naka, dn: u.downed || u.dragging || u.tatake || u.duelW, ef: u.efuda, imp: u.imp, aid: u.death && u.death.aid, sf: u.standardFlag, rm: u.riderModel, f2: u.fall2, ty: ['busho','cavalry','dummy','porter'].includes(u.type) }).filter(([, v]) => v).map(([k]) => k).join('+'); return [eligible(u) ? 'el' : 'NOel:' + why, R ? (R.done ? 'rig' : R.failed ? 'rigX' : 'rig…') : 'norig', looks.has(u.look) ? (looks.get(u.look) ? 'look' : 'lookX') : 'nolook', wpnKeyOf(u) ? (wpns.has(wpnKeyOf(u)) ? (wpns.get(wpnKeyOf(u)) ? 'w' : 'wX') : 'now') : '-'].join(','); };
+export function vatOverflow(u) {
+  if (!VAT.on || !HUM.ready || !SRC || isNoRender() || !eligible(u) || !prepareVat(u)) return false;
+  // 近景へ戻る待ちの兵は、既にこのコマの描画表に入っている。
+  if (!u.vatOn) list.push(u);
+  u.vatWant = true;
+  showVat(u);
+  VAT.stat.units = list.length;
+  return true;
+}
+// 支度の間に焼き残した動きがあるか（main.js が読み込みの間に焼き切る）
+export function vatBakePending() { if (!VAT.on) return false; for (const R of rigs.values()) if (!R.done && !R.failed) return true; return false; }
+export function vatSelect(rt, dt) {
+  if (!VAT.on || !HUM.ready || !SRC || isNoRender()) return;
+  const t0 = performance.now();
+  const army = rt.army, cam = rt.camera;
+  if (!army || !cam) return;
+  if (army !== lastArmy) vatReset(army, rt.scene);
+  frame++;
+  vatMats();
+  ensureTex();
+  const near = VAT.near, far = vatFar(), h = VAT.hyst, cx = cam.position.x, cz = cam.position.z;
+  const P = rt.player?.u?.alive ? rt.player.u.pos : null;
+  list.length = 0;
+  // 11/18 K365（クラウド）：支度で前もって作る姿を 24→48 に。設楽原 150秒・40m 内で姿の無いまま古い部品の体（人形）で描かれる兵 23→0。
+  //   支度の延び：この箱（ソフト描き）で 14.3→14.8 秒（+0.5 秒・二回ずつ測った平均。cloud-24 と連絡帳で分担）
+  BUILD.left = dt === 0 ? 48 : 1;
+  for (const u of army.units) {
+    if (u.bakeRig) continue;
+    // 倒れる者・倒れた者も、骨の人で描かれていなければ VAT の倒れる動きで描く（部品だけの体を残さない・隠して消さない。kaito 10/28）
+    const shown = humanShown(u);
+    const ok = !skinOpponent(rt.player?.u, u) && eligible(u) && (u.alive && !u.dying || u.vatOn || !shown);
+    let want = false, hold = false;
+    if (ok) {
+      const d = Math.hypot(u.pos.x - cx, u.pos.z - cz);
+      const lo = u.vatOn ? near - h : near + h, hi = u.vatOn ? far + h : far - h;
+      want = d >= lo && d <= hi;
+      // 11/22 K622：本人の 8m 内も骨の人の側へ（カメラは本人の 4〜5m 後ろなので、カメラから 8m だと本人の前の兵がほぼ VAT のままだった。
+      //   姉川 90秒：本人の前 8m の足軽の骨の人は二〜三割）。骨の枠の数（携帯十六）は変えないので、枠の外の兵は今までどおり VAT で描く
+      let nearP = false; if (want && P && !K622_OLD) { const pd = Math.hypot(u.pos.x - P.x, u.pos.z - P.z); if (pd < (u.vatOn ? near - h : near + h)) { want = false; nearP = true; } }
+      // 近くで骨の人がまだ出来ていない兵は、人が出来て描かれるまで VAT で描く（前の段の形を見せ続ける。画面で消えない・部品の姿を出さない）
+      if (!want && (d < lo || nearP) && !shown) hold = true;   // nearP：骨の枠が埋まって人が出来ない兵も VAT のまま（部品の姿を出さない）
+    }
+    // 倒れる・倒れた・相手になった・担がれる等で VAT の外になっても、骨の人が描かれるまでは VAT のまま（部品の姿へ戻さない。no_pop）
+    if (!want && !hold && u.vatOn && !u.gone && u.mesh && !u.efuda && !u.imp && !humanShown(u) &&
+      Math.hypot(u.pos.x - cx, u.pos.z - cz) <= far + h) hold = true;
+    if ((want || hold) && !prepareVat(u)) want = hold = false;
+    u.vatWant = want;
+    if (want || hold) { showVat(u); list.push(u); }
+    else if (u.vatOn) setOn(u, false);
+  }
+  // 11/20 K470（cloud-37・kaito「遠くは絵・近くで急に本物」）：戦の間も、霧の手前（far）のすぐ外から近づく兵（far〜far+40m）の姿を一コマに一つ先に作る。
+  //   霧の手前に入ってから作ると、形が出来るまで描かれず（formGuard）、出来たコマに急に現れた（携帯の戸次川 40秒の仙石の旗本 52〜56m・桶狭間 36秒の今川の物見 33m）
+  if (dt > 0 && BUILD.left > 0 && FLAT.on) {
+    const f2 = (far + 40) * (far + 40), f1 = far * far;
+    for (const u of army.units) {
+      if (BUILD.left <= 0) break;
+      if (u.vatOn || u.vatL || u.bakeRig || !u.alive || !eligible(u)) continue;
+      const dx = u.pos.x - cx, dz = u.pos.z - cz, d2 = dx * dx + dz * dz;
+      if (d2 > f1 && d2 <= f2) prepareVat(u);
+    }
+  }
+  // 11/22 K609：見せの兵に姿を貸す本物（骨の人で描かれていて VAT の姿がまだ無い近い隊の者）の姿も、一コマ一つずつ作る
+  if (dt > 0 && BUILD.left > 0) for (const u of VAT_GHOST.want) { if (BUILD.left <= 0) break; if (!u.vatL && u.alive && !u.gone && eligible(u)) prepareVat(u); }
+  VAT_GHOST.want.length = 0;
+  // 支度の間（dt=0）に、遠くの兵の姿と骨の組も先に作る。近づいてから作ると、出来るまでの数秒だけ部品の姿（平たく見える）が出た（flat_rule.js。kaito 10/28）
+  if (dt === 0 && FLAT.on) for (const u of army.units) { if (BUILD.left <= 0) break; if (!u.vatOn && !u.bakeRig && eligible(u) && u.alive) prepareVat(u); }
+  // 支度の間（dt=0）に、この戦の兵の得物の組（遠くの兵も）の動きを先に焼く。戦の途中で焼くと一コマ 3〜5ms 重くなっていた（10/28）
+  if (dt === 0 && !window.__apx?.lazybake) for (const u of army.units) {
+    if (!u.alive || u.bakeRig || !eligible(u)) continue;
+    const key = rigKey(u);
+    if (!rigs.has(key)) rigs.set(key, { key, src: u, u: null, clips: [], done: false, failed: false });
+  }
+  // 焼く（支度の間 dt=0 は大きく、戦の間は一コマ数ミリ秒まで）。焼く・姿の形・近い形の仕事は一コマに一つだけ
+  let pending = false;
+  for (const R of rigs.values()) if (!R.done && !R.failed) { pending = true; break; }
+  if (pending) bakeTick(army, dt === 0 ? 40 : MEM_TIGHT ? 3 : 5);
+  else if (RIG.h) releaseRig();
+  if ((BUILD.left > 0 && !pending) || dt === 0) nearStep();
+  VAT.stat.units = list.length;
+  VAT.stat.selMs = performance.now() - t0;
+}
+// 人が出来て描かれたか（hold を解く）
+function humanShown(u) { const h = u.human; return !!(h && humans.has(h) && h.root.visible && h.drove); }
+
+// ---- 描く（Army.batchDraw の後。行列が新しくなった後） ----
+const _fr = new THREE.Frustum(), _pm = new THREE.Matrix4(), _sph = new THREE.Sphere(new THREE.Vector3(), 3.5);
+export function vatDraw(army, cam) {
+  if (!VAT.on || !lastArmy || army !== lastArmy) return;
+  const t0 = performance.now();
+  k622On = typeof window !== 'undefined' && window.__k622same ? 0 : 1; U_K622.value = k622On; k622T = t0 / 1000;
+  if (COLUP.dirty && frame - COLUP.at >= 15) {
+    COLUP.dirty = false; COLUP.at = frame; COLUP.gen++; colTex.needsUpdate = true;
+    for (const L of looks.values()) if (L && L.nS && L.ngen <= COLUP.gen) { L.nshape = L.nS; L.ncolBase = L.nB; L.nS = null; }
+  }
+  // 80m より先の形（far2）も毎コマ数え直して描く（前は数え直さず描かれず、数だけ毎コマ増えて入れ物が膨らんでいた。11/15 K073）
+  for (const S of shapes.values()) { S.n = 0; if (S.far) S.far.n = 0; if (S.far2) S.far2.n = 0; }
+  for (const G of topo.values()) { G.n = 0; if (G.far) G.far.n = 0; if (G.far2) G.far2.n = 0; }
+  for (const W of wpns.values()) if (W) W.n = 0;
+  // 姿の組の絵は、新しい姿を入れても十五コマに一度だけ送る（送った後の姿から組で描く）
+  if (SHPUP.dirty && frame - SHPUP.at >= 15) { SHPUP.dirty = false; SHPUP.at = frame; SHPUP.gen++; shpTex.needsUpdate = true; }
+  _pm.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse); _fr.setFromProjectionMatrix(_pm);
+  const dt = Math.min(0.1, Math.max(0, army.time - (VAT.lastT ?? army.time))); VAT.lastT = army.time;
+  let drawn = 0;
+  for (const u of list) {
+    if (!u.vatOn) continue;
+    if (!u.vatWant && humanShown(u)) { setOn(u, false, true); continue; }
+    stateOf(army, u, u.vatR, dt);
+    if (u.gone || !u.mesh || u.camHidden || !u.mesh.parent) continue;
+    const e = u.mesh.matrixWorld.elements;
+    _sph.center.set(e[12], e[13] + 1, e[14]);
+    if (!_fr.intersectsSphere(_sph)) continue;
+    const V = u.vat;
+    const cx = cam.position.x - e[12], cz = cam.position.z - e[14], nr = cx * cx + cz * cz < VAT.nearD * VAT.nearD;
+    // 近い形は、その姿の兵が近くに来た時に作る（遠くにしか居ない姿の分は作らない）
+    if (nr && VAT.nearShape && !u.vatL.nq && VAT.nearN < VAT.nearCap) { u.vatL.nq = true; VAT.nearN++; nearQ.push(u.vatL); }
+    const ev = leanOf(e, V);
+    // 兵ごとの褪せ・明るさ・泥は、骨の人に替わる手前（8〜20m）で薄めて消す（近い人には無いので、替わる所で色が飛ばない）
+    const d2 = cx * cx + cz * cz, fk = d2 >= 400 ? 1 : Math.max(0, (Math.sqrt(d2) - VAT.near) / (20 - VAT.near));
+    const S0 = nr ? u.vatL.nshape : u.vatL.shape, G0 = S0.grp && S0.shpGen <= SHPUP.gen && VAT.grp ? S0.grp : S0;
+    put(nr ? G0 : d2 > XFAR2_D * XFAR2_D && XFAR_D < Infinity && farOf(G0, 'far2', 0.15) || d2 > XFAR_D * XFAR_D && farOf(G0) || G0, ev, V, nr ? u.vatL.ncolBase : u.vatL.colBase, fk, G0 === S0 ? 0 : S0.vbase);
+    if (u.vatW) put(u.vatW, ev, V, 0);
+    drawn++;
+  }
+  drawn += ghostDraw(army, cam, dt);
+  for (const S of shapes.values()) { fin(S); if (S.far) fin(S.far); if (S.far2) fin(S.far2); }
+  for (const G of topo.values()) { fin(G); if (G.far) fin(G.far); if (G.far2) fin(G.far2); }
+  for (const W of wpns.values()) if (W) fin(W);
+  VAT.stat.drawn = drawn;
+  VAT.stat.drawMs = performance.now() - t0;
+}
+// 11/22 K609（kaito「一つ一つの隊が少なく見える」）：オンラインの千人の隊は、本物（考えて斬り合う兵）が近くで 35〜90 人だけで、
+//   霧の手前は平たい見せかけを描かない決まり（flat_rule.js）なので、隊が数十人に見えていた。本物の後ろの列を、考えない「見せの兵」で埋める。
+//   見せの兵は同じ隊の本物の姿・得物・焼いた動き（VAT・立体）をそのまま借りて描くだけ（Unit を作らない＝考え・当たり・骨は無い）。
+//   置き場と数は online/army4k.js の ghostTick が毎コマ決める（VAT_GHOST.list）。?ghost=0 で前の見え方
+export const VAT_GHOST = { on: !/[?&]ghost=0/.test(qs), list: [], drawn: 0, want: [], drawMs: 0, tickMs: 0, drawnSum: 0 };
+const GV = { out0: 0, out1: 0, outW: 0, var: null, clip: -1 }, _ge = new Float32Array(16);
+function ghostDraw(army, cam, dt) {
+  const GL = VAT_GHOST.list;
+  VAT_GHOST.drawn = 0;
+  if (!VAT_GHOST.on || !GL.length) return 0;
+  const tg = performance.now();
+  let n = 0;
+  const cx0 = cam.position.x, cz0 = cam.position.z;
+  for (const g of GL) {
+    const u = g.tpl;
+    if (!u || u.gone || !u.mesh || !u.vatL || !u.vatR || !u.vatL.shape || u.vatL.gen > COLUP.gen) continue;
+    const cx = cx0 - g.x, cz = cz0 - g.z, d2 = cx * cx + cz * cz;
+    if (d2 < 36) continue;   // カメラの六 m 内は描かない（目の前を塞がない）
+    _sph.center.set(g.x, g.y + 1, g.z);
+    if (!_fr.intersectsSphere(_sph)) continue;
+    const R = u.vatR, mv = g.sp > 0.3;
+    if (mv) g.ph = ((g.ph + dt * Math.max(0.5, g.sp / SRC.vWalk) / R.wd) % 1 + 1) % 1;
+    const clip = mv ? CLIP.walk : CLIP.idle, C = R.clips[clip];
+    if (!C) continue;
+    const [a, b, f] = clipRow(C, mv ? g.ph : army.time + g.seed * 9);
+    GV.out0 = a; GV.out1 = b; GV.outW = f; GV.var = g.var; GV.clip = clip;
+    // 向き・大きさは借りる兵の物（隊の向き）、所だけ見せの兵の所へ
+    const e = u.mesh.matrixWorld.elements;
+    for (let i = 0; i < 16; i++) _ge[i] = e[i];
+    // 向きは見せの兵の向き（歩く向き・止まれば敵の方）へ回す（借りる兵の向き u.heading との差を Y で回す）
+    const dy = (g.yaw ?? u.heading) - u.heading, cs = Math.cos(dy), sn = Math.sin(dy);
+    for (let c = 0; c < 3; c++) { const x = _ge[c * 4], z = _ge[c * 4 + 2]; _ge[c * 4] = cs * x + sn * z; _ge[c * 4 + 2] = -sn * x + cs * z; }
+    // 11/22 kaito（宙に浮く兵）：借りる兵の体の高さの差（e[13] − pos.y）は、借りる兵が描かれていない間（霧の先・隠れ）は古い置き場のままで、
+    //   坂を動いた後は何 m もずれて見せの兵が宙に浮いた。足もとの差は一 m の三割までにする（普通は 0）
+    const oy = e[13] - u.pos.y;
+    _ge[12] = g.x; _ge[13] = g.y + (oy > 0.3 || oy < -0.3 ? 0 : oy); _ge[14] = g.z;
+    const ev = leanOf(_ge, GV);
+    const nr = d2 < 100 && u.vatL.nshape, fk = d2 >= 400 ? 1 : Math.max(0, (Math.sqrt(d2) - VAT.near) / (20 - VAT.near));
+    const S0 = nr ? u.vatL.nshape : u.vatL.shape, G0 = S0.grp && S0.shpGen <= SHPUP.gen && VAT.grp ? S0.grp : S0;
+    // 見せの兵は本物より早く粗い形へ（三角を増やし過ぎない）：十五 m より先は 40%・三十 m より先は 15%（軽い大軍の代わりに立つ所）。出来るまでは今の形
+    put(nr ? G0 : d2 > 900 && farOf(G0, 'far2', 0.15) || d2 > 225 && farOf(G0) || G0, ev, GV, nr ? u.vatL.ncolBase : u.vatL.colBase, fk, G0 === S0 ? 0 : S0.vbase);
+    if (u.vatW) put(u.vatW, ev, GV, 0);
+    n++;
+  }
+  VAT_GHOST.drawn = n;
+  VAT_GHOST.drawMs += performance.now() - tg;   // 確かめ用の積み（測る側が 0 に戻す）
+  return n;
+}
+// 見せの兵に貸す本物の兵（VAT の姿と動きが出来ている者）か
+export function vatGhostTpl(u) { return !!u && u.alive && !u.gone && vatCan(u) && !!u.vatL?.shape; }
+export function vatGhostVar(seed) { return vatVar({ id: seed }); }
+function put(B, e, V, w, fk = 1, shp = 0) {
+  if (B.n >= B.cap) growBatch(B, B.n + 1);
+  const i = B.n++;
+  const M = B.mesh.instanceMatrix.array, o = i * 16;
+  M.set(e, o);
+  M[o] = -M[o]; M[o + 4] = -M[o + 4]; M[o + 8] = -M[o + 8]; M[o + 12] = -M[o + 12];   // 束の左右の映し（growBatch）を打ち消す
+  const a = B.vat.array;
+  a[i * 4] = V.out0; a[i * 4 + 1] = V.out1; a[i * 4 + 2] = V.outW; a[i * 4 + 3] = w;
+  const q = V.var || VAR0, c = B.var.array; c[i * 3] = q[0] * fk; c[i * 3 + 1] = 1 + (q[1] - 1) * fk; c[i * 3 + 2] = B.mat === MAT_WPN && typeof window !== 'undefined' && window.__k622same ? 0 : q[2] * fk;   // __k622same：得物の角度のずらしを切る（同じコマで前後を撮る時だけ）
+  if (B.sh) B.sh.array[i] = shp;
+}
+// 兵ごとの揺らぎ（一度だけ決める）：褪せ・明るさ・泥（色）と、構えの傾き・向き（姿）。形と絵は使い回し、instance の値だけを替える
+const VAR0 = [0, 1, 0, 0, 0];
+const hash = (id, k) => { const x = Math.sin((id || 1) * 12.9898 + k * 78.233) * 43758.5453; return x - Math.floor(x); };
+function vatVar(u) {
+  const id = u.id || 1, f = hash(id, 1);
+  return [f * f * 0.34, 0.86 + hash(id, 2) * 0.24, hash(id, 3), (hash(id, 4) - 0.5) * 0.09, (hash(id, 5) - 0.4) * 0.07];
+}
+// 止まった構え（待ち・構え・槍衾）は向きを少しずらし、上体の傾き（前屈み）は歩く間も残す。足もとを軸に回す
+const STILL = new Set([CLIP.idle, CLIP.guard, CLIP.idleUp, CLIP.idleHedge]);
+const _lm = new THREE.Matrix4(), _lr = new THREE.Matrix4(), _lx = new THREE.Matrix4();
+function leanOf(e, V) {
+  const q = V.var; if (!q || !q[4] && !q[3]) return e;
+  // K622 三回目（kaito「同じ立ち方で棒立ち」）：止まって待つ間だけ、兵ごとの間合いで、時々あたりを見回し（±0.3）・重心を左右へ移す（±2.3°）
+  let yw = STILL.has(V.clip) ? q[3] : 0, sd = 0;
+  if (k622On && STILL.has(V.clip)) {
+    const ph = q[2] * 40 + q[0] * 13, lk = Math.sin(k622T * 0.21 + ph);
+    yw += Math.sign(lk) * Math.max(0, Math.abs(lk) - 0.55) / 0.45 * 0.3 * (q[2] > 0.5 ? 1 : -1);
+    sd = Math.sin(k622T * 0.33 + ph * 1.7) * 0.04;
+  }
+  _lr.makeRotationY(yw); _lx.makeRotationX(q[4]); _lr.multiply(_lx);
+  if (sd) { _lx.makeRotationZ(sd); _lr.multiply(_lx); }
+  return _lm.fromArray(e).multiply(_lr).elements;
+}
+function fin(B) {
+  if (!B.mesh) return;
+  B.mesh.count = B.n; B.mesh.visible = B.n > 0;
+  if (B.n) { B.mesh.instanceMatrix.needsUpdate = true; B.vat.needsUpdate = true; B.var.needsUpdate = true; if (B.sh) B.sh.needsUpdate = true; }
+  if (B.mesh.parent !== scene && scene) scene.add(B.mesh);
+}
+export function vatReset(army, sc) {
+  VAT_GHOST.list.length = 0;
+  for (const u of list) if (u.vatOn) setOn(u, false);
+  list.length = 0;
+  for (const S of shapes.values()) for (const B of [S, S.far, S.far2]) if (B && B.mesh) { B.mesh.parent?.remove(B.mesh); B.mesh.dispose(); B.mesh = null; B.cap = 0; }
+  for (const G of topo.values()) for (const B of [G, G.far, G.far2]) if (B && B.mesh) { B.mesh.parent?.remove(B.mesh); B.mesh.dispose(); B.mesh = null; B.cap = 0; }
+  for (const W of wpns.values()) if (W?.mesh) { W.mesh.parent?.remove(W.mesh); W.mesh.dispose(); W.mesh = null; W.cap = 0; }
+  looks.clear(); looksC.clear(); colSeen.clear(); colUsed = 0; nearQ.length = 0; VAT.nearN = 0; COLUP.dirty = false; COLUP.gen = 0; COLUP.at = -99;
+  // 焼き終えた組は元にした兵を要らない。持ったままだと前の戦の兵から戦がまるごとたどれた（11/8 docs/crash_1108.md）
+  for (const R of rigs.values()) if (R.done || R.failed) R.src = R.u = R.foe = R.friend = R.gen = null;
+  // 11/22 クラウド b_osaka 持ち主（K564）：焼き途中で戦を止めた組は src（前の戦の兵）を握ったまま残り、真田丸が丸ごと残っていた。戦を出る時は捨て、次の戦で作り直す
+  if (!army) for (const [k, R] of rigs) if (!R.done && !R.failed) rigs.delete(k);
+  lastArmy = army; scene = sc || null;
+  // 絵の仕組み（シェーダ）を戦の初めに並べて作り始める（初めて描くコマで固まらない）
+  if (sc && VAT.on && !isNoRender()) {
+    vatMats();
+    ensureTex();
+    try {
+      const warm = new THREE.Group(), box = new THREE.BoxGeometry(0.01, 0.01, 0.01);
+      // 火の照りを使う戦は、照りを足してから温める（照り無しで組んだ二つが無駄になっていた。本能寺 11/19 K374）
+      for (const m of [MAT_BODY, MAT_WPN, MAT_SHP]) { try { army?.world?.prepareFireMaterial?.({ material: m }); } catch (e) { /* 照りが無ければそのまま */ } const im = new THREE.InstancedMesh(box, m, 1); im.frustumCulled = false; warm.add(im); }
+      COMPILE_ASYNC?.(warm, sc)?.catch?.(() => {});
+    } catch (e) { /* 作り始められなくても、描く時に作る */ }
+  }
+  if (army) army.vatDraw = (cam) => vatDraw(army, cam);
+}
+// 戦の支度（battle_programs.js）で、火の照りを足した後の描き方も作るための見本（11/17 K365 本能寺：照り無しで温めた描き方が開戦で照り付きに組み直されていた）
+let SAMPLE_BOX = null;
+export function vatProgramSamples() {
+  if (!VAT.on || isNoRender()) return [];
+  vatMats();
+  ensureTex();
+  // 見本の小箱は一つを使い回す（戦の出入りごとに作って返さず、描く側に一つずつ溜まっていた。11/21 木津川口の持ち主）
+  const box = SAMPLE_BOX ||= new THREE.BoxGeometry(0.01, 0.01, 0.01);
+  return [MAT_BODY, MAT_WPN, MAT_SHP].map((m) => { const im = new THREE.InstancedMesh(box, m, 1); im.frustumCulled = false; im.receiveShadow = true; return im; });
+}
+// 試し用：中の数
+if (typeof window !== 'undefined') { window.__vat = VAT; VAT._shapes = shapes; VAT._tex = () => ({ data: vatData, rows: rowsUsed, TW, WPN }); }
