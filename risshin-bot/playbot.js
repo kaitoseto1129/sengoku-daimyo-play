@@ -469,6 +469,9 @@ function retreatRun(b) {
 }
 // 戦ごとの遊び方（素直な遊び手を真似る）
 export function brain(b, inp) {
+  // 11/26 クラウドか（K674 本能寺 act bot 1503）：K667 の「移るボタン」（b_opening.js askThen）を bot が押さず、二条御所へ移らないまま
+  //   寺の北の通り (-135,58) で守りの段が四百秒進まず時間切れになった。人と同じく、出て一秒半読んでから押す
+  { const wb = b._warpBtn; if (wb && wb.isConnected) { wb._botT ??= b.t || 0; if ((b.t || 0) - wb._botT > 1.5) wb.click(); } }
   // 写真用の直接の呼び出しでも、後から開いた出陣札を残して歩かない。
   const game = b.game;
   if (game?.battle === b && openingWait(game)) {
