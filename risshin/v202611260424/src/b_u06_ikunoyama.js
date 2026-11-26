@@ -1,0 +1,118 @@
+// 上杉編 六戦目「生野山の戦い」（永禄四年〔1561〕十一月・武蔵国 生野山）。軽い型（light_battle.js）
+//   史実：第四次川中島の後、上杉政虎（輝虎）は再び関東へ出た。北条氏康は武田と結んで武蔵の北へ兵を出し、
+//   両軍は武蔵の生野山（いま埼玉県本庄市・児玉の辺り）で戦った。上杉方が北条勢を押し返し、北条勢は南へ退いた。
+//   ※ 戦いの細かな経過は史料が少ない（関東の軍記・古文書の断片）。ここでは「北条の先手との野戦→北条の新手を受ける→退く北条を追う」の形に推した。
+//   出所：Wikipedia「生野山の戦い」・本庄市の郷土史の案内。くわしくは docs/chapter_uesugi.md
+import { lightBattle, uS, uA, uG, uB, busho } from './light_battle.js';
+
+const UESUGI = { flag: 'uesugi', armor: 0x24221f };
+const HOJO = { flag: 'hojo', armor: 0x2e2a26 };
+const SPAWN = { x: -10, z: 150 };
+const STREAM = [[-220, 60], [-100, 52], [0, 58], [110, 48], [220, 56]];   // 生野山の北の小川（児玉の野を流れる）
+const FORD = { x: 0, z: 40 };           // 小川の渡り（南の岸）
+const NOHARA = { x: 10, z: -10 };       // 生野山の北の野（北条の先手が出る所）
+const YAMA = { x: -20, z: -70 };        // 生野山の肩（上杉の陣を張る所）
+const MINAMI = { x: 30, z: -150 };      // 生野山の南の麓（北条が退く道）
+// K652②（11/25 Sanae・家の編を10分前後に）：逸話の段（K652⑥）＝岩付の太田資正は、犬に文を結んで松山城と行き来させた（「三楽犬」『関八州古戦録』）。
+//   本人は林の端へ走り、北条の物見に追われる犬から松山城の文を受け取る。退いた北条勢の荷駄（兵糧）を南の麓の先で焼き、関東の在所へ北条の手が延びないようにする
+const DOG = { x: 62, z: 12 };           // 林の端（犬が駆け込む所）
+const NIDA = { x: 52, z: -132 };        // 南の麓の先の北条の荷駄
+
+export const u06_ikunoyama = lightBattle({
+  id: 'u06_ikunoyama',
+  date: '永禄四年（1561）十一月　冬の初め・晴れ　武蔵国 生野山',
+  intro: '川中島から戻った上杉政虎は、ふたたび関東へ出た。武田と結んだ北条氏康が、武蔵の北へ兵を出してくる。',
+  history: '永禄四年（1561）の秋、第四次川中島の戦いの後、上杉政虎はふたたび関東へ出た。北条氏康は武田と結んで武蔵の北へ兵を出し、両軍は生野山で戦った。上杉方が北条勢を押し返し、北条勢は南へ退いた。',
+  sides: { a: { name: '上杉政虎の軍', mon: 'uesugi', faction: 'uesugi' }, b: { name: '北条氏康の軍', mon: 'hojo', faction: 'hojo' } },
+  force: { a: 8000, b: 10000 },
+  allyLook: UESUGI, foeLook: HOJO,
+  thick: true,   // 型の受けの段の厚み（三の手・新手）。240秒に届かなかった（11/21 act 209・229秒）
+  minutes: 10,
+  playerTaken: 0.5,   // K652②：段を足して長くなった分、本人の受ける傷を六割→五割（信長で出陣の一回目が足した段の前後で倒れた）
+  restHp: 0.8,   // K652②：途中の立て直しで命を八割まで戻す（長くなった戦の後半で、信長で出陣の一回目が倒れた）
+  stepLimit: 160,   // K652②：一つの段は百六十秒で次へ（light_battle.js）
+  spawn: { x: SPAWN.x, z: SPAWN.z, heading: Math.PI },
+  world: {
+    seed: 1561, time: 'day', autumn: true, fogFar: 440,
+    river: STREAM, riverW: 10, riverDepth: 0.5,
+    hills: [[-20, -80, 60, 18], [-90, -60, 40, 10], [80, -110, 50, 9], [140, 120, 70, 8]],
+    // 11/21 cloud-19（K563 地形・手書き。標高の asset が来るまで）：小川の渡り・生野山の北の野・生野山の肩・生野山の南の麓 を結ぶ道と、丘の森（木の数は森の分を引いて同じ）
+    paths: [{ pts: [[-10, 150], [0, 40], [10, -10], [-20, -70], [30, -150], [52, -132]], w: 3 }],
+    groves: [{ x: -90, z: -60, r: 20, n: 30 }, { x: 80, z: -110, r: 25, n: 30 }],
+    trees: 500, tufts: 2000,
+  },
+  allies: [
+    { name: '太田資正の手', at: { x: SPAWN.x + 30, z: SPAWN.z + 6 }, list: [busho('太田資正'), uS(2), uA(10)] },
+    { name: '上杉政虎の旗本', at: { x: SPAWN.x - 18, z: SPAWN.z + 10 }, fixed: true, list: [busho('上杉政虎'), uS(6), uA(10)] },
+    { name: '先手の足軽', at: { x: SPAWN.x + 12, z: SPAWN.z - 6 }, list: [uS(2), uA(20)] },
+    { name: '鉄砲衆', at: { x: SPAWN.x - 10, z: SPAWN.z - 10 }, list: [uS(1), uG(8)] },
+    { name: '弓衆', at: { x: SPAWN.x + 24, z: SPAWN.z }, list: [uS(1), { type: 'bow', n: 8 }] },
+  ],
+  steps: [
+    { kind: 'rest', dur: 12, heal: 0, say: [
+      ['上杉政虎', '氏康め、信玄と手を組んで武蔵の北まで出てきおった', 3.4],
+      ['上杉政虎', '生野山を取る。小川を越え、北条の先手を野で叩け', 3.4]] },
+    { kind: 'move', at: FORD, label: '小川の渡り', obj: '小川を渡り、生野山の北の野へ', r: 12,
+      say: [['組頭', '浅い川じゃ。足を止めるな、向こうに北条の旗が見えるぞ！', 3]] },
+    { kind: 'fight', at: NOHARA, obj: '生野山の北の野で、北条の先手を崩す', title: '生野山の北の野', sub: '北条の先手が野に出て構える',
+      say: [['北条の侍', '越後の者が来たぞ！　槍を揃えよ！', 3]],
+      foes: [
+        { name: '北条の先手', from: { x: NOHARA.x - 6, z: NOHARA.z - 10 }, list: [uS(3), uA(18)] },
+        { name: '北条の鉄砲', from: { x: NOHARA.x + 16, z: NOHARA.z - 16 }, list: [uS(1), uG(6)] }],
+      later: [{ t: 40, say: ['組頭', '左から北条の槍が回ってくる！'], foes: [{ name: '北条の脇の槍', from: { x: NOHARA.x - 34, z: NOHARA.z - 4 }, list: [uS(2), uA(12)] }] }],
+      reward: '生野山の北の野で北条の先手を崩した' },
+    // K674 足した段（11/26 Sanae・一戦10任務）
+    { kind: 'fight', at: { x: NOHARA.x + -18, z: NOHARA.z + 10 }, obj: '北の野の畦で、横へ回る北条の足軽を討て', limit: 90,
+      say: [['組頭', '横へ回る北条の足軽が出た。槍を揃えよ', 3.2]],
+      foes: [{ name: '横へ回る北条の足軽', from: { x: NOHARA.x + -10, z: NOHARA.z + 22 }, list: [uS(2), uA(10)] }],
+      reward: '横へ回る北条の足軽を破った' },
+    // K674 足した段（11/26 Sanae・一戦10任務）
+    { kind: 'fight', at: { x: NOHARA.x + 14, z: NOHARA.z + -12 }, obj: '北の野の林で、伏せた北条の弓を討て', limit: 90,
+      say: [['組頭', '伏せた北条の弓が出た。槍を揃えよ', 3.2]],
+      foes: [{ name: '伏せた北条の弓', from: { x: NOHARA.x + 22, z: NOHARA.z + 0 }, list: [uS(2), uA(6), uB(3)] }],
+      reward: '伏せた北条の弓を破った' },
+    { kind: 'move', at: DOG, label: '林の端', obj: '林の端へ走り、太田資正の犬から松山城の文を受け取る', r: 10,
+      say: [['太田資正', '松山の城から、わしの犬が文を運んでくる。北条の物見に捕られてはならぬ', 3.6], ['組頭', '犬じゃ！　林の端へ走れ！', 3]],
+      ambush: { d: 40, say: ['北条の侍', 'あの犬を射よ！　文を運んでおるぞ！'], foes: [{ name: '北条の物見', from: { x: DOG.x + 26, z: DOG.z - 18 }, list: [uS(2), uA(10), { type: 'bow', n: 4 }] }] } },
+    { kind: 'rest', dur: 8, heal: 0.35, say: [['組頭', '息を整えよ。手負いは後ろへ回せ', 3]] },   // K652②：段が増えた分の立て直し（手当てと組の集め直し。待つ秒で稼ぐためではない）
+    { kind: 'hold', at: YAMA, label: '生野山の肩', obj: '生野山の肩に陣を張り、北条の新手を受け止める', r: 16, dur: 110,   // 11/21 cloud-25：戦が219秒と短かった（4分未満）。受けの段を70→110秒・三の手を足す
+      title: '北条の新手', sub: '氏康の新手が南の麓から山へ押し上げる',
+      say: [['上杉政虎の使番', '殿より。山の肩を取れ。上から槍を落とせば北条は登れぬ', 3.2]],
+      waves: [
+        { t: 6, say: ['見張り', '南の麓から北条の新手！　山へ登ってくるぞ！'], foes: [{ name: '北条の新手', from: { x: YAMA.x + 8, z: YAMA.z - 46 }, list: [uS(3), uA(20)] }] },
+        { t: 38, say: ['組頭', '二の手が来る！　肩を明け渡すな！'], foes: [{ name: '北条の二の手', from: { x: YAMA.x - 30, z: YAMA.z - 40 }, list: [uS(2), uA(12), { type: 'bow', n: 4 }] }] },
+        { t: 72, say: ['見張り', '東の沢からも登ってくる！　三の手じゃ！'], foes: [{ name: '北条の三の手', from: { x: YAMA.x + 36, z: YAMA.z - 30 }, list: [uS(2), uA(14)] }] }],
+      reward: '生野山の肩で北条の新手を受け止めた' },
+    // K674 足した段（11/26 Sanae・一戦10任務）
+    { kind: 'fight', at: { x: YAMA.x + 16, z: YAMA.z + 12 }, obj: '山の肩の陣の外で、寄せる北条の鉄砲を払え', limit: 90,
+      say: [['組頭', '寄せる北条の鉄砲が出た。槍を揃えよ', 3.2]],
+      foes: [{ name: '寄せる北条の鉄砲', from: { x: YAMA.x + 24, z: YAMA.z + 24 }, list: [uS(1), uA(6), uG(4)] }],
+      reward: '寄せる北条の鉄砲を破った' },
+    { kind: 'fight', at: MINAMI, obj: '南の麓へ下り、退く北条の殿を追い崩す', title: '南の麓', sub: '北条勢が南へ退き始めた',
+      say: [['上杉政虎', '北条が崩れた。麓まで追え。深追いはせぬぞ', 3.2]],
+      foes: [{ name: '北条の殿', from: { x: MINAMI.x - 4, z: MINAMI.z - 8 }, list: [uS(3), uA(18)] }],
+      reward: '南の麓で退く北条の殿を崩した' },
+    // K674 足した段（11/26 Sanae・一戦10任務）
+    { kind: 'fight', at: { x: MINAMI.x + -14, z: MINAMI.z + -12 }, obj: '南の麓の道で、振り返って突く北条の足軽を討て', limit: 90,
+      say: [['組頭', '振り返る北条の足軽が出た。槍を揃えよ', 3.2]],
+      foes: [{ name: '振り返る北条の足軽', from: { x: MINAMI.x + -6, z: MINAMI.z + 0 }, list: [uS(2), uA(10)] }],
+      reward: '振り返る北条の足軽を破った' },
+    { kind: 'fight', at: NIDA, obj: '南の麓の先で、北条の荷駄を焼き、守りの兵を払う', title: '北条の荷駄', sub: '退く北条勢が兵糧の荷を置いていく',
+      say: [['上杉政虎の使番', '殿より。荷駄を焼け。兵糧が無ければ北条も冬は出て来られぬ', 3.4]],
+      foes: [{ name: '荷駄の守り', from: { x: NIDA.x + 4, z: NIDA.z - 10 }, list: [uS(3), uA(14)] },
+        { name: '荷駄の弓', from: { x: NIDA.x - 14, z: NIDA.z - 12 }, list: [uS(1), { type: 'bow', n: 6 }] }],
+      later: [{ t: 40, say: ['見張り', '北条が荷を取り返しに戻ってくる！'], foes: [{ name: '北条の取り返しの手', from: { x: NIDA.x + 26, z: NIDA.z + 4 }, list: [uS(2), uA(12)] }] }],
+      reward: '北条の荷駄を焼いた' },
+    // K674 足した段（11/26 Sanae・一戦10任務）
+    { kind: 'fight', at: { x: NIDA.x + 12, z: NIDA.z + -10 }, obj: '荷駄の道の先で、逃げ散る北条の足軽を追え', limit: 90,
+      say: [['組頭', '逃げ散る北条の足軽が出た。槍を揃えよ', 3.2]],
+      foes: [{ name: '逃げ散る北条の足軽', from: { x: NIDA.x + 20, z: NIDA.z + 2 }, list: [uS(2), uA(10)] }],
+      reward: '逃げ散る北条の足軽を破った' },
+  ],
+  win: {
+    banner: '北条、退く', sub: '北条勢は生野山から南へ退いた', award: '生野山で北条勢を押し返した',
+    say: [['上杉政虎の使番', '北条の旗、南へ下がりまする！', 3.2],
+      ['上杉政虎', '関東の者どもは、まだ北条と越後の間で揺れておる。気を抜くな', 3.4]],
+  },
+});
+export default u06_ikunoyama;
