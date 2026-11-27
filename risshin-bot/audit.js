@@ -426,6 +426,15 @@ export class Auditor {
     if (label) this.where = label;
     const W = innerWidth, H = innerHeight;
     const roots = ['hud', 'screen', 'pause'].map((id) => document.getElementById(id)).filter((el) => el && !el.hidden && getComputedStyle(el).display !== 'none');
+    // 11/21 cloud-08（K516 英語版）：?lang=en の時、見えている字に日本語が残れば数える（章の始め・城下・褒美・章の終わりの画面も bot の通しで拾う）
+    if (/[?&]lang=en\b/.test(location.search)) {
+      const JP = /[\u3040-\u30ff\u4e00-\u9fff]/;
+      for (const r of roots) for (const el of r.querySelectorAll('*')) {
+        if (el.children.length || !JP.test(el.textContent || '') || !el.getClientRects().length) continue;
+        const cs = getComputedStyle(el); if (cs.visibility === 'hidden' || +cs.opacity <= 0.05) continue;
+        const t = el.textContent.trim().slice(0, 40); this.add('英語', 'jp:' + t, '英語の画面に日本語が残る', `${t}（#${el.id || el.className || el.tagName}）`, 'i18n の表に足す');
+      }
+    }
     // 巻物の外へ送った釦や、閉じた「もっと読む」の中は押せない。
     // 生の座標だけで比べると、下の操作帯と重なったと誤って数える。
     const visibleRect = (el) => {
