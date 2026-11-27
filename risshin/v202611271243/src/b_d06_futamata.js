@@ -210,6 +210,8 @@ export const d06_futamata = withCastle(lightBattle({
         { name: '崖の上の弓', from: { x: IROU.x - 10, z: IROU.z + 20 }, list: [uB(6)] }],
       later: [{ t: 35, say: ['徳川の侍', '崖から下りよ！　井楼を守れ！'], foes: [{ name: '崖から下りる城兵', from: { x: IROU.x + 14, z: IROU.z + 16 }, list: [uS(2), uA(10)] }] }],
       reward: '水の手を断った' },
+    // K722（11/27 クラウドわ）：信長で出陣の act bot が水の手の直後、この段で452秒に倒れた（傷のまま十二人に囲まれる）。柱へ回る間に一息
+    { kind: 'rest', dur: 6, heal: 0.35, say: [['組頭', '水の手は断った。息を整え、柱へ回れ', 2.8]] },
     // K674 足した段（11/26 Sanae・一戦10任務）
     { kind: 'fight', at: { x: IROU.x - 14, z: IROU.z - 14 }, obj: '井楼の下の崖で、柱を守る徳川の兵を斬り払う', limit: 90,
       say: [['組頭', '柱を守る兵がおる。斬り払え', 3.2]],
