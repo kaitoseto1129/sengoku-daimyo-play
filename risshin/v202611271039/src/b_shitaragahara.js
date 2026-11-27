@@ -2646,7 +2646,7 @@ function nfCollapse(rt) {
     q.path = [...(inside ? [[kc.x, kc.z + 2]] : []), ...around, [520, -100], [ESCAPE.x, ESCAPE.z]]; q.dest = null; q.onArrive = (g) => { g.order = 'hold'; };
   }
   const baba = F.jinkeiBound.shitara_baba;
-  F.hill.forEach((h, i) => { if (h !== baba && !h.army.rout) rt.after(i * 1.2, () => h.retreat(200, 50)); });
+  F.hill.forEach((h, i) => { if (h !== baba && h.army.rout !== 1) rt.after(i * 1.2, () => h.retreat(200, 50)); });
   for (const fc of F.far) if (fc.v !== 2) { fc.v = 2; fc.m.retreat(200, 55); }
   for (const q of F.farReal || []) { q.order = 'move'; q.dest = { x: (q.anchor?.x ?? 128) + 200, z: q.anchor?.z ?? 0 }; q.speed = 2.6; }   // K292：控えの備も東へ退く
   for (const a of rt.world.armies || []) if (a.team === SH.tak) a.noWake = true;
@@ -4511,7 +4511,9 @@ const shitaragahara = {
         if (f.userData.shGrounded) continue;
         f.position.x = h.flagX + a.off.x; f.position.z = h.flagZ + a.off.z;
         f.position.y = rt.world.heightAt(f.position.x, f.position.z);
-        if (a.rout) shGroundFlag(rt, f);
+        // 11/27 クラウドさ（K722② d11）：noFake の空の入れ物の army は足りない名を身代わりの関数で返す（world_army_scene.js inert）。
+        //   rout を「有るか」で見ると始めの一コマで名入りの大旗25本が全部倒れていた。崩れた印（1）だけを見る
+        if (a.rout === 1) shGroundFlag(rt, f);
       }
     }
     // 背後の軽い控えも、近接する備と同じ場所から戦い始める。

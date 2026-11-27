@@ -33,9 +33,9 @@ export function onKill(rt, v, ctx) {
   // 真田の備は、もう一人が戦っている間は退かない。双方の討死で二つの備を退かせる。
   const pairDown = N.pair && fallen.has(N.pair);
   if (!N.pair || pairDown) {
-    if (h && !h.army?.rout) { try { h.retreat(160, 50); } catch (e) { /* なし */ } }
+    if (h && h.army?.rout !== 1) { try { h.retreat(160, 50); } catch (e) { /* なし */ } }
     const other = pairDown && F.jinkeiBound?.[NAMED[N.pair].hq];
-    if (other && !other.army?.rout) { try { other.retreat(160, 50); } catch (e) { /* なし */ } }
+    if (other && other.army?.rout !== 1) { try { other.retreat(160, 50); } catch (e) { /* なし */ } }
   }
   // 近くの隊の気が落ち、一部が逃げ出す
   const p = v.pos;

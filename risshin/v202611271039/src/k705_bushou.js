@@ -12,7 +12,7 @@ import { K697, K697_ON, K697_LOD, monCell, MONC } from './k697_body.js';
 import { namedKacchu } from './named_kacchu.js';
 
 export const K705 = { ready: false, lod: null, lodN: null, names: null, inv: null, bind: null, baseMat: null, n: 0 };
-export const K705_ON = { on: typeof location === 'undefined' || !/[?&]k705=0/.test(location.search) };
+export const K705_ON = { on: typeof location === 'undefined' || !/[?&]k705=0/.test(location.search), gen: typeof location === 'undefined' || !/[?&]k705g=0/.test(location.search) };
 let loading = null;
 export function loadK705() {
   if (loading) return loading;
@@ -89,7 +89,7 @@ const MODE = k705Mode;
 const lin = (hex) => new THREE.Color(hex);
 const MATS = new Map();
 export function k705Spec(L) {
-  const st = namedKacchu(L) || {};
+  const st = namedKacchu(L) || (L.kacchu?.generic ? L.kacchu : { doStyle: L.doStyle });
   const nm = typeof L.face === 'string' ? L.face.slice(2) : '';
   const lac = st.kozaneColor ?? st.armor ?? L.armor ?? 0x1c1a1a;
   const lace = st.lace ?? st.odo ?? L.lace ?? 0x3a2a20;
@@ -155,7 +155,12 @@ export function k705Material(sp) {
 // 名のある武将（本人の外）をこの形にするか
 export function k705Want(u, L) {
   if (!K705_ON.on || !K697_ON.on || !K705.ready || !K697.ready || !u || u.isPlayer || u.mounted || u.bakeRig) return false;
-  if (!L || L.hero || L.hero9 || L.sohei || L.kosode || L.nanban || L.kacchu?.generic) return false;
+  if (!L || L.hero || L.hero9 || L.sohei || L.kosode || L.nanban) return false;
+  //   名の無い侍大将は戦の型の具足（kacchu.generic：家の漆・威・胴）のまま
+  if (u.type === 'busho' && typeof L.face !== 'string') return K705_ON.gen;
+  if (L.kacchu?.generic) return false;
+  // K697 手順5 の残り（11/27）：名の無い侍大将（u.type busho・顔は十二の型＝戸次川の「大友の侍大将」・本陣の床几の将）も同じ体に当世具足。
+  //   色は家の漆と威（units.js の look の armor・lace）、胴は look の doStyle。陣羽織は着ない。?k705g=0 で前の人形
   if (typeof L.face !== 'string' || !L.face.startsWith('g:')) return false;
   return !!namedKacchu(L);
 }
