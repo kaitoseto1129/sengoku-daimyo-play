@@ -1,0 +1,1709 @@
+import { HAS_FORDS } from './near_filters.js';
+import { recoverGround, mountainWay } from './army_local_way.js';
+import { groundAt } from './floors.js';
+// Army の手法：足と当たり（steer・押し合い・ぶつかり・待つ間の小さな動き）
+// （units.js から分けた。中身は元のまま。外の係は今までどおり units.js から import してよい）
+import { angleDiff, distToSeg } from './units.js';
+import { CollisionGrid } from './collision_grid.js';
+import { IDLE } from './units_flags.js';
+import { sm } from './units_model.js';
+import { terrainFx, uphillAt } from './terrain_tags.js';
+import { startWallClimb } from './siege_ladder.js';
+import { missileSlow } from './missile.js';
+import { INTERIOR_WALLS, interiorBlocked, interiorFollow } from './shironaka.js';
+import { yariHolds } from './army_morale.js';
+import { bodiesWorkerPush } from './army_bodies_worker.js';
+// 11/21 K564：Math.hypot は平方根の十倍遅い（箕作で一更新に三万五千回）。よく通る所は二つの数の平方根で同じ距離を出す
+const hyp2 = (a, b) => Math.sqrt(a * a + b * b);
+const BW_OUT = { x: 0, z: 0 };
+
+// 敵までの道筋は兵全員で共用し、一コマに一度だけ長さを求める。
+// 味方の徒歩どうしの間（m）：押し合いで寄せる柔らかい輪と、体が重ならない固い輪（army_bodies_worker.js も同じ）。
+// 11/5 kaito BQ：固い輪は横陣の持ち場の間（0.95m・11/2 Q）より狭くする。広いと体の押し戻しと持ち場への歩みが喧嘩して、列が揺れ続ける
+// 浅瀬への回り道（川を渡る時の動き）。深みに阻まれた兵だけ、川に沿って一番近い浅瀬の真ん中へ寄せる
+export function fordWay(army, u, want) {
+  const W = army.world, d = W?.def;
+  if (!d?.streams || !(d.riverCross || d.streams.some(HAS_FORDS))) return want;
+  const t = army.time;
+  if (!(u._fwT > t)) {
+    u._fwT = t + 0.5; u._fwOn = false;
+    const dx = want.x - u.pos.x, dz = want.z - u.pos.z, l = Math.hypot(dx, dz);
+    // 11/18 クラウド（河田の act bot：浅瀬の段の「突撃」から3秒で組5人が一歩も動かない）：岸に立つ兵も、向こう岸の敵へ真っすぐ深みに入れず止まっていた。
+    //   水の中の兵だけでなく、行く手の二歩半先が深い岸の兵も浅瀬へ回す
+    if (l > 1) {
+      const ax = u.pos.x + dx / l * 2.5, az = u.pos.z + dz / l * 2.5, wade = d.wadeDepth ?? 0.85;
+      if ((W.waterDepthAt(u.pos.x, u.pos.z) > 0.2 || W.waterDepthAt(ax, az) > 0.2)) {
+        if (W.waterFootDepthAt(ax, az, groundAt(W, ax, az, u.pos.y)) > wade) {
+          // K628 ①（kaito 11/22「対戦の地図で川を渡れない所がある」）：川の向き（st.ns＝南北に流れる川）と探す遠さ（st.reach）を川ごとに。
+          //   前は東西の川だけを考え（浅瀬の x へ寄せる）、南北の川（天王寺の平野川・川中島の千曲川）では渡り口へ回れず岸で止まっていた。印の無い川は今まで通り
+          let best = null, bd = 60, bs = null;
+          for (const st of d.streams) { const R = st.reach ?? 60; for (const f of st.fords || []) { const k = st.ns ? Math.abs(f.z - u.pos.z) : Math.abs(f.x - u.pos.x); if (k < Math.max(bd, R) && k > (f.w || 8) * 0.35 && (!best || k < bd)) { bd = k; best = f; bs = st; } } }
+          if (best) { const q = u._fwQ || (u._fwQ = { x: 0, z: 0 }); if (bs?.ns) { q.x = u.pos.x; q.z = best.z; } else { q.x = best.x; q.z = u.pos.z; } u._fwOn = true; }
+        }
+      }
+    }
+  }
+  return u._fwOn ? u._fwQ : want;
+}
+
+export const ALLY_SPACE_SOFT = 1.4, ALLY_SPACE_HARD = 0.9;
+function guideWay(army) {
+  const way = army._guideWay || (army._guideWay = { at: -1 });
+  if (way.at === army.time) return way;
+  way.at = army.time; way.active = false;
+  const p = army.playerUnit, enemy = army.guideWayEnemy;
+  if (!p?.alive || !enemy?.alive || enemy.noTarget || enemy.fleeing || enemy.woundOut ||
+      !(army.time - army.guideWayAt < 0.3)) return way;
+  const dx = enemy.pos.x - p.pos.x, dz = enemy.pos.z - p.pos.z;
+  const d2 = dx * dx + dz * dz;
+  // 目当ての敵が見える遠さから、目前の控えだけ道を譲る。
+  // 敵が遠い間だけ目前の味方が道を塞ぎ続ける境を作らない。
+  const reach = 170;
+  if (d2 <= 1 || d2 >= reach * reach) return way;
+  const distance = Math.sqrt(d2);
+  // 遠い敵を追う途中も、手前の味方だけが道を譲る。
+  // 一度に動かすのは自分から八歩まで。軍全体を左右へ割らない。
+  way.length = Math.min(distance, 8);
+  way.fx = dx / distance; way.fz = dz / distance;
+  way.x = p.pos.x; way.z = p.pos.z; way.active = true;
+  return way;
+}
+
+// 束22：逆茂木の「遅くする帯」。army.structs は多いので、struct.band を持つ物（置いた戦だけ）を
+// 1コマに一度だけ拾い出して使い回す（army.time が変わった時だけ拾い直す）
+function sakamogiBands(army) {
+  const bands = army._sakaCache || (army._sakaCache = []);
+  if (army._sakaT === army.time) return bands;
+  army._sakaT = army.time; bands.length = 0;
+  for (const s of army.structs || []) if (s.alive && !s.opened && s.band) bands.push(s);
+  return bands;
+}
+
+// 先の一点だけだと、斜面の角を飛び越した所を「歩ける」と見誤る。
+function slopeWay(world, x, z, dx, dz, y) {
+  const lim = (world.def.moveLim || 176) - 0.3;
+  for (let i = 1; i <= 5; i++) {
+    const px = x + dx * i * 0.2, pz = z + dz * i * 0.2;
+    if (Math.abs(px) > lim || Math.abs(pz) > lim) return false;
+    if (!world.walkable(px, pz, y)) return false;
+    y = groundAt(world, px, pz, y);
+  }
+  return true;
+}
+
+// 迂回・馬の旋回・押し合いで変わった歩みも、次の一歩を場の内に収める。
+function fieldSpeed(pos, speed, dt, lim) {
+  if (speed > 0) return Math.min(speed, Math.max(0, lim - pos) / dt);
+  if (speed < 0) return Math.max(speed, Math.min(0, -lim - pos) / dt);
+  return 0;
+}
+
+// 建物の内側に残った兵も、縁へ一息で飛ばさず少しずつ押し出す。
+// 当たりが重なっても、一度の更新で動かす距離を増やさない。
+function collisionPosition(u, x, z, fromX, fromZ, cap) {
+  const dx = x - fromX, dz = z - fromZ, d2 = dx * dx + dz * dz;
+  // 資材や柵の避け先が欠けた時は、最後の位置を保つ。
+  if (!Number.isFinite(d2) || !Number.isFinite(cap) || cap < 0) return;
+  // 普段の短い補正では距離を求めない。長い押し戻しだけ上限へ縮める。
+  if (d2 <= cap * cap) { u.pos.x = x; u.pos.z = z; return; }
+  const k = cap / Math.sqrt(d2);
+  u.pos.x = fromX + dx * k; u.pos.z = fromZ + dz * k;
+}
+
+// 地形の補正は斬り合い中も短く使い回す。当たりと歩けるかの判定は毎コマのまま。
+// 位置が四分の一メートル・向きが約十二度変われば、待ち時間の途中でも調べ直す。
+function movementTerrain(army, u, want) {
+  const W = army.world, x = u.pos.x, z = u.pos.z;
+  const dx = want ? want.x - x : 0, dz = want ? want.z - z : 0;
+  const sample = u._moveTerrain || (u._moveTerrain = {});
+  const distance = Math.min(u.focusD ?? u.camD ?? 0, u.camD ?? 0);
+  const fighting = u.target || u.atk || u.swing || u.bind || u.charging;
+  const interval = fighting || distance < 30 ? 0.05 : distance <= 60 ? 0.1 : 0.2;
+  const len2 = dx * dx + dz * dz, oldLen2 = sample.dx * sample.dx + sample.dz * sample.dz;
+  const dot = dx * sample.dx + dz * sample.dz;
+  const turn = (len2 > 1e-6) !== (oldLen2 > 1e-6) || len2 > 1e-6 && (dot <= 0 || dot * dot < len2 * oldLen2 * 0.96);
+  const active = u.isPlayer || u.hit ||
+    u.stagger > 0 || u.fleeing || u.group?.routed || u.naka || u.climb || u.perch || u.woundOut || u.rearWound;
+  if (active || !sample.fx || !(sample.at > army.time) || turn ||
+      (x - sample.x) ** 2 + (z - sample.z) ** 2 >= 0.0625 || Math.abs(u.pos.y - sample.y) > 0.1 ||
+      sample.interval !== interval || sample.night !== (W.timeKey === 'night') ||
+      sample.mounted !== !!u.mounted || (sample.rain > 0.3) !== (W.rainLevel > 0.3) ||
+      Math.abs((sample.rain || 0) - (W.rainLevel || 0)) > 0.05 || Math.abs((sample.wet || 0) - (W.wetness || 0)) > 0.05) {
+    sample.uphill = want ? uphillAt(W, x, z, dx, dz) : false;
+    sample.fx = terrainFx(W, u, x, z, sample.uphill);
+    sample.x = x; sample.z = z; sample.y = u.pos.y; sample.dx = dx; sample.dz = dz;
+    sample.mounted = !!u.mounted; sample.rain = W.rainLevel; sample.wet = W.wetness;
+    sample.interval = interval; sample.night = W.timeKey === 'night';
+    const phase = (u.id % 17) * interval / 17;
+    sample.at = (Math.floor((army.time + phase + 1e-6) / interval) + 1) * interval - phase;
+  }
+  return sample;
+}
+
+// Army の手法（units.js の class Army に足す）
+const FAR_SIDE_ANGLES = [0.87, 1.57, 2.27];
+// 11/18 夜50-48 K341①：遠い兵どうしの重なりを探す入れ物（毎回 new しない）
+// 遠い兵の重なりを解く向き（離れる向きからの cos・sin）：真っすぐ・斜め・横
+const FAR_SEP_DIRS = [[1, 0], [0.7071, 0.7071], [0.7071, -0.7071], [0, 1], [0, -1]];
+const _farSep = { u: null, o: null, best: 0.3025 };
+function farSepVisit(o, S) {
+  const u = S.u;
+  if (o === u || !o.alive || o.team !== u.team || o.fleeing || o.downed || o.mounted || Math.abs(o.pos.y - u.pos.y) > 1.5) return;
+  const d2 = (o.pos.x - u.pos.x) ** 2 + (o.pos.z - u.pos.z) ** 2;
+  if (d2 < S.best) { S.best = d2; S.o = o; }
+}
+
+// K675 Sanae：steer の近い兵を見る手（前は steer を呼ぶたびに閉包を作り、兵ごと・毎コマ JSC の山に閉包と閉じ込めの入れ物が生まれていた）。
+//   閉じ込めていた値は呼ぶ前に V（steer の深さごとの使い回しの入れ物）へ置き、ここで読む。計算と答えは前と同じ
+let SV = null;
+function steerVisit(o, only) {
+  const V = SV, u = V.u, army = V.army, g = V.g, mounted = V.mounted, dodge = V.dodge, rankLine = V.rankLine, rfx = V.rfx, rfz = V.rfz,
+    spearFx = V.spearFx, spearFz = V.spearFz, personal = V.personal, r0 = V.r0, r0Ally = V.r0Ally, dt = V.dt, sp = V.sp, fx = V.fx, fz = V.fz, queue = V.queue;
+    if (only === 1 ? o.mounted : only === 2 && (!o.mounted || (u.pos.x - o.pos.x) ** 2 + (u.pos.z - o.pos.z) ** 2 > 25)) return;
+    if (o === u || !o.alive || o.downed || o.woundOut || Math.abs(u.pos.y - o.pos.y) > 1.8) return;   // 倒れた者は押し合いに入れない（上を歩ける。10/24）
+    const dx = u.pos.x - o.pos.x, dz = u.pos.z - o.pos.z;
+    const d2 = dx * dx + dz * dz;
+    // 升には遠い兵も入る。押し合い・後列の支え・馬を避ける範囲の外なら、壁を調べる必要がない。
+    if (d2 > (dodge && o.mounted ? 25 : rankLine ? 4.84 : 2.25)) return;
+    // wallBetween が城内の壁も調べる。同じ兵の組で二度たどらない。
+    if (army.wallBetween(u.pos, -1, o.pos)) return;
+    if (dodge && o.mounted && o.mv && d2 < 25 && Math.abs(u.pos.y - o.pos.y) < 2) {
+      const hs = Math.hypot(o.mv.x, o.mv.z);
+      if (hs > 4.5) {
+        const vx = o.mv.x / hs, vz = o.mv.z / hs;
+        const ahead = dx * vx + dz * vz, side = dx * vz - dz * vx;
+        if (ahead > -0.5 && ahead < Math.min(5, hs * 0.55) && Math.abs(side) < 1.8) {
+          const sign = Math.abs(side) > 0.05 ? Math.sign(side) : (u.id % 2 ? 1 : -1);
+          const k = sign * (1.8 - Math.abs(side)) * (1 - Math.max(0, ahead) / 6);
+          V.hx += vz * k; V.hz -= vx * k;
+        }
+      }
+    }
+    // 同じ列で実際に背へ寄った後列だけが支える。別の階・壁越しは支えない。
+    if (rankLine && o.group === g && !o.mounted && !o.isPlayer && !o.fleeing && !(o.stagger > 0) && !o.woundOut && !o.rearWound && !o.downed && !(o.pinT > army.time) && !o.dropped && !o.dragging && !o.confused && d2 < 4.84 && Math.abs(u.pos.y - o.pos.y) < 0.7) {
+      const cols = g._stepCols || 1, row = Math.floor(u.slot / cols), otherRow = Math.floor(o.slot / cols), ahead = -(dx * rfx + dz * rfz), side = Math.abs(dx * rfz - dz * rfx);
+      if (side < g.spacing * 0.45 && Math.abs(ahead) > 0.55 && Math.abs(ahead) < 2.2) {
+        const contact = Math.max(0, Math.min(1, (2.2 - Math.abs(ahead)) / 1.1));
+        if (ahead < -0.55 && otherRow === row + 1) V.support = Math.max(V.support, contact * Math.min(1, o.hp / o.maxHp) * (1 - (o.fat || 0) * 0.5));
+        else if (ahead > 0.55 && otherRow === row - 1) {
+          V.recoil = Math.max(V.recoil, Math.min(0.8, o._lineRecoil || 0) * contact * 0.35);
+          if (V.recoil > 0.02 || o.target?.alive) u._lineFront = o;
+        }
+      }
+    }
+    if (!mounted && !u.isPlayer && o.team === u.team && Math.abs(u.pos.y - o.pos.y) < 0.7) {
+      const ahead = -(dx * spearFx + dz * spearFz), side = Math.abs(dx * spearFz - dz * spearFx);
+      if (ahead > 0.3 && ahead < 1.5 && side < 0.65) u.spearFront = o;
+    }
+    if (d2 > 2.25) return;
+    if (d2 < 1e-6) {
+      const side = u.id < o.id ? -1 : 1, h = g?._face ?? u.heading;
+      V.px += Math.cos(h) * side * 0.35; V.pz -= Math.sin(h) * side * 0.35; return;
+    }
+    // 味方の背へ長柄を寝かせないための見た目用の印。押す力と間合いは保つ。
+    if (o.team === u.team && !mounted && !o.mounted && !u.isPlayer && d2 < 2.25) {
+      const fx = Math.sin(u.heading), fz = Math.cos(u.heading);
+      const ahead = -dx * fx - dz * fz, side = Math.abs(dx * fz - dz * fx);
+      if (ahead > 0.2 && side < 0.55) u._spearCrowded = true;
+      // 今ある近隣判定で、肩の前にいる味方を一人だけ覚える。移動や当たりには使わない。
+      // 列番号を失った乱戦でも、同じ方を向く徒歩の兵へ押し返しの姿勢を渡す。
+      if (ahead > 0.45 && side < 0.65 && d2 < V.contactFrontD2
+        && Math.abs(u.pos.y - o.pos.y) < 0.6 && Math.cos(u.heading - o.heading) > 0.7
+        && !o.isPlayer && !o.fleeing && !o.downed && !o.woundOut && !o.rearWound
+        && !o.dragging && !o.confused && !(o.stagger > 0.7)) {
+        u._contactFront = o; V.contactFrontD2 = d2;
+      }
+    }
+    const d = Math.sqrt(d2);
+    const rr = o.mounted ? 1.25 : personal && o.team === u.team &&
+      (o.isPlayer || (!u.isPlayer && army.playerUnit &&
+        (u.pos.x - army.playerUnit.pos.x) ** 2 + (u.pos.z - army.playerUnit.pos.z) ** 2 < 36)) ? personal :
+        // 11/5 kaito BQ「ぐちゃぐちゃに動き回る」：同じ隊の隣は持ち場の間（横 0.95m ほど）で押し合わない。押されて列が揺れ続けないように
+        o.team === u.team && !o.isPlayer && !u.isPlayer ? (o.group === g && g && !u.target?.alive ? Math.min(r0Ally, 0.92) : r0Ally) : r0;
+    if (d < rr) {
+      const k = o.isPlayer ? 5 : o.mounted && !mounted ? 9 : mounted && !o.mounted ? 1.1 : 3.2;   // 馬から徒歩の兵を押し出す力 5.5→9（11/19 突き抜け）
+      if (o.mounted && !mounted && !u.isPlayer) { V.hbx += dx / d; V.hbz += dz / d; }   // 馬の胴の内：持ち場へ戻る歩みのうち、馬へ向かう分を下で消す
+      // 駆ける馬に当たった徒歩の者は、突き飛ばされて膝をつき、蹄にかかって傷を負うことがある
+      if (u.alive && o.mounted && !mounted && !u.isPlayer && o.team !== u.team && Math.hypot(o.mv.x, o.mv.z) > 4 && !(u.stagger > 0) && Math.random() < dt * 3) {
+        army._k708R = (army._k708R || 0) + 1; try { army.damage(u, 4, o, { kind: 'charge', pierce: true }); } finally { army._k708R--; }   // K708：本物の蹄
+        if (u.alive) u.stagger = Math.max(u.stagger || 0, 0.95);
+      }
+      const push = (rr - d) * k;
+      V.px += dx / d * push; V.pz += dz / d * push;
+    }
+    // 押し合い：斬り合う敵と間近で向き合うと、士気と人数で勝る側が少しずつ押し込む（押し負けた側の列がじわりと下がる）
+    if (o.team !== u.team && !u.isPlayer && !o.isPlayer && !mounted && !o.mounted && d < 1.5 && u.group && o.group && !u.fleeing) {
+      g._meleeUntil = army.time + 0.35;
+      const adv = (o.group.morale - u.group.morale) / 100 + ((o.group._readyCount ?? o.group.count) - (g._readyCount ?? g.count)) / 40 + Math.max(-0.5, Math.min(0.5, o.pos.y - u.pos.y)) * 0.5;
+      if (adv > 0.05) { const k = Math.min(0.5, adv) * 0.9; V.px += dx / d * k; V.pz += dz / d * k; }
+    }
+    // 11/19 クラウド k365-cloud-32（突き抜け・三方ヶ原）：並足の馬が前に立つ味方の徒歩の列へそのまま踏み込み、兵が馬の胸に埋まって見えた。
+    //   馬は前（左右0.6m の内・1.4m まで）に味方の徒歩がいれば足をゆるめる（駆ける突撃の馬は除く）
+    if (mounted && !u.isPlayer && !u.charging && !o.mounted && o.team === u.team && d < 1.4 && sp > 0.3) {
+      const ahead = -(dx * fx + dz * fz), lat = Math.abs(-dx * fz + dz * fx);
+      if (ahead > 0.2 && lat < 0.6) V.block = Math.min(V.block, Math.max(0.1, (d - 0.8) / 0.6));
+    }
+    if (queue && sp > 0.3 && o.team === u.team && d < 1.3 && !o.isPlayer) {
+      const ahead = -(dx * fx + dz * fz);
+      if (ahead > 0.25) {
+        const lat = -dx * fz + dz * fx;
+        if (Math.abs(lat) < 0.7) {
+          const along = o.mv ? o.mv.x * fx + o.mv.z * fz : 0;
+          if (rankLine && along > 0.3 && o.group === g && Math.floor(o.slot / (g._stepCols || 1)) === Math.floor(u.slot / (g._stepCols || 1)) - 1) V.block = Math.min(V.block, Math.max(0, (d - 0.85) / 0.45));
+          else if (along > 0.3) V.block = Math.min(V.block, Math.max(0.15, (d - 0.75) / 0.5));
+          else { const s = (lat >= 0 ? -1 : 1) * sp * 0.7 * (1.3 - d); V.sx += fz * s; V.sz -= fx * s; }
+        }
+      }
+    }
+}
+
+// K675 Sanae：bodies の近い兵を見る手（前は呼ぶたびの閉包＝兵ごと・毎コマ JSC の山に閉包が生まれていた）。値は BV に置いて読む。計算は同じ
+const BV = { u: null, army: null, mounted: false, ra: 0, fx: 0, fz: 0, dt: 0, tx: 0, tz: 0 };
+function bodiesVisit(o) {
+  const u = BV.u, army = BV.army, mounted = BV.mounted, ra = BV.ra, fx = BV.fx, fz = BV.fz, dt = BV.dt;
+    if (o === u || !o.alive || o.downed || o.woundOut || o.isStruct || o.type === 'dummy' || o.fall || Math.abs(u.pos.y - o.pos.y) > 1.8) return;   // 倒れた者の上は歩ける（10/24）
+    const om = !!o.mounted, min = !mounted && !om && !u.isPlayer && !o.isPlayer
+      ? Math.max(o.team === u.team ? ALLY_SPACE_HARD : ra + .4, army.world.def.meleeBodySpace || 0) : ra + (om ? .55 : .4);
+    const ofx = om ? Math.sin(o.heading) : 0, ofz = om ? Math.cos(o.heading) : 0;
+    let bx = 0, bz = 0, best2 = min * min, found = false;
+    // 馬の前後二点も数だけで比べ、重なる相手ごとの配列を作らない。
+    for (let i = 0; i < (mounted ? 2 : 1); i++) {
+      const a = mounted ? (i ? -.5 : .6) : 0;
+      for (let j = 0; j < (om ? 2 : 1); j++) {
+        const b = om ? (j ? -.5 : .6) : 0;
+        const dx = (u.pos.x + fx * a) - (o.pos.x + ofx * b), dz = (u.pos.z + fz * a) - (o.pos.z + ofz * b), d2 = dx * dx + dz * dz;
+        if (d2 < best2) { bx = dx; bz = dz; best2 = d2; found = true; }
+      }
+    }
+    if (!found) return;
+    // 実際に体が触れる相手だけ城内の壁を調べる。
+    if ((u.naka || o.naka) && interiorBlocked(INTERIOR_WALLS, u.pos, o.pos)) return;
+    let d = Math.sqrt(best2), nx, nz;
+    if (d > 1e-4) { nx = bx / d; nz = bz / d; } else { const a = Math.min(u.id, o.id) * 2.39996, sign = u.id < o.id ? 1 : -1; nx = Math.sin(a) * sign; nz = Math.cos(a) * sign; d = 0; }
+    // どちらがどれだけ退くか：遊び手は徒歩の兵には押されにくく、馬には押される。徒歩の兵は馬から退く
+    let share;
+    // （味方の徒歩の兵は、遊び手に道を譲る：人垣で前へ進めなくならないように）
+    // （人足・荷を担ぐ者は、遊び手を止めない）
+    if (u.isPlayer && army.world.def.yieldAlliedHorse && o.team === u.team && om && !mounted) share = 1;
+    else if (u.isPlayer) share = o.team === u.team || o.type === 'porter' ? 0 : o.mounted && !u.mounted ? 1 : u.mounted && o.team === u.team ? 0.02 : u.mounted && !o.mounted ? 0.1 : o.team === u.team ? 0.08 : 0.3;
+    else if (o.isPlayer) share = u.mounted && !o.mounted ? 0.3 : 1;
+    else if (u.mounted !== !!o.mounted) share = u.mounted ? 0.15 : 1;
+    else share = 0.5;
+    const k = (min - d) * share * (1 - Math.exp(-60 * dt));
+  BV.tx += nx * k; BV.tz += nz * k;
+}
+
+export const ArmyMove = {
+
+  // 遠景もためた時間で跳ばさない。道は使い回し、加減速・旋回と一歩の当たりだけ毎コマ進める。
+  advanceFar(u, dt, waiting) {
+    if (!(dt > 0)) return;
+    const g = u.group, q = u._farWant;
+    if (!q || waiting || u.downed || u.pinT > this.time || u.climb || u.perch ||
+        u.woundOut || u.rearWound || u.offscreen && g.qualityCombat) {
+      u.mv.x = u.mv.z = u.vel.x = u.vel.z = 0; u.moving = 0;
+      // K168 11/14 束E：立って待つ遠い兵は押し戻しを通らず、置かれた時から建物・屋敷の中に立ったままだった（有岡の侍町・岐阜・高遠で開戦から）。
+      //   一秒に一度だけ足もとを見て、壁の内なら外へ押し出す（毎コマは見ない）
+      if (this.solids?.length && !u.climb && !u.perch && this.time >= (u._farSolidT || 0)) {
+        u._farSolidT = this.time + 0.8 + (u.id % 5) * 0.08;
+        if (this.solidBlocked(u, u.pos.x, u.pos.z)) {
+          const ox = u.pos.x, oz = u.pos.z, oy = u.pos.y;
+          for (let i = 0; i < 6 && this.solidBlocked(u, u.pos.x, u.pos.z); i++) { u._cpx = undefined; this.collide(u, 0.1); }
+          // 11/19 K168（箕作 600秒・画面外の新手が本丸の塀の線を 0.8m 越えた）：箱から押し出す向きが塀・柵の線の向こうなら、押し出しを捨てて線を越えない空きへ出す
+          if (this.structs?.length && this.wallBetween({ x: ox, z: oz }, -1, u.pos)) { u.pos.x = ox; u.pos.z = oz; u.pos.y = oy; this.solidEscape(u); }
+          else if (this.solidBlocked(u, u.pos.x, u.pos.z)) this.solidEscape(u);
+          u._cpx = u.pos.x; u._cpz = u.pos.z;
+        }
+      }
+      // 11/19 夜50-48：行き先の無い遠い兵・遠景の押し合い（qualityCombat）で立つ兵も、同じ所に重なったままにしない（山中城の堀の縁の鉄砲12人が一点に重なった）
+      // 11/19 夜50-04：world.def.noFarSeparateIdle の戦（小谷）は外す（これを入れた後の main で小谷の act bot が4回中4回倒れ、外すと4回続けて達成）
+      //   11/19 夜50-48：これを全戦で外した（小谷 4回中4回・高遠でも倒れが出た。立って待つ遠い兵を動かすと城の守りの立ち位置が変わる）。noFarSeparateIdle の印は残すが今は使わない
+      if (this.world.def.farSeparateIdle && !waiting && !u.downed && !u.climb && !u.perch && !(u.pinT > this.time)) this.farSeparate(u, false);
+      u._cpx = u.pos.x; u._cpz = u.pos.z;
+      return;
+    }
+    const fx0 = u.pos.x, fz0 = u.pos.z;
+    // 11/18 夜50-48：重なりを解いた分のずれ（u._farSepO・1.2m まで）を行き先に足し、離れた後に元の点へ戻って重ならない
+    const so = u._farSepO;
+    let qx = so ? q.x + so.x : q.x, qz = so ? q.z + so.z : q.z;
+    // 11/19 夜50-48 K341①：遠い兵も、行き先が柵・塀・建物の向こうで二秒ほど進めない時は、近い兵と同じ回り道（柵の口・箱の角）の点へ寄る
+    //   （大河内 act bot 66秒：搦手の残る控え5人＝遠い兵が塀の角 (15,-90) に押し付けられ、30m 先の行き先へ進めず一点に重なった）
+    {
+      const FG = u._farGap || (u._farGap = { x: u.pos.x, z: u.pos.z, t: 0, wp: null, wpT: 0, wpSolid: null });
+      //   11/19 夜50-48：小谷の act bot が入れると3回中1回・外すと3回とも達成だったので、戦が def.farDetour を立てた時だけ使う（城の守りの遠い兵が回り道で立ち位置を変える）
+      if (!this.world.def.farDetour) FG.t = 0;
+      if (FG.wp && ((FG.wpT -= dt) <= 0 || Math.hypot(FG.wp.x - u.pos.x, FG.wp.z - u.pos.z) < 1)) { FG.wp = null; FG.wpSolid = null; }
+      FG.t += dt;
+      if (FG.t > 2) {
+        if (!FG.wp && Math.hypot(u.pos.x - FG.x, u.pos.z - FG.z) < 0.4 && Math.hypot(qx - u.pos.x, qz - u.pos.z) > 3) {
+          const Wt = u._farGapW || (u._farGapW = { x: 0, z: 0 }); Wt.x = qx; Wt.z = qz;
+          if (!this.fenceGap(u, Wt, FG)) this.solidGap(u, Wt, FG); else FG.wpSolid = null;
+        }
+        FG.t = 0; FG.x = u.pos.x; FG.z = u.pos.z;
+      }
+      if (FG.wp) { qx = FG.wp.x; qz = FG.wp.z; }
+    }
+    const dx = qx - u.pos.x, dz = qz - u.pos.z, d = hyp2(dx, dz);
+    const speed = Math.min(Math.max(g.speed || u.speed, u._catchRun || 0), d * 1.5);   // u._catchRun：遅れた者の追いつく駆け（11/19 戸次川・下の上限と同じ印）
+    if (d > 0.05) this.turn(u, Math.atan2(dx, dz), dt, u.mounted ? 2.4 : 5);
+    const vx = d > 0.05 ? dx / d * speed : 0, vz = d > 0.05 ? dz / d * speed : 0;
+    const ex = vx - u.mv.x, ez = vz - u.mv.z, length = hyp2(ex, ez);
+    const accelerating = speed > hyp2(u.mv.x, u.mv.z);
+    const acc = (u.mounted ? accelerating ? (u.charging ? 6.5 : 3.4) : 5 : accelerating ? 5.5 : 8) * dt;
+    const k = length > acc ? acc / length : 1;
+    u.mv.x += ex * k; u.mv.z += ez * k;
+    const lim = (this.world.def.moveLim || 176) - 0.3;
+    u.vel.x = fieldSpeed(u.pos.x, u.mv.x, dt, lim); u.vel.z = fieldSpeed(u.pos.z, u.mv.z, dt, lim);
+    const step = u._farStep || (u._farStep = { x: 0, z: 0 });
+    step.x = u.pos.x + u.vel.x * dt; step.z = u.pos.z + u.vel.z * dt;
+    // 11/11 すり抜け禁止（docs/kaito_no_clip_1110.md）：遠い兵も建物・置き物・板塀（army.solids）へ入らない。
+    //   前は柵の線（structs）しか見ず、箕作で遠い兵が屋敷の中や塀の線の上を歩いていた。塞がれたら軸ごとに滑らせる
+    //   11/11 あ：一歩が長い時は途中（半ば）も見る（薄い壁を一歩で跳び越えていた）。壁の幅の内に居る者が奥へ進む一歩も止める（押し戻しは下の collide）
+    if ((u.vel.x || u.vel.z) && this.solids?.length) {
+      // 今居る所が塞がれているかは、一歩が塞がれた時だけ見る（毎コマ全員が一度多く引いていた）
+      const mx = (u.pos.x + step.x) / 2, mz = (u.pos.z + step.z) / 2;
+      if (this.solidBlocked(u, step.x, step.z) || this.solidBlocked(u, mx, mz)) {
+        // 11/17 クラウド kaito2：ここで家の中の遠い兵を押し出す直しを入れたが、箕作の act bot が時間切れ続き（外すと 1056秒で達成）になったので戻した
+        if (this.solidBlocked(u, u.pos.x, u.pos.z)) step.x = NaN;
+        else if (u.vel.x && !this.solidBlocked(u, step.x, u.pos.z) && !this.solidBlocked(u, (u.pos.x + step.x) / 2, u.pos.z)) step.z = u.pos.z;
+        else if (u.vel.z && !this.solidBlocked(u, u.pos.x, step.z) && !this.solidBlocked(u, u.pos.x, (u.pos.z + step.z) / 2)) step.x = u.pos.x;
+        else step.x = NaN;
+      }
+    }
+    const wanted = (u.vel.x || u.vel.z) && d > 1.6;
+    if ((u.vel.x || u.vel.z) && step.x === step.x && this.world.walkable(step.x, step.z) && !this.wallBetween(u.pos, -1, step)) {
+      u.pos.x = step.x; u.pos.z = step.z;
+      u.pos.y = groundAt(this.world, step.x, step.z, u.pos.y);
+      u._farBlockT = 0;
+    } else if (wanted && this.farSidestep(u, dx / d, dz / d, Math.max(speed, 1.2), dt, step)) {
+      // 11/14 クラウドか K294：建物・幕・柵の角で真っすぐも縦横の滑りも塞がれた遠い兵は、横へ回り込む（桶狭間の今川勢が (101,38) で20秒以上立ち尽くした）
+      u.pos.x = step.x; u.pos.z = step.z;
+      u.pos.y = groundAt(this.world, step.x, step.z, u.pos.y);
+    } else if (wanted && this.farUnstick(u, Math.max(speed, 1.2), dt, step)) {
+      // 11/15 クラウドさ K302：押し合いで切岸・急な坂（歩けない所）の上へ出た遠い兵は、どの向きの一歩も「歩けない」で塞がれ、
+      //   稲葉山の搦手で味方の新手・信長の本陣の兵が (8,33)(16,32) に20秒以上立ち尽くした（11回）→ 一番近い歩ける所へ降りる
+      u.pos.x = step.x; u.pos.z = step.z;
+      u.pos.y = groundAt(this.world, step.x, step.z, u.pos.y);
+    } else u.mv.x = u.mv.z = u.vel.x = u.vel.z = 0;
+    // 置かれた所や押し合いで既に壁・襖の幅の内に立つ遠い兵は、近い兵と同じ押し戻しで外へ出す（線の上を行き来させない）
+    //   11/17 K168：遠い兵は collide を毎コマ通らず、前の位置（_cpx）が古い。古いままだと「跨いだら戻す」が何m も前の位置へ飛ばすので、このコマの始めの位置を渡す
+    if (this.solids?.length && this.solidBlocked(u, u.pos.x, u.pos.z)) { u._cpx = fx0; u._cpz = fz0; this.collide(u, dt); }
+    // 11/17 K168 クラウド kaito2：柵・塀の線（army.structs）の体の幅の内に立つ遠い兵も押し戻す（天王寺岡山で遠い兵が柵の線の上をなぞって歩き、線を跨いでいた）
+    else if (this.structs?.length && this.structNear(u, u.pos.x, u.pos.z)) { u._cpx = fx0; u._cpz = fz0; this.collide(u, dt); }
+    this.farSeparate(u, true);
+    // 遠い兵の「前の位置」もコマごとに新しくしておく（近くへ戻った最初のコマで、古い位置へ「跨いだら戻す」が柵の向こうへ飛ばしていた）
+    u._cpx = u.pos.x; u._cpz = u.pos.z;
+    u.moving = Math.min(1, hyp2(u.mv.x, u.mv.z) / 2.4);
+    // 11/20 K452：待つ備（stay・hold）の遠い兵が持ち場へ4秒で0.6m も進めない時は、立つ所を持ち場にする（units.js の u._farPin。足踏みを止めて待つ）
+    const PC = u._farPinChk || (u._farPinChk = { x: u.pos.x, z: u.pos.z, t: 0 });
+    if (g.stay && g.order === 'hold' && !u.fleeing && !u._farPin && d > 1.6) {
+      if ((PC.t += dt) > 4) {
+        if (Math.hypot(u.pos.x - PC.x, u.pos.z - PC.z) < 0.6 && !(this.solids?.length && this.solidBlocked(u, u.pos.x, u.pos.z))) u._farPin = { x: u.pos.x, z: u.pos.z, qx: q.x, qz: q.z, o: g.order, s: g.signalSerial };
+        PC.t = 0; PC.x = u.pos.x; PC.z = u.pos.z;
+      }
+    } else { PC.t = 0; PC.x = u.pos.x; PC.z = u.pos.z; }
+  },
+
+  // 遠い兵の重なり解き（advanceFar から呼ぶ）。keep：ずれを行き先に足して覚える（行き先へ歩く兵だけ）
+  farSeparate(u, keep) {
+    // 11/18 夜50-48 K341①：遠い兵は押し合いを通らず、持ち場に着いて立つ・壁に止まる兵が同じ所に重なったままだった（伊賀の東の包囲陣 30人のうち10人が 0.5m 内で立つ）。
+    //   ほとんど止まっている時だけ、0.7秒に一度、0.55m 内の味方から 0.25m 離れる（歩ける・壁を跨がない所だけ）
+    if (!u.mounted && hyp2(u.vel.x, u.vel.z) < 0.3 && !(u._farSepT > this.time)) {
+      u._farSepT = this.time + 0.7 + (u.id % 5) * 0.06;
+      const S = _farSep; S.u = u; S.o = null; S.best = 0.3025;
+      // 11/21 クラウド 鴫野（K564）：堤に兵が詰む鴫野で、この探しが一コマの二割を食っていた（升 6m の兵を全部開く）。升目の写しの距離で先に落とす（候補の順・選ぶ者は同じ）
+      //   forNearIn は keep に 1m 足して落とすので、-0.2 で写しの 0.8m 内だけを開く（写しはこのコマの始めの位置・ずれは 0.25m まで見込む。離すのは柔らかい押しなので取りこぼしても次の番で解ける）
+      this.forNearIn(u.pos.x, u.pos.z, 0.55, -0.2, farSepVisit, S);
+      const o = S.o; S.u = S.o = null;
+      if (o) {
+        let ax = u.pos.x - o.pos.x, az = u.pos.z - o.pos.z, al = Math.hypot(ax, az);
+        if (al < 0.02) { const a = u.id * 2.39996; ax = Math.sin(a); az = Math.cos(a); al = 1; }
+        // 11/18 k365-cloud-42（比叡山 act bot 351秒 climb：味方の新手11人＝皆遠い兵が (78,-5) の坂の縁に重なり、離れる向きが歩けない所で解けなかった）：
+        //   真っすぐ離れられない時は、斜め・横（左右）の向きも順に試す（坂の縁に沿ってずれる）。人数・行き先は変えない
+        ax /= al; az /= al;
+        const np = u._farSepP || (u._farSepP = { x: 0, z: 0 }), sg = (u.id & 1) ? 1 : -1;
+        for (const [c, s] of FAR_SEP_DIRS) {
+          const dx = ax * c - az * s * sg, dz = az * c + ax * s * sg, nx = u.pos.x + dx * 0.25, nz = u.pos.z + dz * 0.25;
+          np.x = nx; np.z = nz;
+          if (!this.world.walkable(nx, nz) || this.solids?.length && this.solidBlocked(u, nx, nz) || this.wallBetween(u.pos, -1, np) ||
+              this.structs?.length && this.structNear(u, nx, nz)) continue;
+          if (c < 0.9 && Math.abs(groundAt(this.world, nx, nz, u.pos.y) - u.pos.y) > 0.6) continue;
+          u.pos.x = nx; u.pos.z = nz; u.pos.y = groundAt(this.world, nx, nz, u.pos.y);
+          if (keep) {
+          const O = u._farSepO || (u._farSepO = { x: 0, z: 0 });
+          O.x += dx * 0.25; O.z += dz * 0.25;
+          const ol = Math.hypot(O.x, O.z); if (ol > 1.2) { O.x *= 1.2 / ol; O.z *= 1.2 / ol; }
+          }
+          break;
+        }
+      }
+    }
+  },
+
+  // 建物・置き物（army.solids）の内から押し戻しで出られない者を、近い空いた歩ける所（0.5〜10m・12の向き）へ置き直す。見つからなければ動かさない
+  //   to を渡した時は、そこ（組の持ち場）との間に建物・陣幕の線を挟まない所だけを選ぶ（囲みの内から持ち場の側へ出す。囲みを越える一跳びは置き直し＝warpedOnce）
+  solidEscape(u, to = null) {
+    const W = this.world;
+    for (let r = 0.5; r <= 10; r += 0.5) {
+      for (let i = 0; i < 12; i++) {
+        const a = i * Math.PI / 6, x = u.pos.x + Math.sin(a) * r, z = u.pos.z + Math.cos(a) * r;
+        if (!W.walkable(x, z) || this.solidBlocked(u, x, z)) continue;
+        if (to ? this.solidCrossed(u, x, z, to.x, to.z) || this.wallBetween({ x, z }, -1, to) : this.wallBetween(u.pos, -1, { x, z })) continue;
+        u.pos.x = x; u.pos.z = z; u.pos.y = groundAt(W, x, z, u.pos.y); u._cpx = undefined; u.warpedOnce = true;
+        if (u.mesh) u.mesh.position.copy(u.pos);
+        return true;
+      }
+    }
+    return false;
+  },
+
+  // (x, z) が柵・塀の線（army.structs）の体の幅（0.45m）の内なら true。区画の表で引く（new しない）
+  structNear(u, x, z) {
+    const SG = this.structCollision || (this.structCollision = new CollisionGrid());
+    if (SG.list !== this.structs || SG.time !== this.time || SG.length !== this.structs.length || SG.structs !== true) SG.update(this.structs, this.time, true);
+    const y = u.pos.y;
+    for (const id of SG.query(x, z)) {
+      const s = this.structs[id];
+      if (!s.alive || !s.seg || s.opened || (s.yTop != null && y >= s.yTop - .05)) continue;
+      const [ax, az, bx, bz] = s.seg, dx = bx - ax, dz = bz - az, l2 = dx * dx + dz * dz || 1;
+      const t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / l2));
+      if ((x - ax - dx * t) ** 2 + (z - az - dz * t) ** 2 < 0.2025) return true;
+    }
+    return false;
+  },
+
+  // 遠い兵の足もとが歩けない所（切岸・急な坂）か建物の内の時だけ：近い歩ける所（1〜10m・12の向き、行き先に近い物を先に）を探し、そこへ一歩出る。
+  //   壁・置き物は越えない。探しは 0.5 秒に一度まで、見つけた所は着くまで覚える。歩ける所に立っていれば何もしない（false）
+  farUnstick(u, speed, dt, step) {
+    const W = this.world;
+    const inSolid = this.solids?.length && this.solidBlocked(u, u.pos.x, u.pos.z);
+    if (W.walkable(u.pos.x, u.pos.z) && !inSolid) { u._farEsc = null; return false; }
+    let e = u._farEsc;
+    if (!e && !(u._farEscAt > this.time)) {
+      u._farEscAt = this.time + 0.5;
+      const q = u._farWant;
+      for (let r = 1; r <= 10 && !e; r++) {
+        let best = Infinity;
+        for (let i = 0; i < 12; i++) {
+          const a = i * Math.PI / 6, x = u.pos.x + Math.sin(a) * r, z = u.pos.z + Math.cos(a) * r;
+          if (!W.walkable(x, z) || this.solids?.length && this.solidBlocked(u, x, z) || !inSolid && this.wallBetween(u.pos, -1, { x, z })) continue;
+          const d = q ? Math.hypot(q.x - x, q.z - z) : 0;
+          if (d < best) { best = d; e = u._farEsc = { x, z }; }
+        }
+      }
+    }
+    if (!e) return false;
+    const dx = e.x - u.pos.x, dz = e.z - u.pos.z, d = Math.hypot(dx, dz);
+    if (d < 0.1) { u._farEsc = null; return false; }
+    const s = Math.min(d, speed * dt);
+    step.x = u.pos.x + dx / d * s; step.z = u.pos.z + dz / d * s;
+    if (!inSolid && (this.solids?.length && this.solidBlocked(u, step.x, step.z) || this.wallBetween(u.pos, -1, step))) { u._farEsc = null; return false; }
+    u.vel.x = u.mv.x = dx / d * speed; u.vel.z = u.mv.z = dz / d * speed;
+    return true;
+  },
+
+  // 遠い兵の回り込み：行き先の向き (fx,fz) から左右どちらか一方へ 50°・90°・130° の順に一歩を試す。
+  //   塞がれ続けたら 4 秒ごとに回る側を替える（角の両側を順に探す）。通れる一歩が見つかれば step に入れて true
+  farSidestep(u, fx, fz, speed, dt, step) {
+    u._farBlockT = (u._farBlockT || 0) + dt;
+    if (!u._farSide) u._farSide = u.id % 2 ? 1 : -1;
+    if (u._farBlockT > 4) { u._farBlockT = 0; u._farSide = -u._farSide; }
+    // 毎コマの探しは重い：前に通れた向きを先に一つだけ試し、全部を探すのは 0.3 秒に一度まで
+    const s = speed * dt, side = u._farSide, last = u._farSideA;
+    const full = !(u._farTryAt > this.time);
+    if (full) u._farTryAt = this.time + 0.3;
+    for (const a of FAR_SIDE_ANGLES) {
+      if (!full && a !== last) continue;
+      const c = Math.cos(a * side), n = Math.sin(a * side);
+      const vx = fx * c + fz * n, vz = -fx * n + fz * c;
+      const x = u.pos.x + vx * s, z = u.pos.z + vz * s;
+      if (this.solids?.length && (this.solidBlocked(u, x, z) || this.solidBlocked(u, (u.pos.x + x) / 2, (u.pos.z + z) / 2))) continue;
+      step.x = x; step.z = z;
+      if (!this.world.walkable(x, z) || this.wallBetween(u.pos, -1, step)) continue;
+      u.vel.x = u.mv.x = vx * speed; u.vel.z = u.mv.z = vz * speed;
+      u._farSideA = a;
+      return true;
+    }
+    if (full) u._farSideA = undefined;
+    return false;
+  },
+
+  // 口の数え（army.chokes ＝ [{ a, b, w }]：口の両端 a・b と幅 w）。一つの口につき一コマに一度だけ数える
+  //   芯（口の中ほど、両端の線から 2.5m）の人数 core と、口の前後（8m）の人数 queue を数えておく
+  gateStat(ch) {
+    if (ch._t === this.time) return ch;
+    ch._t = this.time;
+    const dx = ch.b.x - ch.a.x, dz = ch.b.z - ch.a.z, len = Math.hypot(dx, dz) || 1;
+    const tx = dx / len, tz = dz / len, nx = -tz, nz = tx;
+    let core = 0, queueA = 0, queueB = 0;
+    this.forNear((ch.a.x + ch.b.x) / 2, (ch.a.z + ch.b.z) / 2, len / 2 + 9, (o) => {
+      if (!o.alive || o.isStruct) return;
+      const px = o.pos.x - ch.a.x, pz = o.pos.z - ch.a.z;
+      const s = px * tx + pz * tz, r = px * nx + pz * nz;
+      if (s < -1.5 || s > len + 1.5) return;
+      if (Math.abs(r) < 2.5) core++;
+      if (Math.abs(r) < 8) { if (r >= 0) queueA++; else queueB++; }
+    });
+    // maxFlow（tsumari.js・束20）があればそれを芯の定員に使う。無い口は今まで通り幅から出す
+    ch._cap = ch.maxFlow != null ? Math.max(1, ch.maxFlow) : Math.max(1, ch.w * 0.7);   // 幅 5m の口で一秒に 3〜4 人
+    ch._core = core; ch._queueA = queueA; ch._queueB = queueB;
+    return ch;
+  },
+
+  // ある兵が口の混みに掛かっているか（芯にいれば通す数を絞り、前後で 5m升に 8 人を超えて集まれば向きを変える速さも落ちる）
+  gateFactor(u) {
+    let spd = 1, rate = 1;
+    for (const ch of this.chokes) {
+      const dx = ch.b.x - ch.a.x, dz = ch.b.z - ch.a.z, len = Math.hypot(dx, dz) || 1;
+      const tx = dx / len, tz = dz / len, nx = -tz, nz = tx;
+      const px = u.pos.x - ch.a.x, pz = u.pos.z - ch.a.z;
+      const s = px * tx + pz * tz, r = px * nx + pz * nz;
+      if (s < -1.5 || s > len + 1.5 || Math.abs(r) > 9) continue;
+      // 閉じた門の狭さは攻め手が詰まるためのもの。門の持ち主（守り手）が自分の門を通って退く時は詰まらせない
+      if (ch.team != null && u.team === ch.team) continue;
+      this.gateStat(ch);
+      if (Math.abs(r) < 2.5 && ch._core > ch._cap) spd = Math.min(spd, ch._cap / ch._core);
+      const queue = r >= 0 ? ch._queueA : ch._queueB;
+      if (queue > 8) {
+        const over = queue - 8;
+        rate = Math.min(rate, Math.max(0.3, 1 - over / 14));
+        spd = Math.min(spd, Math.max(0.4, 1 - over / 20));
+      }
+    }
+    if (spd === 1 && rate === 1) return null;
+    const result = u._gateFactor || (u._gateFactor = { spd: 1, rate: 1 });
+    result.spd = spd; result.rate = rate; return result;
+  },
+
+  // 竪堀（束21）：斜面を横に進む兵が竪堀の縁に当たって二秒ほど進めない時、竪堀の上か下の近い端の先へ
+  // 隊の行き先を一度だけ置き直す（端を回ったら元の行き先へ戻す）。竪堀の無い戦・城の道の網（castleRoute）の無い戦は何もしない
+  // 11/18 クラウド kaito2：u から want への筋を塞ぐ柵・塀（army.structs の線）を見つけ、つながった線を辿って両方の端（口）を探し、
+  //   近回りになる方の端の先 1.6m を回り道の点にする（S.wp・八秒まで）。止まって二秒の時だけ呼ぶ（毎コマは見ない）
+  fenceGap(u, want, S) {
+    const st = this.structs;
+    if (!st || !st.length || u.climb || u.perch) return false;
+    const ax = u.pos.x, az = u.pos.z, bx = want.x, bz = want.z, rX = bx - ax, rZ = bz - az, y = u.pos.y;
+    const live = (o) => o.alive !== false && !o.opened && o.seg && !(o.yTop != null && y >= o.yTop - .05);
+    let hit = null, best = 2;
+    for (const o of st) {
+      if (!live(o)) continue;
+      const [cx, cz, dx, dz] = o.seg, sX = dx - cx, sZ = dz - cz, den = rX * sZ - rZ * sX;
+      if (Math.abs(den) < 1e-9) continue;
+      const qx = cx - ax, qz = cz - az, t = (qx * sZ - qz * sX) / den, v = (qx * rZ - qz * rX) / den;
+      if (t >= 0 && t <= 1 && v >= -0.02 && v <= 1.02 && t < best) { best = t; hit = o; }
+    }
+    if (!hit) return false;
+    const W = this.world;
+    const end = (i) => {
+      let cur = hit, ex = hit.seg[i * 2], ez = hit.seg[i * 2 + 1], px = hit.seg[2 - i * 2], pz = hit.seg[3 - i * 2];
+      for (let h = 0; h < 40; h++) {
+        let nxt = null, ni = 0;
+        for (const o of st) {
+          if (o === cur || !live(o)) continue;
+          if (Math.hypot(o.seg[0] - ex, o.seg[1] - ez) < 0.6) { nxt = o; ni = 1; break; }
+          if (Math.hypot(o.seg[2] - ex, o.seg[3] - ez) < 0.6) { nxt = o; ni = 0; break; }
+        }
+        if (!nxt) break;
+        px = ex; pz = ez; ex = nxt.seg[ni * 2]; ez = nxt.seg[ni * 2 + 1]; cur = nxt;
+      }
+      const l = Math.hypot(ex - px, ez - pz) || 1;
+      return { x: ex + (ex - px) / l * 1.6, z: ez + (ez - pz) / l * 1.6 };
+    };
+    let pick = null, cost = Infinity;
+    for (const p of [end(0), end(1)]) {
+      if (!W.walkable(p.x, p.z)) continue;
+      const c = Math.hypot(p.x - ax, p.z - az) + Math.hypot(bx - p.x, bz - p.z);
+      if (c < cost && c < 160) { cost = c; pick = p; }
+    }
+    if (!pick) return false;
+    S.wp = pick; S.wpT = 8;
+    this.fenceGapN = (this.fenceGapN || 0) + 1;
+    return true;
+  },
+
+  // 11/18 夜50-48 K341①：u から want への筋の 4m 内を建物・置き物（army.solids）が塞いでいたら、その箱の角（体の幅＋0.8m 外）のうち
+  //   u から見通せて近回りになる所を回り道の点にする（S.wp・六秒まで）。止まって二秒の時だけ呼ぶ（毎コマは見ない）
+  solidGap(u, want, S) {
+    const SO = this.solids;
+    if (!SO || !SO.length || u.climb || u.perch) return false;
+    const ax = u.pos.x, az = u.pos.z, d = Math.hypot(want.x - ax, want.z - az);
+    if (d < 1.5) return false;
+    const fx = (want.x - ax) / d, fz = (want.z - az) / d;
+    let w = null;
+    for (let t = 0.4; t <= Math.min(4, d) && !w; t += 0.4) w = this.solidAt(u, ax + fx * t, az + fz * t);
+    if (!w) return false;
+    const rr = u.mounted ? 0.7 : 0.45, m = rr + 0.8, W = this.world, pts = [];
+    if (w.k === 'r') {
+      for (const [lx, lz] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) { const px = lx * (w.hw + m), pz = lz * (w.hd + m); pts.push(w.x + px * w.c + pz * w.s, w.z - px * w.s + pz * w.c); }
+    } else if (w.k === 'c') {
+      const a0 = Math.atan2(ax - w.x, az - w.z);
+      for (const da of [1.2, -1.2, 2, -2]) pts.push(w.x + Math.sin(a0 + da) * (w.r + m), w.z + Math.cos(a0 + da) * (w.r + m));
+    } else {
+      // 線の物（陣幕・板塀）は、端でつながる線（端どうし 1.2m 内）を辿った先の端（口）まで回る。
+      //   前は当たった一本の端だけを見て、堀秀政の本陣の幕の角で二本の端を行き来し、幕の内の持ち場へ入れなかった（伊賀 30〜80秒）
+      //   口が見通せない時は、囲みの角（外へ少し出した点）を一つずつ伝って口へ寄る
+      const y = u.pos.y, live = (o) => o.k !== 'r' && o.k !== 'c' && o.ax != null && !(o.struct && (!o.struct.alive || o.struct.opened)) && !(o.playerOnly && !u.isPlayer) && !(o.yTop != null && y >= o.yTop - 0.05);
+      const verts = [w.ax, w.az, w.bx, w.bz];
+      const end = (i) => {
+        let cur = w, ex = i ? w.bx : w.ax, ez = i ? w.bz : w.az, px = i ? w.ax : w.bx, pz = i ? w.az : w.bz;
+        for (let h = 0; h < 40; h++) {
+          let nxt = null, ni = 0;
+          for (const o of SO) {
+            if (o === cur || !live(o)) continue;
+            if (hyp2(o.ax - ex, o.az - ez) < 1.2) { nxt = o; ni = 1; break; }
+            if (hyp2(o.bx - ex, o.bz - ez) < 1.2) { nxt = o; ni = 0; break; }
+          }
+          if (!nxt) break;
+          if (nxt === w) return null;   // 輪に閉じた囲み（口の無い物）は回り先が無い
+          px = ni ? nxt.ax : nxt.bx; pz = ni ? nxt.az : nxt.bz; ex = ni ? nxt.bx : nxt.ax; ez = ni ? nxt.bz : nxt.az; cur = nxt;
+          verts.push(ex, ez);
+        }
+        const l = Math.hypot(ex - px, ez - pz) || 1, e = (cur.r || 0) + m;
+        return [ex + (ex - px) / l * e, ez + (ez - pz) / l * e];
+      };
+      const E0 = end(0), E1 = end(1);
+      let E = null, ec = Infinity;
+      for (const p of [E0, E1]) if (p && W.walkable(p[0], p[1], u.pos.y)) { const c = Math.hypot(p[0] - ax, p[1] - az) + Math.hypot(want.x - p[0], want.z - p[1]); if (c < ec) { ec = c; E = p; } }
+      if (!E) return false;
+      let cx = 0, cz = 0; for (let k = 0; k < verts.length; k += 2) { cx += verts[k]; cz += verts[k + 1]; } cx /= verts.length / 2; cz /= verts.length / 2;
+      const seen0 = (x, z) => { const l = Math.hypot(x - ax, z - az), n = Math.max(1, Math.ceil(l / 1.8)); for (let k = 0; k < n; k++) { const t0 = k / n, t1 = (k + 1) / n; if (this.solidCrossed(u, ax + (x - ax) * t0, az + (z - az) * t0, ax + (x - ax) * t1, az + (z - az) * t1)) return false; } return !this.wallBetween(u.pos, -1, { x, z }); };   // 幕に沿って立つ者が幕ぞいに見通せるよう、体の幅でなく芯の跨ぎで見る（区切って升の引きを外さない）
+      let pick = seen0(E[0], E[1]) ? { x: E[0], z: E[1] } : null, cost = Infinity;
+      if (!pick) {
+        for (let k = 0; k < verts.length; k += 2) {
+          const vx = verts[k], vz = verts[k + 1], ox = vx - cx, oz = vz - cz, ol = Math.hypot(ox, oz) || 1;
+          const x = vx + ox / ol * (m + 0.3), z = vz + oz / ol * (m + 0.3);
+          if (Math.hypot(x - ax, z - az) < 1 || !W.walkable(x, z, u.pos.y) || this.solidAt(u, x, z) || !seen0(x, z)) continue;
+          const c = Math.hypot(x - ax, z - az) + Math.hypot(E[0] - x, E[1] - z);
+          if (c < cost) { cost = c; pick = { x, z }; }
+        }
+      }
+      if (!pick) return false;
+      S.wp = pick; S.wpT = 6; S.wpSolid = w;
+      this.solidGapN = (this.solidGapN || 0) + 1;
+      return true;
+    }
+    const seen = (x, z) => {
+      const l = Math.hypot(x - ax, z - az);
+      for (let t = 0.4; t < l; t += 0.5) if (this.solidAt(u, ax + (x - ax) * t / l, az + (z - az) * t / l)) return false;
+      return true;
+    };
+    let pick = null, cost = Infinity, alt = null, altCost = Infinity;
+    for (let i = 0; i < pts.length; i += 2) {
+      const x = pts[i], z = pts[i + 1];
+      if (!W.walkable(x, z, u.pos.y) || this.solidAt(u, x, z) || this.wallBetween(u.pos, -1, { x, z })) continue;
+      const c = Math.hypot(x - ax, z - az) + Math.hypot(want.x - x, want.z - z);
+      if (c > d + 60) continue;
+      if (seen(x, z)) { if (c < cost) { cost = c; pick = { x, z }; } }
+      else if (c < altCost) { altCost = c; alt = { x, z }; }
+    }
+    // 見通せる角が無い時（長い棟の向こう側の角だけ）は、近回りの角へ向かい、着いてから次の角を選び直す
+    pick = pick || alt;
+    if (!pick) return false;
+    S.wp = pick; S.wpT = 6; S.wpSolid = w;
+    this.solidGapN = (this.solidGapN || 0) + 1;
+    return true;
+  },
+
+  tateDetour(u, want, g) {
+    const wd = this.world && this.world.def;
+    if (!wd || !wd.castleRoute || !wd.tateLines || !wd.tateLines.length || !g || g.isPlayerSquad || g._tateRe) return false;
+    for (const L of wd.tateLines) {
+      const P = L.pts, n = P.length;
+      for (let i = 0; i < n - 1; i++) {
+        const [ax, az] = P[i], [bx, bz] = P[i + 1];
+        const dx = bx - ax, dz = bz - az, L2 = dx * dx + dz * dz || 1e-6;
+        const t = Math.max(0, Math.min(1, ((u.pos.x - ax) * dx + (u.pos.z - az) * dz) / L2));
+        const ex = u.pos.x - (ax + dx * t), ez = u.pos.z - (az + dz * t);
+        if (Math.hypot(ex, ez) > L.w / 2 + 2.2) continue;
+        // 行き先が竪堀の向こう側（線の左右が入れ替わる）の時だけ回る
+        const side = (p) => Math.sign(dx * (p.z - az) - dz * (p.x - ax));
+        if (side(u.pos) === side(want)) continue;
+        // 線の上の端と下の端（高い方が上）。近い方の先 4m へ
+        const [sx, sz] = P[0], [tx, tz] = P[n - 1];
+        const ds = Math.hypot(u.pos.x - sx, u.pos.z - sz), dtn = Math.hypot(u.pos.x - tx, u.pos.z - tz);
+        const [kx, kz, ox, oz] = ds < dtn ? [sx, sz, P[1][0], P[1][1]] : [tx, tz, P[n - 2][0], P[n - 2][1]];
+        const ol = Math.hypot(kx - ox, kz - oz) || 1;
+        const pt = { x: kx + (kx - ox) / ol * (L.w / 2 + 4), z: kz + (kz - oz) / ol * (L.w / 2 + 4) };
+        if (g.order === 'path' && g.path) { g._tatePath = g.path; g._tateIdx = g.pathIdx || 0; g.path.splice(g._tateIdx, 0, [pt.x, pt.z]); }
+        else if (g.order === 'move' && g.dest) {
+          const back = g.dest, after = g.onArrive;
+          g.dest = pt; g._tateDest = pt;
+          // 端を回ったら元の行き先へ（その間に別の下知で行き先が変わっていれば、何もしない）
+          g.onArrive = (gg) => { if (gg.dest === pt && gg.order === 'move') { gg.dest = back; gg.onArrive = after; gg._tateRe = false; } };
+        } else return false;
+        g._tateRe = true;
+        this.tateN = (this.tateN || 0) + 1;
+        return true;
+      }
+    }
+    return false;
+  },
+
+  // 深みを横切る行き先なら、近い浅瀬へ回る。行き先の入れ物は兵ごとに使い回す。
+  riverDetour(u, want) {
+    const W = this.world;
+    if (!want || u.isPlayer || !W.def.streams?.length) return want;
+    for (const st of W.def.streams) {
+      if (!st.fords?.length || !st.pts?.length) continue;
+      for (let i = 0; i < st.pts.length - 1; i++) {
+        const a = st.pts[i], b = st.pts[i + 1], dx = b[0] - a[0], dz = b[1] - a[1];
+        const side = dx * (u.pos.z - a[1]) - dz * (u.pos.x - a[0]);
+        const end = dx * (want.z - a[1]) - dz * (want.x - a[0]);
+        if (side * end >= 0) continue;
+        const t = side / (side - end), x = u.pos.x + (want.x - u.pos.x) * t, z = u.pos.z + (want.z - u.pos.z) * t;
+        const along = ((x - a[0]) * dx + (z - a[1]) * dz) / (dx * dx + dz * dz || 1);
+        if (along < 0 || along > 1 || W.waterFootDepthAt(x, z, groundAt(W, x, z, u.pos.y)) <= (W.def.wadeDepth ?? 0.85)) continue;
+        let best = null, distance = Infinity, bankZ = z;
+        for (const f of st.fords) {
+          // 浅瀬の幅は横方向の半幅。川の折れと縦の距離も含める。
+          let fz = z, near = Infinity;
+          for (let j = 0; j < st.pts.length - 1; j++) {
+            const c = st.pts[j], e = st.pts[j + 1];
+            if (f.x < Math.min(c[0], e[0]) || f.x > Math.max(c[0], e[0])) continue;
+            const zz = e[0] === c[0] ? (f.z ?? Math.max(Math.min(c[1], e[1]), Math.min(Math.max(c[1], e[1]), u.pos.z))) : c[1] + (e[1] - c[1]) * (f.x - c[0]) / (e[0] - c[0]);
+            const d = Math.hypot(f.x - u.pos.x, zz - u.pos.z) + Math.hypot(f.x - want.x, zz - want.z) * 0.3;
+            if (d < near) { near = d; fz = zz; }
+          }
+          if (near < distance) { distance = near; best = f; bankZ = fz; }
+        }
+        if (!best) continue;
+        const pt = u._riverWant || (u._riverWant = { x: 0, z: 0 });
+        const radius = u.mounted ? 0.7 : 0.45;
+        // 増水を自前で扱う戦では、その浅瀬の水深を使う。平時の上限で岸に止めない。
+        const fordDepth = st.fordDepth ?? W.def.wadeDepth ?? 0.85;
+        const aligned = Math.abs(u.pos.x - best.x) <= Math.max(0, best.w - radius) &&
+          W.waterDepthAt(u.pos.x - radius, bankZ) <= fordDepth && W.waterDepthAt(u.pos.x + radius, bankZ) <= fordDepth;
+        // 川の向きに直角な岸へ寄る。縦に流れる川も同じ側を保つ。
+        const len = Math.hypot(dx, dz) || 1, nx = -dz / len, nz = dx / len;
+        const bank = (aligned ? Math.sign(end) : Math.sign(side)) * (st.w + 4);
+        pt.x = aligned ? u.pos.x + nx * bank : best.x + nx * bank;
+        pt.z = bankZ + nz * bank;
+        return pt;
+      }
+    }
+    return want;
+  },
+
+  steer(u, dt, want, speed, face) {
+    const orderGroup = u.group;
+    // 攻撃の間合いと時計は保ち、手の空いた足だけでもう半歩詰める。
+    const foe = u.atk?.target || u.swing?.target || u.target;
+    const weapon = u.wpnKind || u.lookWeapon || u.weapon;
+    if (!u.isPlayer && !u.mounted && !u.fleeing && !u.combatRetreat && !u.rearWound && !u.woundOut &&
+        !u.downed && !u.climb && !u.perch && !u.naka && !u.dragging && !u.dodging && !u.hit &&
+        !(u.stagger > 0) && !(u.confused > 0) && !(u.backUntil > this.time) &&
+        orderGroup?.order !== 'retreat' && orderGroup?.order !== 'move' && orderGroup?.order !== 'path' &&
+        (weapon === 'spear' || weapon === 'sword') && foe?.alive && !foe.isStruct && !foe.isPlayer &&
+        !foe.mounted && foe.team !== u.team && Math.abs(foe.pos.y - u.pos.y) < 0.7) {
+      const dx = foe.pos.x - u.pos.x, dz = foe.pos.z - u.pos.z, d2 = dx * dx + dz * dz;
+      if (d2 < 12.25) {
+        face = Math.atan2(dx, dz);
+        if (!want && speed > 0 && d2 > 1.210001) {
+          const d = Math.sqrt(d2), q = u._pressWant || (u._pressWant = { x: 0, z: 0 });
+          q.x = foe.pos.x - dx / d * 1.1; q.z = foe.pos.z - dz / d * 1.1;
+          want = q; speed = Math.min(speed, 0.9);
+        }
+      }
+    }
+    const orderX = orderGroup?.order === 'move' ? orderGroup.dest?.x : orderGroup?.order === 'path' ? orderGroup.path?.[orderGroup.pathIdx]?.[0] : undefined;
+    const orderZ = orderGroup?.order === 'move' ? orderGroup.dest?.z : orderGroup?.order === 'path' ? orderGroup.path?.[orderGroup.pathIdx]?.[1] : undefined;
+    // 隊や使番の行き先は少しずつ動く。三歩以内の直しで詰まりの時計を消さない。
+    // 比べる位置は時計を消した時のものを保ち、行き先が大きく変われば計り直す。
+    const destChanged = Number.isFinite(orderX) && Number.isFinite(u._stuckX)
+      ? Math.hypot(orderX - u._stuckX, orderZ - u._stuckZ) > 3
+      : u._stuckX !== orderX || u._stuckZ !== orderZ;
+    if (u._stuckOrder !== orderGroup?.order || destChanged || u._stuckFocus !== orderGroup?.focus) {
+      if (u.stk) { u.stk.t = 0; u.stk.d = 0; u.stk.s = 0; u.stk.n = 0; u.stk.bigN = 0; u.stk.x = u.pos.x; u.stk.z = u.pos.z; }
+      u._stuckOrder = orderGroup?.order; u._stuckX = orderX; u._stuckZ = orderZ; u._stuckFocus = orderGroup?.focus;
+    }
+    want = interiorFollow(this.interiorRooms, u, want, this.playerUnit);
+    if (want && want === u._innerWay) speed = Math.max(speed, u.speed * 0.7);
+    // 梯子を登っている間は歩みで動かさない（siege_ladder.js の updateLadders が高さと位置を進める。docs C3）
+    if (u.climb) { u.mv.x = 0; u.mv.z = 0; u.push.x = 0; u.push.z = 0; u.vel.x = 0; u.vel.z = 0; u.moving = 0; return; }
+    // 味方の旗持ちは自分から四メートル半あける。押し戻さず、通れる道を歩いて離れる。
+    const p = this.playerUnit;
+    // 使番は三メートル以内まで寄って下知を伝える。馬の待機距離で行き先を変えない。
+    if (p?.alive && u !== p && !u.group?.isRunner && u.team === p.team && (u.stdHeld || u.banner || u.look?.standard || u.uma) && !u.fleeing && !u.target && !u.atk && !u.swing && !u.stdPickup && Math.abs(u.pos.y - p.pos.y) < 3) {
+      const dx = u.pos.x - p.pos.x, dz = u.pos.z - p.pos.z, d = Math.hypot(dx, dz);
+      const wx = (want ? want.x : u.pos.x) - p.pos.x, wz = (want ? want.z : u.pos.z) - p.pos.z;
+      if (d < 3.5 || wx * wx + wz * wz < 20.25) {
+        const q = u._flagSpace || (u._flagSpace = { x: 0, z: 0 });
+        const x = d > 0.1 ? dx / d : Math.cos(p.heading), z = d > 0.1 ? dz / d : -Math.sin(p.heading);
+        q.x = p.pos.x + x * 4.5; q.z = p.pos.z + z * 4.5;
+        want = q;
+        speed = Math.max(speed, u.speed * 0.6);
+      }
+    }
+    // 真横で重なる控えだけ半歩よける。交戦中の兵・敵・人数・間合いは変えない。
+    if (p?.alive && u !== p && u.team === p.team && !u.name && !u.isSub &&
+        !u.isStruct && !u.group?.isRunner && !u.target && !u.atk && !u.swing &&
+        !u.mounted && !u.fleeing && !u.woundOut && !u.rearWound && !u.downed &&
+        !u.climb && !u.perch && !u.naka && !u.dragging && !u.dodging && !u.hit &&
+        !(u.stagger > 0) && !(u.confused > 0) && Math.abs(u.pos.y - p.pos.y) < .7) {
+      const dx = u.pos.x - p.pos.x, dz = u.pos.z - p.pos.z;
+      const distance2 = dx * dx + dz * dz;
+      if (distance2 < 1.44) {
+        const d = Math.sqrt(distance2), side = u.id % 2 ? 1 : -1;
+        const q = u._selfSpace || (u._selfSpace = { x:0, z:0 });
+        const nx = d > .1 ? dx / d : Math.cos(p.heading) * side;
+        const nz = d > .1 ? dz / d : -Math.sin(p.heading) * side;
+        q.x = p.pos.x + nx * 1.5; q.z = p.pos.z + nz * 1.5;
+        want = q; speed = Math.max(speed, u.speed * .4);
+      }
+    }
+    // 戦っていない味方だけが目当ての敵への細い道を譲る。両脇の乱戦と攻撃中の足は保つ。
+    const way = guideWay(this);
+    if (way.active && u !== p && u.team === p.team &&
+        Math.abs(u.pos.x - way.x) < 12 && Math.abs(u.pos.z - way.z) < 12 &&
+        !u.name && !u.isSub && !u.group?.isRunner && !u.isStruct && !u.mounted &&
+        !u.fleeing && !u.woundOut && !u.rearWound && !u.downed && !u.climb && !u.perch &&
+        !u.naka && !u.dragging && !u.atk && !u.swing && !u.hit && !(u.stagger > 0) &&
+        !(u.confused > 0) && Math.abs(u.pos.y - p.pos.y) < 0.7) {
+      const { length, fx, fz } = way;
+      const rx = u.pos.x - way.x, rz = u.pos.z - way.z;
+      const ahead = rx * fx + rz * fz, side = rx * fz - rz * fx;
+      if (ahead > 0 && ahead < length + 1) {
+        // 道の左右へ半歩ずつ分かれ、敵の手前にも二歩ほどの空きを残す。
+        const end = Math.min(length, Math.max(0, ahead));
+        const ex = rx - fx * end, ez = rz - fz * end, distance2 = ex * ex + ez * ez;
+        const width = ahead > length - 1.5 ? 1.8 : 1.35;
+        const nextSide = want ? (want.x - way.x) * fz - (want.z - way.z) * fx : side;
+        const nextAhead = want ? (want.x - way.x) * fx + (want.z - way.z) * fz : ahead;
+        if (distance2 < (width + 0.4) ** 2 &&
+            (distance2 < width * width || nextAhead > 0 && nextAhead < length + 1 && Math.abs(nextSide) < width)) {
+          // 道に掛かった兵だけ間合いを調べる。攻撃できる味方は動かさない。
+          let fighting = false;
+          if (u.target?.alive) {
+            const tx = u.target.pos.x - u.pos.x, tz = u.target.pos.z - u.pos.z;
+            const reach = Math.max(5, u.reach + 1);
+            fighting = !(tx * tx + tz * tz > reach * reach);
+          }
+          if (!fighting) {
+            const sign = Math.abs(side) > 0.1 ? Math.sign(side) : (u.id % 2 ? 1 : -1);
+            const q = u._guideWayWant || (u._guideWayWant = { x: 0, z: 0 });
+            q.x = way.x + fx * end + fz * sign * (width + 0.3);
+            q.z = way.z + fz * end - fx * sign * (width + 0.3);
+            want = q; speed = Math.max(speed, u.speed * 0.6);
+          }
+        }
+      }
+    }
+    // 道譲りは押す速さだけでなく行き先に残す。兵の更新で押しが消えても列へ戻らない。
+    if (u._yieldUntil > this.time && p?.alive && u.team === p.team && !u.isPlayer && !u.climb && !u.downed) {
+      const q = u._yieldWant || (u._yieldWant = { x: 0, z: 0 });
+      q.x = u._yieldX; q.z = u._yieldZ; want = q; speed = Math.max(speed, u.speed);
+    }
+    want = mountainWay(this, u, want);
+    // 11/18 クラウド 三木：山道の道筋（mountainWay）が返した行き先にも、戦の回り道（moveWay）を通す戦がある（def.moveWayOnMountain）。
+    //   三木の平田の柵の内の本人の組が、柵の外の本人へ直に向かい塀を挟んで二十秒止まった（act bot・大村の段）
+    if (want && (want !== u._mountainWant || this.world?.def.moveWayOnMountain) && !u.isPlayer && !u.fleeing && this.world?.def.moveWay) want = this.world.def.moveWay(this, u, want);
+    if (want && u.fleeing && this.world?.def.fleeWay) want = this.world.def.fleeWay(this, u, want);
+    // 11/17 クラウド K358（川を渡る時の動き）：浅瀬のある川で、行き先へまっすぐ進むと深みに当たる兵は、深みの縁で押し戻され続けて立ち尽くした
+    //   （姉川の退く浅井の物見が浅瀬の脇 (21,1)〜(30,-4) で最長289秒）。深みに阻まれたら、川に沿って一番近い浅瀬へ寄ってから渡る。調べは一人0.5秒に一度
+    if (want && !u.isPlayer && !u.climb && !u.perch) want = fordWay(this, u, want);
+    // 持ち場・追撃・避け足の行き先も場の内へ。位置だけ戻すと外へ歩き続ける。
+    const lim = this.world.def.moveLim || 176;
+    if (want && (Math.abs(want.x) > lim || Math.abs(want.z) > lim)) {
+      const q = u._fieldWant || (u._fieldWant = { x: 0, z: 0 });
+      q.x = Math.max(-lim, Math.min(lim, want.x)); q.z = Math.max(-lim, Math.min(lim, want.z));
+      want = q;
+    }
+    want = this.riverDetour(u, want);
+    // 敗走・陣形の端・迂回先も、場外へ歩こうとする前に収める。
+    // 兵は端から少し内側へ。行き先は隊や相手と共有するので、兵ごとの入れ物を使い回す。
+    if (want) {
+      const fieldLim = lim - (u.isPlayer ? 0 : 0.3);
+      if (Math.abs(want.x) > fieldLim || Math.abs(want.z) > fieldLim) {
+        const q = u._fieldWay || (u._fieldWay = { x: 0, z: 0 });
+        q.x = Math.max(-fieldLim, Math.min(fieldLim, want.x));
+        q.z = Math.max(-fieldLim, Math.min(fieldLim, want.z));
+        want = q;
+      }
+    }
+    // 押し合いで切岸へ出た兵を、八歩先へ飛ばさず同じ側の足場へ歩かせる。
+    if (!u.isPlayer && !(u._groundCheckAt > this.time)) {
+      u._groundCheckAt = this.time + 1;
+      u._groundReturn = recoverGround(this, u, false) || null;
+    }
+    if (u._groundReturn && !this.world.walkable(u.pos.x, u.pos.z, u.pos.y)) {
+      want = u._groundReturn; speed = Math.min(u.speed, 2);
+    } else u._groundReturn = null;
+    const g = u.group, mounted = !!u.mounted;
+    const rankLine = g && !g.routed && !g.cav && !(g.cavShare > 0.1) && !g.isGun && !mounted && !u.isPlayer && !u.fleeing && !(u.stagger > 0) && !u.woundOut &&
+      (g.formation === 'line' || g.formation === 'yari') && !g.marching;
+    // 持ち場を追う兵は隊の歩みに合わせる。遅れた分だけ小さく速める。
+    if (rankLine && want && !u.target && !u.atk && !u.swing && !u.confused && !(g.regroupT > 0) && (g.order === 'move' || g.order === 'path' || g.order === 'follow') && g.anchorSpeed > 0.3) {
+      const gap = Math.hypot(want.x - u.pos.x, want.z - u.pos.z);
+      // 11/18 K365：本人の組が「ついて来い」で六 m より遅れた者は、隊の歩みに縛らず自分の駆け足で追う（小谷の坂・森部で組が二十 m 後ろに残った）
+      if (!(g.isPlayerSquad && g.order === 'follow' && gap > 6)) speed = Math.min(speed, g.anchorSpeed + Math.min(0.7, gap * 0.25));
+    }
+    // 馬の将が徒の供回りを待つ（lord_retinue.js が立てる。11/16 K341⑤）
+    if (mounted && u._waitGuardsT > this.time && !u.target && !u.atk && !u.charging && !u.fleeing) speed = Math.min(speed, 2.6);
+    let rate = mounted ? 2.4 : u.target && !u.isPlayer ? 3.4 : 5;   // 向きを変えられる速さ（rad/s）。斬り合う間は体の回りを少し重く
+    if (u.atk && !u.atk.gun && !u.atk.bow) speed = Math.min(speed, (u.wpnKind || u.lookWeapon) === 'spear' ? 0.35 : 0.6);
+    // 地形の種類による速さ・向き変え（M1。タグの無い所＝'open' は今までと同じ）
+    if (this.world && this.world.heightAt) {
+      const sample = movementTerrain(this, u, want);
+      const uphill = sample.uphill, tf = sample.fx;
+      u.terrain = tf.tag;
+      u._tdef = tf.def; u._tdefHigh = tf.defHigh;   // 切岸の登り・堀の底で受ける損が増える（army_combat の damage。束21）
+      if (tf.loose && g) { g.formLoose = this.time; g._looseT = this.time; }   // 陣形が保てない（units_group の slotPos が並びを乱す。束21）
+      speed *= tf.spd; rate *= tf.turn;
+      if (tf.tire > 0 && want && speed > 0.1 && Math.hypot(u.mv.x, u.mv.z) > 0.2) {
+        u.tire = Math.min(3, (u.tire || 0) + tf.tire * dt * (uphill ? 0.06 : 0.03));
+      } else u.tire = Math.max(0, (u.tire || 0) - dt * 0.3);
+      u._terrainTire = tf.tire;
+      if (u.tire > 0 && !(u._sqCatch && (g?.isPlayerSquad && g.order === 'follow' || g?.catchUp))) speed *= 1 - Math.min(0.4, u.tire * 0.15);
+    }
+    // 弓・鉄砲に押された組は足が鈍り、撃ち止んだ直後は一気に寄せる（missile.js）
+    if (this.missile && g && !u.isPlayer && g.mp !== undefined) speed *= missileSlow(this, u);
+    // 逆茂木の帯：歩兵0.6・騎馬0.25（騎馬は帯の中で突撃を切る。army_think.js が u._bandCut を見る。束22）
+    u._bandCut = false;
+    if (this.structs && this.structs.length) {
+      const bands = sakamogiBands(this);
+      for (let i = 0; i < bands.length; i++) {
+        const s = bands[i];
+        if (distToSeg(u.pos.x, u.pos.z, s.band) < (s.bandR ?? 1.6)) {
+          speed *= mounted ? 0.25 : 0.6;
+          if (mounted) u._bandCut = true;
+          break;
+        }
+      }
+    }
+    // 口（army.chokes＝城攻めの段取りが登録する狭い出入り口）の混み合い：口が無い戦は今までどおり
+    u._gated = false;
+    if (this.chokes && this.chokes.length && u.alive && !u.isPlayer) {
+      const gf = this.gateFactor(u);
+      if (gf) { rate *= gf.rate; speed *= gf.spd; u._gated = gf.spd < 0.9; }
+    }
+    // 前が詰まった隊は陣形を崩す（束20-2）。抜けた兵がいなくなって少し経ったら戻す
+    if (g) {
+      if (u._gated) { g.formLoose = this.time; g._looseT = this.time; }
+      else if (g.formLoose != null && this.time - (g._looseT ?? g.formLoose) > 1.5) g.formLoose = null;
+    }
+    let sp = 0, fx = 0, fz = 0;
+    if (want) {
+      const dx = want.x - u.pos.x, dz = want.z - u.pos.z;
+      const d = Math.hypot(dx, dz);
+      if (d > 1e-3) {
+        fx = dx / d; fz = dz / d;
+        // 着く前に足をゆるめる（隊が進んでいれば、その歩みに合わせる）
+        const gs = g && g.anchorSpeed > 0.3 ? g.anchorSpeed : 0;
+        // 突撃で駆ける馬は的の手前で足をゆるめない（駆け抜けて当たる。ゆるめると8m/秒から3m/秒に落ちて当たっていた・姉川 11/18）
+        sp = mounted && u.charging && u.target?.alive ? speed : Math.min(speed, gs + 0.4 + d * (mounted ? 1.0 : 1.5));
+        // 引き足：「退け」の隊は、敵が近い（38m）うちは正面を敵に向けたまま下がる（背を見せて走るのは「逃げよ」＝潰走の時）
+        // 持ち場へ戻る侍・名のある将は、25m 内の敵に背を見せて歩かない：敵を見たまま後ずさって戻る（台帳 K016・kaito 11/8「戦っている所と違う方へ歩いていく」）
+        if (g && !mounted && !u.isPlayer && !u.fleeing && !u.woundOut && !(u.target?.alive) && (u.name || u.type === 'samurai' || u.type === 'busho') && d > 1.2 &&
+            g.order !== 'path' && g.order !== 'move' && g.order !== 'flee' && g.order !== 'retreat' && !g.marching && !g.routed && !(g.isPlayerSquad && g.order === 'follow')) {
+          if (!(u._awayChkT > this.time)) {
+            u._awayChkT = this.time + 0.35 + Math.random() * 0.2;
+            const foe = this.nearestEnemy(u, 25, (o) => !o.fleeing && !o.isStruct && !o.civ && Math.abs(o.pos.y - u.pos.y) < 3);
+            u._awayFace = foe && (dx * (foe.pos.x - u.pos.x) + dz * (foe.pos.z - u.pos.z)) < -0.3 * d * Math.hypot(foe.pos.x - u.pos.x, foe.pos.z - u.pos.z) ? this.faceTo(u, foe) : null;
+          }
+        } else u._awayFace = null;
+        const awayBack = u._awayFace != null;
+        const backStep = g && ((u.rearWound && u.target?.alive) || (g.order === 'retreat' && g._foeNear) || u.backUntil > this.time || awayBack) && !u.fleeing && !mounted && !u.isPlayer;
+        if (backStep && d > 1.2) {
+          this.turn(u, u.rearWound && u.target?.alive ? this.faceTo(u, u.target) : u.backUntil > this.time ? u.backFace : awayBack ? u._awayFace : g._face ?? g.facing, dt, rate);
+          sp = Math.min(sp, u.speed * 0.75);
+        } else if (!mounted && !u.isPlayer && !u.fleeing && face != null &&
+            (u.target?.alive || u.pressBack || u.combatRetreat)) {
+          // 敵を見たまま横へ寄り、後ずさる。歩く先へ体を向け直して穂先を外さない。
+          this.turn(u, face, dt, rate);
+          if (dx * Math.sin(face) + dz * Math.cos(face) < 0) sp = Math.min(sp, u.speed * 0.75);
+        } else if (d > (mounted ? 0.6 : 1.2) || u.fleeing) {
+          const hd = Math.atan2(dx, dz);
+          this.turn(u, hd, dt, rate);
+          const off = Math.abs(angleDiff(u.heading, hd));
+          if (mounted) {
+            // 馬は横へは歩けない：向いている方へ進み、大きく曲がるときは速さを落とす
+            sp *= Math.max(0.3, Math.cos(Math.min(off, 1.3)));
+            fx = Math.sin(u.heading); fz = Math.cos(u.heading);
+          } else if (off > 1.3) sp *= 0.4;   // 大きく向きを変えるときは、まず向き直る
+        } else {
+          // 持ち場の少しの直しは、向きを変えずに横へ寄る
+          sp = Math.min(sp, mounted ? 1.2 : 1.6);
+          this.turn(u, face ?? (g ? g._face ?? g.facing : u.heading), dt, rate * 0.5);
+        }
+      } else if (face != null) this.turn(u, face, dt, rate * 1.2);
+    } else if (face !== null && face !== undefined) this.turn(u, face, dt, rate * 1.2);
+    // 詰まり：行き先がまだ遠いのに二秒ほどでほとんど進めなければ、しばらく斜め横へ回り込む
+    // （押し合い・前の者の背・柵の角で、足踏みもせずに止まったままにしない）
+    const detourMax = sp;
+    let detour = false;
+    // 川の中でも、止まった列の後ろから回り込める。深みの判定は下の slopeWay が守る。
+    if (IDLE.on && want && !u.isPlayer && sp > 0.2) {
+      const S = u.stk || (u.stk = { x: u.pos.x, z: u.pos.z, t: 0, d: 0, s: 1 });
+      S.t += dt;
+      if (S.t > 2) {
+        // 11/5 kaito BQ「ぐちゃぐちゃに動き回る」：止まった隊の持ち場の四歩の内では回り込まず、その場で待つ（列の中を横へ縫い歩かない）
+        const far = Math.hypot(want.x - u.pos.x, want.z - u.pos.z) > (!u.target?.alive && g && g.anchorSpeed < 0.3 && g.order !== 'move' && g.order !== 'path' ? 4 : 1.5);
+        const moved = Math.hypot(u.pos.x - S.x, u.pos.z - S.z);
+        // 11/18 夜50-48 K341①：持ち場が数歩先なのに、持ち場が建物・幕の中か、間を建物・幕が塞ぐ守りの兵は、足踏みを続けず今の所で立って待つ
+        //   （野田福島の佐久間の旗本・高遠の本丸の衆・田野の滝川の近習が、3m 先の持ち場へ壁に向かって秒速2〜3m で歩き続けていた）。持ち場が1m 動くまで立つ
+        const wd = Math.hypot(want.x - u.pos.x, want.z - u.pos.z);
+        if (!far && moved < 0.6 && !u.target?.alive && !u.fleeing && !u.isPlayer && wd < 6 && this.solids?.length &&
+            (this.solidAt(u, want.x, want.z) || this.solidCrossed(u, u.pos.x, u.pos.z, want.x, want.z) || this.solidAt(u, u.pos.x + (want.x - u.pos.x) / wd * 0.6, u.pos.z + (want.z - u.pos.z) / wd * 0.6))) {
+          S.rest = this.time + 30; S.rx = want.x; S.rz = want.z;
+        }
+        if (far && S.d <= 0 && moved < 0.35 && this.tateDetour(u, want, g)) { S.n = 0; }
+        // 11/18 クラウド kaito2：行き先との間に柵・塀の線があれば、その柵を辿った先の端（口）へ回る（今福の手勢が矢来の線に向かって二十秒押し続けた）
+        else if (far && moved < 0.35 && !S.wp && this.fenceGap(u, want, S)) { S.n = 0; S.d = 0; S.wpSolid = null; }
+        // 11/18 夜50-48 K341①：行き先との間の目の前（4m 内）に建物・置き物（army.solids）があれば、その箱の角の先へ回る。
+        //   前は柵の線（fenceGap）しか回らず、比叡山の西塔の加勢・味方の新手が堂の壁に向かって押し続け、20秒立ち尽くした（箱の面に真っすぐ当たると滑る向きが無い）
+        else if (far && moved < 0.8 && !S.wp && this.solidGap(u, want, S)) { S.n = 0; S.d = 0; }
+        else if (far && S.d <= 0 && moved < 0.35) {
+          // 三度続けて抜けられない時は、大きく横（やや後ろ）へ回って、別の筋から寄り直す（20 秒立ち尽くさない）
+          S.n = (S.n || 0) + 1;
+          const big = S.n >= 3;
+          if (big) {
+            // 大回りが続けて空振りした時だけ向きを変える（毎回逆へ振ると、長い壁ぞいで行ったり来たりして抜けられない）
+            S.bigN = (S.bigN || 0) + 1;
+            if (S.bigN > 2 || !S.s) { S.s = S.s ? -S.s : (Math.random() < 0.5 ? -1 : 1); S.bigN = 0; }
+            S.d = 2.6 + Math.random() + Math.min(5, (S.bigN) * 1.6); S.a = 1.75;
+            S.n = 0;
+          } else {
+            S.d = 1 + Math.random() * 0.8; S.a = 1.1;
+            if (!S.s) S.s = Math.random() < 0.5 ? -1 : 1;
+          }
+        } else if (moved > 0.8) { S.n = 0; S.bigN = 0; }
+        S.t = 0; S.x = u.pos.x; S.z = u.pos.z;
+      }
+      if (S.wp) {
+        const wx = S.wp.x - u.pos.x, wz = S.wp.z - u.pos.z, wl = Math.hypot(wx, wz);
+        if (wl < 1 || (S.wpT -= dt) <= 0 || !S.wpSolid && !this.wallBetween(u.pos, -1, want)) { S.wp = null; S.wpSolid = null; }
+        else {
+          fx = wx / wl; fz = wz / wl; detour = true;
+          sp = Math.min(detourMax, Math.max(sp, u.speed * 0.8));
+          if (mounted) { this.turn(u, Math.atan2(fx, fz), dt, rate); fx = Math.sin(u.heading); fz = Math.cos(u.heading); }
+        }
+      }
+      if (!S.wp && S.d > 0) {
+        S.d -= dt; detour = true;
+        // 馬の回り先は行き先から決める。今の向きを毎コマ曲げると、その場を回り続ける。
+        const dl = mounted ? Math.hypot(want.x - u.pos.x, want.z - u.pos.z) || 1 : 1;
+        const bx = mounted ? (want.x - u.pos.x) / dl : fx, bz = mounted ? (want.z - u.pos.z) / dl : fz;
+        const aa = (S.a || 1.1) * S.s, c = Math.cos(aa), s = Math.sin(aa), nx = bx * c + bz * s, nz = -bx * s + bz * c;
+        fx = nx; fz = nz;
+        sp = Math.min(detourMax, Math.max(sp, u.speed * 0.7));
+        // 馬も詰まりを抜ける。横滑りさせず、回る方へ向いて進む。
+        if (mounted) {
+          this.turn(u, Math.atan2(nx, nz), dt, rate);
+          fx = Math.sin(u.heading); fz = Math.cos(u.heading);
+          sp = Math.min(sp, u.speed);
+        }
+      }
+    } else if (u.stk) { u.stk.t = 0; u.stk.x = u.pos.x; u.stk.z = u.pos.z; }
+    // 塞がれた持ち場の手前で立って待つ（上の S.rest）。持ち場が1m 動く・相手ができる・逃げる時は解く
+    if (u.stk && u.stk.rest > this.time) {
+      if (!want || u.target?.alive || u.fleeing || Math.hypot(want.x - u.stk.rx, want.z - u.stk.rz) > 1) u.stk.rest = 0;
+      else sp = 0;
+    }
+    // 振りかぶり中は肩を大きく回せない。足と肩の速さを得物で分ける。
+    let dvx = fx * sp, dvz = fz * sp;
+    // 押し合い（馬は足軽を押しのける）・前の味方が進んでいれば詰まって待つ・立っている味方はよけて通る
+    let px = 0, pz = 0, sx = 0, sz = 0, block = 1;
+    const queue = !u.target || u.terrain === 'water';   // 隊列で歩くときだけ、前の者に合わせて詰まる（敵へ向かうときは押し合う）
+    const r0 = mounted ? 1.25 : Math.max(0.85, this.world.def.meleeBodySpace || 0);
+    // 味方の徒歩どうしは肩の間を空ける（kaito 10/24「ひしめき合うのはダメ」：人と人の間 1.2〜1.5m）。敵との間合いは今のまま。
+    const r0Ally = mounted ? r0 : Math.max(ALLY_SPACE_SOFT, r0);
+    // 槍衾と遊び手は持ち場を保つ。ほかの徒歩の兵は、走る馬の進路から接触前に横へ避ける。
+    const dodge = !mounted && !u.isPlayer && !(u.stagger > 0) && !(u.planted > this.time) &&
+      !(g && g.formation === 'yari' && (g.order === 'yari' || g.order === 'hold'));
+    const rh = g ? g._face ?? g.facing : u.heading, rfx = Math.sin(rh), rfz = Math.cos(rh);
+    const spearFx = Math.sin(u.heading), spearFz = Math.cos(u.heading);
+    let support = 0, recoil = 0;
+    u._lineFront = null;
+    u._spearCrowded = false;
+    u.spearFront = null; // 既存の近傍調べで、柄の前にいる味方も記録する。移動と当たりは変えない。
+    u._contactFront = null;
+    let contactFrontD2 = 2.25;
+    let hx = 0, hz = 0, hbx = 0, hbz = 0;
+    // 指定した戦だけ、遊び手のそばで味方の肩が重ならない間合いを取る。
+    const personal = this.world.def.allyPersonalSpace || 0;
+    // 走る馬を避ける 5m の探しは騎馬の一覧だけで行い、升目は押し合い・支えの届く所だけ見る（中身は同じ）。
+    // only：1＝徒歩の者だけ・2＝5m の内の騎馬だけ（探しごとに関数を作らない）
+    // 11/21 クラウド k365-03（K564 掃除の跳ね・alloc_prof：steer が一コマ 230KB を割り当て、多くは visit の中で書き換える足し算の数が閉じ込めの中で毎回新しい数の箱になる分）：足し算の数は使い回す入れ物 V に置き、visit の後でここの数へ戻す（計算と答えは同じ）
+    const V = (this._stV || (this._stV = []))[this._stD = (this._stD || 0) + 1] || (this._stV[this._stD] = { px: 0, pz: 0, sx: 0, sz: 0, block: 1, support: 0, recoil: 0, hx: 0, hz: 0, hbx: 0, hbz: 0, contactFrontD2: 0,
+      u: null, army: null, g: null, mounted: false, dodge: false, rankLine: false, rfx: 0, rfz: 0, spearFx: 0, spearFz: 0, personal: 0, r0: 0, r0Ally: 0, dt: 0, sp: 0, fx: 0, fz: 0, queue: false });
+    V.px = px; V.pz = pz; V.sx = sx; V.sz = sz; V.block = block; V.support = support; V.recoil = recoil; V.hx = hx; V.hz = hz; V.hbx = hbx; V.hbz = hbz; V.contactFrontD2 = contactFrontD2;
+    V.u = u; V.army = this; V.g = g; V.mounted = mounted; V.dodge = dodge; V.rankLine = rankLine; V.rfx = rfx; V.rfz = rfz;
+    V.spearFx = spearFx; V.spearFz = spearFz; V.personal = personal; V.r0 = r0; V.r0Ally = r0Ally; V.dt = dt; V.sp = sp; V.fx = fx; V.fz = fz; V.queue = queue;
+    const prevSV = SV; SV = V;
+    // 升目に写した位置で、押し合い・支えの届く所（2.2m か 1.5m）より遠い兵を開かずに落とす。
+    const keep = rankLine ? 2.2 : 1.5;
+    if (dodge) {
+      this.forNearIn(u.pos.x, u.pos.z, mounted ? 1.5 : rankLine ? 2.2 : 1.3, keep, steerVisit, 1);
+      // 走る馬を避ける 5m は騎馬の一覧だけをたどる（升目の 5m を全部開かない）。
+      const ml = this.mountedList;
+      for (let i = 0; i < ml.length; i++) steerVisit(ml[i], 2);
+    } else this.forNearIn(u.pos.x, u.pos.z, mounted ? 1.5 : rankLine ? 2.2 : 1.3, keep, steerVisit);
+    SV = prevSV; V.u = V.g = V.army = null;
+    this._stD--;
+    px = V.px; pz = V.pz; sx = V.sx; sz = V.sz; block = V.block; support = V.support; recoil = V.recoil; hx = V.hx; hz = V.hz; hbx = V.hbx; hbz = V.hbz; contactFrontD2 = V.contactFrontD2;
+    // 11/19 クラウド k365-cloud-32（馬と兵の突き抜け）：馬から1.25m の内の徒歩の兵は押し出されても、持ち場へ戻る歩みが馬の胴へ向かって釣り合い、
+    //   馬の胴に兵が埋まって見えた（天王寺 本人40m 内の騎馬で3.2%）。馬の内にいる間は、歩みのうち馬へ向かう分を消す（離れる分と横の分は残す）
+    if (hbx || hbz) { const hl = Math.hypot(hbx, hbz), ux = hbx / hl, uz = hbz / hl, toward = dvx * ux + dvz * uz; if (toward < 0) { dvx -= ux * toward; dvz -= uz * toward; } }
+    // 11/18 クラウドす（樫井④ look_2112_t201・連絡帳 22:10）：倒れた兵の上に同じ黒の具足の味方が立ち、誰が倒れたか見分けられなかった。
+    //   本人から二十五m 内の徒歩の兵だけ、亡骸の胴から 0.7m の内に立てば、ゆるく外へ寄る（振りの最中・槍衾の持ち場・よろめきは除く。上を歩くのは今のまま）
+    const CC = this.corpseCells, PU = this.playerUnit;
+    if (dodge && CC && CC.size && PU && !u.atk && !u.swing && !u.bind && (u.pos.x - PU.pos.x) ** 2 + (u.pos.z - PU.pos.z) ** 2 < 625) {
+      const cx = Math.floor(u.pos.x / 2) + 20000, cz = Math.floor(u.pos.z / 2) + 20000;
+      for (let ix = -1; ix <= 1; ix++) for (let iz = -1; iz <= 1; iz++) {
+        const a = CC.get((cx + ix) * 40000 + cz + iz);
+        if (!a) continue;
+        for (let i = 0; i < a.length; i++) {
+          const c = a[i];
+          if (c.alive || c.death?.aid || Math.abs(c.pos.y - u.pos.y) > 0.7) continue;
+          const dx = u.pos.x - c.pos.x, dz = u.pos.z - c.pos.z, d2 = dx * dx + dz * dz;
+          if (d2 >= 0.49) continue;
+          const d = Math.sqrt(d2), k = (0.7 - d) * 2.2;
+          if (d < 1e-3) { const h = u.id % 2 ? u.heading + 1.57 : u.heading - 1.57; px += Math.sin(h) * k; pz += Math.cos(h) * k; }
+          else { px += dx / d * k; pz += dz / d * k; }
+        }
+      }
+    }
+    // 押し返される前列を後列が受ける。力は段ごとに弱まり、無限に増えない。
+    if (rankLine) {
+      const back = Math.max(0, -(px * rfx + pz * rfz));
+      const brace = back * Math.min(0.55, support * 0.55) * Math.max(0.2, Math.min(1, g.morale / 60));
+      px += rfx * (brace - recoil); pz += rfz * (brace - recoil);
+    }
+    // 数騎が重なっても横へ飛ばさず、小さな避け足に留める。
+    const hl = Math.hypot(hx, hz), hk = hl > 1.6 ? 1.6 / hl : 1;
+    sx += hx * hk; sz += hz * hk;
+    if (!detour) { dvx *= block; dvz *= block; }
+    // 切岸や川の深みへ直進すると units.js が歩みを毎回ゼロに戻す。
+    // 無作為に振るだけでは同じ斜面へ戻るので、歩ける縁に沿って道を探す。
+    // 回る側は保ち、道が開けたら元の行き先へ戻す。兵や行き先は増やさない。
+    const world = this.world;
+    if (want && !u.isPlayer && sp > 0.2 && world &&
+      (world.noClimb || world.def.climbTan != null || world.def.riverCross || world.def.streams?.some(HAS_FORDS))) {
+      // 勾配を調べるのは一秒に八回ほど。間のコマは決めた向きを使う。
+      if (!(u._slopeCheckT > this.time) || u._slopeDetour !== detour) {
+        u._slopeDetour = detour;
+        u._slopeCheckT = this.time + 0.12;
+        u._slopeX = u._slopeZ = 0;
+        const wx = want.x - u.pos.x, wz = want.z - u.pos.z, wd = Math.hypot(wx, wz);
+        if (wd > 1.2 && world.walkable(u.pos.x, u.pos.z, u.pos.y)) {
+          // 詰まりを抜ける横足・引き足を、元の行き先への直進で上書きしない。
+          // 回り込む向きにも同じ深み・切岸の判定を掛ける。
+          const nx = detour ? fx : wx / wd, nz = detour ? fz : wz / wd;
+          if (!slopeWay(world, u.pos.x, u.pos.z, nx, nz, u.pos.y)) {
+            const side = u._slopeSide || (u.id % 2 ? 1 : -1);
+            let found = false;
+            for (let pass = 0; pass < 2 && !found; pass++) {
+              const s = pass ? -side : side;
+              for (let a = 0.4; a < 3; a += 0.4) {
+                const c = Math.cos(a), sn = Math.sin(a) * s;
+                const tx = nx * c - nz * sn, tz = nx * sn + nz * c;
+                if (!slopeWay(world, u.pos.x, u.pos.z, tx, tz, u.pos.y)) continue;
+                u._slopeX = tx; u._slopeZ = tz; u._slopeSide = s; found = true;
+                break;
+              }
+            }
+          } else u._slopeSide = 0;
+        }
+      }
+      if (u._slopeX || u._slopeZ) {
+        if (mounted) {
+          this.turn(u, Math.atan2(u._slopeX, u._slopeZ), dt, rate);
+          const k = Math.min(sp, u.speed);
+          dvx = Math.sin(u.heading) * k; dvz = Math.cos(u.heading) * k;
+        } else { dvx = u._slopeX * sp; dvz = u._slopeZ * sp; }
+      }
+    } else {
+      u._slopeCheckT = 0; u._slopeSide = 0; u._slopeX = u._slopeZ = 0;
+    }
+    // 加減速（馬は立ち上がりが遅い）
+    const cur = Math.hypot(u.mv.x, u.mv.z), tgt = Math.hypot(dvx, dvz);
+    // 突撃の駆け出しは馬の本当の立ち上がり（約6.5m/秒²）。並足の寄せは今まで通りゆっくり
+    const acc = (tgt > cur ? (mounted ? (u.charging ? 6.5 : 3.4) : 5.5) : (mounted ? 5 : 8)) * dt;
+    const ex = dvx - u.mv.x, ez = dvz - u.mv.z, el = Math.hypot(ex, ez);
+    if (el <= acc) { u.mv.x = dvx; u.mv.z = dvz; } else { u.mv.x += ex / el * acc; u.mv.z += ez / el * acc; }
+    // 押し合いはならして使う（兵がガクガク揺れないように）
+    const pk = 1 - Math.exp(-dt / 0.1);
+    u.push.x += (px + sx - u.push.x) * pk; u.push.z += (pz + sz - u.push.z) * pk;
+    u.vel.x = u.mv.x + u.push.x; u.vel.z = u.mv.z + u.push.z;
+    if (!u.isPlayer) {   // 人と馬の本物の速さを超えない（甲冑の人は約5m/秒・馬は約11.5m/秒まで）
+      // u._catchRun＝戦の定義が付ける、遅れた者が本人に追いつく間だけの駆けの上限（11/19 戸次川・付けない戦は今まで通り）
+      const vmax = mounted ? 11.5 : Math.min(Math.max(5.2, u._catchRun || 0), (u.run || 4.5) * 1.05), vl = Math.hypot(u.vel.x, u.vel.z);
+      if (vl > vmax) { const k = vmax / vl; u.vel.x *= k; u.vel.z *= k; u.mv.x *= k; u.mv.z *= k; u.push.x *= k; u.push.z *= k; }
+    }
+    if (!u.isPlayer && dt > 0) {
+      const fieldLim = lim - 0.3;
+      const vx = fieldSpeed(u.pos.x, u.vel.x, dt, fieldLim);
+      const vz = fieldSpeed(u.pos.z, u.vel.z, dt, fieldLim);
+      // 外へ向かう力を次のコマへ残さず、縁に沿う歩みは保つ。
+      if (vx !== u.vel.x) { u.vel.x = u.mv.x = vx; u.push.x = 0; }
+      if (vz !== u.vel.z) { u.vel.z = u.mv.z = vz; u.push.z = 0; }
+    }
+    u.moving = Math.min(1, Math.max(Math.hypot(u.mv.x, u.mv.z), Math.min(1.6, hl)) / 2.4);
+  },
+
+  // 味方は駆け出す前から左右へ退く。近い升だけを見て、押す強さは時間でそろえる。
+  makeHorseWay(u, speed, dt, heading = u.heading) {
+    if (Math.abs(speed) < 0.1) return;
+    const sign = speed < 0 ? -1 : 1, fx = Math.sin(heading) * sign, fz = Math.cos(heading) * sign;
+    const way = this._horseWay || (this._horseWay = {});
+    way.u = u; way.fx = fx; way.fz = fz; way.dt = dt;
+    if (!way.visit) way.visit = (o) => {
+      const { u, fx, fz, dt } = way;
+      if (o === u || !o.alive || o.isPlayer || o.isStruct || o.team !== u.team || !o.push || o.climb || o.downed || o.woundOut || Math.abs(o.pos.y - u.pos.y) > 1.8) return;
+      const rx = o.pos.x - u.pos.x, rz = o.pos.z - u.pos.z;
+      const ahead = rx * fx + rz * fz, lat = rx * fz - rz * fx, width = o.mounted ? 2 : u.mounted ? 1.45 : 1.15;
+      // 徒歩はすぐ前だけを空け、馬の遠くからの道譲りとは広さを分ける。
+      if (ahead < (u.mounted ? -0.8 : 0) || ahead > (u.mounted ? 4.2 : 2.6) || Math.abs(lat) >= width) return;
+      const side = Math.abs(lat) < 0.05 ? (o.id % 2 ? 1 : -1) : Math.sign(lat);
+      const k = Math.min(1, dt * 8), want = side * Math.min(3, (width - Math.abs(lat)) * 3);
+      o._yieldUntil = this.time + 0.6;
+      o._yieldX = o.pos.x + fz * side * Math.max(0.5, width - Math.abs(lat));
+      o._yieldZ = o.pos.z - fx * side * Math.max(0.5, width - Math.abs(lat));
+      const now = o.push.x * fz - o.push.z * fx;
+      o.push.x += fz * (want - now) * k; o.push.z -= fx * (want - now) * k;
+    };
+    this.forNear(u.pos.x + fx * 1.5, u.pos.z + fz * 1.5, 3.2, way.visit);
+  },
+
+  // 体どうしの当たり：兵と兵（敵味方とも、遊び手も）の体が重ならないよう、めり込んだ分だけ押し戻す（近い升目だけを見る）
+  //   徒歩は半径 0.4m の円、馬は前後に長い（首の側と尻の側の二つの円・半径 0.55m）。押し戻す割合は重さで分ける
+  bodies(u, dt = 0.016) {
+    if (!u.alive || u.type === 'dummy') return;
+    const mounted = !!u.mounted, ra = mounted ? .55 : .4;
+    const fx = mounted ? Math.sin(u.heading) : 0, fz = mounted ? Math.cos(u.heading) : 0;
+    // 押し出しの合計（1 コマ分）。重なる相手が多い所（柵の口・湧いた直後）で、
+    // 一人ずつの押しを足し込むと一息で何m も飛んでしまうので、1 コマで動かす分には時間に応じた上限を付ける
+    let tx = 0, tz = 0;
+    // 別の芯（army_bodies_worker.js）が前のコマの位置で求めた合計があればそれを使う。遊び手・城内の兵・答えの無い時は下で求める。
+    if (bodiesWorkerPush(this, u, BW_OUT)) { const f = 1 - Math.exp(-60 * dt); tx = BW_OUT.x * f; tz = BW_OUT.z * f; }
+    else {
+      // 押しの中で damage などから bodies がもう一度呼ばれても前の値を壊さない（入れ物の中身を退けて戻す）
+      const su = BV.u, sa = BV.army, sm0 = BV.mounted, sr = BV.ra, sfx = BV.fx, sfz = BV.fz, sdt = BV.dt, stx = BV.tx, stz = BV.tz;
+      BV.u = u; BV.army = this; BV.mounted = mounted; BV.ra = ra; BV.fx = fx; BV.fz = fz; BV.dt = dt; BV.tx = tx; BV.tz = tz;
+      this.forNear(u.pos.x, u.pos.z, u.mounted ? 2.4 : 1.8, bodiesVisit);
+      tx = BV.tx; tz = BV.tz;
+      BV.u = su; BV.army = sa; BV.mounted = sm0; BV.ra = sr; BV.fx = sfx; BV.fz = sfz; BV.dt = sdt; BV.tx = stx; BV.tz = stz;
+    }
+    // 亡骸は踏み越えられる。自分も兵も押し戻さない。
+    const tl = hyp2(tx, tz), cap = 6 * dt;
+    if (tl > cap) { tx = tx / tl * cap; tz = tz / tl * cap; }
+    // K629 ⑧：込め中（逃げていない）の鉄砲は、小さな押し出し（一コマ 0.03m 未満）では動かない（隣と重なり合う押しで、毎コマ 0.003〜0.03m ずつ這っていた）。強く押された時だけ退く
+    if (u.reload && !u.fleeing && !u.isPlayer && tl < 0.03) { tx = 0; tz = 0; }
+    u.pos.x += tx; u.pos.z += tz;
+    // 11/18 クラウド21：押し合いで戦場の端（moveLim）の外へ押し出さない（小田原 661秒 井伊の陣の東の足軽が (177,-70)・戦の側の引き戻しは一コマに一度なので早送りの間に外へ出た）
+    { const lim = (this.world.def.moveLim || 176) - 0.5; if (u.pos.x > lim) u.pos.x = lim; else if (u.pos.x < -lim) u.pos.x = -lim; if (u.pos.z > lim) u.pos.z = lim; else if (u.pos.z < -lim) u.pos.z = -lim; }
+  },
+
+  // 遠い兵の足もと（advanceFar）：(x, z) が建物・置き物・板塀（army.solids）の体の幅の内なら true。押し戻しの collide と同じ物を見る
+  solidBlocked(u, x, z) { return this.solidAt(u, x, z) !== null; },
+
+  // (x, z) で体の幅に掛かる建物・置き物（army.solids）の一つを返す（無ければ null）。solidBlocked と solidGap が使う
+  // 11/21 クラウド k365-03（K564 掃除の跳ね）：升の表の見直しは同じコマなら呼ぶ前に飛ばす（小数の時を毎回渡すと数の箱を作っていた。中の判定は同じ）
+  solidAt(u, x, z) {
+    const SO = this.solids;
+    const WG = this.solidCollision || (this.solidCollision = new CollisionGrid());
+    if (WG.list !== SO || WG.time !== this.time || WG.length !== SO.length || WG.structs !== false) WG.update(SO, this.time, false);
+    const y = u.pos.y;
+    for (const id of WG.query(x, z)) {
+      const w = SO[id], rr = u.mounted ? 0.7 : w.naka != null ? 0.3 : 0.45;   // 室内の壁・襖も見る（稲葉山の主殿で遠い守りが襖と壁を抜けていた）
+      if (x < w.x0 - rr || x > w.x1 + rr || z < w.z0 - rr || z > w.z1 + rr) continue;
+      if (w.struct && (!w.struct.alive || w.struct.opened)) continue;
+      if (w.playerOnly) continue;
+      if (w.yTop != null && y >= w.yTop - 0.05) continue;
+      // 11/14 K168（すり抜け禁止）：床の段の上の壁は、足が床より少し下（坂の上の堂で 0.1m ほど）でも止める。下の階と見なすのは体の丈（1.7m・馬 2.4m）より下の時だけ（比叡山で堂の壁を 115 回抜けていた。11/18 600秒で床の浮いた堂の下を体が抜ける跨ぎ6 → 1.2 を体の丈に）
+      if (w.yBot != null && y + (u.mounted ? 2.4 : 1.7) < w.yBot - 0.15) continue;   // 11/19 K168：頭の高さは一コマで数 cm 動くので、くぐるには 15cm の余りを見る
+      if (w.k === 'r') {
+        const dx = x - w.x, dz = z - w.z, lx = dx * w.c - dz * w.s, lz = dx * w.s + dz * w.c;
+        const ox = Math.max(0, Math.abs(lx) - w.hw), oz = Math.max(0, Math.abs(lz) - w.hd);
+        if (ox * ox + oz * oz < rr * rr) return w;
+      } else if (w.k === 'c') {
+        if (Math.hypot(x - w.x, z - w.z) < w.r + rr) return w;
+      } else {
+        const dx = w.bx - w.ax, dz = w.bz - w.az, l2 = dx * dx + dz * dz || 1;
+        const t = Math.max(0, Math.min(1, ((x - w.ax) * dx + (z - w.az) * dz) / l2));
+        if (Math.hypot(x - w.ax - dx * t, z - w.az - dz * t) < w.r + rr) return w;
+      }
+    }
+    return null;
+  },
+
+  // 11/17 K168：(ax,az)→(bx,bz) の一歩が、始めは外に居て、建物・板塀（army.solids）の芯を跨ぐなら true（升の表で引く・new しない）
+  solidCrossed(u, ax, az, bx, bz) {
+    const SO = this.solids, WG = this.solidCollision || (this.solidCollision = new CollisionGrid());
+    if (WG.list !== SO || WG.time !== this.time || WG.length !== SO.length || WG.structs !== false) WG.update(SO, this.time, false);
+    const y = u.pos.y, mnx = Math.min(ax, bx), mxx = Math.max(ax, bx), mnz = Math.min(az, bz), mxz = Math.max(az, bz);
+    // 升の引きは二メートルの余裕を含むので、二メートルより短い一歩は始めの点の一引きで線の全部が入る（押し合いの一歩は 0.35m まで。11/17 K365 比叡山で毎コマ全員が二度引いていた）
+    const ends = mxx - mnx < 2 && mxz - mnz < 2 ? 1 : 2;
+    for (let e = 0; e < ends; e++) {
+      for (const id of WG.query(e ? bx : ax, e ? bz : az)) {
+        const w = SO[id];
+        if (mxx < w.x0 || mnx > w.x1 || mxz < w.z0 || mnz > w.z1) continue;
+        if (w.struct && (!w.struct.alive || w.struct.opened)) continue;
+        if (w.playerOnly && !u.isPlayer) continue;
+        if (w.yTop != null && y >= w.yTop - 0.05) continue;
+        if (w.yBot != null && y + (u.mounted ? 2.4 : 1.7) < w.yBot - 0.15) continue;
+        if (w.k === 'r') {
+          // 箱の内の座標へ直し、線分と箱の交わりを板の式（slab）で見る
+          const sx = ax - w.x, sz = az - w.z, ex = bx - w.x, ez = bz - w.z;
+          const p0 = sx * w.c - sz * w.s, q0 = sx * w.s + sz * w.c, p1 = ex * w.c - ez * w.s, q1 = ex * w.s + ez * w.c;
+          if (Math.abs(p0) < w.hw && Math.abs(q0) < w.hd) { if (Math.min(w.hw - Math.abs(p1), w.hd - Math.abs(q1)) > Math.min(w.hw - Math.abs(p0), w.hd - Math.abs(q0)) + 0.01) return true; continue; }   // 始めから中に居る者は押し戻しに任せる。11/18 K168（岐阜 600秒 439秒：画面の外を駆ける新手が縁から奥へ 1.1m 進んだ）：中でさらに奥へ進む一歩は前の位置へ戻す
+          let t0 = 0, t1 = 1;
+          const dp = p1 - p0, dq = q1 - q0;
+          if (Math.abs(dp) < 1e-9) { if (Math.abs(p0) >= w.hw) continue; }
+          else { let a = (-w.hw - p0) / dp, b = (w.hw - p0) / dp; if (a > b) { const t = a; a = b; b = t; } t0 = Math.max(t0, a); t1 = Math.min(t1, b); }
+          if (Math.abs(dq) < 1e-9) { if (Math.abs(q0) >= w.hd) continue; }
+          else { let a = (-w.hd - q0) / dq, b = (w.hd - q0) / dq; if (a > b) { const t = a; a = b; b = t; } t0 = Math.max(t0, a); t1 = Math.min(t1, b); }
+          if (t0 < t1) return true;
+        } else if (w.k === 'c') {
+          if (Math.hypot(ax - w.x, az - w.z) < w.r) { if (Math.hypot(bx - w.x, bz - w.z) < Math.hypot(ax - w.x, az - w.z) - 0.01) return true; continue; }   // 11/18 K168：中でさらに芯へ寄る一歩も戻す
+          const dx = bx - ax, dz = bz - az, l2 = dx * dx + dz * dz || 1, t = Math.max(0, Math.min(1, ((w.x - ax) * dx + (w.z - az) * dz) / l2));
+          if (Math.hypot(ax + dx * t - w.x, az + dz * t - w.z) < w.r) return true;
+        } else if (w.ax != null) {
+          const d1 = (w.bx - w.ax) * (az - w.az) - (w.bz - w.az) * (ax - w.ax), d2 = (w.bx - w.ax) * (bz - w.az) - (w.bz - w.az) * (bx - w.ax);
+          const d3 = (bx - ax) * (w.az - az) - (bz - az) * (w.ax - ax), d4 = (bx - ax) * (w.bz - az) - (bz - az) * (w.bx - ax);
+          if (d1 * d2 < 0 && d3 * d4 < 0) return true;
+        }
+      }
+    }
+    return false;
+  },
+
+  // 開戦前に区画表を作り、最初に兵が触れたコマへ全件の組立てを残さない。
+  prepareCollisionGrids() {
+    const SG = this.structCollision || (this.structCollision = new CollisionGrid());
+    if (SG.list !== this.structs || SG.time !== this.time || SG.length !== this.structs.length || SG.structs !== true) SG.update(this.structs, this.time, true);
+    if (this.solids?.length) {
+      const WG = this.solidCollision || (this.solidCollision = new CollisionGrid());
+      if (WG.list !== this.solids || WG.time !== this.time || WG.length !== this.solids.length || WG.structs !== false) WG.update(this.solids, this.time, false);
+    }
+    this.segGrid();
+  },
+
+  collide(u, dt = 0.016) {
+    const fromX = u.pos.x, fromZ = u.pos.z, cap = Math.max(0.3, 12 * Math.min(dt, 0.1)), pcx = u._cpx, pcz = u._cpz;
+    const SG = this.structCollision || (this.structCollision = new CollisionGrid());
+    if (SG.list !== this.structs || SG.time !== this.time || SG.length !== this.structs.length || SG.structs !== true) SG.update(this.structs, this.time, true);
+    // 一コマの歩みが大きい時（遅いコマ・駆ける馬）に、薄い柵・塀を飛び越えて向こうへ抜けない：前の位置からの線が壁と交わるなら前の位置へ戻す
+    if (u.climb || u.perch || u.downed) u._cpx = undefined;
+    // 11/17 K168：本人は小さな一歩でも跨ぎを見る（稲葉山で本人が鹿垣の線の上で押されて向こうへ抜けた。本人一人なので重くならない）
+    if (u._cpx !== undefined && u.alive) {
+      const mx = u.pos.x - u._cpx, mz = u.pos.z - u._cpz, m2 = mx * mx + mz * mz;
+      // 11/17 K168 伊賀：建物・幕の線（army.solids）は小さな一歩でも跨ぎを見る（押し合いの 0.14m で本陣の幕の線を越え、押し戻しが向こう側へ出していた）
+      // 11/18 重さ（K374）：前の押し戻しで 1.25m 内に建物の箱が一つも無かった所からの 0.35m 以下の一歩は、建物を跨げないので見ない（比叡山で一コマ 0.7ms）
+      if (m2 > 1e-6 && m2 <= (u.isPlayer ? 1e-6 : 0.1225) && this.solids?.length && !(u._solidFar && Math.abs(u._solidFarX - u._cpx) < 0.05 && Math.abs(u._solidFarZ - u._cpz) < 0.05) && this.solidCrossed(u, u._cpx, u._cpz, u.pos.x, u.pos.z)) { u.pos.x = u._cpx; u.pos.z = u._cpz; if (u.vel) { u.vel.x = 0; u.vel.z = 0; } }
+      else if (m2 > (u.isPlayer ? 1e-6 : 0.1225) && m2 < 36) {
+        // 11/21 クラウド k365-03（K564 掃除の跳ね・小田原 alloc_prof：collide が一コマ百KB 余り）：跨ぎの判定を兵ごとの閉じ込め（pass）でなく、その場の輪で見る（同じ判定・同じ順）
+        let crossed = false;
+        const ids = SG.query((u.pos.x + u._cpx) / 2, (u.pos.z + u._cpz) / 2);
+        for (let q = 0; q < ids.length; q++) {
+          const s = this.structs[ids[q]];
+          if (!s.alive || s.opened || !s.seg || (s.yTop != null && u.pos.y >= s.yTop - .05)) continue;
+          const sg = s.seg, ax = sg[0], az = sg[1], bx = sg[2], bz = sg[3];
+          const d1 = (bx - ax) * (u._cpz - az) - (bz - az) * (u._cpx - ax), d2 = (bx - ax) * (u.pos.z - az) - (bz - az) * (u.pos.x - ax);
+          if (d1 * d2 >= 0) continue;
+          const e1 = mx * (az - u._cpz) - mz * (ax - u._cpx), e2 = mx * (bz - u._cpz) - mz * (bx - u._cpx);
+          if (e1 * e2 < 0) { crossed = true; break; }
+        }
+        if (crossed) { u.pos.x = u._cpx; u.pos.z = u._cpz; if (u.vel) { u.vel.x = 0; u.vel.z = 0; } }
+        // 11/17 K168 クラウド kaito2：建物・板塀・稲架（army.solids）も同じく、一コマで箱を跨いだら前の位置へ戻す
+        //   （押し戻しは足が箱の中か体の幅の内に居る時しか効かず、駆ける馬・押し合い・吹き飛びの大きな一歩で薄い壁を越えていた）
+        else if (this.solids?.length && this.solidCrossed(u, u._cpx, u._cpz, u.pos.x, u.pos.z)) { u.pos.x = u._cpx; u.pos.z = u._cpz; if (u.vel) { u.vel.x = 0; u.vel.z = 0; } }
+      }
+    }
+    let x0 = u.pos.x, z0 = u.pos.z, ids = SG.query(x0, z0), full = false;
+    for (let i = 0; (full ? i < this.structs.length : i < ids.length || Math.abs(u.pos.x - x0) > 2 || Math.abs(u.pos.z - z0) > 2); i++) {
+      // 深くめり込んで二メートル以上押された時は、残りを元の順で全て調べる。
+      if (!full && (Math.abs(u.pos.x - x0) > 2 || Math.abs(u.pos.z - z0) > 2)) { i = i ? ids[i - 1] + 1 : 0; full = true; if (i >= this.structs.length) break; }
+      const s = this.structs[full ? i : ids[i]];
+      if (!s.alive || !s.seg || s.opened) continue;   // 開いた門（siege_gate の opened）は素通し
+      if (s.yTop != null && u.pos.y >= s.yTop - .05) continue;
+      const [ax, az, bx, bz] = s.seg;
+      const dx = bx - ax, dz = bz - az;
+      const l2 = dx * dx + dz * dz || 1;
+      let t = ((u.pos.x - ax) * dx + (u.pos.z - az) * dz) / l2;
+      t = Math.max(0, Math.min(1, t));
+      const cx = ax + dx * t, cz = az + dz * t;
+      const ox = u.pos.x - cx, oz = u.pos.z - cz;
+      const d = hyp2(ox, oz);
+      // 馬は前後の長さも当てる。門へ正面から寄る時、前脚が扉を抜けない。
+      // 横向きでは幅だけにし、開いた口を無用に狭めない。
+      const len0 = Math.sqrt(l2);
+      const nx0 = d > 1e-4 ? ox / d : -dz / len0, nz0 = d > 1e-4 ? oz / d : dx / len0;
+      const rr = (u.mounted ? 0.55 + 0.7 * Math.abs(Math.sin(u.heading) * nx0 + Math.cos(u.heading) * nz0) + (s.mountPadding || 0) : 0.45) + (s.bodyPadding || 0);   // mountPadding：馬だけ柵から離す（真田丸 11/18 クラウドす）
+      if (d < rr) {
+        const len = Math.sqrt(l2), side = u.vel.x * (-dz) + u.vel.z * dx > 0 ? -1 : 1;
+        const nx = d > 1e-4 ? ox / d : s.nx ?? (-dz / len * side), nz = d > 1e-4 ? oz / d : s.nz ?? (dx / len * side);
+        collisionPosition(u, cx + nx * rr, cz + nz * rr, fromX, fromZ, cap);
+        // 駆けてきた騎馬は柵に当たって止まる（馬が竿立ちになり、しばらく動けない）
+        if (u.mounted && u.charging && u.team !== s.team) {
+          this.cavalryStopped(u, cx, cz, 18);
+          u.stagger = 1.4;
+          // 何騎も当たるほど柵は緩み、一騎ごとの痛みも増す（傾きは structWear）
+          s.knock = (s.knock || 0) + 1;
+          s.hp -= 8 + Math.min(12, s.knock * 2);
+          this.play('knock', { x: cx, z: cz }, 1);
+          if (this.hooks.onCavalryStopped) this.hooks.onCavalryStopped(u, s);
+          if (u.hp <= 0) { this._k708R = (this._k708R || 0) + 1; try { this.kill(u, null); } finally { this._k708R--; } }   // K708：柵に当たった本物の傷
+          else if (s.hp <= 0 && s.alive) { s.alive = false; s.hp = 0; s.hitFrom = { x: u.pos.x, z: u.pos.z }; this.structFall(s); if (this.hooks.onStructDestroyed) this.hooks.onStructDestroyed(s); }
+          else { s.hitFrom = { x: u.pos.x, z: u.pos.z }; this.structWear(s); }
+        }
+        // 柵・塀・石垣にただ突っかかるだけに見えないよう、しばらく押し続けた歩兵はよじ登る（門は siege_gate.js の仕組みに任せる）
+        else if (!u.mounted && !u.isPlayer && u.alive && !u.fleeing && !u.group?.routed && !u.downed && !(u.pinT > this.time) && !(u.stagger > 0) && !u.woundOut && !u.rearWound && !u.dragging && u.team !== s.team && !u.climb && !s.noClimb && s.name !== '崖' && !(s.name && s.name.indexOf('門') >= 0)) {
+          u._wallStuckT = (u._wallStuckS === s ? (u._wallStuckT || 0) + dt : 0);
+          u._wallStuckS = s;
+          if (u._wallStuckT > 1.3 && Math.random() < 1 - Math.pow(0.98, dt * 60)) startWallClimb(u, s, { height: s.h });
+        }
+      }
+    }
+    if (u._wallStuckS && (!u._wallStuckS.alive || u._wallStuckS.opened || distToSeg(u.pos.x, u.pos.z, u._wallStuckS.seg) > (u.mounted ? 0.7 : 0.45) + 0.05)) { u._wallStuckS = null; u._wallStuckT = 0; }
+    x0 = u.pos.x; z0 = u.pos.z; ids = SG.query(x0, z0); full = false;
+    for (let i = 0; (full ? i < this.structs.length : i < ids.length || Math.abs(u.pos.x - x0) > 2 || Math.abs(u.pos.z - z0) > 2); i++) {
+      if (!full && (Math.abs(u.pos.x - x0) > 2 || Math.abs(u.pos.z - z0) > 2)) { i = i ? ids[i - 1] + 1 : 0; full = true; if (i >= this.structs.length) break; }
+      const s = this.structs[full ? i : ids[i]];
+      if (!s.alive || s.opened || !s.solidR) continue;
+      if (s.yTop != null && u.pos.y >= s.yTop - .05) continue;
+      const dx = u.pos.x - s.x, dz = u.pos.z - s.z;
+      const d = Math.hypot(dx, dz);
+      if (d < s.solidR) {
+        const nx = d > 1e-4 ? dx / d : Math.sin(u.heading), nz = d > 1e-4 ? dz / d : Math.cos(u.heading);
+        collisionPosition(u, s.x + nx * s.solidR, s.z + nz * s.solidR, fromX, fromZ, cap);
+      }
+    }
+    // 建物・陣幕・置き物（props.js の SOLIDS。battle.js が army.solids に渡す）：押し戻すだけ
+    const SO = this.solids;
+    if (SO && SO.length) {
+      const WG = this.solidCollision || (this.solidCollision = new CollisionGrid());
+      if (WG.list !== SO || WG.time !== this.time || WG.length !== SO.length || WG.structs !== false) WG.update(SO, this.time, false);
+      x0 = u.pos.x; z0 = u.pos.z; ids = WG.query(x0, z0); full = false; let solidNear = false;
+      for (let i = 0; (full ? i < SO.length : i < ids.length || Math.abs(u.pos.x - x0) > 2 || Math.abs(u.pos.z - z0) > 2); i++) {
+        if (!full && (Math.abs(u.pos.x - x0) > 2 || Math.abs(u.pos.z - z0) > 2)) { i = i ? ids[i - 1] + 1 : 0; full = true; if (i >= SO.length) break; }
+        const w = SO[full ? i : ids[i]];
+        // 11/9 重さ：城の中は一升に何百の置き物がある（伏見で一人あたり平均 52・最大 383）。体の幅の最大 1.25m で先に四角を外す
+        //   （下の四角の比べは rr ≤ 1.25 なので、ここで外れる物は下でも必ず外れる。答えは同じ）
+        if (u.pos.x < w.x0 - 1.25 || u.pos.x > w.x1 + 1.25 || u.pos.z < w.z0 - 1.25 || u.pos.z > w.z1 + 1.25) continue;
+        solidNear = true;
+        // 室内では体の幅で通す。幅九十センチの戸口にも壁の厚みを残して通れる。
+        let rr = u.mounted ? 0.7 : w.naka != null ? 0.3 : 0.45;
+        if (u.mounted && w.k !== 'r' && w.k !== 'c') {
+          const dx = w.bx - w.ax, dz = w.bz - w.az, len = Math.hypot(dx, dz) || 1;
+          rr = 0.55 + 0.7 * Math.abs((-Math.sin(u.heading) * dz + Math.cos(u.heading) * dx) / len);
+        }
+        if (w.struct && (!w.struct.alive || w.struct.opened)) continue;
+        if (w.playerOnly && !u.isPlayer) continue;   // 本人だけを止める当たり（伏見城の石垣の上の塀。寄せ手の道は今までどおり）
+        if (w.yTop != null && u.pos.y >= w.yTop - 0.05) continue;   // 中の床（floors.js）まで登った後は、外壁の足もとの当たりは素通し
+        if (w.yBot != null && u.pos.y + (u.mounted ? 2.4 : 1.7) < w.yBot - 0.15) continue;   // 11/14 K168：下の階と見なすのは床より 1.2m 下から   // 横木は体の高さも見る。室内壁は従来どおり階で区切る。
+        const px = u.pos.x, pz = u.pos.z;
+        if (px < w.x0 - rr || px > w.x1 + rr || pz < w.z0 - rr || pz > w.z1 + rr) continue;
+        if (w.k === 'r') {
+          const dx = px - w.x, dz = pz - w.z, lx = dx * w.c - dz * w.s, lz = dx * w.s + dz * w.c;
+          // 体は円。角まで四角く膨らませると、見える隙間が狭まり角で引っかかる。
+          let nx = Math.max(-w.hw, Math.min(w.hw, lx)), nz = Math.max(-w.hd, Math.min(w.hd, lz));
+          const ox = lx - nx, oz = lz - nz, d = Math.hypot(ox, oz);
+          if (d >= rr) continue;
+          if (d > 1e-6) { nx += ox / d * rr; nz += oz / d * rr; }
+          else if (pcx !== undefined && !u.climb && !u.perch && Math.min(w.hw - Math.abs(lx), w.hd - Math.abs(lz)) > 0.3 && (() => { const qx = pcx - w.x, qz = pcz - w.z; return Math.abs(qx * w.c - qz * w.s) >= w.hw || Math.abs(qx * w.s + qz * w.c) >= w.hd; })()) {
+            // 11/18 K168 クラウド kaito2（上田 300秒 101秒：画面の外の侍が家の箱の縁から 0.96m 内に居た）：前のコマに箱の外に居た者が、このコマに箱の奥まで入っていたら（筋書き・散らしの置き直しなど、歩み以外の跳び）、前の位置へ戻す
+            // 前の位置が三m より遠い（筋書きの置き直しの跳び）時は、跳び戻さず近くの空いた所へ出す（有岡 act bot 547秒：新手の侍が 6m 跳んで戻る往復に見えた）
+            if ((u.pos.x - pcx) ** 2 + (u.pos.z - pcz) ** 2 > 9) { this.solidEscape(u); continue; }
+            u.pos.x = pcx; u.pos.z = pcz; if (u.vel) { u.vel.x = 0; u.vel.z = 0; } continue;
+          } else {
+            // 11/16 K168（上田の稲架 厚さ0.8m）：足が箱の中に入った時、押し出す向きは来た側（このコマの始めの足）で決める。
+            //   今の足の側で決めると、押されて芯を越えた兵が薄い塀・稲架の向こうへ抜けていた
+            const fx = fromX - w.x, fz = fromZ - w.z, flx = Number.isFinite(fx) ? fx * w.c - fz * w.s : lx, flz = Number.isFinite(fz) ? fx * w.s + fz * w.c : lz;
+            if (w.hw - Math.abs(lx) < w.hd - Math.abs(lz)) { nx = (flx < 0 ? -1 : 1) * (w.hw + rr); nz = lz; }
+            else { nx = lx; nz = (flz < 0 ? -1 : 1) * (w.hd + rr); }
+          }
+          collisionPosition(u, w.x + nx * w.c + nz * w.s, w.z - nx * w.s + nz * w.c, fromX, fromZ, cap);
+        } else if (w.k === 'c') {
+          const dx = px - w.x, dz = pz - w.z, d = Math.hypot(dx, dz), R = w.r + rr;
+          if (d < R) { const nx = d > 1e-4 ? dx / d : Math.sin(u.heading), nz = d > 1e-4 ? dz / d : Math.cos(u.heading); collisionPosition(u, w.x + nx * R, w.z + nz * R, fromX, fromZ, cap); }
+        } else {
+          const dx = w.bx - w.ax, dz = w.bz - w.az, l2 = dx * dx + dz * dz || 1;
+          const t = Math.max(0, Math.min(1, ((px - w.ax) * dx + (pz - w.az) * dz) / l2));
+          const cx = w.ax + dx * t, cz = w.az + dz * t, ox = px - cx, oz = pz - cz, d = Math.hypot(ox, oz), R = w.r + rr;
+          if (d < R) { const nx = d > 1e-4 ? ox / d : -dz / Math.sqrt(l2), nz = d > 1e-4 ? oz / d : dx / Math.sqrt(l2); collisionPosition(u, cx + nx * R, cz + nz * R, fromX, fromZ, cap); }
+        }
+      }
+      u._solidFar = !solidNear && !full; u._solidFarX = u.pos.x; u._solidFarZ = u.pos.z;
+    }
+    u._cpx = u.pos.x; u._cpz = u.pos.z;
+    // 押し合い・敗走でも深みに入れない。直前の通れる場所を数だけで覚える。
+    if ((this.world.def.riverCross || this.world._deepMoat || this.world.def.streams?.some(HAS_FORDS)) && !u.climb && !u.perch) {
+      if (this.world.waterFootDepthAt(u.pos.x, u.pos.z, groundAt(this.world, u.pos.x, u.pos.z, u.pos.y)) > (this.world.def.wadeDepth ?? 0.85)) {
+        // 覚えた浅い所が二m より遠い（遠景で歩いた間・出し直しの前の古い値）なら戻さない：戻すと一息で七〜十六m 飛ぶ
+        //   （11/15 クラウドせ 姉川 act bot：磯野の隊の足軽 (9,-21)→(16,-23)・新手の逃げる足軽 (-45,7)→(-61,8)）。古い値は捨て、下の八方の寄せだけにする
+        if (u._riverX != null && (u.pos.x - u._riverX) ** 2 + (u.pos.z - u._riverZ) ** 2 > 4) { u._riverX = u.pos.x; u._riverZ = u.pos.z; }
+        // 11/18 K168 クラウド kaito2：覚えた浅い所が柵・塀の向こうなら戻さない（今福の砦の矢来の際で、深みから戻す一歩が矢来を越えていた）
+        if (u._riverX != null && this.wallBetween(u.pos, -1, { x: u._riverX, z: u._riverZ })) { u._riverX = u.pos.x; u._riverZ = u.pos.z; }
+        if (u._riverX != null) {
+          u.pos.x = u._riverX; u.pos.z = u._riverZ;
+          u.vel.x = 0; u.vel.z = 0; u.mv.x = 0; u.mv.z = 0;
+          // 岸の押し合いで毎コマ深みへ押され、戻されては歩みも消え、深みの縁で二十秒ほど立ち尽くした（戸次川の味方の新手 K135 11/14）。
+          //   押しの力を消し、戻した所から浅い側へ少しだけ寄せる（八方を〇・六m で測る）。浅い所が無ければそのまま
+          u.push.x = 0; u.push.z = 0;
+          const W = this.world, y0 = groundAt(W, u.pos.x, u.pos.z, u.pos.y);
+          let bd = W.waterFootDepthAt(u.pos.x, u.pos.z, y0), bx = 0, bz = 0;
+          for (let k = 0; k < 8; k++) {
+            const a = k * Math.PI / 4, qx = u.pos.x + Math.sin(a) * 0.6, qz = u.pos.z + Math.cos(a) * 0.6;
+            const d = W.waterFootDepthAt(qx, qz, groundAt(W, qx, qz, u.pos.y));
+            if (d < bd - 0.01) { bd = d; bx = Math.sin(a); bz = Math.cos(a); }
+          }
+          if (bx || bz) { u.pos.x += bx * 0.12; u.pos.z += bz * 0.12; u._riverX = u.pos.x; u._riverZ = u.pos.z; }
+        }
+      } else { u._riverX = u.pos.x; u._riverZ = u.pos.z; }
+    }
+  },
+
+  // 待つ間の小さな動き：棒立ちにしない。一人ずつ時をずらして、
+  //   ・いつも：重心を左右へ移す（力を抜いた脚の膝がゆるむ）・首を少し回す
+  //   ・ときどき：足の踏みかえ・見回し・隣と話す・槍の持ち替え・得物の手入れ
+  //   ・陣の中（持ち場で待ち、敵が遠い）：膝をつく者もいる。敵が近ければ（見張る相手がいれば）立って腰を落として構える
+  // 返す物 u.idl：drop（手を下げる分）・low（身構え）・sit（膝つき）・rx（槍の傾けの足し）。骨の入った人（humans.js）も low と sit を使う
+  idleFx(u, dt) {
+    const I = u.idl || (u.idl = { ph: Math.random(), a: null, k: 0, d: 0, t: 1 + Math.random() * 7, s: 1, tw: 0, hy: 0, hp: 0, rx: 0, sit: 0, sitW: 0, sitT: 3 + Math.random() * 10, low: 0, drop: 0, hOff: 0, talk: false });
+    const g = u.group, w = u.wpnKind || u.lookWeapon;
+    // 崩れて帰る小勢も敗走と同じ扱い。道の角で止まるたびに休息や雑談へ戻さない。
+    const flight = this.world.def.routedFlightPose && (g?.routed || g?.brokenWithdrawalPose);
+    // 狙う相手はいるが、まだ撃たない・打ちかからない者（「放て」を待つ鉄砲・間合いの外で待つ者）も、構えたまま小さく動く
+    const waitT = !!u.target && !u.target.isStruct && u.target.alive !== false && !u.atk && !u.swing && !(u.guarding > 0) && u.moving < 0.15;
+    const idle = !u.fleeing && !flight && (!u.target || waitT) && !u.atk && !u.swing && !u.hit && !(u.stagger > 0) && !(u.cheer > 0) && !(u.confused > 0) && u.moving < 0.15
+      && !(u.reload && w === 'gun') && !(u.bowPh && u.bowPh !== 'rest');
+    if (idle && !(u._idleSenseAt > this.time)) { u._idleSenseAt = this.time + 0.5; u._idleFoe = this.nearestEnemy(u, 30, o => Math.abs(o.pos.y - u.pos.y) < 1.8 && !this.wallBetween(u.pos, -1, o.pos)); }
+    const foe = !idle ? null : u._desp && u._despFoe?.alive ? u._despFoe : u._idleFoe?.alive ? u._idleFoe : waitT ? u.target : u.watch && u.watch.alive ? u.watch : null;
+    // 身構え（敵が 30m ほどに来た）。殺し合いの間合いでは腰をさらに落とし、相手から目を離さない（見回しをしない）
+    I.low += ((foe ? (u._desp ? 1.35 : 1) : 0) - I.low) * Math.min(1, dt * 3);
+    // 陣の中で膝をつく：持ち場で落ち着いて待ち、敵が遠い時だけ。しばらくすると立ち上がる（槍衾の前の列は立ったまま）
+    const jinchu = u.jinchu;
+    const sitting = jinchu && !jinchu.standing && idle && !foe && u._chore !== 'banner' && u._chore !== 'tend';
+    const camp = idle && !foe && !(u._alvSeen > this.time - 0.6) && g && g.order === 'hold' && u.settled && !(g.formation === 'yari' && u.row === 0) && !u.isSub;
+    const fatigue = Math.max(0, Math.min(1, Math.max(u.fat || 0, u.human ? u.human.heavy || 0 : 0)));
+    I.sitT -= dt;
+    if (I.sitT <= 0) {
+      // 疲れた者ほど座って休む。休みの長さも一人ずつ違い、必ず立つ間を挟む
+      I.sitW = I.sitW ? 0 : Math.random() < 0.2 + fatigue * 0.65 ? 1 : 0;
+      I.sitT = I.sitW ? 6 + Math.random() * 8 + fatigue * 8 : 8 + Math.random() * 18;
+    }
+    // 騎馬を迎える槍衾（g.yariKneel）：前の段は膝をついて石突を地に立て、後ろの段がその上から穂先を揃える
+    const brace = g && g.yariKneel && u.row === 0 && yariHolds(this, g) && !u.fleeing && !flight && !u.atk && !u.swing && u.moving < 0.3;
+    // 込め直しの鉄砲足軽は、足を止めて膝をつき（柵・塀の陰に身を低くして）込める
+    // 込め矢の手が止まる速さと膝を解く速さをそろえ、横詰めで膝を引きずらない。
+    const reloadMoving = this.world.def.ridgeCombatMotion && !u.isPlayer && w === 'gun' && u.reload &&
+      (u.farSim ? u.moving > 0.05 : Math.hypot(u.mv.x, u.mv.z) > 0.05 || Math.hypot(u.vel.x, u.vel.z) > 0.05);
+    const reloadKneel = w === 'gun' && u.reload && u.moving < 0.15 && !reloadMoving && !u.fleeing && !flight && !u.isPlayer;
+    // 弓・鉄砲の足軽は膝を着いて射る（kaito 11/1 の手本 docs/ashigaru_ref_1101 の ref2・3）：足を止めて狙う・放つ・番える・「放て」を待つ間
+    // 11/6 kaito 九-4：的が届かない所にいる者・前の味方に射線を塞がれ続ける者は、膝をついて構えたまま待たない（立って構え、寄るか撃てる時に膝をつく）
+    const shootReach = waitT && (u.lineBlk || 0) < 3 && Math.abs(u.target.pos.x - u.pos.x) + Math.abs(u.target.pos.z - u.pos.z) < (u.range || 40) * 1.3;
+    const shootKneel = (w === 'gun' || w === 'bow') && !u.isPlayer && !u.mounted && u.moving < 0.15 && !u.fleeing && !flight && !u.hit
+      && (shootReach || !!u.reload || !!(u.atk && (u.atk.ranged || u.atk.bow)) || u.gunPh === 'aim' || u.gunPh === 'fire' || u.gunPh === 'kiri' || (!!u.bowPh && u.bowPh !== 'rest'));
+    // 11/7 kaito（全戦）：本陣の者は座る。本陣・旗本・居所の組と総大将は、敵が迫らない間は床几・地に腰を下ろして待つ
+    if (g && g._honjin === undefined) g._honjin = !!(g.honjin || /本陣|旗本|居所/.test(g.name || '') || g.units.some((o) => o.isTaisho));
+    const honjinSit = idle && !foe && g && g._honjin && g.order === 'hold' && !g.routed && !(g.formation === 'yari' && u.row === 0) && !u.isSub && !u.stdHeld && !u.banner && !u.mounted;
+    const sitWant = jinchu ? (sitting ? 1 : 0) : brace || reloadKneel || shootKneel || honjinSit ? 1 : camp ? I.sitW : 0;
+    // 信貴山の敗走では込め直しの膝を早めに解き、座ったまま走り出す姿を避ける。
+    const flightRise = this.world.def.ridgeCombatMotion && u.fleeing && !u.isPlayer && !u.mounted;
+    I.sit += (sitWant - I.sit) * Math.min(1, dt * (flightRise || reloadMoving || jinchu?.standing ? 7 : brace || reloadKneel || shootKneel ? 4 : 2.2));
+    // ときどきの仕草
+    if (!idle) { I.a = null; I.t = Math.max(I.t, 1 + Math.random() * 2); }
+    else if (I.a) { I.k += dt; if (I.k >= I.d) { I.a = null; I.t = foe ? 0.6 + Math.random() * 2 : 1.5 + Math.random() * 5; } }
+    else if ((I.t -= dt) <= 0) {
+      const r = Math.random();
+      let a = foe ? 'step' : r < 0.18 + fatigue * 0.18 ? 'breathe'
+        : r < 0.4 ? 'sky' : r < 0.62 ? 'talk' : r < 0.82 && w !== 'bow' ? 'regrip'
+        : I.sit > 0.5 ? 'tend' : r < 0.92 ? 'step' : 'look';
+      // 持ち場を空けず、近くの味方は笠・柄・具足を手入れする。戦う時の構えには割り込まない。
+      if (!foe && u.team === 0 && !u.name && !u.isSub && !u.stdHeld && g?.order === 'hold' &&
+          this.playerUnit && Math.hypot(u.pos.x - this.playerUnit.pos.x, u.pos.z - this.playerUnit.pos.z) < 24 && r > 0.55) a = 'tend';
+      I.s = Math.random() < 0.5 ? -1 : 1;
+      if (a === 'talk') {
+        // 隣の者へ顔を向けて話す（相手も手が空いていれば、こちらを向いて聞く）
+        let m = null;
+        this.forNear(u.pos.x, u.pos.z, 2.6, (o) => { if (!m && o !== u && o.alive && o.team === u.team && Math.abs(o.pos.y - u.pos.y) < 0.7 && Math.hypot(o.pos.x - u.pos.x, o.pos.z - u.pos.z) <= 2.6 && !this.wallBetween(u.pos, -1, o.pos) && !o.isPlayer && !o.target && !o.mounted && !o.atk && !o.swing && !o.hit && !o.fleeing && !(o.stagger > 0) && !(o.reload || o.cheer > 0 || o.confused > 0) && !(o.bowPh && o.bowPh !== 'rest') && o.moving < 0.15 && o.idl && !o.idl.a && o.idl.low < 0.1) m = o; });
+        if (!m) a = 'look';
+        else {
+          const rel = (o) => Math.max(-1, Math.min(1, angleDiff(o === u ? u.heading : m.heading, o === u ? Math.atan2(m.pos.x - u.pos.x, m.pos.z - u.pos.z) : Math.atan2(u.pos.x - m.pos.x, u.pos.z - m.pos.z))));
+          I.tw = rel(u); I.talk = true;
+          const J = m.idl;
+          if (J && !J.a) { J.a = 'talk'; J.k = 0; J.d = 3 + Math.random() * 3; J.tw = rel(m); J.talk = false; }
+        }
+      }
+      I.a = a; I.k = 0;
+      I.d = a === 'step' ? 1.1 : a === 'look' ? 2 + Math.random() * 2 : a === 'talk' ? 3 + Math.random() * 3 : a === 'regrip' ? 1.2 + I.ph * 0.6 : a === 'breathe' ? 4 + I.ph * 2 : 3 + Math.random() * 2;
+    }
+    // 太鼓が詰まるにつれて目を前へ。座ったまま踏みかえや空を仰ぐ仕草はしない。
+    if (jinchu && (jinchu.standing || I.a !== 'talk' && I.a !== 'breathe')) I.a = null;
+    // 仕草ごとの体の向き・首・槍
+    let yaw = 0, hy = 0, hp = 0, rx = 0, lean = 0, lift = 0, liftL = true;
+    if (I.a) {
+      const q = I.k / I.d, env = sm(0, 0.2, q) * (1 - sm(0.78, 1, q));
+      if (I.a === 'step') { const q2 = (q * 2) % 1; lift = Math.sin(q2 * Math.PI); liftL = (q < 0.5) === (I.s > 0); yaw = I.s * 0.1 * env; }
+      else if (I.a === 'look') { hy = I.s * (0.55 + I.ph * 0.45) * env; yaw = I.s * 0.2 * env; }
+      else if (I.a === 'sky') { hp = -(0.35 + I.ph * 0.2) * env; hy = I.s * 0.2 * env; lean = -0.03 * env; }
+      else if (I.a === 'breathe') {
+        const breath = Math.sin(q * Math.PI * 4 + I.ph * 0.4) * env;
+        lean = (0.07 + fatigue * 0.08) * env - 0.04 * breath;
+        hp = 0.12 * env; rx = 0.04 * breath;
+        u.body.position.y += 0.014 * breath;
+      }
+      else if (I.a === 'talk') { yaw = I.tw * 0.5 * env; hy = I.tw * 0.45 * env; hp = env * (0.05 + 0.07 * Math.sin(I.k * (I.talk ? 5.5 : 2.2) + I.ph * 9)); }
+      else if (I.a === 'regrip') rx = -0.45 * Math.sin(q * Math.PI);
+      else if (I.a === 'tend') { lean = 0.16 * env; hp = 0.42 * env; rx = -0.5 * env; }
+    }
+    // 戦前の陣中の支度（prelude.js）：草鞋を締める者は前へ屈んで足もとを見る・食う者は少しうつむく
+    if (jinchu && !jinchu.standing && u._chore) {
+      if (u._chore === 'sandal') { lean += 0.34; hp += 0.45; }
+      else if (u._chore === 'tend') {
+        // 本陣の支度：屈んで床几・幕の杭を整え、起きて一息つく（一人ずつ間をずらす）
+        const c = ((jinchu.t + u._choreT) % 5.5) / 5.5, k = c < 0.55 ? Math.sin(c / 0.55 * Math.PI) : 0;
+        lean += 0.55 * k; hp += 0.4 * k;
+      } else if (u._chore === 'banner') {
+        // 幟を起こす時は前へ踏ん張る
+        const q = (jinchu.t - u._choreT) / 2.6;
+        if (q > 0 && q < 1) lean += 0.18 * Math.sin(q * Math.PI);
+      } else hp += 0.1;
+    }
+    // 敵が近い時は、見張る相手へ顔を向ける
+    if (foe) hy += Math.max(-0.8, Math.min(0.8, angleDiff(u.heading + u.body.rotation.y, Math.atan2(foe.pos.x - u.pos.x, foe.pos.z - u.pos.z)))) * 0.6;
+    const T = this.time, ph = I.ph, on = idle ? 1 : 0;
+    // 重心の左右（人ごとに速さと向きが違う）
+    // 敵が近い時は落ち着かず、速く小さく揺れる。穂先・筒先もわずかに上下する
+    const ws = Math.sin(T * (0.45 + ph * 0.35) * (1 + I.low * 1.6) + ph * 40) * on;
+    u.body.rotation.z += ws * 0.045 * (1 - I.sit * 0.5);
+    if (foe) rx += 0.06 * Math.sin(T * (1.1 + ph * 0.6) + ph * 20);
+    u.body.rotation.y += yaw;
+    u.body.rotation.x += lean + I.low * 0.14 + I.sit * 0.05;
+    // 首（胴の子）：なめらかに向きを追い、うなずきは首の付け根を軸に
+    const kh = Math.min(1, dt * 5);
+    I.hy += (hy + 0.12 * Math.sin(T * 0.31 + ph * 17) * on - I.hy) * kh;
+    if (jinchu && !jinchu.standing) hp += 0.08 * Math.min(1, jinchu.t / (jinchu.len * 0.7));
+    I.hp += (hp - I.hp) * kh;
+    I.rx += (rx - I.rx) * Math.min(1, dt * 8);
+    if (u.head) {
+      const N = 1.5;
+      u.head.rotation.set(I.hp, I.hy, 0);
+      u.head.position.set(0, N - N * Math.cos(I.hp), -N * Math.sin(I.hp));
+    }
+    // 脚（units.js の形の時だけ。骨の入った人は humans.js が low・sit から脚を折る）
+    // 鉄砲は右の踵に腰を落として低く構える（手本 ref3。humans_motion.js の脚と同じ深さ）
+    const drop = I.sit * (u.jinchu?.seiza ? 0.5 : w === 'gun' ? 0.5 : 0.29) + I.low * 0.06;
+    I.drop = drop;
+    if (u.shinL && u.body.visible !== false) {
+      let lL = u.legL.rotation.x, lR = u.legR.rotation.x, sL = u.shinL.rotation.x, sR = u.shinR.rotation.x;
+      // 力を抜いた脚の膝がゆるむ
+      if (ws > 0) { sL += 0.14 * ws; lL -= 0.05 * ws; } else { sR -= 0.14 * ws; lR += 0.05 * ws; }
+      // 踏みかえ：片足ずつ軽く上げて置き直す
+      if (lift) { if (liftL) { lL -= 0.38 * lift; sL += 0.7 * lift; } else { lR -= 0.38 * lift; sR += 0.7 * lift; } }
+      // 身構え：左足を前、膝を曲げて腰を落とす
+      lL -= 0.25 * I.low; sL += 0.35 * I.low; lR += 0.12 * I.low; sR += 0.3 * I.low;
+      // 膝つき：右の膝を立て、左の膝を地につける（骨の入った人と同じ向き）
+      const k = I.sit;
+      //   鉄砲・槍は左の膝を立てる（手本 ref3・4：立てた左膝が左肘の台）
+      // K443：座の印が seiza の人（本能寺の前夜の茶席・能）は、軽い形でも正座（腿を前へ水平・脛を腿の下へ畳む。humans_motion.js と同じ）
+      if (k > 0.01 && u.jinchu?.seiza) { lL += (-1.5 - lL) * k; lR += (-1.5 - lR) * k; sL += (2.75 - sL) * k; sR += (2.75 - sR) * k; }
+      else if (k > 0.01 && (w === 'gun' || w === 'spear')) { lL += (-1.4 - lL) * k; sL += (1.45 - sL) * k; lR += (0.1 - lR) * k; sR += (1.5 - sR) * k; }
+      else if (k > 0.01) { lR += (-1.4 - lR) * k; sR += (1.45 - sR) * k; lL += (0.1 - lL) * k; sL += (1.5 - sL) * k; }
+      u.legL.rotation.x = lL; u.legR.rotation.x = lR; u.shinL.rotation.x = sL; u.shinR.rotation.x = sR;
+      u.body.position.y -= drop + Math.abs(ws) * 0.008;
+    }
+    return I;
+  }
+};

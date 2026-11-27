@@ -1,0 +1,177 @@
+// 島津家編 八戦目「関ヶ原の退き口」（慶長五年〔1600〕九月十五日 未の刻・美濃国 関ヶ原）。軽い型（light_battle.js）・H3（docs/house_shimazu.md ④⑤ s08）
+//   史実：西軍が崩れた後、島津義弘の手（約千五百・通説。退いた時は数百とも）は西へ逃げず、東軍の正面を突き破って家康の本陣の前を駆け抜け、
+//   伊勢街道（牧田道）を南へ退いた。追う井伊直政・松平忠吉・本多忠勝の手を、道に座って鉄砲を撃ち、残って死ぬまで止める殿（捨て奸）が止めた。
+//   島津豊久は烏頭坂のあたりで、長寿院盛淳は義弘の身代わりとなって討ち死に。井伊直政は柏木源藤の鉄砲で傷を負い、追撃は止んだ
+//   （『惟新公御自記』B・『島津家文書』A。「捨て奸」の呼び名は後世とも・兵数は諸説）。
+//   作り直さず徳川編 k06（b_k06_sekigahara.js）の地形（国土地理院の標高 dem_sekigahara・藤古川・中山道と伊勢街道）と島津の退き道（SHIMA_PATH・捨て奸の一の手と二の手）を使い回す。
+//   主人公は捨て奸の側：座って撃ち、殿として残る。勝ち負けでなく生き延びるのが目標（K509）。字・札・ボタンは足さない。本物の兵は250人まで。
+import { lightBattle, uS, uA, uG, busho } from './light_battle.js';
+import { allyGroup } from './bhelp.js';
+import { dress } from './b_k_help.js';
+import { sfx, stopMusic } from './audio.js';
+import { isEn } from './i18n.js';
+import { foe, wave, fightS, holdS, moveS, restS, boss } from './house_steps.js';
+import { uB } from './light_battle.js';
+import { sekiField, SEKI_WORLD, SEKI_TIMESLIP, SEKI_AT } from './b_k06_sekigahara.js';   // K651：徳川編の関ヶ原の戦場をそのまま使う（素材は写さない）
+
+// 11/25 K651（kaito「立場を入れ替えるだけでできる戦は全部の家でそうする」）：前は k06 の標高・川・道を手で写した軽い地形だった。
+//   今は徳川編 k06 の world（標高・藤古川・中山道と伊勢街道・田・林・秋の色・日の移り）と各家の本陣の幕・陣・幟を sekiField で建てる。
+//   場所と退き道・捨て奸の所は SEKI_AT（k06 の座標）から取る（手で数を写さない）。逸話の段は捨て奸（K652⑥・下の update）
+// ---- 場所（k06 の座標のまま）。島津の陣（小池村の奥の林の陰）→ 東軍の正面（福島の脇）→ 陣場野の本陣の前 → 伊勢街道の捨て奸の一の手・二の手 ----
+const AT = SEKI_AT;
+const SPAWN = { x: AT.shimazu.x + 20, z: AT.shimazu.z + 8 };   // 島津の陣（小池村の奥の林の陰）の前
+const BREAK = { x: -214, z: -50 };                 // 東軍の正面（福島隊の北の脇）を突き破る所
+const RUN = { x: -82, z: 6 };                      // 家康の本陣の前を駆け抜け、伊勢街道の口へ
+const SUTE1 = AT.sute1, SUTE2 = AT.sute2;              // 捨て奸の一の手・二の手（k06 と同じ所）
+const S3 = { x: -10, z: 170 }, S4 = { x: 20, z: 340 };   // K717：捨て奸の三の手（牧田の口）・四の手（駒野峠）
+const SHIMA_PATH = AT.shimaPath;                       // 島津の退き道（k06 と同じ）
+const SHIMAZU = { flag: 'shimazu', armor: 0x1c1a1a };
+const II = { flag: 'ii', armor: 0x8e1f16 };        // 追う東軍は井伊の赤備えを先に（松平忠吉・本多の手も同じ赤の旗の下で追った）
+const FACE_N = Math.PI;                            // 北（追ってくる東軍）へ向く
+
+const red = (n) => ({ type: 'cavalry', n });
+const sute = (name, at, extra = []) => ({ name, at, face: FACE_N, fixed: true, dmg: 0.55, list: [...extra, uG(6), uS(1)] });
+
+export const s08_sekigahara = lightBattle({
+  id: 's08_sekigahara',
+  date: '慶長五年（1600）九月十五日　未の刻　美濃国 関ヶ原',
+  intro: '西軍は崩れた。島津義弘の手は、逃げずに東軍の正面を突き破って退く。あなたは殿に残る一人。',
+  history: '慶長五年（1600）九月十五日、関ヶ原で西軍が崩れた後、島津義弘の手（約千五百・通説）は西へ逃げず、東軍の正面を突き破って家康の本陣の前を駆け抜け、伊勢街道を南へ退いた。追う井伊直政・松平忠吉・本多忠勝の手を、道に座って鉄砲を撃ち、残って死ぬまで止める殿の者が止めた（のちに「捨て奸」と呼ばれる。呼び名は後世とも）。島津豊久・長寿院盛淳は討ち死にし、井伊直政は鉄砲で傷を負って追撃は止んだ。義弘は数十人で薩摩へ帰り着いた（兵の数は諸説ある）。',
+  sides: { a: { name: '島津義弘の手', mon: 'shimazu', faction: 'shimazu' }, b: { name: '追う東軍', mon: 'ii', faction: 'tokugawa' } },
+  force: { a: 1500, b: 3500 },
+  allyLook: SHIMAZU, foeLook: II,
+  allyDmg: 0.4,
+  foeDmg: 0.55,
+  friendsSend: 1,
+  minutes: 7,
+  noMarch: true,   // 退き口は陣から始まる（共通の行軍の入りは使わない）
+  spawn: { x: SPAWN.x, z: SPAWN.z, heading: Math.PI / 2 },
+  world: { seed: 1600, time: 'day', fogFar: 300 },
+  allies: [
+    { name: '島津豊久の手', at: { x: SPAWN.x + 10, z: SPAWN.z - 6 }, list: [busho('島津豊久'), uS(3), uA(8)] },
+    sute('捨て奸 一の手', SUTE1),
+    sute('捨て奸 二の手', SUTE2, [busho('長寿院盛淳', { horse: false })]),
+    // K717 ④（要件書：捨て奸は小隊ごとに数回）：牧田の口と駒野峠にも、別の小隊が残る。本人が通り過ぎるまでは立って走る（RETREAT）
+    sute('捨て奸 三の手', { x: S3.x, z: S3.z - 4 }),
+    sute('捨て奸 四の手', { x: S4.x, z: S4.z - 4 }),
+  ],
+  steps: [
+    // K717 ①〜④（要件書 関ヶ原の退き口）：西軍崩壊の報せ→周りの味方が消える→義弘の下知を待つ→東軍が囲む
+    { kind: 'rest', dur: 18, heal: 0, say: [
+      ['使番', '申し上げます！　石田・小西・宇喜多の旗、次々に崩れましてございます！', 3.4],
+      ['組頭', '見よ、周りの味方の旗が、一つ、また一つ消えてゆく……。残るは島津のみじゃ', 3.4],
+      ['島津豊久', '伯父上、下知を。東軍が四方から囲んで参りまする', 3],
+      ['島津義弘', '小早川が寝返り、西軍は崩れた。じゃが、島津は背を見せて逃げぬ', 3.6],
+      ['島津義弘', '敵の正面を突き破り、伊勢へ抜ける。進め！', 3.2],
+      ['島津豊久', '伯父上は先へ。殿はわしらが務めまする', 3.2]] },
+    { kind: 'fight', at: BREAK, obj: '東軍の正面を突き破る', title: '退き口', sub: '敵中を突き破る', max: 80, limit: 90,
+      say: [['島津豊久', 'かかれ！　前へ、前へ抜けよ！', 2.8], ['福島の侍', '島津が向かってくるぞ！　逃げるのではないのか！', 3.2]],
+      foes: [{ name: '東軍の先手', from: { x: BREAK.x + 8, z: BREAK.z + 6 }, list: [uS(3), uA(14)] }],
+      later: [{ t: 25, say: ['東軍の侍', '横から当たれ！　島津を囲め！'], foes: [{ name: '東軍の二の手', from: { x: BREAK.x + 14, z: BREAK.z - 10 }, list: [uS(2), uA(7)] }] }],
+      reward: '東軍の正面を突き破った' },
+    { kind: 'move', at: RUN, label: '伊勢街道', obj: '家康の本陣の前を駆け抜け、伊勢街道へ', r: 14, max: 90,
+      say: [['島津豊久', '止まるな！　家康の本陣の前を駆け抜けよ！', 3], ['組頭', '振り向くな。南の道へ走れ', 2.8]] },
+    { kind: 'hold', at: SUTE1, label: '捨て奸', obj: '道に座って撃ち、赤備えの追手を止める', r: 16, dur: 70, title: '捨て奸', sub: '座って撃ち、残る',
+      say: [['組頭', 'ここに座れ。火縄を構えよ。わしらが残って、殿を逃がす', 3.6], ['井伊の侍', '島津を逃がすな！　赤備え、かかれ！', 3]],
+      waves: [{ t: 4, foes: [{ name: '井伊の赤備え', from: { x: SUTE1.x - 10, z: SUTE1.z - 52 }, list: [uS(2), red(4), uA(8)] }] },
+        { t: 34, say: ['松平の侍', '下野守様に続け！　島津を討て！'], foes: [{ name: '松平忠吉の手', from: { x: SUTE1.x + 14, z: SUTE1.z - 50 }, list: [uS(3), uA(10)] }] }],
+      reward: '一の手で赤備えを止めた' },
+    { kind: 'move', at: { x: SUTE2.x, z: SUTE2.z - 6 }, label: '二の手', obj: '二の手の所まで退く', r: 12, max: 70,
+      say: [['組頭', '豊久様が烏頭坂で討たれた……。走れ、二の手まで退け', 3.4]] },
+    { kind: 'hold', at: SUTE2, label: '捨て奸', obj: '最後の殿として、井伊の追撃を止める', r: 16, dur: 75, title: '殿', sub: '殿様が伊勢へ抜けるまで',
+      say: [['長寿院盛淳', 'わしが兵庫頭じゃ！　ここで討ち取れるものなら討ってみよ', 3.6], ['井伊直政', '島津兵庫を逃がすな！　わしが自ら討つ！', 3.2]],
+      waves: [{ t: 4, foes: [{ name: '井伊直政の旗本', from: { x: SUTE2.x - 6, z: SUTE2.z - 56 }, list: [uS(4), red(4), uA(6)] }] },
+        { t: 36, say: ['本多の侍', '本多の手も続け！　坂を押し上げよ！'], foes: [{ name: '本多忠勝の手', from: { x: SUTE2.x + 16, z: SUTE2.z - 50 }, list: [uS(2), red(3), uA(8)] }] }],
+      reward: '殿として最後まで残った' },
+    // K674（11/26 kaito「一戦10任務」）：二の手の後に、柏木源藤が井伊直政を撃った一発を本人の段に（『惟新公御自記』・追手が鈍った元）。段の番号は後ろに足すので上の F.step の判定は変わらない
+    fightS({ x: SUTE2.x, z: SUTE2.z + 4 }, '柏木源藤様と並び、馬上の井伊直政を撃ち落とす', '井伊直政', '赤備えの大将が馬で迫る',
+      [['柏木源藤', 'あの先の馬が井伊の大将じゃ。わしと並べ。馬上を狙え', 3.4], ['井伊直政', '島津兵庫はどこじゃ！　追え、追え！', 3]],
+      [foe('井伊直政の馬廻', SUTE2.x - 4, SUTE2.z - 46, [boss('井伊直政'), red(3), uA(6)])], { max: 100, limit: 110, reward: '柏木源藤の鉄砲で井伊直政が落ちた' }),
+    // K652②（11/25 kaito「全部の戦を10分ぐらいに。15分楽しめる質」）：段を足す（史実の流れ・house_steps.js）
+    moveS({ x: -10, z: 160 }, '牧田の道', '牧田の道まで退く', [['組頭', '殿様は伊勢へ。わしらはまた座って撃つ', 3]], { r: 12, max: 80 }),
+    holdS({ x: -10, z: 170 }, '牧田の口', '牧田の口で、長寿院盛淳様の身代わりの旗の横で追手を止める', '身代わり', '盛淳が義弘の名を名乗って残る', [['長寿院盛淳', '我こそは島津兵庫頭！　討って手柄にせよ！', 3.2]],
+      [wave(0, '井伊の侍', '島津の大将じゃ！　討ち取れ！', [foe('牧田の追手', -30, 120, [uS(2), red(3), uA(10)])]), wave(30, '本多の侍', '囲め！', [foe('牧田の追手の二', 20, 124, [uS(2), uA(10)])]),
+        wave(52, '松平の侍', '首を取れ！', [foe('牧田の追手の三', -40, 130, [uS(2), uA(8)])])], { reward: '盛淳様の身代わりで追手を止めた' }),
+    fightS({ x: 10, z: 260 }, '駒野の道を塞ぐ東軍の物見を払う', '駒野の道', '東軍の物見が道を塞ぐ', [['組頭', '前にも敵じゃ！　斬り抜けよ！', 3]],
+      [foe('駒野の物見', 20, 276, [uS(2), uA(10)])], { later: [wave(26, '東軍の侍', '撃て！', [foe('駒野の鉄砲', 0, 280, [uS(1), uG(5)])])], reward: '駒野の道を開いた' }),
+    holdS({ x: 20, z: 340 }, '駒野峠', '峠の上で、最後の追手を止める', '駒野峠', '殿様が伊勢へ抜けるまで', [['組頭', 'ここを越えれば伊勢じゃ。最後に一度座れ', 3]],
+      [wave(0, '井伊の侍', '逃がすな！', [foe('峠の追手', 10, 290, [uS(2), red(3), uA(10)])]), wave(30, '本多の侍', '峠を押し上げよ！', [foe('峠の追手の二', 40, 296, [uS(2), uA(10)])])], { reward: '駒野峠を越えて伊勢へ抜けた' }),
+    // K674（11/26・一戦10任務）：史実の流れの続きの段
+    fightS({ x: 30, z: 380 }, '峠の先の道で、追い付いた東軍の騎馬を払う', '追う騎馬', '東軍の騎馬が道を追う', [['組頭', '騎馬じゃ！　足を止めて受けよ', 3]],
+      [foe('東軍の騎馬', 20, 340, [{ type: 'cavalry', n: 4 }, uS(1), uA(6)])], { reward: '追い付いた騎馬を払った', limit: 100 }),
+  ],
+  win: {
+    banner: '退き口', sub: (rt) => { const c = s08_sekigahara.force(rt), back = Math.max(0, c.a) + (rt.flags.s8MainN || 0); const n0 = Math.round(Math.max(c.a0, back)), n1 = Math.round(back); return isEn() ? `Marched out: ${n0}　Returned: ${n1}` : `出陣 ${n0}名　帰還 ${n1}名`; },   // K717：ゲームの中で実際に出陣した自軍の数と、生きて帰った数（史実の数は断定しない） award: '関ヶ原の退き口で殿を務めて生き延びた',
+    say: [['組頭', '井伊直政の傷は深い。追手の足が止まったぞ', 3.2],
+      ['井伊の侍', '殿の傷が深い！　引け、追うのはやめじゃ！', 3],
+      ['組頭', '義弘様は伊勢へ抜けられた。生きて薩摩へ帰るぞ', 3.4],
+      ['島津義弘', '若い頃から仕えてくれた者も、もう数えるほどじゃ。……薩摩へ帰ろう', 3.6]],
+  },
+  setup(rt) {
+    // 先に南へ走る島津義弘の本隊（退き道 SHIMA_PATH の上を、本人より先に伊勢街道へ）。殿の者が止めている間に見えなくなる
+    const F = rt.flags;
+    F.s8Main = allyGroup(rt, { name: '島津義弘の本隊', flag: SHIMAZU.flag, anchor: { x: SPAWN.x + 22, z: SPAWN.z + 4 }, facing: Math.PI / 2, fullStrength: true, noRout: true, aggro: 0, seekRange: 0, morale: 100, dmgMult: 0.4, order: 'hold' },
+      dress([busho('島津義弘'), uS(4), uA(6)], SHIMAZU));
+    F.s8I = 0;
+  },
+  update(rt, dt) {
+    const F = rt.flags, A = rt.army;
+    // 捨て奸（K717 ④）：小隊ごとに RETREAT（立って走る）→ TURN_AND_FIRE（本人が通り過ぎたら向き直って撃つ）→ HOLD（座って撃ち続ける）→ REMAIN_BEHIND（本隊は先へ・小隊は残る）。
+    //   一人ずつ勝手に死なせず、小隊単位。段の番号：2＝伊勢街道の口・4＝二の手へ・7＝牧田の道・9＝駒野の道
+    if (!F.s8Lines && F.allies?.length > 4) F.s8Lines = [{ g: F.allies[1], on: 2, at: SUTE1 }, { g: F.allies[2], on: 4, at: SUTE2 }, { g: F.allies[3], on: 7, at: S3 }, { g: F.allies[4], on: 9, at: S4 }];
+    const P0 = rt.player?.u;
+    for (const L of F.s8Lines || []) {
+      if (!L.g?.count) continue;
+      const ph = L.ph || 'RETREAT';
+      const passed = F.step >= L.on && P0 && Math.hypot(P0.pos.x - L.at.x, P0.pos.z - L.at.z) > 14 && P0.pos.z > L.at.z - 20 || F.step > L.on + 1;
+      if (ph === 'RETREAT' && F.step >= L.on) {   // 向き直る
+        L.ph = 'TURN_AND_FIRE'; L.t0 = 0;
+        for (const u of L.g.units) if (u.alive) u._crouch = true;
+        try { sfx('volley', 0.5); } catch (e) { /* なし */ }
+        if (!F.s8LookBack && L.on >= 4) { F.s8LookBack = true; rt.after(2, () => rt.say('組頭', '振り向くな……じゃが見よ。さっきまで共に走った者らが、道に座って鉄砲を構えておる。もう助けには戻れぬ', 4.4)); }
+      } else if (ph === 'TURN_AND_FIRE' && passed) L.ph = 'HOLD';
+      else if (ph === 'HOLD' && F.s8Lines.some((o) => o.on > L.on && o.ph && o.ph !== 'RETREAT')) L.ph = 'REMAIN_BEHIND';
+    }
+    if ((F._s8T = (F._s8T || 0) - dt) <= 0 && !F.ending) {
+      F._s8T = 6;
+      for (const L of F.s8Lines || []) {
+        const line = L.g;
+        if (!line?.count || !L.ph || L.ph === 'RETREAT') continue;
+        const foes = A.groups.filter((g) => g.team !== line.team && !g.routed && g.count);
+        if (foes.length) { try { A.scriptSalvo(line, foes, 6, 70); } catch (e) { /* なし */ } }
+        for (const u of line.units) if (u.alive) u._crouch = true;   // 撃った後も座り直す（立って逃げない）
+      }
+      // 本人が座ってい（持ち場の内で止まってい）る時は、本人の組も座る
+      const P = rt.player?.u, sq = rt.player?.squad;
+      if (P && sq?.units) { const sit = (F.step === 3 || F.step === 5 || F.step === 8 || F.step === 10) && Math.hypot(P.vel?.x || 0, P.vel?.z || 0) < 0.3;
+        for (const u of sq.units) if (u.alive && u.type === 'gun') u._crouch = sit; }
+    }
+    // 義弘の本隊：道の上を一つずつ南へ。最後の所に着いたら外す（遠くへ去った兵は数えない）
+    const M = F.s8Main;
+    if (M && M.count && !F.s8Gone && F.step >= 1) {
+      F.s8MainN = Math.max(F.s8MainN || 0, M.count);   // K717：本隊の数（帰還の数に入れる）
+      const q = SHIMA_PATH[Math.min(F.s8I, SHIMA_PATH.length - 1)], c = M.center();
+      M.order = 'move'; M.dest = { ...q }; M.anchor = { ...q }; M.speed = Math.max(M.speed || 0, 3.2);
+      if (c && Math.hypot(c.x - q.x, c.z - q.z) < 10) {
+        if (F.s8I >= SHIMA_PATH.length - 1) { F.s8Gone = true; for (const u of M.units) { try { A.despawn(u); } catch (e) { /* なし */ } } }
+        else F.s8I++;
+      }
+    }
+    // 勝ちの締め：柏木源藤の一発で井伊直政が落ち、追手が北へ引く
+    if (F.ending && !F.s8Back && F.step >= 5) {
+      F.s8Back = true;
+      // K717 最後の演出：戦場の曲は止め、馬の足音だけが続く
+      try { stopMusic(1.5); } catch (e) { /* なし */ }
+      for (let i = 0; i < 14; i++) rt.after(1.2 + i * 1.1, () => { try { sfx('hoofWalk', 0.45); } catch (e) { /* なし */ } });
+      sfx('volley', 0.9);
+      for (const g of A.groups) if (g.team !== rt.player.u.team && g.count) { g.order = 'retreat'; g.noRout = false; g.dest = { x: g.center().x, z: -220 }; }
+    }
+  },
+});
+// K651：徳川編の関ヶ原の地面・川・道・田・林をそのまま使う（getter も写すため descriptor ごと）
+s08_sekigahara.world = Object.defineProperties({}, Object.getOwnPropertyDescriptors(SEKI_WORLD));
+s08_sekigahara.world.mood = 'afternoon';   // 未の刻の退き口（徳川編は朝霧から始まる）
+s08_sekigahara.timeslip = SEKI_TIMESLIP;
+// 戦場を建てる（徳川編の関ヶ原と同じ所）→ 軽い型の setup（島津の組・段）
+{ const s0 = s08_sekigahara.setup; s08_sekigahara.setup = function* (rt) { yield* sekiField(rt); s0.call(this, rt); }; }
+export default s08_sekigahara;
