@@ -933,6 +933,8 @@ export default [
   ["家康に過ぎたる物が二つあり　唐の頭に本多平八", "Ieyasu has two things too good for him: his yak-hair helmet, and Honda Heihachi."],
   ["……敵ながら見事な殿じゃった。二俣へ急げ", "...A fine rearguard, for an enemy. On to Futamata."],
   ["柱はまだ一本残っておる。筏をもっと流せ！", "One pillar still stands. Send more rafts!"],
+  ["筏を組む間に傷を縛れ。崖の下には城兵が下りて来るぞ", "Bind your wounds while the rafts are built. Castle troops are coming down the cliff."],
+  ["水の手は断った。息を整え、柱へ回れ", "The water supply is cut. Catch your breath and go round to the pillars."],
   ["河原", "Riverbank"],
   ["河原で筏を流す者を、崖から下りる城兵から守る", "Guard the raft men on the riverbank from the garrison coming down the cliff"],
   ["筏", "Rafts"],
