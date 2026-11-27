@@ -8,6 +8,7 @@ import { withCastle } from './light_castle.js';
 import { TAKATENJIN_D09 } from './castles/takatenjin.js';
 import { lightBattle, uS, uA, uG, uB, busho } from './light_battle.js';
 import { isEn, addEn } from './i18n.js';
+import { nobori, noboriInScene } from './props.js';
 if (isEn()) import('./i18n_en_takeda.js').then((m) => addEn(m.default)).catch(() => {});   // K516 英語の時だけ武田編の字の表を読む
 
 const TAKEDA = { flag: 'takeda', armor: 0x502b24 };
@@ -85,7 +86,8 @@ export const d09_takatenjin1 = withCastle(lightBattle({
       foes: [{ name: '井戸を守る城兵', from: ((p) => ({ x: p.x + (0), z: p.z + (-14) }))({ x: KANE.x + 10, z: KANE.z - 12 }), list: [uS(2), uA(10)] }],
       reward: '井戸の守りを斬り払った' },
     { kind: 'rest', dur: 8, heal: 0.6, say: [['組頭', '水の手は細った。傷を縛れ、西の丸へかかるぞ', 2.8]] },
-    { kind: 'fight', at: NISHI, obj: '西の丸へ攻め上がり、曲輪を奪う', title: '西の丸', sub: '水の手を断たれた城兵が最後の槍を揃える',
+    // 11/27 クラウドせ（K722/K582）：足軽の act bot で西の丸の段が420秒続き（守りの兵が塀の向こうへ回って詰まる）十八分の打ち切りに当たった→上限150秒（着いてから）
+    { kind: 'fight', at: NISHI, limit: 150, obj: '西の丸へ攻め上がり、曲輪を奪う', title: '西の丸', sub: '水の手を断たれた城兵が最後の槍を揃える',
       say: [['武田勝頼', '西の丸を取れば水の手は武田の物じゃ', 3]],
       foes: [
         { name: '西の丸の守り', from: { x: NISHI.x, z: NISHI.z - 10 }, list: [uS(4), uA(22)] },
@@ -107,6 +109,27 @@ export const d09_takatenjin1 = withCastle(lightBattle({
       foes: [{ name: '小笠原信興の旗本', from: { x: HONMARU.x, z: HONMARU.z - 6 }, list: [busho('小笠原信興'), uS(5), uA(16)] }],
       reward: '高天神城を開城させた' },
   ],
+  // K722②⑩（11/27 クラウドし）：要件書の「⑩武田旗を立てる」が台詞だけだった（使番「本丸に武田の旗を立てよ！」の時に何も起きない）。
+  //   開城の締めで、本丸の中の徳川の幟を倒し、使番の声に合わせて本丸の口の奥に武田菱の幟を三本、寝た所から起こして立てる。
+  //   字は足さない。幟は当たりを持たない（形・材質は共用）。締めの時に初めて作る（城の地ならしの後の高さで立つ）。d15 天目山の一本の旗と対に
+  update(rt) {
+    const F = rt.flags;
+    if (!F.ending || F.d09Hata) return;
+    F.d09Hata = true;
+    const inHon = (x, z) => x > 4 && x < 42 && z > -48 && z < -22;   // 本丸（TAKATENJIN_D09 の hon・城は (0,0) に置く）
+    for (const g of noboriInScene(rt.scene)) {
+      if (g.userData.kind !== 'tokugawa' || !inHon(g.position.x, g.position.z)) continue;
+      const z0 = g.rotation.z, s = g.position.x > 23 ? 1 : -1;
+      for (let k = 1; k <= 12; k++) rt.after(6.4 + k * 0.1, () => { g.rotation.z = z0 + s * 1.45 * (k / 12) ** 2; });
+    }
+    [[12, -29, 5.5], [18, -31, 6.5], [24, -29, 5.5]].forEach(([x, z, h], i) => {
+      const n = nobori(rt.world, x, z, 'takeda', h);
+      n.userData.noFreeze = true; n.visible = false; rt.scene.add(n);
+      const z0 = n.rotation.z, z1 = z0 + 1.45;
+      rt.after(8.6 + i * 0.5, () => { n.rotation.z = z1; n.visible = true; });
+      for (let k = 1; k <= 16; k++) rt.after(8.6 + i * 0.5 + k * 0.08, () => { n.rotation.z = z1 + (z0 - z1) * (1 - (1 - k / 16) ** 2); });
+    });
+  },
   win: {
     banner: '高天神城 開城', sub: '小笠原信興は城を明け渡した。父の落とせなかった城を勝頼が落とした', award: '高天神城を開城させた',
     say: [['使番', '小笠原殿、城を明け渡すと申しておりまする', 3],

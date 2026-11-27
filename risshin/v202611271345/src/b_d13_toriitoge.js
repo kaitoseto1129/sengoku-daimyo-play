@@ -17,7 +17,16 @@ const TOGE = { x: -6, z: 20 };       // 鳥居峠の頂（木曽勢の柵）
 const YOKO = { x: 46, z: 40 };       // 峠の脇の尾根（伏せ）
 const NOKI = { x: 0, z: 140 };       // 退き口
 const YABU = { x: -18, z: 62 };      // 峠の中ほどの杉の間（木曽の物見の伏せ・K652②）
-const NARAI = { x: 14, z: 196 };    // 峠の下の奈良井の宿の口（退く道・K652②）
+const NARAI = { x: 16, z: 156 };    // 峠の下の奈良井の宿の口（退く道・K652②）。11/27 クラウドか：前の z196 は戦場の端（moveLim 176）の外で、宿の口の敵が端へ押し戻され飛んでいた→内へ
+// 11/27 クラウドか K722②「敵国へ攻め込んだ武田が初めて自国へ逃げ戻る」：前は勝ちの台詞だけで、絵では誰も逃げ戻っていなかった。
+//   本物の兵の「武田の後の備」（allies の四つ目）が峠で共に戦い、退き口の前の一息で峠道を麓へ、木曽に背を向けて甲斐の方へ下る。
+//   退き口の守りの段（sendFriends）で呼び戻されないよう、その時に味方の表から外して（F.nigeG）列だけで歩かせる。兵は足さず使い回し
+const NIGE = 3, NIGE_TO = { x: -60, z: 170 };   // 退き口の西の谷筋を甲斐の方へ（宿の口の戦の場を避け、戦場の端の内）
+const nigeModoru = (rt) => {
+  const F = rt.flags, A = F.allies || [], g = A[NIGE]; if (!g?.count || F.nigeG) return;
+  A.splice(NIGE, 1); F.nigeG = g;
+  g.calm = true; g.order = 'move'; g.dest = { ...NIGE_TO }; g.speed = 1.8; g.noRun = true;
+};
 
 // 11/26 クラウドす K655（サムネが「雪も峠も無い緑の坂」で鳥居峠と当てられなかった）：鳥居峠と分かる物を峠の頂に足す。
 //   ①峠の名の元の御嶽遥拝の鳥居（木曽義元が戦の勝ちを祈って峠に建てたと伝わる・塩尻市／木曽町の史跡の案内 C）を峠道の上に。
@@ -68,6 +77,7 @@ export const d13_toriitoge = lightBattle({
     { name: '鉄砲衆', at: { x: SPAWN.x + 12, z: FUMOTO.z - 4 }, dmg: 0.45, list: [uS(1), uG(8)] },
     // 11/21 cloud-41（章の通し）：通しの本人（組の無い足軽）が柵の前と尾根の伏せで囲まれ97秒で倒れた回がある。敵は変えず、本人の脇に槍衆を一組
     { name: '武田の槍衆', at: { x: SPAWN.x + 2, z: TOGE.z + 32 }, dmg: 0.45, list: [uS(3), uA(16)] },
+    { name: '武田の後の備', at: { x: SPAWN.x - 16, z: TOGE.z + 46 }, dmg: 0.3, list: [uS(3), uA(20)] },   // K722②：退き口の前の一息で甲斐へ逃げ戻る（nigeModoru）
   ],
   steps: [
     { kind: 'rest', dur: 14, heal: 0, say: [
@@ -130,22 +140,22 @@ export const d13_toriitoge = lightBattle({
       later: [{ t: 30, say: ['組頭', '杉の陰から弓！'], foes: [{ name: '脇道の弓', from: { x: TOGE.x - 34, z: TOGE.z + 38 }, list: [uB(5)] }] }],
       reward: '大将の旗を守った' },
     // 11/21 cloud-41（章の通し）：通しの本人が前の段で深手を負い、次の段の頭で倒れた回がある。段の間に手当ての一息（敵は変えず）
-    { kind: 'rest', dur: 8, heal: 0.35, say: [['組頭', '伏せは押し返した。傷を縛れ、退き口へ', 2.8]] },
-    { kind: 'hold', at: NOKI, label: '退き口', obj: '退き口で追う木曽勢を食い止め、味方を峠から下ろす', r: 18, dur: 60,
+    { kind: 'rest', dur: 8, heal: 0.35, fn: nigeModoru, say: [['組頭', '伏せは押し返した。傷を縛れ、退き口へ', 2.8], ['物見', '後の備が峠を下りて行く……甲斐の方へ', 3]] },
+    { kind: 'hold', at: NOKI, label: '退き口', obj: '退き口で追う木曽勢を食い止め、味方を峠から下ろす', r: 18, dur: 60, limit: 130,   // 11/27 クラウドか：act bot で一度 428秒延びた→上限
       title: '退き', sub: '峠は落とせなかった',
       say: [['今福昌和', '退け！　この雪では峠は取れぬ', 3]],
       waves: [{ t: 8, say: ['木曽義昌', '追え！　甲斐へ追い落とせ！'], foes: [{ name: '追う木曽勢', from: { x: NOKI.x, z: NOKI.z - 40 }, list: [{ type: 'samurai', n: 1, o: { name: '木曽の組頭 千村' } }, uS(6), uA(32)] }] },
         { t: 30, say: ['組頭', '木曽の二の手が坂を下りて来る！'], foes: [{ name: '木曽の二の手', from: { x: NOKI.x + 20, z: NOKI.z - 44 }, list: [{ type: 'samurai', n: 1, o: { name: '木曽の組頭 山村' } }, uS(2), uA(18)] }] }],
       reward: '退き口で味方を下ろした' },
     // K652②：峠を下りた武田勢を、木曽の騎馬が谷沿いに回り込んで宿の口で待った。本人は宿の口を開けて、味方を甲斐の方へ退かせる
-    { kind: 'rest', dur: 8, heal: 0.4, say: [['物見', '宿の口に木曽の騎馬！　谷沿いに回り込まれた！', 3]] },
+    { kind: 'rest', dur: 8, heal: 0.6, say: [['物見', '宿の口に木曽の騎馬！　谷沿いに回り込まれた！', 3]] },
     { kind: 'fight', at: NARAI, limit: 110, obj: '奈良井の宿の口で、回り込んだ木曽の騎馬を払い、退く道を開ける', title: '奈良井の宿', sub: '雪の宿場の口を木曽勢が塞ぐ',
       say: [['今福昌和', '道を開けよ！　ここで止まれば皆討たれる', 3]],
       foes: [
         { name: '宿の口の木曽勢', from: { x: NARAI.x + 6, z: NARAI.z + 14 }, list: [{ type: 'samurai', n: 1, o: { name: '木曽の組頭 千村' } }, uS(4), uA(18)] },
         { name: '宿の屋根の弓', from: { x: NARAI.x - 12, z: NARAI.z + 10 }, list: [uB(6)] }],
-      later: [{ t: 38, say: ['組頭', '谷から騎馬が来る！'], foes: [{ name: '木曽の騎馬', from: { x: NARAI.x + 20, z: NARAI.z + 6 }, list: [{ type: 'cavalry', n: 4 }, uS(2), uA(8)] }] }],
-      reward: '奈良井の宿の口を開けた' },
+      later: [{ t: 38, say: ['組頭', '谷から騎馬が来る！'], foes: [{ name: '木曽の騎馬', from: { x: NARAI.x + 44, z: NARAI.z + 10 }, list: [{ type: 'cavalry', n: 4 }, uS(2), uA(8)] }] }],
+      reward: '奈良井の宿の口を開けた' },   // 11/27 クラウドか：宿の口を戦場の内へ移した時、騎馬の出が本人の20m 脇になり act bot が倒れた→谷の東 45m から
   ],
   win: {
     banner: '鳥居峠 退き口を守る', sub: '峠は木曽勢の手に。織田の甲州征伐が始まる', award: '退き口で味方を下ろした',

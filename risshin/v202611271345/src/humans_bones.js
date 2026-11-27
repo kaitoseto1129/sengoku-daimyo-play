@@ -213,6 +213,5 @@ export function syncBones(h) {
 // 骨だけを直した後（根元の更新を省いた時）、受けを骨に合わせる
 export function refreshSocks(h) { for (const R of h.rigs || []) for (const s of R.socks) if (s.parent) s.updateMatrixWorld(false); }
 // 人の骨の数（確かめ用）
-export function rigBoneCount(h) { let n = 0; for (const R of h.rigs || []) { if (R.stale) buildList(R); n += R.list.length; } return n; }
 // 骨に付けた物の入れ物（受け）。部品の親を骨と比べる所で使う
 export function boneHolder(b) { return b && b._sock || b; }

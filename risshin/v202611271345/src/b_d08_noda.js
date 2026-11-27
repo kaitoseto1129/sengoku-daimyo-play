@@ -22,6 +22,17 @@ const OTE = { x: 10, z: 52 };           // 大手の門（開城を受け取る�
 const GOZUME = { x: -46, z: -30 };      // 囲みの西の野（家康の後詰の物見が寄る所・K652②）
 const FUE = { x: 22, z: 12 };           // 城の南の堀の外（夜、城から笛が聞こえた所・K652②）
 
+// 11/27 クラウドか K722②「戦後：勝鬨の後、信玄が体調を崩していることを初めて見せる」：前は台詞（咳）だけで、信玄の旗本は二百m 南の陣に立ったままだった。
+//   笛の夜の一息で信玄の旗本（allies の一つ目・本物の兵）が笛を聴きに堀の外の後ろへ出、開城の使いの一息で大手の門の下へ寄る（本人の後ろ十数m）。
+//   勝ちの後、周りの兵が勝鬨を上げる（cheer）中、信玄だけは応えず、二つ目の台詞（咳）で馬を下り（馬はその場に立つ）膝をつく（命を三割の下へ＝休みの片膝。討たれはしない）。
+//   三つ目の台詞「長篠まで退き」で旗本が信玄を囲んで陣の方へゆっくり退き、信玄は足を引きずって歩く。兵も物も足さない（旗本の十七人と馬を使い回す）
+const HATAMOTO = 0;
+const hatamotoGo = (to, sp) => (rt) => {
+  const g = rt.flags.allies?.[HATAMOTO]; if (!g?.count) return;
+  g.order = 'move'; g.dest = { ...to }; g.speed = sp; g.noRun = true; g.calm = true;
+};
+const shingenOf = (g) => g?.units?.find((u) => u.alive && u.type === 'busho');
+
 // 11/26 クラウドさ（K656 K655 の弱いサムネ「城が戦場に無い」）：城の丘の頂に野田城（三の丸・二の丸・本丸の連郭と堀切）を置く（castles/noda.js・出所 docs/battle_refs/noda.md）。遠景の軽い形
 export const d08_noda = withCastle(lightBattle({
   id: 'd08_noda',
@@ -101,7 +112,7 @@ export const d08_noda = withCastle(lightBattle({
       foes: [{ name: '本丸へ逃げ込む城兵', from: ((p) => ({ x: p.x + (0), z: p.z + (14) }))({ x: SOTO.x + 10, z: SOTO.z + 14 }), list: [uS(2), uA(12)] }],
       reward: '逃げ込む城兵を追い崩した' },
     // K652②⑥（逸話の段）：夜毎に城から笛の音が聞こえ、聞きに出た信玄を城の鉄砲が狙い撃ったと伝わる（『松平記』ほか・伝承）。本人は堀の外で笛の夜を守り、狙い撃ちの手を払う
-    { kind: 'rest', dur: 8, heal: 0.35, say: [['組頭', '……城から笛の音じゃ。毎夜、同じ刻に聞こえる', 3], ['武田信玄', 'よい音じゃ。今宵も聞きに出る', 3]] },
+    { kind: 'rest', dur: 8, heal: 0.35, fn: hatamotoGo({ x: FUE.x - 18, z: FUE.z - 24 }, 1.6), say: [['組頭', '……城から笛の音じゃ。毎夜、同じ刻に聞こえる', 3], ['武田信玄', 'よい音じゃ。今宵も聞きに出る', 3]] },
     { kind: 'hold', at: FUE, label: '堀の外', obj: '笛の夜、堀の外で城の鉄砲の狙い撃ちの手を払う', r: 14, dur: 70,
       title: '笛の夜', sub: '城の塀の陰から鉄砲の火縄が光る',
       say: [['山県昌景', '塀の陰に火縄じゃ！　お屋形様の前を固めよ！', 3.2]],
@@ -114,12 +125,36 @@ export const d08_noda = withCastle(lightBattle({
       say: [['組頭', '闇に紛れて侍が出た。斬り払え', 3.2]],
       foes: [{ name: '夜討ちの城の侍', from: ((p) => ({ x: p.x + (0), z: p.z + (14) }))({ x: FUE.x - 12, z: FUE.z + 14 }), list: [uS(3), uA(10)] }],
       reward: '夜討ちの侍を斬り払った' },
-    { kind: 'rest', dur: 10, heal: 0.3, say: [
+    { kind: 'rest', dur: 10, heal: 0.3, fn: hatamotoGo({ x: OTE.x - 12, z: OTE.z - 18 }, 1.6), say: [
       ['武田の使番', '城から使いが来た！　菅沼定盈、城を明け渡すとのこと', 3.4],
       ['山県昌景', '……お屋形様のお加減が優れぬ。開城を受け取ったら、すぐに兵をまとめよ', 3.4]] },
     { kind: 'move', at: OTE, label: '大手の門', obj: '大手の門へ進み、開城を受け取る', r: 12,
       say: [['組頭', '城兵に手を出すな。開いた城を受け取るだけじゃ', 3]] },
   ],
+  update(rt) {
+    const F = rt.flags;
+    if (!F.ending || F.d08Yamai) return;
+    F.d08Yamai = true;
+    const g = F.allies?.[HATAMOTO], P = rt.player?.u?.pos;
+    // 勝鬨：本人の周り六十m の味方が槍を突き上げる（信玄は応えない）
+    rt.after(0.6, () => {
+      for (const o of rt.army.units) if (o.alive && o.team === 0 && !o.isPlayer && o.type !== 'busho' && !o.fleeing && P && Math.hypot(o.pos.x - P.x, o.pos.z - P.z) < 60) o.cheer = 3.2 + Math.random() * 0.8;
+    });
+    // 咳（二つ目の台詞）：馬を下りて膝をつく。馬はその場に立たせたまま
+    rt.after(5.0, () => {
+      const u = shingenOf(g); if (!u) return;
+      u.cheer = 0;
+      if (u.mounted && u.horse) {
+        const h = u.horse; rt.army.setMounted(u, false);
+        h.position.set(u.pos.x + Math.cos(u.heading) * 1.4, rt.world.heightAt(u.pos.x, u.pos.z), u.pos.z - Math.sin(u.heading) * 1.4);
+        h.rotation.set(0, u.heading, 0); h.userData.noFreeze = true; rt.scene.add(h);
+      }
+      u.hp = Math.min(u.hp, u.maxHp * 0.2);
+      if (g) { g.order = 'hold'; g.dest = null; g.anchor = { x: u.pos.x, z: u.pos.z }; }   // 旗本が信玄の周りへ寄る
+    });
+    // 「長篠まで兵を退き」（三つ目の台詞）：旗本が囲んで陣の方へゆっくり退く。信玄は足を引きずる
+    rt.after(9.6, () => { if (g?.count) hatamotoGo(CAMP, 0.7)(rt); });
+  },
   win: {
     banner: '野田城の開城', sub: '水の手を断たれ、野田城は開いた', award: '野田城の水の手を断ち、開城させた',
     say: [['山県昌景', '城は取った。されど、お屋形様のお体が……', 3.4],

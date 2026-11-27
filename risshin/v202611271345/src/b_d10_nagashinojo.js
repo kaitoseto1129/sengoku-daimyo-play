@@ -19,7 +19,7 @@
 import { BATTLE_ASSETS } from './asset_manifest.js';
 import { nagashinojo as base, NAGA_AT, NAGA_WORLD } from './b_nagashinojo.js';
 import { SH, allyGroup, enemyGroup } from './nagashinojo/side.js';
-import { palisade, makeSimpleBatch, finalizeSimpleBatch } from './props.js';
+import { palisade, makeSimpleBatch, finalizeSimpleBatch, nobori } from './props.js';
 import { FUJIN } from './fujin_layout.js';
 import { isEn, addEn } from './i18n.js';
 if (isEn()) import('./i18n_en_takeda.js').then((m) => addEn(m.default)).catch(() => {});   // K516 英語の時だけ武田編の字の表を読む
@@ -168,6 +168,10 @@ export const d10_nagashinojo = Object.assign(D, {
       // K722 ⑧⑨：遠くの城兵へ強右衛門の声が届き、城内から歓声（磔の姿は見せず声だけ）
       this.dSay(rt, 5, '鳥居強右衛門', '援軍は来る！　あと数日、持ちこたえよ！', 3.2);
       this.dSay(rt, 9, '城兵', 'おおーっ！　援軍が来るぞ！', 2.8);
+      // K722②⑨（11/27 クラウドし）：城内の歓声が台詞だけで、対岸から見る城に何も起きなかった。
+      //   歓声に合わせ、南の塀の内に奥平・徳川の幟を東から西へ一本ずつ起こし、しばらく左右に振る（城の気が上がったのを絵で）。
+      //   字は足さない。幟は当たりを持たない（形・材質は nobori の共用）。この段で初めて作る
+      rt.after(8.6, () => this.dCheer(rt));
       this.dSay(rt, 14, '武田勝頼', '……見事な者よ。城の気は、かえって上がったか', 3.2);
       // 逸話の段（K652⑥・前の d10 と同じ）：強右衛門の声を聞いた城兵が、搦手から打って出る（城の側の組・本人への倍は他の城兵と同じ）
       rt.after(9, () => {
@@ -181,6 +185,20 @@ export const d10_nagashinojo = Object.assign(D, {
       this.dSay(rt, 0.5, '小山田昌行', '総がかりじゃ！　大手門を打ち破れ！', 3);
       this.dSay(rt, 5, '組頭', '梯子を掛けよ！　塀の上の槍に気をつけい', 2.8);
     }
+  },
+  dCheer(rt) {
+    const F = rt.flags; if (F.dWon || F.d10Cheer) return;
+    F.d10Cheer = true;
+    const S = A.S_Z - 3;
+    [[26, S, 'okudaira'], [18, S - 1, 'tokugawa'], [10, S, 'okudaira'], [2, S - 1, 'okudaira'], [-6, S, 'tokugawa'], [-14, S - 1, 'okudaira'], [-22, S, 'okudaira'], [-30, S - 1, 'okudaira']].forEach(([x, z, k], i) => {
+      const n = nobori(rt.world, x, z, k, 6.5);
+      n.userData.noFreeze = true; n.visible = false; rt.scene.add(n);
+      const r0 = n.rotation.z, r1 = r0 - 1.4, t0 = i * 0.45;
+      rt.after(t0, () => { n.rotation.z = r1; n.visible = true; });
+      for (let j = 1; j <= 12; j++) rt.after(t0 + j * 0.08, () => { n.rotation.z = r1 + (r0 - r1) * (1 - (1 - j / 12) ** 2); });
+      // 起きた後、八秒ほど左右に振る（振れ幅は次第に小さく）
+      for (let j = 1; j <= 40; j++) rt.after(t0 + 1 + j * 0.2, () => { n.rotation.z = r0 + Math.sin(j * 0.9 + i) * 0.22 * (1 - j / 40); });
+    });
   },
   // 元の戦は一の寄せの後の一息（lull）から十秒で夕暮れ（startSune）へ進む。d10 は間に鹿垣の段を挟み、済んでから元の夕暮れへ
   startSune(rt) {

@@ -22,7 +22,10 @@ if (isEn()) import('./i18n_en_takeda.js').then((m) => addEn(m.default)).catch(()
 
 // 布陣の表（fujin_layout.js の takato）も側を入れ替えて同じ所に立てる（表は戦の key で引く）
 //   元の戦では本人の側（織田）の備が本人の前へ付き直し、城方は表の持ち場で待つ。d14 も同じ仕組み（本人の側＝城兵の備が本人の脇へ付く）
-if (FUJIN.takato && !FUJIN.d14_takato) FUJIN.d14_takato = { ...FUJIN.takato, ...(FUJIN.takato.noAttach ? { noAttach: FUJIN.takato.noAttach.map((s) => 1 - s) } : {}), rows: FUJIN.takato.rows.map((r) => ({ ...r, side: 1 - r.side })) };
+// K722②（11/27 クラウドか）：要件書の見せ場「敵軍の量。長篠以上に、もう援軍は来ないと分からせる」が台詞だけだった（元の表は見せる数のため両軍同数の十八塊ずつ）。
+//   d14 の写しだけ、城兵（元の side 1）の塊を曲輪の内に近い六つに絞り、織田の十八塊と三対一にする（布陣図の約十対一へ寄る・兵は減るので重くならない）
+const D14_KEEP = new Set(['tkTa1', 'tkTa2', 'tkTb1', 'tkTb2', 'tkTw1', 'tkTw2']);
+if (FUJIN.takato && !FUJIN.d14_takato) FUJIN.d14_takato = { ...FUJIN.takato, ...(FUJIN.takato.noAttach ? { noAttach: FUJIN.takato.noAttach.map((s) => 1 - s) } : {}), rows: FUJIN.takato.rows.filter((r) => r.side === 0 || D14_KEEP.has(r.key)).map((r) => ({ ...r, side: 1 - r.side })) };
 
 const T = TAKATO_AT;
 const TAKEDA = { flag: 'takeda', armor: 0x1d1b1a };   // 元の戦の仁科の城兵（黒い具足）

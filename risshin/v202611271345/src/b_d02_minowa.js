@@ -92,11 +92,14 @@ export const d02_minowa = withCastle(lightBattle({
       say: [['内藤昌秀', '坂を一気に上れ！　足を止めれば上から突かれるぞ', 3.2]],
       foes: [{ name: '二の丸の守り', from: { x: NINO.x, z: NINO.z - 10 }, list: [uS(5), uA(26), uG(3)] }],
       reward: '二の丸を取った' },
-    // K674 足した段（11/26 Sanae・一戦10任務）
-    { kind: 'fight', at: { x: NINO.x + 12, z: NINO.z - 8 }, obj: '二の丸の櫓の下で、火矢を射る長野の弓を討つ', limit: 90,
-      say: [['組頭', '火矢じゃ。櫓の下へ走れ', 3.2]],
-      foes: [{ name: '櫓の長野の弓', from: ((p) => ({ x: p.x + (0), z: p.z + (-14) }))({ x: NINO.x + 12, z: NINO.z - 8 }), list: [uS(1), uA(6), uB(5)] }],
-      reward: '櫓の弓を討った' },
+    // K722②（11/27 クラウドさ・要件書の⑥「長野勢の逆寄せ」・見せ場「最後まで抵抗する長野業盛側を強く描く」）：前は櫓の弓を討つだけの段だった。
+    //   二の丸を取った直後、本丸から堀切を渡って長野勢が取り返しに来る。逆寄せの兵は崩れず（noRout）、最後の数人まで槍を入れて来る
+//   （崩れない分、刃は弱め dmg 0.45・弓は外した：一回目の act bot で次の大堀切の段に深手のまま入り806秒で倒れた）
+    { kind: 'fight', at: { x: NINO.x + 6, z: NINO.z - 10 }, obj: '二の丸へ逆寄せに来た長野勢を押し返す', limit: 60, title: '逆寄せ', sub: '長野勢が本丸から二の丸を取り返しに来る',
+      say: [['長野の侍', '二の丸を返せ！　箕輪の者は一歩も退くな！', 3.2], ['組頭', '逆寄せじゃ！　こやつら退かぬぞ、槍を揃えよ', 3.2]],
+      foes: [{ name: '長野の逆寄せ', from: { x: HORI.x + 4, z: HORI.z - 6 }, noRout: 999, morale: 100, dmg: 0.45, list: [{ type: 'samurai', n: 1, o: { name: '長野の組頭 和田' } }, uA(8)] }],
+      later: [{ t: 30, say: ['長野の侍', 'まだじゃ！　もう一度押せ！'], foes: [{ name: '長野の二度目の逆寄せ', from: { x: HORI.x - 8, z: HORI.z - 8 }, noRout: 999, morale: 100, dmg: 0.45, list: [uA(6)] }] }],
+      reward: '長野の逆寄せを押し返した' },
     // K652②：二の丸と本丸の間の大堀切（箕輪城の一番の堀・castles/minowa.js）。堀の底へ下りて向こうの土塁を上る
     { kind: 'rest', dur: 8, heal: 0.6, say: [['組頭', '二の丸は取った。息を継げ。次は大堀切じゃ', 2.8]] },
     { kind: 'hold', at: HORI, label: '大堀切', obj: '大堀切の底で、土塁の上から突く城兵を凌ぎ、本丸の口を取る', r: 14, dur: 65,
@@ -110,7 +113,9 @@ export const d02_minowa = withCastle(lightBattle({
     // 11/21 cloud-41：最後の段が七分の上限まで延びた（通しで箕輪 731・蒲原 709秒）。若田原 120・二の丸 100・本丸 120 秒を上限に（六割崩していれば済）。通しで若田原だけで 300 秒かかった
     { kind: 'fight', at: HON, limit: 120, obj: '本丸に攻め入り、業盛の旗本を崩す', title: '本丸', sub: '長野業盛の旗本が最後の槍を構える',
       say: [['長野業盛', '春風に梅も桜も散り果てて……ここが長野の最期の場じゃ', 3.6]],
-      foes: [{ name: '長野業盛の旗本', from: { x: HON.x, z: HON.z - 8 }, list: [busho('長野業盛', { mustLive: false, invuln: false }), uS(6), uA(16)] }],
+      foes: [{ name: '長野業盛の旗本', from: { x: HON.x, z: HON.z - 8 }, noRout: 999, morale: 100, list: [busho('長野業盛', { mustLive: false, invuln: false }), uS(6), uA(16)] }],
+      // K722② 見せ場：旗本は崩れず（noRout・数が四より減った時だけ崩れる共通の決まりはそのまま）、業盛の後ろの持仏堂から近習が最後の槍に出る
+      later: [{ t: 35, say: ['長野の近習', '殿の御最期を汚させはせぬ！　持仏堂へは一人も通さぬ！'], foes: [{ name: '持仏堂の近習', from: { x: HON.x - 6, z: HON.z - 14 }, noRout: 999, morale: 100, dmg: 0.45, list: [uS(1), uA(4)] }] }],
       reward: '本丸を落とした' },
   ],
   win: {

@@ -521,7 +521,6 @@ function prepHeadMH(gl, sk) {
   for (const t of sk) { t.flipY = false; t.anisotropy = 4; t.colorSpace = THREE.SRGBColorSpace; }
   HEAD = { geo: vars[2], vars, col: sk[1], skins: sk, nrm: null, spec: null, k: 0.058, mh: true, eyes: ex.eyes, exMorph: exOK, teeth: exOK && teeth.length === vars.length ? teeth : null };
 }
-function boneOf(h, nm) { return h.bones[nm]; }
 function restMatrix(nm) {
   // 骨の立ち姿の行列（人の根元の座標）。人を作るたびに同じなので覚えておく
   if (!SRC.restM) SRC.restM = {};
