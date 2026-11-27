@@ -18,7 +18,8 @@
 // ======================================================================
 import { BATTLE_ASSETS } from './asset_manifest.js';
 import { nagashinojo as base, NAGA_AT, NAGA_WORLD } from './b_nagashinojo.js';
-import { SH, allyGroup } from './nagashinojo/side.js';
+import { SH, allyGroup, enemyGroup } from './nagashinojo/side.js';
+import { palisade, makeSimpleBatch, finalizeSimpleBatch } from './props.js';
 import { FUJIN } from './fujin_layout.js';
 import { isEn, addEn } from './i18n.js';
 if (isEn()) import('./i18n_en_takeda.js').then((m) => addEn(m.default)).catch(() => {});   // K516 英語の時だけ武田編の字の表を読む
@@ -42,10 +43,16 @@ const D = Object.defineProperties({}, Object.getOwnPropertyDescriptors(base));
 for (const k of ['autoLeadTarget', 'frameCamera', 'botBrain', 'canSkip', 'skip', 'onFinish', 'takenMult', 'tutorialHold', 'camLift', 'quietArmyCalls', 'marchIn']) delete D[k];   // marchIn：元の本人（城兵）の行軍の入り
 
 // 任務の字は kaito の直した紙（K669・ninmu10_words.js の takeda:d10_nagashinojo）のまま。元の段の順（一の寄せ→火矢→夕暮れ→強右衛門→二日後の磔→総がかり）に当てる
-const OBJ = ['竹束の列を抜けて塀の前へ寄せ、打って出る城兵を押し返せ', '北東の角の金掘りの穴を守り、打って出た城兵を討て', '城の東の崖下を回り、宇連川の岸へ下りる',
+// 11/27 クラウドわ（K722 ①包囲 ②柵を作る・K656 長さ）：火矢の後・夕暮れの前に「鹿垣を結ぶ」段（2）を足した。
+//   史実：力攻めで落ちぬと見た勝頼は、城の周りに鹿垣を結い回して囲み、兵糧攻めに替えた（『三河物語』）。
+const OBJ = ['竹束の列を抜けて塀の前へ寄せ、打って出る城兵を押し返せ', '北東の角の金掘りの穴を守り、打って出た城兵を討て',
+  '北の野に鹿垣を結ぶ足軽を守り、打って出る城兵を押し返せ', '城の東の崖下を回り、宇連川の岸へ下りる',
   '鳴子が鳴った。川を渡って城へ戻る鳥居強右衛門を捕らえよ', '城の対岸の磔の前で、怒って打って出る城兵を受ける', '大手門へ寄せ、門の前に出た奥平の手を押し戻す'];
 // K674（11/26 Sanae）：一戦10任務。段のうち四つに、その段で城兵を四人討て任務を足す
-const SUB = { 0: '竹束の陰から、塀の狭間の鉄砲を撃つ城兵の足軽を四人討て', 1: '火矢の隊を狙う、城の弓の兵を四人討て', 4: '磔の前へ打って出た奥平の侍を四人討て', 5: '大手門の前の、奥平の旗本を四人討て' };
+const SUB = { 0: '竹束の陰から、塀の狭間の鉄砲を撃つ城兵の足軽を四人討て', 1: '火矢の隊を狙う、城の弓の兵を四人討て', 2: '杭を打つ足軽へ斬り込む城兵を四人討て', 5: '磔の前へ打って出た奥平の侍を四人討て', 6: '大手門の前の、奥平の旗本を四人討て' };
+const SAKU = [[-36, -54], [-25, -58], [-14, -62]];       // 鹿垣の筋（大手道の西・北の野の坂。大手道と崖は塞がない）
+const SAKU_C = { x: -25, z: -58 };
+const SAKU_OUT = { x: -28, z: -31 };                    // 城兵が打って出る北西の塀の脇
 const KAWA = { x: 68, z: 40 };                           // 城の東の崖下（宇連川へ下りる所）
 
 export const d10_nagashinojo = Object.assign(D, {
@@ -73,20 +80,22 @@ export const d10_nagashinojo = Object.assign(D, {
   // 元の段（phase）から武田の任務の段を決める
   stageOf(rt) {
     const F = rt.flags, ph = rt.phase, P = rt.player.u.pos;
-    if (ph === 'final' || ph === 'end') return 5;
-    if (ph === 'news') return 4;
-    if (ph === 'sune' && (F.d10Kawa || Math.hypot(P.x - KAWA.x, P.z - KAWA.z) < 16 || (F.suneG?.pathIdx || 0) >= 3)) { F.d10Kawa = true; return 3; }
-    if (ph === 'lull' || ph === 'sune') return 2;
+    if (ph === 'final' || ph === 'end') return 6;
+    if (ph === 'news') return 5;
+    if (ph === 'sune' && (F.d10Kawa || Math.hypot(P.x - KAWA.x, P.z - KAWA.z) < 16 || (F.suneG?.pathIdx || 0) >= 3)) { F.d10Kawa = true; return 4; }
+    if (ph === 'sune' || (ph === 'lull' && F.d10SakuDone)) return 3;
+    if (F.d10Saku) return 2;
     if (rt.flags.fire === 'active') return 1;
     return 0;
   },
   pin(rt) {
     const F = rt.flags; if (F.dWon) return null;
     const s = F.dStage ?? 0;
-    if (s >= 5) { const g = (F.fin || []).find(alive), c = center(g); return c ? { x: c.x, z: c.z, label: g.name } : { x: GX, z: NZ - 6, label: '大手門' }; }
-    if (s === 4) { const c = center(F.d10Sally); return c ? { x: c.x, z: c.z, label: '搦手の打って出' } : { x: TAIGAN.x, z: TAIGAN.z, label: '磔の場' }; }
-    if (s === 3) { const q = F.sune; return q?.alive ? { x: q.pos.x, z: q.pos.z, label: '鳥居強右衛門' } : { x: WATCH.x, z: WATCH.z, label: '宇連川の岸' }; }
-    if (s === 2) return { x: KAWA.x, z: KAWA.z, label: '城の東の崖下' };
+    if (s >= 6) { const g = (F.fin || []).find(alive), c = center(g); return c ? { x: c.x, z: c.z, label: g.name } : { x: GX, z: NZ - 6, label: '大手門' }; }
+    if (s === 5) { const c = center(F.d10Sally); return c ? { x: c.x, z: c.z, label: '搦手の打って出' } : { x: TAIGAN.x, z: TAIGAN.z, label: '磔の場' }; }
+    if (s === 4) { const q = F.sune; return q?.alive ? { x: q.pos.x, z: q.pos.z, label: '鳥居強右衛門' } : { x: WATCH.x, z: WATCH.z, label: '宇連川の岸' }; }
+    if (s === 3) return { x: KAWA.x, z: KAWA.z, label: '城の東の崖下' };
+    if (s === 2) { const g = (F.d10SakuW || []).find(alive), c = center(g); return c ? { x: c.x, z: c.z, label: g.name } : { x: SAKU_C.x, z: SAKU_C.z, label: '鹿垣' }; }
     if (s === 1) return { x: A.kanahori.x + 2, z: A.kanahori.z - 4, label: '金掘りの穴' };
     const g = (F.w1 || []).find(alive), c = center(g);
     return c ? { x: c.x, z: c.z, label: g.name } : { x: TAKETABA.x, z: TAKETABA.z, label: '竹束の列' };
@@ -144,12 +153,16 @@ export const d10_nagashinojo = Object.assign(D, {
       this.dSay(rt, 0.5, '武田の弓頭', '火矢を番えよ！　狙うは二の丸の兵糧蔵じゃ', 3);
       this.dSay(rt, 4.5, '組頭', '火矢の隊を城兵に討たせるな！', 2.8);
     } else if (n === 2) {
+      this.dBanner(rt, '鹿垣を結ぶ', '力攻めをやめ、城を囲んで兵糧を断つ');
+      this.dSay(rt, 0.5, '武田勝頼', '城は力では落ちぬ。鹿垣を結い回し、蟻の這い出る隙もなく囲め', 3.4);
+      this.dSay(rt, 5, '組頭', '杭を打つ者を守れ！　城兵が打って出てくるぞ', 2.8);
+    } else if (n === 3) {
       this.dBanner(rt, '夕暮れ', '寄せ手はいったん兵を引いた');
       this.dSay(rt, 1, '武田勝頼', '川べりの見張りを固めよ。鳴子の綱を見張れ', 3);
-    } else if (n === 3) {
+    } else if (n === 4) {
       this.dSay(rt, 0.5, '物見', '城の搦手の崖を、人が下りて行く！　宇連川へ潜る気じゃ', 3.4);
       this.dSay(rt, 4, '足軽', '鳴子が鳴った！　川の中に人影じゃ！', 2.8);
-    } else if (n === 4) {
+    } else if (n === 5) {
       this.dBanner(rt, '――二日後', '強右衛門を捕らえた');
       this.dSay(rt, 0.5, '武田勝頼', '強右衛門を城の対岸へ引き出せ。城へ「援軍は来ぬ」と言わせよ', 3.4);
       // K722 ⑧⑨：遠くの城兵へ強右衛門の声が届き、城内から歓声（磔の姿は見せず声だけ）
@@ -163,11 +176,53 @@ export const d10_nagashinojo = Object.assign(D, {
           [{ type: 'samurai', n: 2, o: { flag: 'okudaira' } }, { type: 'ashigaru', n: 12, o: { flag: 'okudaira' } }]);
         this.dSay(rt, 0.5, '物見', '搦手から城兵が打って出た！　強右衛門の仇と叫んでおる！', 3);
       });
-    } else if (n === 5) {
+    } else if (n === 6) {
       this.dBanner(rt, '武田の総がかり', '大手門と北の塀へ');
       this.dSay(rt, 0.5, '小山田昌行', '総がかりじゃ！　大手門を打ち破れ！', 3);
       this.dSay(rt, 5, '組頭', '梯子を掛けよ！　塀の上の槍に気をつけい', 2.8);
     }
+  },
+  // 元の戦は一の寄せの後の一息（lull）から十秒で夕暮れ（startSune）へ進む。d10 は間に鹿垣の段を挟み、済んでから元の夕暮れへ
+  startSune(rt) {
+    const F = rt.flags;
+    if (F.d10SakuDone || F.dWon) return base.startSune.call(this, rt);
+    if (!F.d10Saku) this.dSakuStart(rt);
+  },
+  dSakuStart(rt) {
+    const F = rt.flags;
+    F.d10Saku = { t0: rt.t, w2: false };
+    F.d10SakuW = [enemyGroup(rt, { name: '鹿垣を結ぶ足軽', faction: 'takeda', anchor: { ...SAKU_C }, fixed: true, facing: 0, order: 'hold', aggro: 6, width: 8, morale: 85 },
+      [{ type: 'ashigaru', n: 8, o: { flag: 'takeda' } }])];
+    F.d10SakuE = [];
+    rt.after(6, () => { if (!F.dWon && !F.d10SakuDone) F.d10SakuE.push(this.dSakuSally(rt, '奥平の打って出', 1, 8)); });
+  },
+  dSakuSally(rt, name, sam, ash) {
+    const g = allyGroup(rt, { faction: 'tokugawa', name, anchor: { ...SAKU_OUT }, fixed: true, facing: Math.PI, order: 'attack', aggro: 30, seekRange: 45, width: 6, morale: 80, dmgMultPlayer: 0.35 },
+      [{ type: 'samurai', n: sam, o: { flag: 'okudaira' } }, { type: 'ashigaru', n: ash, o: { flag: 'okudaira' } }]);
+    this.dSay(rt, 0.3, '物見', '北西の塀の脇から、城兵が鹿垣へ打って出た！', 2.8);
+    return g;
+  },
+  dSakuTick(rt) {
+    const F = rt.flags, S = F.d10Saku; if (!S || F.d10SakuDone || F.dWon) return;
+    const el = rt.t - S.t0, E = F.d10SakuE;
+    if (!S.w2 && el > 50) { S.w2 = true; E.push(this.dSakuSally(rt, '奥平の打って出（二）', 2, 10)); }
+    const clear = S.w2 && E.length >= 2 && !E.some(alive);
+    if (!((clear && el > 95) || el > 170)) return;
+    F.d10SakuDone = true;
+    for (const g of E) if (alive(g)) { g.noRout = false; g.morale = 0; g.routed = true; g.order = 'flee'; g.fleeDir = { x: 0, z: 1 }; g.fleeSet = true; }
+    // 結い終えた鹿垣（飾りの柵。当たりは付けず、後の段の道を塞がない）
+    const batch = makeSimpleBatch();
+    for (let i = 0; i < SAKU.length - 1; i++) {
+      const [ax, az] = SAKU[i], [bx, bz] = SAKU[i + 1], n = Math.max(1, Math.round(Math.hypot(bx - ax, bz - az) / 6));
+      for (let j = 0; j < n; j++) {
+        const m = palisade(rt.world, [ax + (bx - ax) * j / n, az + (bz - az) * j / n, ax + (bx - ax) * (j + 1) / n, az + (bz - az) * (j + 1) / n], { batch });
+        if (m && !m.isBatchedPart) rt.scene.add(m);
+      }
+    }
+    finalizeSimpleBatch(rt, batch);
+    this.dBanner(rt, '鹿垣が結ばれた', '長篠城は囲まれた');
+    this.dSay(rt, 0.5, '武田勝頼', 'これで城の兵糧は尽きる。あとは待つだけじゃ', 3);
+    rt.after(4, () => base.startSune.call(this, rt));
   },
   dWin(rt) {
     const F = rt.flags; if (F.dWon) return;
@@ -196,6 +251,7 @@ export const d10_nagashinojo = Object.assign(D, {
     if ((F.d10HurtT = (F.d10HurtT || 0) - dt) <= 0) { F.d10HurtT = 1; for (const g of rt.army.groups) if (g.team === SH.oda && g.dmgMultPlayer == null) g.dmgMultPlayer = 0.35; }
     base.update.call(this, rt, dt);
     if (F.dWon || !rt.player?.u?.alive) return;
+    this.dSakuTick(rt);
     this.dGo(rt, this.stageOf(rt));
     if (!F.dSub && SUB[F.dStage] && (rt.stats?.kills ?? 0) - (F.dK0 ?? 0) >= 4) { F.dSub = 1; this.dObj(rt, SUB[F.dStage]); }
   },

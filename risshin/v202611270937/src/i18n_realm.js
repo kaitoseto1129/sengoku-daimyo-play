@@ -1,0 +1,346 @@
+// K516 英語版：城下の「知行」（realm.js・domain.js・retainers.js・gaiko.js・chigyo.js・nagaya.js）の字の英訳。
+//   英語の時だけ i18n.js が読む（日本語の時は読まない・重さ0）。iMac 立身 11/22（山崎の持ち主の連絡帳「領地の画面 realm は日本語が多数」）
+//   字の節（text node）ごとに引く。「。」で続く文と「・」で並ぶ一覧は、一つずつ引いて、全部が英語になった時だけ返す（日本語まじりは返さない）
+const JA = /[぀-ヿ㐀-鿿]/;
+const ok = (s) => typeof s === 'string' && !JA.test(s);
+// 銭（state.js zeni の形：3貫・500文・1貫500文・−2貫）
+const Z = (s) => {
+  const m = /^(−)?(?:(\d+)貫)?(?:(\d+)文)?$/.exec(s || '');
+  if (!m || (!m[2] && !m[3])) return s;
+  return (m[1] ? '−' : '') + [m[2] && `${m[2]} kan`, m[3] && `${m[3]} mon`].filter(Boolean).join(' ');
+};
+const ZR = '(−?\\d+(?:貫\\d+文|貫|文))';
+const re = (src) => new RegExp('^' + src.replaceAll('{Z}', ZR) + '$');
+
+// 家臣の名（generals_data.js の SEI・MEI の組み）
+const SEI_EN = { 井上: 'Inoue', 石川: 'Ishikawa', 大野: 'Ōno', 岡部: 'Okabe', 小川: 'Ogawa', 加藤: 'Katō', 川村: 'Kawamura', 木村: 'Kimura', 小島: 'Kojima', 近藤: 'Kondō',
+  斎藤: 'Saitō', 坂本: 'Sakamoto', 佐野: 'Sano', 島田: 'Shimada', 杉山: 'Sugiyama', 関口: 'Sekiguchi', 高木: 'Takagi', 竹内: 'Takeuchi', 田中: 'Tanaka', 土屋: 'Tsuchiya',
+  内藤: 'Naitō', 中村: 'Nakamura', 西村: 'Nishimura', 野村: 'Nomura', 長谷川: 'Hasegawa', 原田: 'Harada', 平野: 'Hirano', 福田: 'Fukuda', 藤田: 'Fujita', 堀内: 'Horiuchi',
+  松本: 'Matsumoto', 三浦: 'Miura', 宮本: 'Miyamoto', 村上: 'Murakami', 森田: 'Morita', 山口: 'Yamaguchi', 山本: 'Yamamoto', 吉田: 'Yoshida', 渡辺: 'Watanabe', 安藤: 'Andō',
+  飯田: 'Iida', 今井: 'Imai', 岩田: 'Iwata', 上田: 'Ueda', 遠藤: 'Endō', 大塚: 'Ōtsuka', 奥村: 'Okumura', 金子: 'Kaneko', 河野: 'Kōno', 久保: 'Kubo', 小山: 'Koyama',
+  酒井: 'Sakai', 桜井: 'Sakurai', 清水: 'Shimizu', 須藤: 'Sudō', 高野: 'Takano', 千葉: 'Chiba', 堤: 'Tsutsumi', 富田: 'Tomita', 中島: 'Nakajima', 永井: 'Nagai', 服部: 'Hattori',
+  林: 'Hayashi', 樋口: 'Higuchi', 布施: 'Fuse', 前田: 'Maeda', 増田: 'Masuda', 丸山: 'Maruyama', 水野: 'Mizuno', 望月: 'Mochizuki', 矢野: 'Yano', 横山: 'Yokoyama' };
+const MEI_EN = { 左衛門: 'Saemon', 右衛門: 'Uemon', 兵衛: 'Hyōe', 左近: 'Sakon', 右近: 'Ukon', 内蔵助: 'Kuranosuke', 主水: 'Mondo', 采女: 'Uneme', 与一: 'Yoichi', 与三郎: 'Yosaburō',
+  甚五郎: 'Jingorō', 源太郎: 'Gentarō', 新六郎: 'Shinrokurō', 弥次郎: 'Yajirō', 孫四郎: 'Magoshirō', 彦七郎: 'Hikoshichirō', 喜兵衛: 'Kihei', 半左衛門: 'Hanzaemon', 勘解由: 'Kageyu',
+  主膳: 'Shuzen', 大膳: 'Daizen', 刑部: 'Gyōbu', 式部: 'Shikibu', 監物: 'Kenmotsu', 図書: 'Zusho', 帯刀: 'Tatewaki', 隼人: 'Hayato', 将監: 'Shōgen', 蔵人: 'Kurando', 権六: 'Gonroku',
+  又八郎: 'Matahachirō', 助之丞: 'Sukenojō', 市之丞: 'Ichinojō', 伝右衛門: "Den'emon", 太郎左衛門: 'Tarōzaemon', 次郎兵衛: 'Jirobei', 三郎兵衛: 'Saburobei', 忠右衛門: 'Chūemon',
+  新左衛門: 'Shinzaemon', 清兵衛: 'Seibei' };
+const GOU_EN = { 采配上手: 'the Commander', 豪勇: 'the Bold', 知恵者: 'the Wise', 算用達者: 'the Reckoner' };
+const nm = (s, tr) => {
+  const t = tr(s); if (ok(t)) return t;
+  const g = /^(采配上手|豪勇|知恵者|算用達者)・(.+)$/.exec(s);
+  if (g) { const n = nm(g[2], tr); return ok(n) ? `${n} ${GOU_EN[g[1]]}` : t; }
+  for (const sei in SEI_EN) if (s.startsWith(sei) && MEI_EN[s.slice(sei.length)]) return `${SEI_EN[sei]} ${MEI_EN[s.slice(sei.length)]}`;
+  return t;
+};
+const STAT = { 統率: 'Leadership', 武勇: 'Valor', 知略: 'Wits', 政治: 'Politics' };
+const TRAIT = { 猛将: 'Fierce warrior', 知将: 'Shrewd general', 築城: 'Castle builder', 鉄砲: 'Gunner', 騎馬: 'Horseman', 調略: 'Schemer', 義理堅い: 'Loyal', 野心家: 'Ambitious', 商才: 'Merchant', 農政: 'Farmer' };
+const stats = (s) => s.split(/[・ ]/).map((x) => { const m = /^(統率|武勇|知略|政治)(\d+)$/.exec(x); return m ? `${STAT[m[1]]} ${m[2]}` : x; }).join(', ');
+// 「。」で続く文：一つずつ引いて、全部英語なら返す
+const sentences = (s, tr) => {
+  const parts = s.split('。').map((x) => x.trim()).filter(Boolean);
+  if (parts.length < 2) return undefined;
+  const out = parts.map((x) => tr(x).replace(/[.。]\s*$/, ''));
+  return out.every(ok) ? out.join('. ') + (/。\s*$/.test(s) ? '.' : '') : undefined;
+};
+// 「・」で並ぶ一覧（（）の中の・は切らない）
+const listSplit = (s) => { const L = []; let d = 0, cur = ''; for (const ch of s) { if (ch === '（' || ch === '(') d++; if (ch === '）' || ch === ')') d--; if (ch === '・' && d === 0) { L.push(cur); cur = ''; } else cur += ch; } L.push(cur); return L.map((x) => x.trim()).filter(Boolean); };
+const list = (s, tr, sep = ', ') => { const L = listSplit(s); if (L.length < 2) return undefined; const out = L.map((x) => tr(x)); return out.every(ok) ? out.join(sep) : undefined; };
+const ROLE_EN = { 先手: 'Vanguard', 鉄砲頭: 'Gun captain', 旗本: 'Bodyguard captain', 組の頭: 'Squad head', 手勢の頭: 'Head of your troops', 横に付いて戦う: 'Fight at your side', 留守居: 'Steward', 使者: 'Envoy' };
+const WORK_EN = { 兵を集める: 'Gather troops', 田を開く: 'Open fields', 市を開く: 'Open a market', 鉄砲鍛冶を呼ぶ: 'Call a gunsmith', 手勢を鍛える: 'Train your men', 具足を繕う: 'Mend armor', 屋敷の畑を耕す: 'Till the house garden',
+  検地で田を調べる: 'Survey the fields', 楽市楽座で商いを広げる: 'Free markets to widen trade', 街道を普請して米を運ぶ: 'Build roads to carry rice', 城を普請して具足を守る: 'Build up the castle to keep armor safe',
+  兵と農の役目を分ける: 'Separate soldiers and farmers', 鉱山の坑道を直す: 'Repair the mine shafts', 村の兵を補う: 'Replenish village troops', 寺社と村の頼みを聞く: 'Hear the temples and villagers' };
+const HOUSE_EN = { 徳川家: 'Tokugawa clan', 浅井家: 'Azai clan', 武田家: 'Takeda clan', 上杉家: 'Uesugi clan', 本願寺: 'Hongan-ji', 朝廷: 'Imperial Court', 将軍: 'Shogun', 朝倉家: 'Asakura clan' };
+const GK_EN = { 贈り物を届ける: 'deliver a gift', 婚姻の縁を取り次ぐ: 'arrange a marriage tie', 同盟の話を進める: 'advance alliance talks', 和睦の話を取り次ぐ: 'broker peace talks', 敵の国衆へ内通を働きかける: 'urge local lords to defect' };
+const SEASON = { 春: 'Spring', 夏: 'Summer', 秋: 'Autumn', 冬: 'Winter' };
+const RANK_EN = { 雑兵: 'Foot soldier', 足軽: 'Ashigaru', 組頭: 'Squad leader', 侍: 'Samurai', 足軽大将: 'Ashigaru captain', 侍大将: 'Samurai captain', 部将: 'Commander', 城主: 'Castle lord', 大名: 'Daimyō' };
+const MURA = { '春日井郡 味鋺村': 'Ajima Village, Kasugai District', '丹羽郡 楽田村': 'Gakuden Village, Niwa District', '中島郡 起村': 'Okoshi Village, Nakashima District', '葉栗郡 黒田村': 'Kuroda Village, Haguri District',
+  '厚見郡 加納村': 'Kanō Village, Atsumi District', '本巣郡 織部村': 'Oribe Village, Motosu District', '席田郡 河渡村': 'Gōdo Village, Mushiroda District', '安八郡 墨俣村': 'Sunomata Village, Anpachi District',
+  '蒲生郡 円山村': 'Maruyama Village, Gamō District', '神崎郡 五個荘村': 'Gokashō Village, Kanzaki District', '甲賀郡 石部村': 'Ishibe Village, Kōka District', '高島郡 今津村': 'Imazu Village, Takashima District',
+  '美濃国 河渡村': 'Gōdo Village, Mino', '尾張国 楽田村': 'Gakuden Village, Owari' };
+const MURA_RE = '(' + Object.keys(MURA).join('|') + ')';
+
+export default [
+  // ---- 文と一覧の組み立て（全部が英語になる時だけ） ----
+  [/^.+。.*$/, (m, tr) => sentences(m[0], tr)],
+  [/^[^。]+・[^。]+$/, (m, tr) => list(m[0], tr)],
+  // 鉄砲・統率・先手などの一語は他の画面の表にもあるので、ここでは一語の表に足さない（役目の名は下の形で引く）
+  ...Object.entries(WORK_EN), ...Object.entries(HOUSE_EN), ...Object.entries(MURA),
+  [/^(.+?)(?:（(.+)）)?$/, (m, tr) => { if (!WORK_EN[m[1]]) return undefined; if (!m[2]) return WORK_EN[m[1]]; return m[2] === '銭は不要' ? `${WORK_EN[m[1]]} (free)` : /^\d/.test(m[2]) ? `${WORK_EN[m[1]]} (${Z(m[2])})` : undefined; }],
+
+  // ---- 知行の支度（realm.js） ----
+  ['済', 'Done'], ['支度は済んだ。出陣できる', 'All prepared. You can march.'],
+  [/^いまの一手：(内政|家臣|外交)$/, (m) => `Current action: ${{ 内政: 'domain', 家臣: 'retainers', 外交: 'diplomacy' }[m[1]]}`],
+  [/^いまの一手：(内政|家臣|外交)・(.+)$/, (m, tr) => { const h = tr(m[2]); return ok(h) ? `Current action: ${{ 内政: 'domain', 家臣: 'retainers', 外交: 'diplomacy' }[m[1]]} — ${h}` : undefined; }],
+  [/^屋敷で(家臣|外交)を選ぶ$/, (m) => `Choose ${m[1] === '家臣' ? 'retainers' : 'diplomacy'} at the house`],
+  ['内政の銭が足りない。選ばずに出陣できる', 'Not enough coin for domain work. You can march without choosing.'],
+  [/^(.+)の役目を決める$/, (m, tr) => { const n = nm(m[1], tr); return ok(n) ? `Set ${n}'s duty` : undefined; }],
+  ['支度は済んだ。上官の所から出陣できる', "All prepared. March from your superior's quarters."],
+  ['選ばずに出陣してもよい。内政・家臣・外交を一つずつ。家臣の役目は何度でも変えられる。', 'You may march without choosing. One each of domain, retainers and diplomacy. Retainer duties can be changed any time.'],
+  ['前の戦の後', 'After the last battle'], ['引き上げの控えをすべて読む', 'Read the full record of the return'], ['目立った変化なし', 'No notable change'],
+  [/^(土地|家臣|外交)：(.+?)(?:（ほか(\d+)件）)?$/, (m, tr) => { const t = tr(m[2]); return ok(t) ? `${{ 土地: 'Land', 家臣: 'Retainers', 外交: 'Diplomacy' }[m[1]]}: ${t.replace(/\.$/, '')}${m[3] ? ` (+${m[3]} more)` : ''}` : undefined; }],
+  ['武功帳（これまでの手柄）', 'Record of deeds'],
+  [/^次の身分「(.+)」になると：(.+)$/, (m, tr) => { const r = RANK_EN[m[1]] || tr(m[1]), u = tr(m[2]); return ok(r) && ok(u) ? `At the next rank, "${r}": ${u}` : undefined; }],
+  ['郎党を一人召し抱えられる', 'You can take on one retainer'],
+  ['知行30石を賜り、田を開く・兵を集める・使者を務める事ができる', 'You receive a 30-koku fief and can open fields, gather troops and serve as envoy'],
+  ['知行60石になり、市・鉄砲鍛冶・調練・贈り物を選べる', 'Your fief grows to 60 koku: markets, gunsmiths, drills and gifts open up'],
+  ['知行100石になり、手勢は十人まで。同盟の話・婚姻の仲立ちができる', 'Your fief grows to 100 koku and your own troops to ten. You can arrange alliances and marriages'],
+  [/^次の戦：(.+)$/, (m, tr) => { const L = listSplit(m[1]).map((x) => tr(x).replace(/\.$/, '')); return L.every(ok) ? `Next battle: ${L.join(' · ')}` : undefined; }],
+  [/^預かる組 (\d+)人$/, (m) => `Squad in your charge: ${m[1]}`],
+  ['戦場が混む時は、入れる手勢だけ出る', 'When the field is crowded, only the troops that fit take part'],
+  [/^(.+)：(先手|鉄砲頭|旗本|組の頭|手勢の頭|横に付いて戦う|留守居|使者)（忠義(\d+)(・不満あり)?）$/, (m, tr) => { const n = nm(m[1], tr); return ok(n) ? `${n}: ${ROLE_EN[m[2]]} (loyalty ${m[3]}${m[4] ? ', discontent' : ''})` : undefined; }],
+  [/^(.+)への使者：(.+) 気力の上限＋(\d+)％$/, (m, tr) => { const h = tr(m[1]), t = tr(m[2]); return ok(h) && ok(t) ? `Envoy to ${h}: ${t.replace(/\.$/, '')}. Max spirit +${m[3]}%` : undefined; }],
+  [/^(.+)へ内通の使者（通れば敵の一隊が退く。失敗すると仲が下がる）$/, (m, tr) => { const h = tr(m[1]); return ok(h) ? `Envoy urging ${h} to defect (if it works, one enemy unit pulls back; if it fails, relations drop)` : undefined; }],
+  [/^(.+)の援軍を約束した（兵が多い戦では後方に控える）$/, (m, tr) => { const h = tr(m[1]); return ok(h) ? `Promised reinforcements from the ${h} (they wait in the rear when the battle is crowded)` : undefined; }],
+  ['贈り物で敵の一隊の士気が下がる', "A gift lowers one enemy unit's morale"],
+  [/^(.+)への使者の供$/, (m, tr) => { const h = tr(m[1]); return ok(h) ? `Escort for the envoy to the ${h}` : undefined; }],
+  ['敵の国衆', 'enemy local lords'],
+  [/^(.+)につながる国衆$/, (m, tr) => { const h = tr(m[1]); return ok(h) ? `local lords tied to the ${h}` : undefined; }],
+  // 戦の中の札と台詞（realmShow）
+  [/^城下の備え：(.+)$/, (m, tr) => { const L = listSplit(m[1]).map((x) => tr(x)); return L.every(ok) ? `From the castle town: ${L.join(', ')}` : undefined; }],
+  [/^内政の手勢(\d+)人（鉄砲(\d+)挺・調練＋(\d+)％）$/, (m) => `${m[1]} of your own troops (${m[2]} guns, drill +${m[3]}%)`],
+  [/^兵糧(\d+)石で(\d+)人を養った$/, (m) => `${m[1]} koku of rations fed ${m[2]} men`],
+  ['繕った具足', 'mended armor'], ['内通の使者', 'defection envoy'], ['援軍の約束', 'promised reinforcements'], ['使者の知らせで戦支度', "prepared by an envoy's report"], ['敵への贈り物', 'gift to the enemy'], ['使者の供', 'envoy escort'],
+  [/^家臣 (.+)$/, (m, tr) => { const n = nm(m[1], tr); return ok(n) ? `Retainer ${n}` : undefined; }],
+  ['殿のおそば、離れませぬ', 'I will not leave your side, my lord.'], ['手前もここに。殿、ご無事で', 'I am here too. Stay safe, my lord.'],
+  [/^(\d+)人討ち取った。まだまだ$/, (m) => `Struck down ${m[1]}. Still more to go.`],
+  ['内通の返事は、戦の半ばで分かりまする', 'We will know the answer on the defection midway through the battle.'],
+
+  // ---- 内政（domain.js） ----
+  ['領地と戦の支度', 'Land and battle preparations'], ['領地の書付を読む', 'Read the land deed'], ['兵糧と支払いの内訳を読む', 'Read the breakdown of rations and costs'],
+  ['内政の仕事を比べる', 'Compare domain work'], ['前の仕事を見る', 'Previous work'], ['ほかの仕事を見る', 'More work'],
+  [/^(\d+)／(\d+)組$/, (m) => `${m[1]} of ${m[2]}`], ['見るだけでは内政の回数を使わない', 'Looking does not use up your domain action'],
+  ['● 済・この城下の内政を選んだ', '● Done: domain work chosen for this town'], ['先に市を開く', 'Open a market first'], ['先に兵を集める', 'Gather troops first'],
+  ['● 済・上限まで備えた', '● Done: at the limit'], ['○ 今できる', '○ Available now'], [re('あと{Z}'), (m) => `${Z(m[1])} short`],
+  ['済・この城下で選んだ仕事', 'Done: work chosen in this town'], ['費用の記録なし', 'No cost recorded'], ['銭の支払いなし', 'No coin paid'],
+  [re('{Z}を払った'), (m) => `Paid ${Z(m[1])}`],
+  [/^(兵を集める|田を開く|市を開く|鉄砲鍛冶を呼ぶ|手勢を鍛える|具足を繕う|屋敷の畑を耕す)：(.+)$/, (m, tr) => { const t = sentences(m[2], tr) ?? tr(m[2]); return ok(t) ? `${WORK_EN[m[1]]}: ${t}` : undefined; }],
+  [/^済：(.+)$/, (m, tr) => { const t = sentences(m[1], tr) ?? tr(m[1]); return ok(t) ? `Done: ${t}` : undefined; }],
+  [/^(.+)（今の城下で(\d+)回目）$/, (m) => WORK_EN[m[1]] ? `${WORK_EN[m[1]]} (time ${m[2]} in this town)` : undefined],
+  [re(`(一城の主・)?${MURA_RE}・(直轄|知行)(\\d+)石`), (m) => `${m[1] ? 'Lord of a castle · ' : ''}${MURA[m[2]]} · ${m[3] === '直轄' ? 'direct domain' : 'fief'} ${m[4]} koku`],
+  ['城と領分の宛行い（領地の書付）', 'Grant of castle and lands (land deed)'], ['知行宛行いの控え（領地の書付）', 'Copy of the fief grant (land deed)'],
+  [re(`一城ならびに領分を宛て行う。うち${MURA_RE}(\\d+)石は直轄とし、領内をよく治むべきこと。`), (m) => `A castle and its lands are hereby granted. Of these, ${m[2]} koku of ${MURA[m[1]]} shall be your direct domain. Govern the land well.`],
+  [re(`${MURA_RE}の内、(\\d+)石を宛て置く。領内をよく治むべきこと。`), (m) => `${m[2]} koku of ${MURA[m[1]]} is hereby granted. Govern the land well.`],
+  [re(`大名として城と領分を預かりました。そのうち${MURA_RE}の(\\d+)石分は、自分で治める直轄の村です。村を整え、次の戦に備えられます。`), (m) => `As a daimyō you hold a castle and lands. ${m[2]} koku of it, ${MURA[m[1]]}, is a village you govern directly. Improve it to prepare for the next battle.`],
+  [re(`${MURA_RE}で、(\\d+)石分の収入を受ける知行です。村を整え、次の戦に備えられます。`), (m) => `A fief in ${MURA[m[1]]} that yields ${m[2]} koku. Improve the village to prepare for the next battle.`],
+  ['日付不明（いまの知行の控え）', 'Date unknown (copy of your current fief)'], ['主家より', 'From your lord’s house'], ['仍って件の如し（右に書いたとおり）', 'Thus it is decreed (as written above)'], ['やさしく読むと', 'In plain words'],
+  [/^([^぀-ヿ㐀-鿿]+|家臣)殿$/, (m) => `To ${m[1] === '家臣' ? 'Retainer' : m[1]}`],   // 書付の宛名（主人公の名）だけ
+  [/^田(\d+)枚・市(\d+)か所・鍛冶(\d+)か所・手勢(\d+)人・調練(\d+)段$/, (m) => `${m[1]} fields · ${m[2]} markets · ${m[3]} smiths · ${m[4]} troops · drill level ${m[5]}`],
+  ['十五人の組を預かると、村から収入を受ける知行30石をもらい、田を開けます。', 'When you command a squad of fifteen, you receive a 30-koku fief with village income and can open fields.'],
+  [re('手元の銭 {Z}'), (m) => `Coin on hand: ${Z(m[1])}`], ['内政は出陣までに一つ', 'One domain action before you march'], ['今は選べる', 'You can choose now'],
+  ['● 済・次の戦の後にまた選べる', '● Done: choose again after the next battle'],
+  [re('次の戦の後の収入：年貢{Z}・町{Z}(?:・畑{Z})?'), (m) => `Income after the next battle: tax ${Z(m[1])} · town ${Z(m[2])}${m[3] ? ` · garden ${Z(m[3])}` : ''}`],
+  [re('支払い：手勢{Z}・家臣{Z}'), (m) => `Costs: troops ${Z(m[1])} · retainers ${Z(m[2])}`],
+  [re('差し引き (＋)?{Z}'), (m) => `Net ${m[1] ? '+' : ''}${Z(m[2])}`], ['銭を残すか、田や市を育てて支払いに備えよう', 'Save coin, or grow fields and markets to cover the costs'],
+  ['侍からは戦の季節で収入が変わり、同じ年の同じ季節は一度だけ', 'From samurai rank, income changes with the season of the battle, once per season each year'],
+  ['いまの知行と人数での見込み', 'Estimate for your current fief and troops'], ['戦の褒美・供の給金・加増・討死は別に動く', 'Battle rewards, attendant wages, fief increases and deaths are separate'],
+  [/^手勢(\d+)人・鉄砲(\d+)挺・調練(\d+)段・兵糧(\d+)石$/, (m) => `${m[1]} troops · ${m[2]} guns · drill level ${m[3]} · ${m[4]} koku of rations`],
+  ['兵糧1石で手勢4人の体力が10％増える', '1 koku of rations gives 4 of your troops +10% stamina'],
+  ['戦で食べた分は減り、戦後に田から季節に応じた米を補給する（蓄え36石まで）', 'What is eaten in battle is used up; after battle the fields resupply rice by season (store up to 36 koku)'],
+  ['手勢は一人につき毎戦200文', 'Each of your troops costs 200 mon per battle'], ['扶持を払えない人数は去る', 'Troops you cannot pay will leave'],
+  ['年貢は知行1石につき50文', 'Tax is 50 mon per koku of fief'], ['田1枚で知行からの年貢が10％増え、留守居の政治でも増える', "Each field raises fief tax by 10%, and a steward's Politics raises it too"],
+  ['市1か所の銭は春秋1貫、夏1貫500文、冬500文', 'Each market yields 1 kan in spring and autumn, 1 kan 500 mon in summer, 500 mon in winter'],
+  ['侍から季節ごとに受け取る', 'Collected each season from samurai rank'],
+  // 内政の札の効き目
+  [/^次の戦で、手勢(\d+)人が増える$/, (m) => `Next battle: +${m[1]} troops of your own`], ['扶持は一人200文', 'Upkeep is 200 mon each'], [/^今の上限(\d+)人$/, (m) => `Current limit ${m[1]}`],
+  [/^知行(\d+)石で次の一人分の枠が増える$/, (m) => `At ${m[1]} koku of fief you get room for one more`], ['手勢の上限は十二人', 'Your troops are capped at twelve'],
+  [re('次の戦の後から、年貢の基本額が{Z}増える'), (m) => `From after the next battle, base tax rises by ${Z(m[1])}`], ['兵糧も2石増える（田5枚まで）', 'Rations also +2 koku (up to 5 fields)'],
+  ['次の戦の後から、町の銭が季節ごとに増える（春秋1貫・夏1貫500文・冬500文）', 'From after the next battle, town coin rises each season (1 kan spring/autumn, 1 kan 500 mon summer, 500 mon winter)'],
+  ['市2か所で手勢4人に一人が鉄砲を持つ（市5か所まで）', 'With 2 markets, 1 in 4 of your troops carries a gun (up to 5 markets)'],
+  [/^次の戦で、鉄砲が(\d+)挺まで揃う$/, (m) => `Next battle: up to ${m[1]} guns`], ['手勢の半分まで鉄砲を持てる（鍛冶3か所まで）', 'Up to half your troops can carry guns (up to 3 smiths)'],
+  ['次の戦で、手勢の強さが8％増す（3段まで）', 'Next battle: your troops are 8% stronger (up to 3 levels)'], ['次の戦で、自分の体力が8％増す（この戦だけ）', 'Next battle: your stamina +8% (this battle only)'],
+  ['次の戦で、留守の者が畑を手入れし、500文が入る（足軽のうちは毎戦）', 'Next battle: those at home tend the garden and you get 500 mon (every battle while ashigaru)'],
+  [/^手勢：(\d+)人$/, (m) => `Your troops: ${m[1]}`], [/^鉄砲：(\d+)挺$/, (m) => `Guns: ${m[1]}`],
+  [/^兵糧：(\d+)石（手勢(\d+)人の体力＋10％）$/, (m) => `Rations: ${m[1]} koku (+10% stamina for ${m[2]} troops)`], [/^兵糧：(\d+)石（兵を集めると養える）$/, (m) => `Rations: ${m[1]} koku (feeds troops once you gather them)`],
+  [/^調練：手勢の強さ＋(\d+)％$/, (m) => `Drill: troops +${m[1]}% strength`], ['留守の者が畑を手入れし、毎戦500文が入る', 'Those at home tend the garden: +500 mon every battle'],
+  ['繕った具足：体力＋8％', 'Mended armor: stamina +8%'], ['手勢はまだいない', 'No troops of your own yet'], ['兵を集めると、次の戦で後ろに付く', 'Gather men and they will follow you next battle'],
+  ['具足を繕うと体力が増える', 'Mending armor raises stamina'], ['畑を耕すと毎戦500文が入る', 'Tilling the garden brings 500 mon every battle'],
+  // 戦の中と戦の後の控え
+  [/^手勢(\d+)人が後ろに付く$/, (m) => `${m[1]} of your troops follow behind`],
+  [/^知行が(\d+)石に上がった$/, (m) => `Fief raised to ${m[1]} koku`], [re(`${MURA_RE}に知行(\\d+)石を賜った`), (m) => `Granted a ${m[2]}-koku fief in ${MURA[m[1]]}`],
+  [/^加増　＋(\d+)石（(甲上|甲|乙|丙)の働き）$/, (m) => `Fief increase +${m[1]} koku (grade ${{ 甲上: 'A+', 甲: 'A', 乙: 'B', 丙: 'C' }[m[2]]} service)`],
+  [/^手勢の出陣(\d+)人・留守の控え(\d+)人（戦場の兵数の上限で決まる）$/, (m) => `${m[1]} of your troops marched, ${m[2]} stayed back (set by the battlefield troop limit)`],
+  [/^手勢のうち(\d+)人が討たれた$/, (m) => `${m[1]} of your troops were killed`], [/^手勢の働きで敵(\d+)人を討ち取った$/, (m) => `Your troops struck down ${m[1]} enemies`],
+  [re('年貢　＋{Z}'), (m) => `Tax +${Z(m[1])}`], [re('留守居の働きで年貢　＋{Z}（政治(\\d+)）'), (m) => `Steward's work: tax +${Z(m[1])} (Politics ${m[2]})`],
+  [/^蔵の蓄えから補給　兵糧＋(\d+)石（蓄え(\d+)石）$/, (m) => `Resupplied from the store: rations +${m[1]} koku (stock ${m[2]} koku)`],
+  [/^兵糧(\d+)石で手勢(\d+)人を養った（体力＋10％）$/, (m) => `${m[1]} koku of rations fed ${m[2]} troops (+10% stamina)`],
+  [/^任される土地(\d+)石・手勢は(\d+)人まで・内政の時は(\d+)回$/, (m) => `Land held: ${m[1]} koku · up to ${m[2]} troops · ${m[3]} domain actions`],
+  [re('町の銭　＋{Z}'), (m) => `Town coin +${Z(m[1])}`], [re('留守の者が手入れした屋敷の畑から　＋{Z}'), (m) => `From the house garden tended at home +${Z(m[1])}`],
+  [re('手勢の扶持　{Z}'), (m) => `Troop upkeep ${Z(m[1])}`], [/^扶持が払えず、手勢(\d+)人が去った$/, (m) => `Could not pay upkeep: ${m[1]} troops left`],
+
+  // ---- 知行の村と町（chigyo.js） ----
+  ['知行の村と町を整える', 'Develop your fief village and town'], ['城下へ戻る', 'Back to the castle town'],
+  [re(`${MURA_RE}・(春|夏|秋|冬)の村と町`), (m) => `${MURA[m[1]]}: village and town in ${SEASON[m[2]].toLowerCase()}`],
+  ['田、町、鉱山、関所、寺社と城の普請の様子', 'Fields, town, mine, toll gate, temples and castle works'],
+  [/^田(\d+)・町(\d+)・鉱山(\d+)・関所(\d+)・寺社(\d+)$/, (m) => `Fields ${m[1]} · Town ${m[2]} · Mine ${m[3]} · Toll gate ${m[4]} · Temples ${m[5]}`],
+  [re('米(\\d+)石・銭{Z}・村の不満(\\d+)'), (m) => `Rice ${m[1]} koku · Coin ${Z(m[2])} · Village unrest ${m[3]}`],
+  [re('(春|夏|秋|冬)の見込み：年貢の米(\\d+)石・銭{Z}'), (m) => `${SEASON[m[1]]} estimate: ${m[2]} koku of tax rice and ${Z(m[3])}`],
+  ['今の季節の年貢は受け取り済み', "This season's tax is already collected"], ['同じ年の同じ季節では二重に受け取らない', 'You cannot collect twice in the same season of the same year'],
+  ['季節は次の戦の年月に合わせる', 'The season follows the date of the next battle'], ['収入と領地の段数は遊びの数', 'Income and land levels are game values'],
+  ['城の普請は預かった持ち場の備え', 'Castle works prepare the post you hold'], ['兵と農の分けは役目分担で、刀狩ではない', 'Separating soldiers and farmers is a division of duties, not a sword hunt'],
+  [/^いまの一手：(内政は済んだ。城下へ戻り出陣に備える。|村の出来事に備える仕事を一つ選ぶ。|村と町を整える仕事を一つ選ぶ。)屋敷の内政と合わせて一つ。$/, (m) => `Current action: ${{ '内政は済んだ。城下へ戻り出陣に備える。': 'Domain work is done. Return to town and prepare to march.', '村の出来事に備える仕事を一つ選ぶ。': 'Pick one job to deal with the village event.', '村と町を整える仕事を一つ選ぶ。': 'Pick one job to develop the village and town.' }[m[1]]} One in total, together with the house domain work.`],
+  ['侍となり、村の年貢と人足を預かった', 'You became a samurai and took charge of the village taxes and labor'],
+  [/^(.+)仕事を終えた$/, (m) => WORK_EN[m[1]] ? `Finished: ${WORK_EN[m[1]]}` : undefined], [re('{Z}を使った'), (m) => `Spent ${Z(m[1])}`],
+  [re('(春|夏|秋|冬)の年貢の米(\\d+)石と銭{Z}が入った'), (m) => `${SEASON[m[1]]} tax came in: ${m[2]} koku of rice and ${Z(m[3])}`], ['村と町は穏やか', 'The village and town are calm'],
+  ['凶作：米が半分しか取れず、蔵の米も三石減った', 'Poor harvest: only half the rice came in, and the store lost 3 koku'], ['寺社と村の頼みを聞くと救い米が届く', 'Hear the temples and villagers to receive relief rice'],
+  ['一揆：取り立てへの不満が高まり、兵が村に残る', 'Uprising: anger at the levies grows, and soldiers stay in the village'], ['寺社と村の頼みを聞くと不満が減る', 'Hear the temples and villagers to reduce unrest'],
+  ['商人の頼み：荷車が街道を通れない', "Merchants' request: carts cannot get through the road"], ['街道の普請か楽市楽座で商いを助ける', 'Build roads or open free markets to help trade'],
+  ['● 済・次の戦の後にまた選べる。', '● Done: choose again after the next battle.'], ['稲葉山を取った後、岐阜で選べる。', 'Available in Gifu after Inabayama is taken.'], ['● 済・これ以上は増やせない。', '● Done: cannot grow further.'],
+  [re('あと{Z}要る。'), (m) => `Need ${Z(m[1])} more.`], [/^(\d+)／三組。見るだけでは仕事を選んだ事にならない。$/, (m) => `${m[1]} of 3. Looking does not count as choosing.`],
+  [re('{Z}を使う'), (m) => `Spend ${Z(m[1])}`], ['銭は使わない', 'No coin needed'], ['この戦の間は、屋敷を含めほかの内政を選べない', 'Until this battle, you cannot choose other domain work, including at the house'],
+  ['田と年貢を確かめる', 'Check the fields and taxes'], ['田が一枚増え、兵糧が四石増える', 'One more field and +4 koku of rations'], ['不満も一つ増す', 'Unrest rises by one'],
+  ['町が一段育つ', 'The town grows a level'], ['商人から兵糧四石が届く', 'Merchants send 4 koku of rations'], ['関所の取り立ては減る', 'Toll gate takings fall'],
+  ['街道と関所が一段育つ', 'Roads and toll gate grow a level'], ['米一石で養える村の兵が一人増える', 'Each koku of rice feeds one more village soldier'], ['商人の頼みも済む', "The merchants' request is also settled"],
+  ['蔵と具足の置き場を整える', 'Put the storehouse and armory in order'], ['次の戦から自分と村の兵の体力が一段につき三％増す', 'From next battle, you and village troops get +3% stamina per level'],
+  ['田に残す者と戦う者を決める', 'Decide who stays in the fields and who fights'], ['村の兵が二人増え、突きが一段につき三％強くなる', 'Two more village soldiers, and thrusts +3% per level'],
+  ['鉱山が一段育つ', 'The mine grows a level'], ['採掘の銭一貫と兵糧二石を受け取り、次の戦に備える', 'Receive 1 kan from mining and 2 koku of rations for the next battle'],
+  ['村の兵が二人増える', 'Two more village soldiers'], ['討たれた兵の席を補い、次の戦に連れる', 'Fill the places of the fallen and take them to the next battle'], ['兵糧も二石を備える', 'Also store 2 koku of rations'],
+  ['寺社との結びが育ち、不満が二つ減る', 'Ties with the temples grow and unrest falls by two'], ['救い米四石が届き、凶作や一揆の備えになる', 'Relief rice of 4 koku arrives, a guard against famine and uprisings'],
+  [/^村の兵(\d+)人$/, (m) => `${m[1]} village troops`], [/^米(\d+)石（米で体力＋十％）$/, (m) => `${m[1]} koku of rice (+10% stamina from rice)`], [/^米(\d+)石（米なし）$/, (m) => `${m[1]} koku of rice (no rice)`],
+  [/^城の備えで体力＋(\d+)％$/, (m) => `castle defenses +${m[1]}% stamina`], [/^村の兵の突き＋(\d+)％$/, (m) => `village troops' thrust +${m[1]}%`], [/^村の不満(\d+)で兵が減る$/, (m) => `village unrest ${m[1]} reduces troops`],
+  [/^米(\d+)石(で体力＋十％|・米なし)$/, (m) => `${m[1]} koku of rice${m[2] === 'で体力＋十％' ? ', +10% stamina' : ', no rice'}`],
+  [re(`${MURA_RE}の年貢と人足を賜った`), (m) => `Granted the taxes and labor of ${MURA[m[1]]}`],
+  [/^村の兵(\d+)人が出陣・留守(\d+)人$/, (m) => `${m[1]} village troops marched, ${m[2]} stayed home`], [/^(\d+)人が討たれた$/, (m) => `${m[1]} were killed`], ['皆、村へ戻った', 'All returned to the village'],
+  [/^米(\d+)石を使った$/, (m) => `Used ${m[1]} koku of rice`], [/^(春|夏|秋|冬)の年貢は受け取り済み$/, (m) => `${SEASON[m[1]]} tax already collected`], [/^村の米(\d+)石$/, (m) => `Village rice ${m[1]} koku`],
+
+  // ---- 足軽の長屋（nagaya.js） ----
+  ['源八・太郎丸に続く仲間。次の戦で自分の組に入る。討たれた者は戻らない。', 'Comrades following Genpachi and Tarōmaru. They join your squad next battle. Those who fall do not return.'],
+  ['久助', 'Kyūsuke'], ['茂吉', 'Mokichi'], ['庄作', 'Shōsaku'], ['弥六', 'Yaroku'], ['清吉', 'Seikichi'],
+  [/^(\d+)戦を生き抜いた・次の戦も共に立つ$/, (m) => `Survived ${m[1]} battles · stands with you next battle`],
+  [/^(久助|茂吉|庄作|弥六|清吉)の顔$/, (m, tr) => `${tr(m[1])}'s face`], [/^(久助|茂吉|庄作|弥六|清吉)を組に迎える$/, (m, tr) => `Welcome ${tr(m[1])} into the squad`],
+  [/^(久助|茂吉|庄作|弥六|清吉)を迎えた。次の戦で同じ組に入る$/, (m, tr) => `${tr(m[1])} joined. They will be in your squad next battle.`],
+  ['「源八殿に教わった槍を、今度はおぬしの隣で振るう」', '"I learned the spear from Genpachi. Now I will wield it beside you."'],
+  ['「太郎丸のように、仲間の背を守りたい」', '"Like Tarōmaru, I want to guard my comrades\' backs."'],
+  ['「国の者を守るため、わしも組に加わろう」', '"To protect our people, I will join the squad too."'],
+  ['「先に戦った者の働きを、わしらが継いでゆく」', '"We will carry on the work of those who fought before us."'],
+  ['「今度こそ、組の皆と生きて帰りたい」', '"This time, I want to come home alive with the whole squad."'],
+  ['今は新たな仲間を迎えられない。次の戦から戻れば、一人ずつ迎えられる（共に出るのは三人まで）。', 'You cannot take in new comrades now. After each battle you can welcome one more (up to three go with you).'],
+  [/^戻らぬ仲間：(.+)。共に立てた手柄を忘れない。$/, (m, tr) => { const L = m[1].split('・').map((x) => tr(x)); return L.every(ok) ? `Comrades who will not return: ${L.join(', ')}. We will not forget the deeds we shared.` : undefined; }],
+  ['出陣の支度で、配下三人までの槍・鉄砲・弓と、組の並べ方を決められる。', 'When preparing to march, you can set spears, guns or bows for up to three men and your squad formation.'],
+  ['十五人の組を預かれば、出陣の支度で配下の武器と並べ方を決められる。', "Command a squad of fifteen and you can set your men's weapons and formation before marching."],
+  ['ここにおる。互いの背を守ろう', "I'm here. Let's guard each other's backs."],
+  [/^(.+)が討死した。もう長屋には戻らない$/, (m, tr) => { const n = tr(m[1]); return ok(n) ? `${n} fell in battle and will not return to the barracks` : undefined; }],
+
+  // ---- 外交の使者（gaiko.js） ----
+  ['外交の使者', 'Diplomatic envoy'], ['次の戦までに、使者の用を一つ選ぶ。', 'Choose one envoy task before the next battle.'],
+  ['今は使者の用がない。組頭から贈り物、侍から和睦と調略、侍大将から同盟と婚姻の仲立ちを任される。', 'No envoy task now. Squad leaders handle gifts, samurai handle peace and schemes, samurai captains handle alliances and marriages.'],
+  ['使者を送る相手を選ぶ', 'Choose who to send an envoy to'], ['使者の用を選ぶ', 'Choose the envoy task'],
+  ...Object.entries(GK_EN).map(([j, e]) => [j, e[0].toUpperCase() + e.slice(1)]),
+  [/^(.+?)へ(贈り物を届ける|婚姻の縁を取り次ぐ|同盟の話を進める|和睦の話を取り次ぐ|敵の国衆へ内通を働きかける)(?:（(.+)）)?$/, (m, tr) => { const h = tr(m[1]); if (!ok(h)) return undefined; const w = GK_EN[m[2]]; return `${w[0].toUpperCase() + w.slice(1)}: ${h}${m[3] ? ` (${Z(m[3])})` : ''}`; }],
+  [/^(.+)の信用(\d+)・恐れ(\d+)（百まで）。$/, (m, tr) => { const h = tr(m[1]); return ok(h) ? `${h}: trust ${m[2]} · fear ${m[3]} (out of 100).` : undefined; }],
+  [/^この用の話：三段のうち(\d+)段。信用([＋−])(\d+)・恐れ([＋−])(\d+)。$/, (m) => `This task: stage ${m[1]} of 3. Trust ${m[2] === '＋' ? '+' : '−'}${m[3]} · Fear ${m[4] === '＋' ? '+' : '−'}${m[5]}.`],
+  [/^話は三段のうち(\d+)段まで進んだ$/, (m) => `Talks have reached stage ${m[1]} of 3`],
+  [/^(信長の家の縁を取り次ぐ。自分が婚姻する話ではない。|休戦の知らせや仲立ちを頼む。次の戦を無くす事はできない。|敵味方・戦の順・史実の結末は変わらない。) 話を重ねると次の戦への備えが増す。$/, (m) => `${{ '信長の家の縁を取り次ぐ。自分が婚姻する話ではない。': "You arrange ties for Nobunaga's house, not a marriage of your own.", '休戦の知らせや仲立ちを頼む。次の戦を無くす事はできない。': 'You ask for truce news and mediation. It cannot cancel the next battle.', '敵味方・戦の順・史実の結末は変わらない。': 'Sides, battle order and historical outcomes do not change.' }[m[1]]} More talks mean better preparation for the next battle.`],
+  [re('銭があと{Z}要る。'), (m) => `Need ${Z(m[1])} more coin.`], [re('銭{Z}を使う。出陣まで使者の用は選び直せない。'), (m) => `Spend ${Z(m[1])}. You cannot change the envoy task until you march.`],
+  ['浅井が朝倉を助け、背後へ迫るとの知らせ', 'Word comes that the Azai will aid the Asakura and close in from behind'], ['離反は止められない', 'Their betrayal cannot be stopped'],
+  ['武田が西へ進むとの知らせ', 'Word comes that the Takeda are advancing west'], ['徳川の苦戦は避けられない', "The Tokugawa's hard fight cannot be avoided"],
+  ['本願寺が兵を挙げるとの知らせ', 'Word comes that the Hongan-ji is raising troops'], ['挙兵は止められない', 'The uprising cannot be stopped'],
+  [/^徳川の援兵(\d+)人を約束する$/, (m) => `Promise ${m[1]} Tokugawa reinforcements`], ['混む時は入れる人数だけ', 'When crowded, only as many as fit'],
+  [/^内通の返事で敵の名のない一隊の士気を最大(\d+)下げる$/, (m) => `A defection reply lowers the morale of one unnamed enemy unit by up to ${m[1]}`], ['退却は強制しない', 'It does not force a retreat'],
+  ['対象の隊がなければ知らせによる備えだけ', 'If there is no target unit, you only gain preparation from the report'],
+  ['使者の知らせで備える', "Prepare by the envoy's report"], [/^自分の気力の上限が、この戦だけ(\d+)％増す$/, (m) => `Your max spirit +${m[1]}% for this battle only`],
+  [/^使者の知らせで備え、気力の上限が(\d+)％増した$/, (m) => `Prepared by the envoy's report: max spirit +${m[1]}%`],
+  [/^(.+)への使者：気力の上限が(\d+)％増した$/, (m, tr) => { const h = tr(m[1]); return ok(h) ? `Envoy to ${h}: max spirit +${m[2]}%` : undefined; }],
+  ['内通の返事が届いた。敵の一隊が戦いをためらう', 'A defection reply arrived. One enemy unit hesitates to fight.'],
+  ['内通の返事は届いたが、動かせる敵隊は残っていなかった', 'The defection reply arrived, but no enemy unit was left to sway'],
+  [/^(.+)の返事で敵の一隊の士気が(\d+)下がった$/, (m, tr) => { const h = tr(m[1]); return ok(h) ? `On ${h}'s reply, one enemy unit's morale fell by ${m[2]}` : undefined; }],
+  [/^徳川の援軍(\d+)人が加勢(?:、(\d+)人は後ろに控えた|した)$/, (m) => `${m[1]} Tokugawa reinforcements joined${m[2] ? `, ${m[2]} waited in the rear` : ''}`],
+  [/^徳川の援兵(\d+)人が加わった$/, (m) => `${m[1]} Tokugawa reinforcements joined`], ['徳川の援兵は後ろに控える', 'The Tokugawa reinforcements wait in the rear'], ['徳川の援兵', 'Tokugawa reinforcements'],
+  [/^外交の控え：(.+)$/, (m, tr) => { const t = sentences(m[1], tr) ?? tr(m[1]); return ok(t) ? `Diplomacy record: ${t}` : undefined; }],
+  ['使者の知らせは、この戦には届かなかった', "The envoy's report did not reach this battle"], ['徳川の援兵は戦場に加わらなかった', 'The Tokugawa reinforcements did not join the battle'],
+
+  // ---- 家臣（retainers.js） ----
+  ['足軽になると、郎党を一人まで抱えられる', 'When you become ashigaru, you can keep one retainer'], ['家臣の用は済んだ', 'Retainer business is done'],
+  ['今できる家臣の事は無い', 'Nothing to do with retainers right now'], ['この城下では一つ選べる。選ばずに出陣してもよい', 'You can choose one thing in this town. You may march without choosing.'],
+  ['褒美・暇の相手', 'Retainer to reward or dismiss'], ['召し抱える候補を比べる', 'Compare candidates to hire'], ['家臣はまだいない', 'No retainers yet'],
+  ['役目の効き目を比べる', 'Compare duty effects'], ['役目を外す', 'Remove duty'], ['暇を出す', 'Dismiss'],
+  [/^(.+)を召し抱える(?:（(.+)）)?$/, (m, tr) => { const n = nm(m[1], tr); return ok(n) ? `Hire ${n}${m[2] ? ` (${Z(m[2])})` : ''}` : undefined; }],
+  [/^(.+)に褒美を与える(?:（(.+)）)?$/, (m, tr) => { const n = nm(m[1], tr); return ok(n) ? `Reward ${n}${m[2] ? ` (${Z(m[2])})` : ''}` : undefined; }],
+  [/^(.+)に暇を出す$/, (m, tr) => { const n = nm(m[1], tr); return ok(n) ? `Dismiss ${n}` : undefined; }],
+  [/^(.+)（(忠義 \d+|.*\d+(?:貫|文).*)）$/, (m, tr) => { const n = nm(m[1], tr); if (!ok(n)) return undefined; const l = /^忠義 (\d+)$/.exec(m[2]); return l ? `${n} (loyalty ${l[1]})` : `${n} (${Z(m[2])})`; }],
+  [/^((?:統率|武勇|知略|政治)\d+(?:・(?:統率|武勇|知略|政治)\d+)+)(?:。(.+))?$/, (m) => { const t = m[2] && TRAIT[m[2]]; if (m[2] && !t) return undefined; return stats(m[1]) + (t ? `. ${t}` : ''); }],
+  ['次の戦までに役目を決める', 'Set a duty before the next battle'], [/^初めの忠義(\d+)$/, (m) => `Starting loyalty ${m[1]}`],
+  ['村の郎党', 'A village retainer'], ['尾張の牢人', 'A rōnin of Owari'], ['村の若者をまとめてきた', 'Has led the village youth'], ['槍の稽古を重ねてきた', 'Has trained long with the spear'],
+  ['道と人の噂に通じている', 'Knows the roads and the rumors'], ['田畑と帳面を預かってきた', 'Has kept fields and ledgers'], ['出世を強く望む', 'Burns to rise in rank'], ['受けた恩を忘れない', 'Never forgets a kindness'],
+  [/^(.+)旧臣$/, (m, tr) => { const h = tr(m[1]); return ok(h) ? `Former retainer of the ${h}` : undefined; }], ['与力として預かる', 'Assigned to you as a yoriki'],
+  [re('俸禄は毎戦{Z}'), (m) => `Stipend ${Z(m[1])} per battle`], [re('召し抱え後は全員で{Z}'), (m) => `After hiring, ${Z(m[1])} for all`],
+  [re('支度後の銭だけでは俸禄があと{Z}不足'), (m) => `After preparations, your coin is ${Z(m[1])} short for stipends`], ['戦の収入で変わる', 'Battle income will change this'], ['忠義40未満で去る', 'Leaves below 40 loyalty'],
+  [/^次の戦に向けて忠義が(\d+)上がる（(\d+)から(\d+)）$/, (m) => `Loyalty +${m[1]} for the next battle (${m[2]} → ${m[3]})`], ['次の戦から家臣を離れる', 'Leaves your service from the next battle'], ['元に戻せません', 'This cannot be undone'],
+  [/^上限 (\d+)人（今 (\d+)人）$/, (m) => `Limit ${m[1]} (now ${m[2]})`], [/^次の身分では(\d+)人まで$/, (m) => `Up to ${m[1]} at the next rank`], ['役目は一つに一人', 'One retainer per duty'], ['何度でも替えられる', 'You can change them any time'],
+  ['払うと忠義＋3、働くとさらに＋2', 'Paying gives loyalty +3, working another +2'], ['払えないと忠義−15', 'Not paying costs loyalty −15'],
+  [re('今の銭だけではあと{Z}不足'), (m) => `Your coin alone is ${Z(m[1])} short`], ['忠義30未満（野心家は40未満）で戦の後に去る', 'Leaves after battle below 30 loyalty (40 if ambitious)'],
+  [/^離れた家臣：(.+)$/, (m, tr) => { const L = m[1].split('、').map((x) => { const p = /^(.+)（(.+)・(\d+)人討ち取り）$/.exec(x); if (!p) return tr(x); const n = nm(p[1], tr), r = tr(p[2]); return ok(n) && ok(r) ? `${n} (${r}, ${p[3]} kills)` : x; }); return L.every(ok) ? `Former retainers: ${L.join('; ')}` : undefined; }],
+  ['家を離れた', 'left the house'], ['忠義が下がり出奔', 'deserted from low loyalty'],
+  [/^(.+)（名のある士）$/, (m, tr) => { const n = nm(m[1], tr); return ok(n) ? `${n} (notable warrior)` : undefined; }],
+  [/^忠義 (\d+)・(俸禄が払えないと去る心配あり|不満あり|主を頼る)$/, (m) => `Loyalty ${m[1]} · ${{ 俸禄が払えないと去る心配あり: 'may leave if not paid', 不満あり: 'discontented', 主を頼る: 'relies on you' }[m[2]]}`],
+  [re('俸禄 {Z}'), (m) => `Stipend ${Z(m[1])}`], [/^能力を生かすなら(.+)$/, (m) => ROLE_EN[m[1]] ? `Best suited as ${ROLE_EN[m[1]]}` : undefined],
+  ['交代すると、先任は空いた役目を引き継ぐ', 'When you swap, the previous holder takes the vacant duty'], ['元の役目がなければ、先任の役目を選べる', 'If they had none, you can choose a duty for them'],
+  [/^((?:統率|武勇|知略|政治)\d+(?: (?:統率|武勇|知略|政治)\d+)+)(?:　(猛将|知将|築城|鉄砲|騎馬|調略|義理堅い|野心家|商才|農政))?　(.+)$/, (m, tr) => { const f = sentences(m[3] + '。', tr) ?? tr(m[3]); return ok(f) ? `${stats(m[1])}${m[2] ? ` · ${TRAIT[m[2]]}` : ''} · ${f.replace(/\.$/, '')}` : undefined; }],
+  [/^槍 (\d+)・弓 (\d+)・鉄砲 (\d+)・統率 (\d+)$/, (m) => `Spear ${m[1]} · Bow ${m[2]} · Gun ${m[3]} · Leadership ${m[4]}`],
+  [/^(\d+)戦に出陣・(\d+)人討ち取り$/, (m) => `${m[1]} battles · ${m[2]} kills`], ['生きて帰ると使った得物と統率が育つ', 'Returning alive improves the weapon used and Leadership'],
+  ['手柄が多いほど早く育つ', 'More deeds mean faster growth'], ['5人討ち取ると二つ名が付く', 'Five kills earns an epithet'],
+  [/^前の成長：(.+)$/, (m) => { const L = m[1].split('・').map((x) => { const p = /^(統率|武勇|知略|政治)(\d+)から(\d+)$/.exec(x); return p ? `${STAT[p[1]]} ${p[2]} → ${p[3]}` : x; }); return L.every(ok) ? `Last growth: ${L.join(', ')}` : undefined; }],
+  [/^(留守居|使者)の働き (\d+)回$/, (m) => `${ROLE_EN[m[1]]} work: ${m[2]} times`], ['実際に役目が効いた戦が3回たまると、その能力が1育つ', 'After 3 battles where the duty took effect, that ability grows by 1'],
+  ['城下では別の控えの間で待つ', 'In town, waits in a separate antechamber'], ['主殿に会える家臣は三人まで', 'Up to three retainers can meet you in the main hall'],
+  ['城下では主殿の入口で使者の支度', "In town, prepares for envoy duty at the hall's entrance"], ['城下では主殿の土間か廊下で兵の世話', 'In town, tends the troops in the earthen floor or corridor of the hall'],
+  ['城下では主殿の奥の座敷で留守の用', 'In town, handles home affairs in the inner room of the hall'],
+  [/^(.+)の得物$/, (m, tr) => { const n = nm(m[1], tr); return ok(n) ? `${n}'s weapon` : undefined; }],
+  [/^(槍|弓|鉄砲)で戦う(（今）)?$/, (m) => `Fight with ${{ 槍: 'spear', 弓: 'bow', 鉄砲: 'gun' }[m[1]]}${m[2] ? ' (now)' : ''}`],
+  [/^(先手|鉄砲頭|旗本|組の頭|手勢の頭|横に付いて戦う|留守居|使者)(（今）)?(?:（(.+)と交代）)?$/, (m, tr) => { const n = m[3] ? nm(m[3], tr) : ''; if (m[3] && !ok(n)) return undefined; return `${ROLE_EN[m[1]]}${m[2] ? ' (now)' : ''}${m[3] ? ` (swap with ${n})` : ''}`; }],
+  [/^(先手|鉄砲頭|旗本|組の頭|手勢の頭|横に付いて戦う|留守居|使者)：(.+)$/, (m, tr) => { const t = sentences(m[2] + '。', tr) ?? tr(m[2]); return ok(t) ? `${ROLE_EN[m[1]]}: ${t.replace(/\.$/, '')}` : undefined; }],
+  ['次の戦で働く役目を選ぶ', 'Choose a duty for the next battle'],
+  ['連れて行くと槍の組が強くなる', 'Bring them and your spear squad grows stronger'], ['連れて行くと鉄砲の組が強くなる', 'Bring them and your gun squad grows stronger'],
+  ['連れて行くと預けた隊が強くなる', 'Bring them and the unit you assign grows stronger'], ['連れて行くと組の士気が上がる', 'Bring them and squad morale rises'],
+  ['連れて行くと手勢の士気が上がる', 'Bring them and your troops\' morale rises'], ['連れて行くとそばで共に戦う', 'Bring them and they fight beside you'],
+  ['留守を任せると年貢が増える', 'Leave them at home and taxes rise'], ['使者を任せると内通が通りやすい', 'Make them envoy and defections succeed more easily'],
+  ['槍の組を率いる', 'Leads the spear squad'], ['槍の組がなければ控えに残る', 'Stays in reserve if there is no spear squad'], ['鉄砲の組を率いる', 'Leads the gun squad'], ['鉄砲の組がなければ控えに残る', 'Stays in reserve if there is no gun squad'],
+  ['先手以外の組か村の手勢を率いる', 'Leads a squad other than the vanguard, or the village troops'], ['預ける隊がなければ控えに残る', 'Stays in reserve if there is no unit to lead'],
+  ['組の先手の隊に入り、副頭を務める', "Joins the squad's front unit as second-in-command"], ['組がない時や、同じ隊を別の家臣が率いる時は控えに残る', 'Stays in reserve with no squad, or when another retainer leads the same unit'],
+  ['手勢の隊に入り、崩れにくくする', 'Joins your troops and steadies them'], ['手勢を旗本に預けた時は控えに残る', 'Stays in reserve when your troops are assigned to the bodyguard captain'],
+  ['主のすぐそばで戦う', 'Fights right beside you'], ['討たれると戻らない', 'Does not return if killed'], ['戦に出ず、年貢が増える', 'Does not go to battle; taxes rise'], ['戦に出ず、調略の見込みが上がる', 'Does not go to battle; scheming odds rise'],
+  [/^次の戦で(槍の組を率いる|鉄砲の組を率いる|先手以外の組か村の手勢を率いる|組の先手の隊に入り、副頭を務める|手勢の隊に入り、崩れにくくする|主のすぐそばで戦う|戦に出ず、年貢が増える|戦に出ず、調略の見込みが上がる)$/, (m, tr) => `Next battle: ${tr(m[1]).replace(/^./, (c) => c.toLowerCase())}`],
+  [/^(鉄砲|槍)を持つ$/, (m) => `Carries a ${m[1] === '鉄砲' ? 'gun' : 'spear'}`], ['隊の頭として名で呼ばれる', 'Called by name as unit leader'],
+  ['次の戦は手勢がいないため出ない', 'Will not go next battle since you have no troops'], ['供に替えると連れて行ける', 'Switch to attendant to bring them'],
+  [/^次の戦で手勢の強さ約＋(\d+)％、始めの士気＋15（上限100）$/, (m) => `Next battle: troops about +${m[1]}% stronger, starting morale +15 (max 100)`],
+  [/^統率(\d+)を生かして率いる$/, (m) => `Leads using Leadership ${m[1]}`], ['兵の上限では控えに残る', 'Stays in reserve at the troop limit'],
+  [re('次の戦は留守を守り、戦後の領地収入を約{Z}増やす（今の知行(\\d+)石・政治(\\d+)）'), (m) => `Guards home next battle, raising land income after battle by about ${Z(m[1])} (fief ${m[2]} koku, Politics ${m[3]})`],
+  ['加増や田の数で変わる', 'Changes with fief increases and fields'],
+  ['次の戦には内通の使者を送れない', 'No defection envoy can be sent for the next battle'], ['使者の知略が効くのは調略を選べる戦', "An envoy's Wits only matter in battles where scheming is possible"], ['使者は一人で、先任と交代する', 'There is one envoy; they replace the previous one'],
+  [/^次の内通の見込みは使者なし(八割ほど|六割ほど|五分五分ほど|三割ほど)、任せると(八割ほど|六割ほど|五分五分ほど|三割ほど)$/, (m) => { const o = { 八割ほど: 'about 80%', 六割ほど: 'about 60%', 五分五分ほど: 'about even', 三割ほど: 'about 30%' }; return `Next defection odds: ${o[m[1]]} without an envoy, ${o[m[2]]} with them`; }],
+  ['通れば敵の一隊が退く', 'If it works, one enemy unit pulls back'], ['既に送った使者の約束は変わらない', 'Promises from envoys already sent do not change'],
+  [/^次の戦で組の副頭になる$/, () => 'Next battle: becomes squad second-in-command'], [/^組の強さ約＋(\d+)％、始めの士気＋([\d.]+)（上限100）$/, (m) => `squad about +${m[1]}% stronger, starting morale +${m[2]} (max 100)`],
+  ['組がない時や兵の上限では控えに残る', 'Stays in reserve with no squad or at the troop limit'],
+  ['召し抱える候補を選んだ。能力と俸禄を比べられる', 'Candidate chosen. You can compare abilities and stipends.'], ['褒美・暇の相手を選んだ', 'Retainer to reward or dismiss chosen'],
+  [/^(.+)は(槍|弓|鉄砲)で戦う$/, (m, tr) => { const n = nm(m[1], tr); return ok(n) ? `${n} fights with ${{ 槍: 'spear', 弓: 'bow', 鉄砲: 'gun' }[m[2]]}` : undefined; }],
+  [/^(.+)の役目を外した$/, (m, tr) => { const n = nm(m[1], tr); return ok(n) ? `Removed ${n}'s duty` : undefined; }],
+  [/^(.+)を(先手|鉄砲頭|旗本|組の頭|手勢の頭|横に付いて戦う|留守居|使者)にした$/, (m, tr) => { const n = nm(m[1], tr); return ok(n) ? `Made ${n} ${ROLE_EN[m[2]]}` : undefined; }],
+  [/^(.+)は(先手|鉄砲頭|旗本|組の頭|手勢の頭|横に付いて戦う|留守居|使者)を引き継ぐ$/, (m, tr) => { const n = nm(m[1], tr); return ok(n) ? `${n} takes over as ${ROLE_EN[m[2]]}` : undefined; }],
+  [/^(.+)は役目なし$/, (m, tr) => { const n = nm(m[1], tr); return ok(n) ? `${n} has no duty` : undefined; }], ['役目を選べる', 'You can choose a duty'],
+  ['家臣の働きを見て隊の頭を決める', "See your retainers' work and choose unit leaders"], ['家臣の働きを見る', "See your retainers' work"],
+  ['同行は三人まで。預ける隊がない時や兵数の上限では控えに残る。討たれると戻らない。', 'Up to three come along. They stay in reserve with no unit to lead or at the troop limit. The fallen do not return.'],
+  [/^(先手|鉄砲頭|旗本)を選ぶ$/, (m) => `Choose ${ROLE_EN[m[1]]}`],
+  [/^(選択中：)?(.+)を(先手|鉄砲頭|旗本)に据える$/, (m, tr) => { const n = nm(m[2], tr); return ok(n) ? `${m[1] ? 'Selected: ' : ''}Make ${n} ${ROLE_EN[m[3]]}` : undefined; }],
+  ['同じ役目の家臣と交代すると、先任は空いた役目を引き継ぐ。', 'When you swap with a retainer in the same duty, the previous holder takes the vacant duty.'],
+  ['家臣はまだいない。城下の知行で召し抱えられる。', 'No retainers yet. You can hire them in the fief panel in town.'],
+  [/^(.+)の(先手|鉄砲頭|旗本|組の頭|手勢の頭)の隊$/, (m, tr) => { const n = nm(m[1], tr); return ok(n) ? `${n}'s ${ROLE_EN[m[2]]} unit` : undefined; }],
+  [/^(先手|鉄砲頭|旗本|組の頭|手勢の頭)の隊は、それがしが率いる$/, (m) => `I shall lead the ${ROLE_EN[m[1]]} unit.`],
+  ['手前が副頭を務めまする', 'I shall serve as second-in-command.'], ['手勢はそれがしが率いる', 'I shall lead your troops.'],
+  [/^(.+)が組の副頭に立つ$/, (m, tr) => { const n = nm(m[1], tr); return ok(n) ? `${n} becomes squad second-in-command` : undefined; }],
+  [/^(.+)が手勢をまとめる$/, (m, tr) => { const n = nm(m[1], tr); return ok(n) ? `${n} takes command of your troops` : undefined; }],
+  [/^(.+)は控え（(預ける隊がない|預かる組がない|出陣した手勢がいない|同じ役目の先任がいる|戦場の兵数の上限|隊の頭に据えた家臣が率いる|同行は三人まで)）$/, (m, tr) => { const n = nm(m[1], tr); const r = { 預ける隊がない: 'no unit to lead', 預かる組がない: 'no squad', 出陣した手勢がいない: 'no troops marched', 同じ役目の先任がいる: 'a senior holds that duty', 戦場の兵数の上限: 'battlefield troop limit', 隊の頭に据えた家臣が率いる: 'a unit leader retainer leads', 同行は三人まで: 'only three may come' }[m[2]]; return ok(n) ? `${n} in reserve (${r})` : undefined; }],
+  ['同行できない：役目が決まっていない', 'Cannot come: no duty set'], ['同行できない：今の身分では任せられない役目', 'Cannot come: duty not allowed at your rank'], ['同行できない：同じ役目の先任がいる', 'Cannot come: a senior holds that duty'],
+  ['同行しない：留守を守る役目', 'Stays home: guarding the house'], ['同行しない：内通を頼む役目', 'Stays home: working on defections'], ['同行できない：出陣する手勢がいない', 'Cannot come: no troops marching'],
+  ['役目なし', 'No duty'], ['役目を決めると戦で働ける', 'Set a duty and they will serve in battle'], ['同行は三人まで', 'Up to three come along'], ['兵数の上限でも控えに残る', 'They also stay in reserve at the troop limit'],
+  [/^(.+)（(先手|鉄砲頭|旗本|組の頭|手勢の頭|横に付いて戦う|留守居|使者|役目なし)）$/, (m, tr) => { const n = nm(m[1], tr); return ok(n) ? `${n} (${ROLE_EN[m[2]] || 'No duty'})` : undefined; }],
+  [/^(.+)は、もう戻らない。共に立てた手柄を胸に、次の戦へ。$/, (m, tr) => { const L = m[1].split('・').map((x) => nm(x, tr)); return L.every(ok) ? `${L.join(', ')} will not return. Carry the deeds you shared into the next battle.` : undefined; }],
+  ['家臣と供の働き。共に戦って討たれると戻らない。', 'Your retainers and attendants. Those who fall fighting beside you do not return.'],
+  // 戦の後の控え（家臣）
+  [/^(.+)、手柄で育った（(.+)）$/, (m, tr) => { const n = nm(m[1], tr); const L = m[2].split('・').map((x) => { const p = /^(統率|武勇|知略|政治)(\d+)から(\d+)$/.exec(x); return p ? `${STAT[p[1]]} ${p[2]} → ${p[3]}` : x; }); return ok(n) && L.every(ok) ? `${n} grew through deeds (${L.join(', ')})` : undefined; }],
+  [/^(.+)、(統率|武勇|知略|政治)が上がった（(\d+)）$/, (m, tr) => { const n = nm(m[1], tr); return ok(n) ? `${n}'s ${STAT[m[2]]} rose (${m[3]})` : undefined; }],
+  [/^(.+)に「(采配上手|豪勇|知恵者|算用達者)」の二つ名が付いた$/, (m, tr) => { const n = nm(m[1], tr); return ok(n) ? `${n} earned the epithet "${GOU_EN[m[2]]}"` : undefined; }],
+  [/^(.+)、(\d+)人を討ち取った。無事に帰った（(\d+)戦目）$/, (m, tr) => { const n = nm(m[1], tr); return ok(n) ? `${n} struck down ${m[2]} and returned safely (battle ${m[3]})` : undefined; }],
+  [/^家臣 (.+)、討死（(\d+)戦目・(\d+)人討ち取り）$/, (m, tr) => { const n = nm(m[1], tr); return ok(n) ? `Retainer ${n} fell in battle (battle ${m[2]}, ${m[3]} kills)` : undefined; }],
+  [/^(.+)、(先手|鉄砲頭|旗本|組の頭|手勢の頭|横に付いて戦う|留守居|使者)の働きで(統率|武勇|知略|政治)が上がった（(\d+)）$/, (m, tr) => { const n = nm(m[1], tr); return ok(n) ? `${n}'s ${STAT[m[3]]} rose through work as ${ROLE_EN[m[2]]} (${m[4]})` : undefined; }],
+  [re('(.+)、(?:俸禄{Z}を払った|俸禄{Z}が払えない)。忠義(\\d+)から(\\d+)(?:。(先手|鉄砲頭|旗本|組の頭|手勢の頭|横に付いて戦う|留守居|使者)として働いた)?'), (m, tr) => { const n = nm(m[1], tr); if (!ok(n)) return undefined; return `${n}: ${m[2] ? `stipend ${Z(m[2])} paid` : `stipend ${Z(m[3])} could not be paid`}. Loyalty ${m[4]} → ${m[5]}${m[6] ? `. Served as ${ROLE_EN[m[6]]}` : ''}`; }],
+  [/^家臣 (.+)、忠義が下がり出奔した$/, (m, tr) => { const n = nm(m[1], tr); return ok(n) ? `Retainer ${n} deserted from low loyalty` : undefined; }],
+];

@@ -18,7 +18,7 @@ export default [
       .replace(/。/g, '. ').replace(/・/g, ' · ');
     return 'Next battle: ' + s.trim();
   }],
-  [/^戦の道のり。済：(.+)。次：(.+)。本拠：(.+)$/, (m, tr) => `Path of battles. Done: ${m[1] === 'まだない' ? 'none yet' : tr(m[1])}. Next: ${tr(m[2])}. Base: ${tr(m[3])}`],
+  [/^戦の道のり。済：(.+)。次：(.+)。本拠：(.+)$/, (m, tr) => `Path of battles. Done: ${m[1] === 'まだない' ? 'none yet' : (() => { const w = tr(m[1]); return /[぀-鿿]/.test(w) ? (() => { const a = m[1].split('・'), o = []; for (let i = 0; i < a.length; i++) { const two = i + 1 < a.length ? tr(a[i] + '・' + a[i + 1]) : ''; if (two && !/[぀-鿿]/.test(two) && /[぀-鿿]/.test(tr(a[i]))) { o.push(two); i++; } else o.push(tr(a[i])); } return o.join(', '); })() : w; })()}. Next: ${tr(m[2])}. Base: ${tr(m[3])}`],
   ['右下の持ち替えの丸で持ち替え。速い斬撃、構えて突きの丸で突き。受け流しやすい', 'Switch with the swap button at lower right. Fast slashes; ready it and thrust with the thrust button. Easy to parry with.'],
   ['右下の持ち替えの丸で持ち替え。攻撃の釦を押し続けて狙い、離して撃つ。撃った後は自動で弾を込める。雨では火縄が湿る', 'Switch with the swap button at lower right. Hold the attack button to aim, release to fire. It reloads by itself. The match gets damp in rain.'],
   ['右下の持ち替えの丸で持ち替え。突きの丸を押して引き絞り、離して射る。遠くへは山なりに飛ぶ', 'Switch with the swap button at lower right. Hold the thrust button to draw, release to shoot. Arrows arc to reach far.'],

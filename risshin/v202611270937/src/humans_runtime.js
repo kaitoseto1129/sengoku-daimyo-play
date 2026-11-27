@@ -648,6 +648,8 @@ function useHuman(u, force = false) {
   }
   // K697 手順5：座る人の形が読めた後に、前の作り（石の置物）で作った小袖姿の人は一度だけ作り直す
   //   携帯（MEM_TIGHT）は dropHuman が人を使い回しの池へ返して u.human を外すので、前の作りの人は池からも外して捨てる（池から前の作りを借り直したら、もう二回まで作り直す）
+  // K697 手順5 の残り：名の無い侍大将（本陣の床几の将）も、K705 の形が読めた後に前の作りの人を一度だけ作り直す（携帯は使い回しの池からも外す）
+  if (!heroLocked && u.human && !u.human.k705 && u.type === 'busho' && typeof u.human.look?.face !== 'string' && (u._bgRe || 0) < 3 && k705Want(u, u.human.look)) { u._bgRe = (u._bgRe || 0) + 1; const hh = u.human; dropHuman(u); humanPool.delete(hh); hh.root.parent?.remove(hh.root); releaseHumanBounds(hh); freeSkeletons(hh); u.human = null; }
   if (!heroLocked && u.human && !u.human.k697 && (u._zaRe || 0) < 3 && k697ZWant(u, u.human.look)) { u._zaRe = (u._zaRe || 0) + 1; const hh = u.human; dropHuman(u); humanPool.delete(hh); hh.root.parent?.remove(hh.root); releaseHumanBounds(hh); freeSkeletons(hh); u.human = null; }
   if (!u.human) {
     if (MEM_TIGHT && !keyMan && !u._humanBuild && humanPool.size + humanBuilding.size >= SKIN_MAX && !evictIdlePooled(u)) return false;

@@ -6,6 +6,8 @@
 
 import { lightBattle, uS, uA, uG, uB, busho } from './light_battle.js';
 import { isEn, addEn } from './i18n.js';
+import { nobori } from './props.js';
+import { stopMusic } from './audio.js';
 if (isEn()) import('./i18n_en_takeda.js').then((m) => addEn(m.default)).catch(() => {});   // K516 英語の時だけ武田編の字の表を読む
 
 const TAKEDA = { flag: 'takeda', armor: 0x502b24 };
@@ -103,6 +105,21 @@ export const d15_tenmokuzan = lightBattle({
         { t: 46, say: ['滝川の侍', '武田の最後の者どもじゃ！　残らず討て！'], foes: [{ name: '田野の三の手', from: { x: TANO.x + 20, z: TANO.z + 36 }, list: [{ type: 'samurai', n: 1, o: { name: '滝川の組頭 滝川益重' } }, uS(2), uA(20)] }] }],
       reward: '御屋形様の最期を守った' },
   ],
+  // K722③（11/27 クラウドし）：要件書の見せ場「同じ武田の赤い旗が一本しか残っていない」「最後：勝鬨なし。風の音。倒れた旗」を絵と音に。
+  //   田野の里の勝頼の旗本の後ろに武田菱の幟を一本だけ立て、勝ちの後に曲を止めて（風の音だけが残る）、締めの台詞「赤い旗が一本、倒れた」に合わせて地へ倒す。
+  //   字は足さない。幟は当たりを持たない一本（形・材質は共用）。織田編 田野（b_tano.js lastNobori）と同じ倒し方
+  setup(rt) {
+    const n = nobori(rt.world, TANO.x + 9, TANO.z - 14, 'takeda', 6);
+    n.userData.noFreeze = true; rt.scene.add(n); rt.flags.d15Hata = n;
+  },
+  update(rt) {
+    const F = rt.flags, n = F.d15Hata;
+    if (!F.ending || !n || n.userData.fallen) return;
+    n.userData.fallen = true;
+    rt.after(1, () => { try { stopMusic(4); } catch (e) { /* 音の無い時も続ける */ } });
+    const z0 = n.rotation.z;
+    for (let k = 1; k <= 14; k++) rt.after(11.4 + k * 0.1, () => { n.rotation.z = z0 + 1.42 * (k / 14) ** 2; });
+  },
   win: {
     banner: '天目山 武田、滅ぶ', sub: '勝頼・信勝は田野で自刃した', award: '御屋形様の最期を守った',
     say: [['武田の侍', '御屋形様、御自害……', 2.8],

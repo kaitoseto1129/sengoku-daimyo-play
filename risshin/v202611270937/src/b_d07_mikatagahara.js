@@ -25,6 +25,7 @@ const START = { x: HIRATE_POST.x - 4, z: LINE_Z - 46 };   // 武田の先手（�
 //   ⑤犀ヶ崖：その夜、大久保忠世・天野康景らが犀ヶ崖の武田の陣へ鉄砲を撃ち込み、崖へ落ちる者が出た。本人は崖の上の陣で夜討ちを受ける
 const GATE = { x: HAMA.x, z: HAMA.z - 30 };   // 浜松城の門の前
 const SAIGA = { x: HAMA.x - 24, z: HAMA.z - 70 };   // 犀ヶ崖の武田の陣（浜松城の北）
+const MARCH_Z = 14, MARCH_SECS = 10.5;   // K722② 行軍から陣形へ：持ち場の南 14m から北へ十秒半歩き、「止まれ」（8秒）の直後に止まって向き直る
 const TAKEDA = { armor: 0x2b2b30, lace: 0x8a2a22, flag: 'takeda' };
 const TAKEDA_SIDE = new Set(['takeda', 'akazonae']), TOKU_SIDE = new Set(['tokugawa', 'oda']);
 const alive = (g) => g && !g.routed && g.count > 0;
@@ -42,6 +43,10 @@ const d07_mikatagahara = Object.assign(D, {
   key: 'd07_mikatagahara',
   sideFlip: true,
   spawn: { x: START.x, z: START.z, heading: 0 },   // 南（+z）の徳川の鶴翼を向く
+  // K722②（11/27 クラウドし）：①台地を進む。前は全戦共通の進軍（marchAuto）が北の後ろから南の徳川へ向けて道を引き、列が敵へ歩いて「止まれ・向きを変え」と合わなかった。
+  //   武田は台地を北西（祝田の坂）へ進み、後ろ（南）から徳川が追って来た（『三河物語』）。列は南東から北西へ徳川に背を向けて歩き、「止まれ」の頃に着いて南へ向き直る
+  marchIn: { road: [[START.x + 20, START.z + 16], [START.x + 8, START.z + 6], [START.x, START.z]], name: '武田の先手の列', speed: 2.2, facing: 0, behind: 6,
+    column: [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 20 }] },
   // 両軍（武田方 二万七千・徳川織田方 一万一千）
   force: (rt) => ({ a: Math.max(0, 27000 - (rt.flags.ak || 0) * 30), a0: 27000, b: Math.max(0, 11000 - (rt.flags.ek || 0) * 25), b0: 11000 }),
   sides: { a: { name: '武田方', mon: 'takeda', faction: 'takeda' }, b: { name: '徳川・織田方', mon: 'tokugawa', faction: 'tokugawa' } },
@@ -112,7 +117,11 @@ const d07_mikatagahara = Object.assign(D, {
     F.dStage = 0; F.dT0 = rt.t;
     this.dObj(rt, '徳川の鶴翼の左へ懸かれ');
     mk0.call(rt, 'dpin', () => { const p = this.pin(rt); return p ? { x: p.x, z: p.z } : null; }, () => this.pin(rt)?.label || '', { h: 3 });
-    this.dSay(rt, 1.5, '小山田信茂', '先手、坂を下れ！　徳川の鶴翼を一揉みに揉み潰せ！', 3);
+    // K722②（11/27 クラウドし）：見せ場「行軍中だった武田軍がほぼ一斉に止まり、戦闘の陣形へ変わる」。前は台詞だけで、魚鱗は始めから組まれて立っていた。
+    //   ①台地を進む：武田の各備（遠景の大軍と本物の芯）を持ち場の南 MARCH_Z m に置き、徳川に背を向けて北へ歩かせる（advance の back＝向きを返して歩く）
+    //   ②後ろに徳川 ③④「止まれ」で持ち場に着いて止まり、南の徳川へ向き直る。新しい兵は出さない（重さ同じ）。先手の寄せ（first）は向き直りの後
+    this.dMarch(rt);
+    this.dSay(rt, 1.5, '物見', '後ろに徳川の旗！　浜松から追って来たぞ！', 3);
     // 元の段の兵の動きを時で呼ぶ（①先手の寄せ ②赤備えと二の陣・徳川の崩れ ③徳川の敗走）
     rt.after(8, () => this.dStage(rt, 1));
   },
@@ -127,6 +136,24 @@ const d07_mikatagahara = Object.assign(D, {
       if (g) { g.team = 1; for (const u of g.units) { u.team = 1; u.target = P; } }
     } catch (e) { console.warn('d07 組頭', e); }
   },
+  dMarch(rt) {
+    const F = rt.flags, secs = MARCH_SECS;
+    for (const [id, b] of Object.entries(F.bT || {})) {
+      if (!b || typeof b !== 'object' || id === 'shingen' || b.routedL) continue;
+      const f = b.facing || 0, dx = Math.sin(f) * MARCH_Z, dz = Math.cos(f) * MARCH_Z;
+      try {
+        const L = b.light, A = L?.army;
+        if (A?.off && typeof L.advance === 'function' && !A.tw) { A.off.x += dx; A.off.z += dz; L.advance(-MARCH_Z, secs); }   // 持ち場の南から北へ、背を向けて歩く
+        const g = b._mkCore && b.real;
+        if (g?.count && !g.routed) {
+          const W = rt.world;
+          for (const u of g.units) { if (!u.alive) continue; u.pos.x += dx; u.pos.z += dz; u.pos.y = W.heightAt(u.pos.x, u.pos.z); u.heading = f + Math.PI; }
+          const home = { x: g.anchor.x, z: g.anchor.z };
+          g.order = 'move'; g.dest = home; g.speed = MARCH_Z / secs; g.onArrive = (q) => { q.order = 'hold'; q.facing = f; };
+        }
+      } catch (e) { console.warn('d07 行軍', id, e); }
+    }
+  },
   dObj(rt, text) { const F = rt.flags; F._dObj = true; try { if (F.dObjText) rt.objDone('main'); rt.obj('main', text, 'main', true); F.dObjText = text; } finally { F._dObj = false; } },
   dSay(rt, at, who, text, d) { rt.after(at, () => { if (rt.flags.ending) return; rt.flags._dSay = true; try { rt.say(who, text, d); } finally { rt.flags._dSay = false; } }); },
   dBanner(rt, t, s) { rt.flags._dSay = true; try { rt.banner(t, s); } finally { rt.flags._dSay = false; } },
@@ -135,7 +162,14 @@ const d07_mikatagahara = Object.assign(D, {
     if (F.ending || F.dStage >= n) return;
     F.dStage = n;
     const run = (f) => { try { f(); } catch (e) { console.warn('d07 段', n, e); } };
-    if (n === 1) { run(() => base.first.call(this, rt)); rt.after(70, () => this.dStage(rt, 2)); this.dSay(rt, 1, '武田信玄', '全軍、止まれ！　台地の上で向きを変え、魚鱗に組め！', 3.4); this.dSay(rt, 5, '物見', '行軍の列が一斉に止まり、陣の形になった！　徳川が追って来る！', 3.2); rt.after(12, () => this.headGroup(rt, '酒井の組頭')); rt.after(40, () => this.headGroup(rt, '石川の組頭')); }
+    if (n === 1) {
+      rt.after(6, () => { if (!rt.flags.ending) run(() => base.first.call(this, rt)); });   // 向き直ってから先手が寄せる
+      rt.after(70, () => this.dStage(rt, 2));
+      this.dSay(rt, 0.3, '武田信玄', '全軍、止まれ！　台地の上で向きを変え、魚鱗に組め！', 3.4);
+      this.dSay(rt, 4.5, '物見', '行軍の列が一斉に止まり、陣の形になった！　徳川が追って来る！', 3.2);
+      this.dSay(rt, 7.5, '小山田信茂', '先手、坂を下れ！　徳川の鶴翼を一揉みに揉み潰せ！', 3);
+      rt.after(12, () => this.headGroup(rt, '酒井の組頭')); rt.after(40, () => this.headGroup(rt, '石川の組頭'));
+    }
     if (n === 2) {
       run(() => base.crash.call(this, rt));
       this.dObj(rt, '崩れた徳川を追い、家康の本陣へ');

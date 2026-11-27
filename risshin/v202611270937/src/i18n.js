@@ -332,5 +332,9 @@ if (LANG === 'en') import('./i18n_en_story_cards.js').then((m) => { addEn(m.defa
 if (LANG === 'en') import('./i18n_k646_names.js').then((m) => { addEn(m.default); done = new WeakMap(); if (typeof document !== 'undefined' && document.body) walk(document.body); }).catch(() => {});
 // K650 オンライン武将492人の通しで英語の名が無かった131人（クラウド Sanae 11/24）
 if (LANG === 'en') import('./i18n_busho_names_1124.js').then((m) => { addEn(m.default); done = new WeakMap(); if (typeof document !== 'undefined' && document.body) walk(document.body); }).catch(() => {});
+if (LANG === 'en') import('./i18n_busho_names_1127.js').then((m) => { addEn(m.default); done = new WeakMap(); if (typeof document !== 'undefined' && document.body) walk(document.body); }).catch(() => {});
+if (LANG === 'en') import('./i18n_realm.js').then((m) => { addEn(m.default); done = new WeakMap(); if (typeof document !== 'undefined' && document.body) walk(document.body); }).catch(() => {});   // K516：知行の画面（realm・内政・家臣・外交）。作ってあったが読まれていなかった（11/27）
+if (LANG === 'en') import('./i18n_en_realm_rest.js').then((m) => { addEn(m.default); done = new WeakMap(); if (typeof document !== 'undefined' && document.body) walk(document.body); }).catch(() => {});
+if (LANG === 'en') import('./i18n_en_clans_rest_1127.js').then((m) => { addEn(m.default); done = new WeakMap(); if (typeof document !== 'undefined' && document.body) walk(document.body); }).catch(() => {});
 if (LANG === 'en') import('./i18n_en_tokugawa.js').then((m) => addEn(m.default)).catch(() => {});
 startI18n();

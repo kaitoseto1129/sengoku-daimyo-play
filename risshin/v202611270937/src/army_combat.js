@@ -1422,6 +1422,7 @@ export const ArmyCombat = {
   pullOff(t, src, away = false) {
     const h = t.horse;
     this.setMounted(t, false);
+    t.lostHorseAt = this.time;   // K715：引き落とされて生きている者も、近くの空き馬へ戻って乗る（cavalry_tactics.js remountTick）
     t.horse = null; t.charging = false; t.atk = null; t.swing = null; t.target = null;
     if (h) {
       if (h.parent) h.parent.remove(h);

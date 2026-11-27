@@ -41,30 +41,45 @@ function dustSetup(rt) {
   if (!dustTex) {
     const c = document.createElement('canvas'); c.width = c.height = 64;
     const x = c.getContext('2d'), gr = x.createRadialGradient(32, 32, 2, 32, 32, 32);
-    gr.addColorStop(0, 'rgba(196,176,138,0.55)'); gr.addColorStop(0.5, 'rgba(184,164,128,0.22)'); gr.addColorStop(1, 'rgba(176,158,124,0)');
+    gr.addColorStop(0, 'rgba(150,124,86,0.85)'); gr.addColorStop(0.45, 'rgba(146,120,84,0.42)'); gr.addColorStop(1, 'rgba(140,116,82,0)');
     x.fillStyle = gr; x.fillRect(0, 0, 64, 64); dustTex = new THREE.CanvasTexture(c);
   }
-  const mats = [0.6, 0.4].map((o) => new THREE.SpriteMaterial({ map: dustTex, transparent: true, depthWrite: false, opacity: o, color: 0xd8c8a8 }));
+  // 11/27 クラウドす（K718③ 風向きの変化を絵で）：前は丸い粒が薄く散るだけで、止めた絵では風の向きが読めなかった。
+  //   砂の煙を「地から巻き上がる濃い頭＋風下へ薄く広がる尾」の四つ一組（26組・本人の回り90m）にし、風が変われば尾の向きが逆へ回る
+  const OP = [0.85, 0.62, 0.42, 0.24], SZ = [1, 1.45, 2, 2.7];
+  const mats = OP.map((o) => new THREE.SpriteMaterial({ map: dustTex, transparent: true, depthWrite: false, opacity: o, color: 0xb09070, fog: false }));   // 近い砂の煙は霞に溶かさない（霞に溶けて一つも見えなかった）
   const g = new THREE.Group(), list = [];
-  for (let i = 0; i < 56; i++) {
-    const sp = new THREE.Sprite(mats[i % 2]), s = 3 + ((i * 37) % 7);
-    sp.scale.set(s * 2.2, s * 0.8, 1);
-    sp.userData = { ox: ((i * 53) % 120) - 60, oz: ((i * 29) % 120) - 60, y: 0.6 + ((i * 7) % 5) * 0.35, s };
-    g.add(sp); list.push(sp);
+  for (let i = 0; i < 26; i++) {
+    const s = 2.6 + ((i * 37) % 5) * 0.7, puffs = [];
+    for (let j = 0; j < 4; j++) { const sp = new THREE.Sprite(mats[j]); sp.scale.set(s * SZ[j] * 2.2, s * SZ[j] * 0.85, 1); g.add(sp); puffs.push(sp); }
+    list.push({ puffs, ox: ((i * 53) % 90) - 45, oz: ((i * 29) % 90) - 45, s, ph: i * 1.7 });
   }
   rt.scene.add(g);
-  rt.flags.e05Dust = { g, list };
+  rt.flags.e05Dust = { g, list, mats };
   dustTick(rt, 0);   // 始めから本人の回りの野に置く
 }
 function dustTick(rt, dt) {
   const D = rt.flags.e05Dust, P = rt.player?.u?.pos; if (!D || !P) return;
   const sp = (6 + 9 * (WIND_STATE.gust || 0.6)) * dt, dx = WIND_STATE.dirX ?? 1, dz = WIND_STATE.dirZ ?? 0;
-  const H = rt.world?.heightAt;
-  for (const s of D.list) {
-    const u = s.userData; u.ox += dx * sp; u.oz += dz * sp;
-    if (u.ox > 60) u.ox -= 120; if (u.ox < -60) u.ox += 120; if (u.oz > 60) u.oz -= 120; if (u.oz < -60) u.oz += 120;
-    const x = P.x + u.ox, z = P.z + u.oz;
-    s.position.set(x, (H ? H.call(rt.world, x, z) : 0) + u.y, z);
+  const H = rt.world?.heightAt, t = rt.t || 0;
+  // 尾の筋を画面の上で風下へ傾ける（四つの材質の rotation を一つの角で）：本人の足元と風下 10m を画面へ写した向き
+  const cam = rt.camera;
+  if (cam && (D._rt = (D._rt || 0) - dt) <= 0) {
+    D._rt = 0.1; const a = D._a || (D._a = new THREE.Vector3()), b = D._b || (D._b = new THREE.Vector3());
+    a.set(P.x, P.y + 1, P.z).project(cam); b.set(P.x + dx * 10, P.y + 1, P.z + dz * 10).project(cam);
+    let ang = Math.atan2((b.y - a.y) * 0.5, (b.x - a.x) * (cam.aspect || 1.8) * 0.5);
+    if (ang > Math.PI / 2) ang -= Math.PI; if (ang < -Math.PI / 2) ang += Math.PI;   // 横長の筋は向きの裏表が同じ
+    const lean = Math.max(-0.5, Math.min(0.5, ang));
+    for (const m of D.mats) m.rotation = lean;
+  }
+  for (const u of D.list) {
+    u.ox += dx * sp; u.oz += dz * sp;
+    if (u.ox > 45) u.ox -= 90; if (u.ox < -45) u.ox += 90; if (u.oz > 45) u.oz -= 90; if (u.oz < -45) u.oz += 90;
+    const wob = Math.sin(t * 0.9 + u.ph) * 0.6;
+    for (let j = 0; j < 4; j++) {
+      const k = j * u.s * 1.9, x = P.x + u.ox + dx * k - dz * wob * j, z = P.z + u.oz + dz * k + dx * wob * j;
+      u.puffs[j].position.set(x, (H ? H.call(rt.world, x, z) : 0) + 0.5 + j * 0.55 * u.s * 0.45, z);
+    }
   }
 }
 function scene(rt) {
