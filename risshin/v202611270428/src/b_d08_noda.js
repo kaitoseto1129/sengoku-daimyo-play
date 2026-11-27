@@ -1,0 +1,130 @@
+// 武田編 八戦目「野田城攻め」（元亀四年〔1573〕正月〜二月）。軽い型（light_battle.js）・型は豊臣編の岩石城（城の前の段と水の手）
+//   史実：三方ヶ原で家康を破った信玄は三河へ入り、菅沼定盈の守る野田城（豊川の東の小さな城）を囲んだ。
+//   城は小さいが堅く、信玄は甲斐の金掘り衆に城の井戸の水脈を掘り断たせた。水の手を失った城は二月に開き、定盈は捕らえられた。
+//   この陣中で信玄の病が重くなり、武田勢は長篠へ退き、信玄は四月に甲斐へ帰る途中で没した（城中の笛を聴いていて撃たれたという話は後の言い伝え）。
+//   出所：Wikipedia「野田城の戦い」・新城市の野田城跡の案内。くわしくは docs/chapter_takeda.md・docs/journey/d08_noda.md
+// 11/21 cloud-10（司令塔「本人の討ち取り5以上・4〜7分」）：受けの段の始めの組に、討てる名のある組頭を一人ずつ混ぜた（d12 と同じ形・busho の討てない将は使わない）
+import { lightBattle, uS, uA, uG, busho } from './light_battle.js';
+import { isEn, addEn } from './i18n.js';
+import { withCastle } from './light_castle.js';
+import { NODA_PLAN } from './castles/noda.js';
+if (isEn()) import('./i18n_en_takeda.js').then((m) => addEn(m.default)).catch(() => {});   // K516 英語の時だけ武田編の字の表を読む
+
+const TAKEDA = { flag: 'takeda', armor: 0x502b24 };
+const NODA = { flag: 'tokugawa', armor: 0x2a2a2e };   // 菅沼定盈（徳川方）
+const SPAWN = { x: 0, z: -120 };
+const RIVER = [[-120, -220], [-110, -100], [-118, 0], [-104, 100], [-112, 220]];   // 豊川（城の西）
+const CASTLE = { x: 10, z: 70 };        // 野田城の丘（本丸）
+const CAMP = { x: 4, z: -70 };          // 武田の囲みの陣（城の南）
+const MINE = { x: -20, z: 4 };          // 金掘りの坑口（城の南西の崖下）
+const SOTO = { x: 18, z: 30 };          // 城の外の柵（外郭）
+const OTE = { x: 10, z: 52 };           // 大手の門（開城を受け取る所）
+const GOZUME = { x: -46, z: -30 };      // 囲みの西の野（家康の後詰の物見が寄る所・K652②）
+const FUE = { x: 22, z: 12 };           // 城の南の堀の外（夜、城から笛が聞こえた所・K652②）
+
+// 11/26 クラウドさ（K656 K655 の弱いサムネ「城が戦場に無い」）：城の丘の頂に野田城（三の丸・二の丸・本丸の連郭と堀切）を置く（castles/noda.js・出所 docs/battle_refs/noda.md）。遠景の軽い形
+export const d08_noda = withCastle(lightBattle({
+  id: 'd08_noda',
+  date: '元亀四年（1573）正月　冬・晴れ　三河国 野田',
+  intro: '三方ヶ原で徳川家康を破った武田信玄は、三河の野田城を囲んだ。城は小さいが堅い。甲斐の金掘り衆が城の水の手を掘り断ちにかかる。',
+  history: '元亀四年（1573）正月、武田信玄は菅沼定盈の守る三河の野田城を囲んだ。城は小さいが堅く、信玄は甲斐の金掘り衆に城の井戸の水脈を断たせた。水の手を失った城は二月に開いたが、この陣中で信玄の病は重くなり、武田勢は兵を退いた。信玄は四月、甲斐へ帰る途中で没した。',
+  sides: { a: { name: '武田信玄の軍', mon: 'takeda', faction: 'takeda' }, b: { name: '野田城の城兵（菅沼定盈）', mon: 'tokugawa', faction: 'tokugawa' } },
+  force: { a: 15000, b: 500 },
+  allyLook: TAKEDA, foeLook: NODA,
+  minutes: 10,
+  spawn: { x: SPAWN.x, z: SPAWN.z, heading: 0 },
+  world: {
+    seed: 1573, time: 'day', winter: true, fogFar: 440,
+    river: RIVER, riverW: 16, riverDepth: 0.7,
+    hills: [[CASTLE.x, CASTLE.z, 30, 16], [CASTLE.x + 30, CASTLE.z + 20, 26, 10], [120, -40, 60, 14], [-60, 160, 50, 12], [80, -190, 60, 10]],
+    // 11/21 cloud-19（K563 地形・手書き。標高の asset が来るまで）：武田の囲みの陣・金掘りの坑口・城の外の柵・大手の門 を結ぶ道と、丘の森（木の数は森の分を引いて同じ）
+    paths: [{ pts: [[0, -120], [4, -70], [-20, 4], [18, 30], [10, 52]], w: 3 }],
+    groves: [{ x: 120, z: -40, r: 30, n: 30 }, { x: -60, z: 160, r: 25, n: 30 }],
+    trees: 420, tufts: 1800,
+  },
+  allies: [
+    { name: '武田信玄の旗本', at: { x: CAMP.x - 16, z: CAMP.z - 12 }, fixed: true, list: [busho('武田信玄'), uS(6), uA(10)] },
+    { name: '山県昌景の手', at: { x: MINE.x + 14, z: MINE.z - 10 }, dmg: 0.2, list: [busho('山県昌景'), uS(3), uA(14)] },
+    { name: '甲斐の金掘り衆の守り', at: { x: MINE.x - 8, z: MINE.z - 6 }, dmg: 0.2, list: [uS(2), uA(16)] },
+    { name: '武田の鉄砲衆', at: { x: MINE.x + 22, z: MINE.z - 18 }, dmg: 0.2, list: [uS(1), uG(8)] },
+    // 11/21 cloud-41（章の通し）：通しの本人（組の無い足軽）が柵の段で三の手に囲まれ161秒で倒れた回がある。敵は変えず、本人と共に出る槍衆を一組（陣から）
+    { name: '武田の槍衆', at: { x: SPAWN.x + 4, z: SPAWN.z + 10 }, dmg: 0.2, list: [uS(3), uA(16)] },
+  ],
+  steps: [
+    { kind: 'rest', dur: 12, heal: 0, say: [
+      ['武田信玄', '小さき城よ。されど、力で攻めれば兵を損なう', 3.4],
+      ['山県昌景', '甲斐の金掘りに、城の井戸の水を断たせまする', 3.4],
+      ['武田信玄', '囲みの陣へ寄れ。金掘りの者どもを城兵から守れ', 3.2]] },
+    { kind: 'move', at: CAMP, label: '囲みの陣', obj: '城の南の、囲みの陣へ寄る', r: 14,
+      say: [['組頭', '竹束を前へ。城の鉄砲の届く所では頭を下げよ', 3]] },
+    { kind: 'hold', at: MINE, label: '金掘りの坑口', obj: '金掘りの坑口を、打って出た城兵から守る', r: 16, dur: 135,   // 11/21 cloud-50（司令塔：240秒より短い戦は受けの段を厚くして4分以上に）：90→135秒・三の手を足した
+      title: '水の手', sub: '城兵が金掘りの坑口を潰しに打って出る',
+      say: [['金掘りの頭', '水の脈はこの下じゃ。あと少し掘らせてくだされ！', 3.2]],
+      waves: [
+        { t: 6, say: ['野田の城兵', '穴を埋めよ！　水の手を守れ！'], foes: [{ name: '野田の城兵', from: { x: MINE.x + 12, z: MINE.z + 24 }, list: [{ type: 'samurai', n: 1, o: { name: '野田の組頭 鳥居' } }, uS(3), uA(14)] }] },
+        { t: 36, say: ['組頭', '崖の上から鉄砲が来る！　坑口の前を固めよ！'], foes: [{ name: '野田の鉄砲', from: { x: MINE.x - 10, z: MINE.z + 26 }, list: [uS(2), uA(8), uG(5)] }] },
+        { t: 58, say: ['野田の城兵', '水の手を失えば城は終わりじゃ！　皆出よ！'], foes: [{ name: '野田の城兵の二の手', from: { x: MINE.x + 26, z: MINE.z + 18 }, list: [{ type: 'samurai', n: 1, o: { name: '野田の組頭 菅沼' } }, uS(3), uA(14)] }] },
+        { t: 86, say: ['組頭', '坑口の上の崖からも下りて来る！'], foes: [{ name: '野田の城兵の三の手', from: { x: MINE.x - 22, z: MINE.z + 20 }, list: [uS(3), uA(16)] }] }],
+      reward: '金掘りの坑口を守り抜いた' },
+    // K674 足した段（11/26 Sanae・一戦10任務）
+    { kind: 'fight', at: { x: MINE.x - 8, z: MINE.z - 14 }, obj: '坑口の外の崖下で、城から出た菅沼の侍を討つ', limit: 90,
+      say: [['組頭', '崖下から侍が出た。坑口へ近づけるな', 3.2]],
+      foes: [{ name: '崖下の菅沼の侍', from: ((p) => ({ x: p.x + (0), z: p.z + (14) }))({ x: MINE.x - 8, z: MINE.z - 14 }), list: [uS(3), uA(10)] }],
+      reward: '崖下の侍を討った' },
+    // K652②（11/25 Sanae・10分に）：囲みの間に家康が後詰に出たが、野田城へは寄れなかった（『三河物語』）。本人は囲みの西で徳川の物見の手を払う
+    { kind: 'rest', dur: 8, heal: 0.35, say: [['物見', '西の野に三つ葉葵の旗！　浜松の家康が後詰に出たぞ！', 3.2]] },
+    { kind: 'fight', at: GOZUME, limit: 120, obj: '囲みの西へ寄る徳川の後詰の物見を追い払う', title: '後詰', sub: '家康の後詰の手が囲みを探りに来る',
+      say: [['山県昌景', '囲みに手を出させるな。追い払えば家康は寄れぬ', 3.2]],
+      foes: [
+        { name: '徳川の物見の手', from: { x: GOZUME.x - 10, z: GOZUME.z + 18 }, list: [{ type: 'samurai', n: 1, o: { name: '徳川の組頭 松平' } }, uS(3), uA(16)] },
+        { name: '徳川の鉄砲', from: { x: GOZUME.x - 22, z: GOZUME.z + 10 }, list: [uS(1), uG(5)] }],
+      later: [{ t: 40, say: ['組頭', '後ろから二の手じゃ！'], foes: [{ name: '徳川の後詰の二の手', from: { x: GOZUME.x + 14, z: GOZUME.z + 24 }, list: [uS(3), uA(14)] }] }],
+      reward: '家康の後詰を囲みへ寄せなかった' },
+    // K674 足した段（11/26 Sanae・一戦10任務）
+    { kind: 'fight', at: { x: GOZUME.x - 14, z: GOZUME.z - 20 }, obj: '西の野で、後詰の物見に付いた徳川の騎馬を払う', limit: 90,
+      say: [['物見', '物見に騎馬が付いておる！　囲みへ寄せるな', 3.2]],
+      foes: [{ name: '後詰の徳川の騎馬', from: ((p) => ({ x: p.x + (-16), z: p.z + (-6) }))({ x: GOZUME.x - 14, z: GOZUME.z - 20 }), list: [busho('徳川の騎馬の将', { mustLive: false, invuln: false }), uS(3)] }],
+      reward: '徳川の騎馬を払った' },
+    // 11/21 cloud-41（章の通し）：通しの本人（組の無い足軽）が二つ目の段で深手を負い、三つ目の段の頭で倒れた。段の間に手当ての一息（敵は変えず）
+    { kind: 'rest', dur: 8, heal: 0.35, say: [['組頭', '坑口は守った。傷を縛って、柵へかかるぞ', 2.8]] },
+    { kind: 'fight', at: SOTO, obj: '城の外の柵を破り、城兵を本丸へ追い込む', title: '外郭', sub: '城兵が外の柵に籠もる',
+      say: [['山県昌景', '水を断たれた城は長くは持たぬ。外の柵を破り、本丸へ押し込めよ', 3.4]],
+      foes: [
+        { name: '外郭の城兵', from: { x: SOTO.x, z: SOTO.z + 10 }, list: [uS(3), uA(20)] },
+        { name: '外郭の弓', from: { x: SOTO.x + 16, z: SOTO.z + 14 }, list: [uS(1), uG(5)] }],
+      later: [{ t: 40, say: ['組頭', '城の脇の門から新手じゃ！'], foes: [{ name: '城の脇の手', from: { x: SOTO.x - 26, z: SOTO.z + 12 }, list: [uS(2), uA(10)] }] },
+        { t: 75, say: ['野田の城兵', '本丸へは一歩も入れぬ！'], foes: [{ name: '本丸の前の城兵', from: { x: SOTO.x + 8, z: SOTO.z + 22 }, list: [uS(3), uA(14)] }] }],
+      reward: '外の柵を破り、城兵を本丸へ追い込んだ' },
+    // K674 足した段（11/26 Sanae・一戦10任務）
+    { kind: 'fight', at: { x: SOTO.x + 10, z: SOTO.z + 14 }, obj: '外郭の木戸で、本丸へ逃げ込む城兵を追い崩す', limit: 90,
+      say: [['組頭', '木戸が閉まる前に、付いて入れ', 3.2]],
+      foes: [{ name: '本丸へ逃げ込む城兵', from: ((p) => ({ x: p.x + (0), z: p.z + (14) }))({ x: SOTO.x + 10, z: SOTO.z + 14 }), list: [uS(2), uA(12)] }],
+      reward: '逃げ込む城兵を追い崩した' },
+    // K652②⑥（逸話の段）：夜毎に城から笛の音が聞こえ、聞きに出た信玄を城の鉄砲が狙い撃ったと伝わる（『松平記』ほか・伝承）。本人は堀の外で笛の夜を守り、狙い撃ちの手を払う
+    { kind: 'rest', dur: 8, heal: 0.35, say: [['組頭', '……城から笛の音じゃ。毎夜、同じ刻に聞こえる', 3], ['武田信玄', 'よい音じゃ。今宵も聞きに出る', 3]] },
+    { kind: 'hold', at: FUE, label: '堀の外', obj: '笛の夜、堀の外で城の鉄砲の狙い撃ちの手を払う', r: 14, dur: 70,
+      title: '笛の夜', sub: '城の塀の陰から鉄砲の火縄が光る',
+      say: [['山県昌景', '塀の陰に火縄じゃ！　お屋形様の前を固めよ！', 3.2]],
+      waves: [
+        { t: 5, say: ['野田の城兵', '笛の場へ来た者を撃て！'], foes: [{ name: '狙い撃ちの手', from: { x: FUE.x + 10, z: FUE.z + 18 }, list: [{ type: 'samurai', n: 1, o: { name: '野田の鉄砲頭 鳥居三左衛門' } }, uS(2), uG(6), uA(8)] }] },
+        { t: 34, say: ['組頭', '堀から這い上がって来る！　槍で落とせ！'], foes: [{ name: '堀を越える城兵', from: { x: FUE.x - 14, z: FUE.z + 16 }, list: [uS(3), uA(14)] }] }],
+      reward: '笛の夜、狙い撃ちの手を払った' },
+    // K674 足した段（11/26 Sanae・一戦10任務）
+    { kind: 'fight', at: { x: FUE.x - 12, z: FUE.z + 14 }, obj: '堀の外で、夜討ちに出た城の侍を斬り払う', limit: 90,
+      say: [['組頭', '闇に紛れて侍が出た。斬り払え', 3.2]],
+      foes: [{ name: '夜討ちの城の侍', from: ((p) => ({ x: p.x + (0), z: p.z + (14) }))({ x: FUE.x - 12, z: FUE.z + 14 }), list: [uS(3), uA(10)] }],
+      reward: '夜討ちの侍を斬り払った' },
+    { kind: 'rest', dur: 10, heal: 0.3, say: [
+      ['武田の使番', '城から使いが来た！　菅沼定盈、城を明け渡すとのこと', 3.4],
+      ['山県昌景', '……お屋形様のお加減が優れぬ。開城を受け取ったら、すぐに兵をまとめよ', 3.4]] },
+    { kind: 'move', at: OTE, label: '大手の門', obj: '大手の門へ進み、開城を受け取る', r: 12,
+      say: [['組頭', '城兵に手を出すな。開いた城を受け取るだけじゃ', 3]] },
+  ],
+  win: {
+    banner: '野田城の開城', sub: '水の手を断たれ、野田城は開いた', award: '野田城の水の手を断ち、開城させた',
+    say: [['山県昌景', '城は取った。されど、お屋形様のお体が……', 3.4],
+      ['武田信玄', '……（咳をひとつ。扇で口を覆い、勝鬨にも応えず幕へ戻る）', 3.4],
+      ['武田信玄', '構わぬ。長篠まで兵を退き、しばし休む', 3.2]],
+  },
+}), { plan: NODA_PLAN, at: { x: CASTLE.x, z: CASTLE.z }, lift: 0, team: 1, life: false });
+export default d08_noda;
