@@ -197,6 +197,11 @@ function headMaterial(key, look, F) {
   // 髭や髪は別の絵に塗ってから、ぼかして重ねる（三角の角が見えないように）
   const face = g;
   const strands = [];
+  // K718④ 11/27：首の三角は絵の上で細長く伸びている。顎の髭・毛の房のぼかしの端が少しでも掛かると首に長い縦の縞になった
+  // ＝髭を描く前の絵を取っておき、最後に首の三角だけをその絵へ戻す（髭の有る武将だけ）
+  const neckTris = [];
+  let neck0 = null;
+  if (named && (mus || goat || full)) { neck0 = document.createElement('canvas'); neck0.width = neck0.height = N; neck0.getContext('2d', CPU).drawImage(face.canvas, 0, 0); }
   const ov = document.createElement('canvas'); ov.width = ov.height = N;
   g = ov.getContext('2d', CPU);
   for (let i = 0; i < idx.count; i += 3) {
@@ -215,18 +220,23 @@ function headMaterial(key, look, F) {
     // 僧は頭を剃る（剃り跡の青さだけ）
     if (look.monk && y > 0.6 && (Math.abs(th) > 1.35 || y > 2.75)) al = 0.2;
     // 髭の生える所：頬の下・顎・口の周り
-    const face = z > 0.6 && y < 1.05 && y > -1.3 && Math.abs(x) < 2.6;
+    // K718④ 11/27：顎の線より下（首）は髭を生やさない。前は頬の髭・顎鬚が首の前まで伸び、下向きの毛の房が首に縦の縞を描いた
+    // 顎の下の縁（頭の座標・測った値）：真ん中 -0.9・横 0.8 で -0.7・1.5 で -0.3。その少し下（顎の裏）までは生やす
+    const neck = y < -1.0 + 0.42 * Math.max(0, Math.abs(x + 0.09) - 0.3) / 1.2;
+    const face = z > 0.6 && y < 1.05 && y > -1.3 && Math.abs(x) < 2.6 && !neck;
+    // 首の三角：重心が顎の下の縁より下か、顎から首へ長く伸びた三角（下の角が縁より 0.3 下）
+    if (neck0 && Math.abs(th) < 1.75 && (neck && z < 1.1 || Math.min(pos.getY(a), pos.getY(b), pos.getY(cc)) < -1.3 + 0.42 * Math.max(0, Math.abs(x + 0.09) - 0.3) / 1.2)) neckTris.push(a, b, cc);
     // 無精髭：兵は三角ごとの濃さのむらを付けない（斑が泥の塗りに見える）。色は青みがかった灰（剃り跡の青さ）
     if (face && !(y > 0.25 && y < 0.72 && Math.abs(x) < 0.55 && z > 1.8)) { const sa = stub * (named ? 0.6 + rnd() * 0.4 : 0.38) * (HEAD.mh ? 0.6 * Math.min(1, Math.max(0, (1.05 - y) / 0.45)) : 1); if (sa > al) { al = sa; if (!named) colr = '48,46,52'; } }
     let inMus = mus && y > 0.72 && y < 1.02 && Math.abs(x) < 0.85 && z > 1.7;
-    let inGoat = goat && y < 0.1 && Math.abs(x) < 0.7 && z > 1.2;
+    let inGoat = goat && !neck && y < 0.1 && Math.abs(x) < 0.7 && z > 1.2;
     let inSide = full && face && (y < 0.3 || Math.abs(x) > 0.8);
     if (BD) {
       // 口髭：幅（musW）・厚み（musH）・端の垂れ（droop）。鼻の下の真ん中は薄く
       const x0 = Math.abs(x + 0.09), dx = x0 / (0.8 * BD.musW);
       const yc = 0.8 - BD.droop * 0.26 * dx * dx, hh = 0.12 * BD.musH * (1 - 0.45 * dx * dx);
       inMus = mus && dx < 1 && Math.abs(y - yc) < hh && z > 1.6;
-      inGoat = goat && y < 0.12 && x0 < 0.62 * BD.goatW * (0.6 + 0.4 * Math.min(1, (0.12 - y) / 0.6)) && z > 1.1;
+      inGoat = goat && !neck && y < 0.12 && x0 < 0.62 * BD.goatW * (0.6 + 0.4 * Math.min(1, (0.12 - y) / 0.6)) && z > 1.1;
       // 頬の髭の上の縁：耳の下から口の端へ下がる線（頬の高い所まで塗った箱の髭にしない）。縁は三角ごとに少し揺らす
       const sideTop = 0.42 + 0.38 * Math.min(1, Math.max(0, (x0 - 0.8) / 0.9)) + (rnd() - 0.5) * 0.16;
       inSide = full && face && ((x0 > 0.8 && y < sideTop) || y < 0.3) && !(y > 0.25 && y < 0.72 && x0 < 0.6 && z > 1.8);
@@ -364,6 +374,17 @@ function headMaterial(key, look, F) {
         face.stroke();
       }
     }
+  }
+  if (neck0) {
+    if (neckTris.length) {
+      face.save(); face.globalAlpha = 1; face.filter = 'none'; face.beginPath();
+      for (let i = 0; i < neckTris.length; i += 3) { const [a, b, cc] = [neckTris[i], neckTris[i + 1], neckTris[i + 2]]; face.moveTo(uv.getX(a) * N, uv.getY(a) * N); face.lineTo(uv.getX(b) * N, uv.getY(b) * N); face.lineTo(uv.getX(cc) * N, uv.getY(cc) * N); face.closePath(); }
+      // 首の前の三角は絵の上でほぼ線に潰れている（面が無く塗れない）＝縁を太い線でなぞって髭の前の絵を戻す
+      const pat = face.createPattern(neck0, 'no-repeat');
+      face.fillStyle = face.strokeStyle = pat; face.lineWidth = Math.max(2, N / 340); face.lineJoin = 'round';
+      face.fill(); face.stroke(); face.restore();
+    }
+    neck0.width = neck0.height = 0;
   }
   const tex = new THREE.CanvasTexture(c);
   tex.flipY = false; tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;

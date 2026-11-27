@@ -75,14 +75,27 @@ const fighting = (s, t) => s.state === '交戦中' || (t - (s.b?._clashAt ?? -99
 const el = (tag, cls, parent) => { const e = document.createElement(tag); if (cls) e.className = cls; if (parent) parent.appendChild(e); return e; };
 
 // 地図の絵（小・大とも同じ描き方）。世界は x が左右・z が上下（自軍の南＝−z が下）。カメラの右が −x なので、x を反転して描く
-function drawMap(cv, rt, M, P, sel) {
+// K686 ②（kaito 11/25「マップと実際の戦画面が対応してない」）：右上の小さい地図は、本人の見ている方を上に回して描く（景色の前＝地図の上・景色の右＝地図の右）。
+//   大きい地図（指図に使う）は盤のまま（自軍が下）
+function drawMap(cv, rt, M, P, sel, turn) {
   const W = cv.width, H = cv.height, o = M.o?.map || { w: 400, h: 300 };
   const g = cv.getContext('2d'); g.clearRect(0, 0, W, H);
-  const X = (x) => W / 2 - (x / o.w) * W * 0.88, Y = (z) => H / 2 - (z / o.h) * H * 0.88;
+  let rc = 1, rs = 0, k = 1;
+  const pl = rt.player;
+  if (turn && pl && Number.isFinite(pl.yaw)) {
+    const fr = M.o?._frame, a0 = unFr(fr, 0, 0), a1 = unFr(fr, Math.sin(pl.yaw), Math.cos(pl.yaw));
+    const phi = Math.PI / 2 - Math.atan2(a1.z - a0.z, a1.x - a0.x);
+    rc = Math.cos(phi); rs = Math.sin(phi);
+    k = 1 / (Math.abs(rc) + Math.abs(rs) * Math.max(o.w / o.h, o.h / o.w));
+  }
+  const R = (p) => (p && rs !== 0 ? { x: p.x * rc - p.z * rs, z: p.x * rs + p.z * rc } : p);
+  const X = (x) => W / 2 - (x / o.w) * W * 0.88 * k, Y = (z) => H / 2 - (z / o.h) * H * 0.88 * k;
   const r = o.river;
   if (r) {
-    g.fillStyle = '#4a7fa8'; const y0 = Y(r.z + r.w / 2), hh = Math.max(2, (r.w / o.h) * H); g.fillRect(0, y0, W, hh);
-    g.fillStyle = '#b9a06a'; for (const bx of [...(r.bridges || []), ...(r.fords || [])]) g.fillRect(X(bx) - 3, y0 - 1, 6, hh + 2);
+    const quad = (x0, x1, z0, z1) => { g.beginPath(); for (const [x, z] of [[x0, z0], [x1, z0], [x1, z1], [x0, z1]]) { const q = R({ x, z }); g.lineTo(X(q.x), Y(q.z)); } g.closePath(); g.fill(); };
+    const hw = Math.max(r.w / 2, (o.h / H) * 1);
+    g.fillStyle = '#4a7fa8'; quad(-o.w, o.w, r.z - hw, r.z + hw);
+    g.fillStyle = '#b9a06a'; const bw = (o.w / W) * 3 / k; for (const bx of [...(r.bridges || []), ...(r.fords || [])]) quad(bx - bw, bx + bw, r.z - hw - 1, r.z + hw + 1);
   }
   const big = W > 200, rad = big ? 7 : 3.5, many = (M.sonae || []).length > 20;
   // K627 ②（kaito 11/22 写真 piece_1122.webp「地図の駒は布陣図の凸の形」）：駒は凸の形（上に細い頭・下に広い台）。自軍は頭が敵の方（上）、敵は頭が自軍の方（下）。
@@ -120,7 +133,7 @@ function drawMap(cv, rt, M, P, sel) {
   // 自軍
   for (const s of M.sonae || []) {
     if (s.team || !onMap(s)) continue;
-    const p = posOf(s); if (!p) continue;
+    const p = R(posOf(s)); if (!p) continue;
     const hon = s.line === 'honjin' || s.major;
     g.globalAlpha = s._out || !alive(s) ? 0.4 : 1;   // K628 ⑤：退いて逃げる隊は薄く
     if (fighting(s, rt.t || 0)) { g.save(); g.strokeStyle = '#ff9a2e'; g.lineWidth = big ? 2.5 : 1.8; g.globalAlpha = 0.65 + 0.35 * Math.abs(Math.sin((rt.t || 0) * 3)); g.beginPath(); g.arc(X(p.x), Y(p.z), rad * 2.1, 0, 6.3); g.stroke(); g.restore(); }
@@ -131,7 +144,7 @@ function drawMap(cv, rt, M, P, sel) {
   // K627 ③（kaito「柴田隊と戦っているのに地図で動く敵の印は山県隊だけ」）：敵は全部の隊を今いる所に動かし、名も出す（霧の『最後に見た所』で止めない）
   for (const s of M.sonae || []) {
     if (!s.team || !onMap(s)) continue;
-    const p = posOf(s); if (!p) continue;
+    const p = R(posOf(s)); if (!p) continue;
     const hon = s.line === 'honjin' || s.major;
     g.globalAlpha = s._out || !alive(s) ? 0.4 : 1;
     if (fighting(s, rt.t || 0)) { g.save(); g.strokeStyle = '#ff9a2e'; g.lineWidth = big ? 2.5 : 1.8; g.globalAlpha = 0.65 + 0.35 * Math.abs(Math.sin((rt.t || 0) * 3)); g.beginPath(); g.arc(X(p.x), Y(p.z), rad * 2.1, 0, 6.3); g.stroke(); g.restore(); }
@@ -141,13 +154,13 @@ function drawMap(cv, rt, M, P, sel) {
   }
   for (const L of labels) drawLabel(...L);
   // K639 ⑬：的にした敵へ、選んだ隊から矢印（三秒）
-  { const A = M.hud?.aimed; if (A && (rt.t - A.t) < 3 && onMap(A.from) && onMap(A.to)) { const a = posOf(A.from), b2 = posOf(A.to); g.strokeStyle = '#f2c94c'; g.lineWidth = big ? 3 : 2; g.setLineDash([6, 4]); g.beginPath(); g.moveTo(X(a.x), Y(a.z)); g.lineTo(X(b2.x), Y(b2.z)); g.stroke(); g.setLineDash([]); } }
-  if (M.hud?.dest && big) { const d = M.hud.dest; g.strokeStyle = '#f2c94c'; g.lineWidth = 2.5; g.beginPath(); g.moveTo(X(d.x) - 8, Y(d.z) - 8); g.lineTo(X(d.x) + 8, Y(d.z) + 8); g.moveTo(X(d.x) + 8, Y(d.z) - 8); g.lineTo(X(d.x) - 8, Y(d.z) + 8); g.stroke(); }
+  { const A = M.hud?.aimed; if (A && (rt.t - A.t) < 3 && onMap(A.from) && onMap(A.to)) { const a = R(posOf(A.from)), b2 = R(posOf(A.to)); g.strokeStyle = '#f2c94c'; g.lineWidth = big ? 3 : 2; g.setLineDash([6, 4]); g.beginPath(); g.moveTo(X(a.x), Y(a.z)); g.lineTo(X(b2.x), Y(b2.z)); g.stroke(); g.setLineDash([]); } }
+  if (M.hud?.dest && big) { const d = R(unFr(M.o?._frame, M.hud.dest.x, M.hud.dest.z)); g.strokeStyle = '#f2c94c'; g.lineWidth = 2.5; g.beginPath(); g.moveTo(X(d.x) - 8, Y(d.z) - 8); g.lineTo(X(d.x) + 8, Y(d.z) + 8); g.moveTo(X(d.x) + 8, Y(d.z) - 8); g.lineTo(X(d.x) - 8, Y(d.z) + 8); g.stroke(); }
   g.globalAlpha = 1;
   // K629 ⑬（kaito 11/22「地図で自分の居場所が分かるように」）：本人の居場所に、向いている方を指す金の矢印（白い縁・一番上に描く）
   const me = rt.player?.u;
   if (me?.pos && me.alive !== false) {
-    const fr = M.o?._frame, a = unFr(fr, me.pos.x, me.pos.z), h = me.heading || 0, b2 = unFr(fr, me.pos.x + Math.sin(h) * 10, me.pos.z + Math.cos(h) * 10);
+    const fr = M.o?._frame, a = R(unFr(fr, me.pos.x, me.pos.z)), h = me.heading || 0, b2 = R(unFr(fr, me.pos.x + Math.sin(h) * 10, me.pos.z + Math.cos(h) * 10));
     const ax = X(a.x), ay = Y(a.z); let dx = X(b2.x) - ax, dy = Y(b2.z) - ay; const L = Math.hypot(dx, dy) || 1; dx /= L; dy /= L;
     const k = big ? 11 : 7, nx = -dy, ny = dx;
     g.beginPath(); g.moveTo(ax + dx * k, ay + dy * k); g.lineTo(ax - dx * k * 0.7 + nx * k * 0.75, ay - dy * k * 0.7 + ny * k * 0.75); g.lineTo(ax - dx * k * 0.3, ay - dy * k * 0.3); g.lineTo(ax - dx * k * 0.7 - nx * k * 0.75, ay - dy * k * 0.7 - ny * k * 0.75); g.closePath();
@@ -306,7 +319,7 @@ export function tickMatchHud(rt, M, P) {
   const mood = M.foeEstimate?.mood || (ratio > 1.25 ? 'up' : ratio < 0.8 ? 'down' : 'even');   // 戦況も推定から（敵の本当の数は使わない）
   if (mood !== H.mood0) { H.mood0 = mood; H.mood.textContent = `${EN('戦況', 'Battle')} ${EN(MOOD[mood], { even: 'Even', up: 'Ahead', down: 'Behind' }[mood])}`; }
   // 右上：地図は半秒ごと・残り時間
-  if (rt.t - (H.mapAt || -9) > 0.5) { H.mapAt = rt.t; drawMap(H.cv, rt, M, P, H.sel); if (H.big.classList.contains('on')) drawMap(H.bcv, rt, M, P, H.sel); }
+  if (rt.t - (H.mapAt || -9) > 0.25) { H.mapAt = rt.t; drawMap(H.cv, rt, M, P, H.sel, true); if (H.big.classList.contains('on')) drawMap(H.bcv, rt, M, P, H.sel); }
   // K629 ⑥（kaito 11/22「時間切れと出たが残り時間が出ていない」）：砂時計の印と枠で目立たせ、十五分を過ぎた延長（最大三分）は延長の残りを赤で数える（前は 0:00 で止まって見えた）
   const el0 = rt.t - M.t0, len = M.limit || 900, ot = el0 > len;
   const left = Math.max(0, Math.round(ot ? len + 180 - el0 : len - el0));

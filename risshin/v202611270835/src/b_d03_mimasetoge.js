@@ -18,6 +18,17 @@ const SAKA = { x: -10, z: 36 };       // 峠の坂の中ほど
 const TOGE = { x: 0, z: -24 };        // 三増峠の上
 const TEPPO = { x: 34, z: 66 };        // 荷駄の列の東の林（浅利信種を撃った北条の鉄砲衆・K652②）
 const KOE = { x: 4, z: -72 };         // 峠を越えた北の下り口（遅れて来た北条氏政の先手を受ける所・K652②）
+// 11/27 クラウドす K722②「退く軍が一斉に向き直る」：前は台詞だけで、絵では誰も退いても向き直ってもいなかった。
+//   本物の兵の「武田の本隊」（allies の四つ目）を峠の坂から麓へ、北条に背を向けてゆっくり退かせ、
+//   「全軍、止まれ！北条へ向き直れ！」の段で止めて峠へ向き直らせ、坂の段の後ろへ押し出す。荷駄の守りと先手も同じ時に峠へ向く
+const HONTAI = 3, HONTAI_FROM = { x: -16, z: 28 }, HONTAI_BACK = { x: -30, z: 78 };
+const hontaiBack = (rt) => { const g = rt.flags.allies?.[HONTAI]; if (!g?.count) return; g.order = 'move'; g.dest = { ...HONTAI_BACK }; g.speed = 0.9; g.noRun = true; };
+const hontaiTurn = (rt) => {
+  const A = rt.flags.allies || [];
+  for (const i of [0, 1]) { const g = A[i]; if (!g?.count) continue; const c = g.center(); g.facing = Math.atan2(TOGE.x - c.x, TOGE.z - c.z); }
+  const g = A[HONTAI]; if (!g?.count) return;
+  g.noRun = false; g.speed = 2.2; g.order = 'move'; g.dest = { x: SAKA.x - 8, z: SAKA.z + 14 };
+};
 
 // 11/25 K651（kaito「家どうしの同じ戦も一つの戦場に」）：三増峠の地面（峠・両の尾根の杉・峠道）。北条編 h05 も同じ戦場を使う
 export const MIMASE_LAND = {
@@ -90,13 +101,14 @@ export const d03_mimasetoge = lightBattle({
   friendsSend: 1,   // 段の始めに攻めに出す味方の組は本人に近い一組だけ（全部出すと本人より先に討ち切る）
   minutes: 10,
   spawn: { x: SPAWN.x, z: SPAWN.z, heading: Math.PI },
-  setup: (rt) => { konidaDress(rt, TOGE.x, TOGE.z - 16); },   // 11/26 クラウドさ K655：峠道の荷駄の列（h05 と同じ物）
+  setup: (rt) => { konidaDress(rt, TOGE.x, TOGE.z - 16); hontaiBack(rt); },   // 11/26 クラウドさ K655：峠道の荷駄の列（h05 と同じ物）
   world: MIMASE_LAND,
 
   allies: [
     { name: '荷駄の守り', at: { ...KONIDA }, list: [busho('浅利信種', { mustLive: false, invuln: false }), uS(3), uA(16)] },
     { name: '武田の先手', at: { x: SPAWN.x + 14, z: SPAWN.z - 20 }, list: [busho('馬場信春'), uS(3), uA(16)] },
     { name: '武田の鉄砲衆', at: { x: SPAWN.x - 14, z: SPAWN.z - 12 }, list: [uS(1), uG(8)] },
+    { name: '武田の本隊', at: { ...HONTAI_FROM }, face: 0, list: [uS(3), uA(24)] },   // K722②：北条に背を向けて麓へ退く（hontaiBack）→向き直る（hontaiTurn）
   ],
   steps: [
     { kind: 'rest', dur: 12, heal: 0, say: [
@@ -130,7 +142,7 @@ export const d03_mimasetoge = lightBattle({
       say: [['組頭', '鉄砲の後ろに槍がおる。斬り払え', 3.2]],
       foes: [{ name: '鉄砲衆を守る北条の槍', from: ((p) => ({ x: p.x + (0), z: p.z + (-14) }))({ x: TEPPO.x + 10, z: TEPPO.z - 16 }), list: [uS(2), uA(10)] }],
       reward: '鉄砲衆の守りを斬り払った' },
-    { kind: 'rest', dur: 8, heal: 0.35, say: [['組頭', '鉄砲は黙った。傷を縛れ、坂へ上るぞ', 2.8], ['武田信玄', '退くはここまで。全軍、止まれ！　北条へ向き直れ！', 3.4], ['物見', '退いていた味方が、一斉に北条の方へ向き直った！', 3]] },
+    { kind: 'rest', dur: 8, heal: 0.35, fn: hontaiTurn, say: [['組頭', '鉄砲は黙った。傷を縛れ、坂へ上るぞ', 2.8], ['武田信玄', '退くはここまで。全軍、止まれ！　北条へ向き直れ！', 3.4], ['物見', '退いていた味方が、一斉に北条の方へ向き直った！', 3]] },
     // 11/21 cloud-41（章の通し）：坂の段が385秒かかり725秒になった回がある。斬り合いの段に上限150秒（六割崩していれば済）
     { kind: 'fight', at: SAKA, limit: 150, obj: '坂の中ほどで、北条の二の手を押し返す', title: '峠の坂', sub: '坂の上の北条が槍を揃えて押して来る',
       say: [['使番', '浅利様、お討死……！　馬場様の備へ加われ！', 3.2]],

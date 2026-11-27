@@ -22,6 +22,7 @@ import { TIER, MEM_BUDGET } from './device_tier.js';
 import { nearArmorParts, naginata, layParts, splitKusazuri, CREST_OFF, crestOnly, NAMED_KEEP, soldierTint } from './humans_dress.js';
 import { K697, K697S, K697_ON, loadK697, loadK697S, k697Want, k697SWant, dressK697, k697HelmBox, k697HelmIdx, K697Z, k697ZWant } from './k697_body.js';
 import { K705, loadK705, k705Want, dressK705 } from './k705_bushou.js';
+import { k718Face } from './k718_face.js';
 import { clone as skClone } from 'three/addons/utils/SkeletonUtils.js';
 import { DOMARU, wantsDomaru, KABUTO, dressDomaru, dressKabuto, crowdDomaru, monDecal, KB, dressMenpo, loading, loadHumans, dmLoading, loadDomaru, kbLoading, loadKabuto } from './humans_armor.js';
 import { namedKacchu } from './named_kacchu.js';
@@ -266,7 +267,7 @@ function* buildHuman(u, look0) {
   // K705④：名のある武将（本人の外）は K697 の体に当世具足を着せた形（k705_bushou.js）。兜と立物は武将ごとの今の兜（dressKabuto）。?k705=0 で前のまま
   let k75 = false;
   if (!k6 && k705Want(u, L)) tm('k705', () => { k75 = !!dressK705(h, L); });
-  if (k75) { k6 = true; h.k705 = true; }
+  if (k75) { k6 = true; h.k705 = true; k718Face(h, L); }   // K718④ 政宗の顔の年（髭・皺）を K705 の顔の升へ
   // K697 手順5：座る人（小袖姿の男＝茶会・能・寺・軍議の座の人）は同じ体に小袖・袴・肩衣・帯・足袋・髷（k697_body.js K697Z）。?k697z=0 で前のまま
   if (!k6 && k697ZWant(u, L)) tm('k697', () => { k6 = !!dressK697(h, zaTint(u, L), null, false, K697Z); if (k6) h.k697z = true; });
   h.domaru = !k6 && DOMARU.ready && wantsDomaru(L);
@@ -647,6 +648,8 @@ function useHuman(u, force = false) {
   }
   // K697 手順5：座る人の形が読めた後に、前の作り（石の置物）で作った小袖姿の人は一度だけ作り直す
   //   携帯（MEM_TIGHT）は dropHuman が人を使い回しの池へ返して u.human を外すので、前の作りの人は池からも外して捨てる（池から前の作りを借り直したら、もう二回まで作り直す）
+  // K697 手順5 の残り：名の無い侍大将（本陣の床几の将）も、K705 の形が読めた後に前の作りの人を一度だけ作り直す（携帯は使い回しの池からも外す）
+  if (!heroLocked && u.human && !u.human.k705 && u.type === 'busho' && typeof u.human.look?.face !== 'string' && (u._bgRe || 0) < 3 && k705Want(u, u.human.look)) { u._bgRe = (u._bgRe || 0) + 1; const hh = u.human; dropHuman(u); humanPool.delete(hh); hh.root.parent?.remove(hh.root); releaseHumanBounds(hh); freeSkeletons(hh); u.human = null; }
   if (!heroLocked && u.human && !u.human.k697 && (u._zaRe || 0) < 3 && k697ZWant(u, u.human.look)) { u._zaRe = (u._zaRe || 0) + 1; const hh = u.human; dropHuman(u); humanPool.delete(hh); hh.root.parent?.remove(hh.root); releaseHumanBounds(hh); freeSkeletons(hh); u.human = null; }
   if (!u.human) {
     if (MEM_TIGHT && !keyMan && !u._humanBuild && humanPool.size + humanBuilding.size >= SKIN_MAX && !evictIdlePooled(u)) return false;

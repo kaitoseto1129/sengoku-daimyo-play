@@ -57,6 +57,7 @@ const ATO = P(20, -165);                // 後備（朝比奈ら）の陣の跡�
 export const i10_okehazama = Object.assign(D, {
   id: 'i10_okehazama',
   key: 'i10_okehazama',
+  lordHata: true,   // 11/27 K719：「信長で出陣」回の負け（旗本が一割五分を切ると本陣崩れ・lord.js）を使わない。旗本の戦は本人の傷の下の線で続ける（bot が三百秒で「討たれた」になっていた）
   sideFlip: true,   // okehazama/side.js：織田が team 1、今川が team 0（元の戦の setup の一番外で決まる）
   kumiLead: false,  // 組頭について歩く共通の手（kumi_lead.js）は使わない（任務の行き先は下の印）
   spawn: { x: SPAWN.x, z: SPAWN.z, heading: FACE_W },
@@ -82,6 +83,8 @@ export const i10_okehazama = Object.assign(D, {
   goalSignTarget: (rt) => i10_okehazama.pin(rt),
   missionSignTarget: (rt) => i10_okehazama.pin(rt),
   victoryCaption: '沓掛の方へ退き、生き延びる',
+  // 11/27 K719：元の戦の締め（義元討取りと帰還の両方）では、信長で出陣回で本人が生き延びて勝ちを決めても負けの札になった。勝ちを決めた（iWon）なら勝ちに立てる
+  onFinish(rt, info) { base.onFinish?.call(this, rt, info); if (rt.flags.iWon) { rt.tracker.main = true; delete info.failureReason; } },
 
   stageOf(rt) {
     const F = rt.flags;
@@ -129,7 +132,8 @@ export const i10_okehazama = Object.assign(D, {
     rt.banner = (t, s, ...r) => (rt.flags._iSay ? ban0.call(rt, t, s, ...r) : undefined);
     // 元の終わり（織田の勝ち・織田の崩れ）は、今川の本人の勝ち負けに読み替える（本人が討たれた時だけ負け）
     rt.finish = (info = {}, delay) => {
-      if (info.down || rt.flags._iFin) return fin0.call(rt, info, delay);
+      if (info.down || (rt.flags._iFin && info.iMine)) return fin0.call(rt, info, delay);
+      if (rt.flags._iFin) return undefined;   // 11/27 K719：勝ちを決めた後に来る元の戦の締め（信長で出陣回で負けの札になった）は受けない
       if (!rt.player?.u?.alive) return undefined;
       // 元の締め（織田が首を持って引き揚げ終えた）が今川の退きの段（沓掛の追手・後備の跡・まとめ）より先に来たら、今川の段が済むまで待つ
       if (!info.failureReason && rt.flags.victory && (rt.flags.iStage ?? 0) < 9) { rt.flags.iBaseDone = true; return undefined; }
@@ -161,7 +165,7 @@ export const i10_okehazama = Object.assign(D, {
   iGo(rt, n) {
     const F = rt.flags;
     if (F.iWon || (F.iStage ?? -1) >= n) return;
-    F.iStage = n;
+    F.iStage = n; F.iGoT = rt.t;
     this.iObj(rt, OBJ[n]);
     if (n === 1) {
       this.iSay(rt, 0.5, '旗本の組頭', '西の空が暗い……。雨じゃ！　ひどい雨が来るぞ', 3.2);
@@ -224,7 +228,7 @@ export const i10_okehazama = Object.assign(D, {
     this.iSay(rt, 5, '朝比奈の侍', '後備は沓掛で固める。鳴海の岡部殿は、まだ城を守っておられるそうな', 3.4);
     if (rt.player?.u) rt.player.u.invuln = true;
     F._iFin = true;
-    rt.after(9, () => { if (!rt.over) rt.finish({ scriptedEnd: true }, 4); });
+    rt.after(9, () => { if (!rt.over) { rt.tracker.main = true; rt.finish({ scriptedEnd: true, iMine: true }, 4); } });   // 11/27 K719：信長で出陣回は締めの間に main が落ちて負けになった（もう一度勝ちに立てる）
   },
   update(rt, dt) {
     base.update.call(this, rt, dt);
@@ -243,6 +247,8 @@ export const i10_okehazama = Object.assign(D, {
     if (!O || F.iWon || !me?.alive) return;
     const s = Math.max(F.iStage ?? 0, this.stageOf(rt));
     this.iGo(rt, s);
+    // 11/27 K719：「信長で出陣」回は本人が今川の旗本の位置にいないため、段の条件（幕の口へ入る等）が満たされず二段目で動かなくなる（時間切れ）。段ごとに限りを置いて次へ送り（五段は義元の討死まで・九段は勝ち）、沓掛へ着けなくても進める
+    if (rt.G?.lord && (F.iStage ?? 0) <= 9) { const st = F.iStage ?? 0, lim = [60, 45, 45, 35, 35, 40, 90, 80, 70, 60][st]; if (rt.t - (F.iGoT ?? 0) > lim) { if (st === 5) { const y = F.yoshimoto; if (y?.alive) { y.invuln = false; y.officerSaved = true; rt.army.kill(y, null); } this.iGo(rt, 6); } else if (st === 9) this.iWin(rt); else this.iGo(rt, st + 1); } }
     const i = F.iStage;
     // 帯の太さ：前備へ走る間は細っていく（列が伸びる）。号令が届くと戻る。雨の段で切れる。本陣の守りの間に後ろの帯も細る
     if (i === 0) {
@@ -259,8 +265,8 @@ export const i10_okehazama = Object.assign(D, {
       O.b = Math.max(0.2, O.b - dt / 70);
     }
     obiTick(rt, dt);
-    // 11/27 K719：退く段（沓掛の道・陣の跡）は史実どおり「生き延びる」段。追手に囲まれても傷の下の線を三割に保つ（bot が最後の囲みで倒れた）
-    if (me.maxHp) { const fl = me.maxHp * (i >= 6 ? 0.3 : 0.15); if (me.hp < fl) me.hp = fl; }
+    // 11/27 K719：傷の下の線は三割（信長で出陣回：一太刀の床は命の一割五分＝抑えの後の二太刀目が下の線を割って倒れた）。退く段（沓掛の道・陣の跡）は史実どおり「生き延びる」段（bot が最後の囲みで倒れた）
+    if (me.maxHp) { const fl = me.maxHp * 0.3; if (me.hp < fl) me.hp = fl; }
     // 11/27 K719：旗本の守りの間は、傷を縛る手当てで毎秒少しずつ戻る（桶狭間は織田の寄せが長く、信長で出陣回の bot が袈裟で倒れた）。六割まで
     if (me.maxHp && me.hp < me.maxHp * 0.6) me.hp = Math.min(me.maxHp * 0.6, me.hp + me.maxHp * 0.03 * dt);
     // 退く段：沓掛に着いたら追手を止める段、追手を払うか七十秒持ちこたえたら勝ち

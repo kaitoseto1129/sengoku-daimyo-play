@@ -57,6 +57,8 @@ export const c03_shimanto = chosoBattle({
     { name: '福留親政の手', at: { x: SPAWN.x + 10, z: SPAWN.z - 4 }, list: [busho('福留親政'), uS(3), uA(8)] },
     { name: '先手の一領具足', at: { x: SPAWN.x + 2, z: SPAWN.z + 8 }, list: [uS(1), ICHIRYO(10), uG(3)] },
   ],
+  // K720 三回目（要件書 ⑥⑦）：別の浅瀬から別働隊が渡り、一条勢の横へ出る（杭の陰の段＝第5段）
+  flanks: [{ during: 5, at: { x: FORD.x - 46, z: FORD.z - 6 }, to: { x: FORD.x - 20, z: FORD.z + 20 }, n: 8, name: '別の浅瀬を渡る別働隊', delay: 3, say: ['福留親政', '下の浅瀬を別働隊が渡った！　一条の横へ出たぞ！'] }],
   steps: [
     { kind: 'rest', dur: 12, heal: 0, say: [
       ['長宗我部元親', '正面の瀬には杭がある。上の瀬を渡って横を突け', 3.4],
@@ -64,7 +66,9 @@ export const c03_shimanto = chosoBattle({
       ['福留親政', '霧の晴れぬうちに渡りまするぞ', 3]] },
     { kind: 'move', call: true, at: HORA, label: '法螺の台', obj: '法螺の台へ走り、一領具足を呼び集める', r: 6, max: 90,
       say: [['組頭', 'あの塚じゃ！　上がって吹け！', 3]] },
-    { kind: 'fight', at: FORD, obj: '上の瀬を渡り、一条の横の備を破る', title: '渡川', sub: '上の瀬の向こうに一条の備',
+    // K720 三回目（要件書 ①②）：対岸の一条勢を確かめ、渡れる浅瀬を探す
+    moveS({ x: FORD.x + 6, z: FORD.z - 24 }, '浅瀬を探す', '土手の上から対岸の一条勢を確かめ、渡れる浅瀬を探す', [['長宗我部元親', '川向こうは全部一条じゃ。杭の無い瀬を探せ', 3.2]]),
+    { kind: 'fight', at: FORD, obj: '浅瀬を渡り、川の中で一条の横の備と槍を交える', title: '渡川', sub: '上の瀬の向こうに一条の備',
       say: [['福留親政', '渡れ！　一条の横を突け！', 2.8], ['一条の侍', '瀬を渡ってきたぞ！　防げ！', 3]],
       foes: [{ name: '一条の横の備', from: { x: FORD.x + 4, z: FORD.z + 14 }, list: [uS(2), uA(12)] }],
       later: [{ t: 28, say: ['一条の侍', '弓、瀬を射よ！'], foes: [{ name: '一条の弓', from: { x: FORD.x + 22, z: FORD.z + 16 }, list: [uS(1), uB(6)] }] }],
@@ -85,7 +89,7 @@ export const c03_shimanto = chosoBattle({
         { t: 3, foes: [{ name: '渡り返す一条の兵', from: { x: FORD.x + 32, z: FORD.z + 16 }, list: [uS(3), uA(9)] }] },
         { t: 22, foes: [{ name: '渡り返す一条の兵', from: { x: FORD.x + 6, z: FORD.z + 42 }, list: [uS(2), uA(7)] }] }],
       reward: '向こう岸の陣を守った' },
-    { kind: 'fight', at: KANE, obj: '一条兼定の本陣を崩す', title: '一条兼定', sub: '本陣の幕の前で踏みとどまる', max: 140,
+    { kind: 'fight', at: KANE, obj: '本隊が一気に渡り、一条兼定の本陣を崩す', title: '一条兼定', sub: '本陣の幕の前で踏みとどまる', max: 140,
       say: [['長宗我部元親', '兼定の本陣じゃ！　押せ！', 3]],
       foes: [{ name: '一条兼定の本陣', from: { x: KANE.x, z: KANE.z + 10 }, list: [{ type: 'samurai', n: 1, o: { name: '一条兼定', horse: true } }, uS(3), uA(12)] }],
       later: [{ t: 30, say: ['一条の侍', '御所様を守れ！'], foes: [{ name: '一条の旗本', from: { x: KANE.x - 14, z: KANE.z + 18 }, list: [uS(3), uA(8)] }] }],

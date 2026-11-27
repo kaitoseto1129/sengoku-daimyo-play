@@ -110,6 +110,14 @@ export const d01_kawanakajima = lightBattle({
       later: [{ t: 36, say: ['物見', '殿が引き返して来る！　鉄砲も！'], foes: [{ name: '甘粕の引き返しの手', from: { x: SAIGAWA.x - 18, z: SAIGAWA.z - 14 }, list: [{ type: 'samurai', n: 1, o: { name: '甘粕の組頭' } }, uS(3), uA(12), uG(4)] }] }],
       reward: '雨宮の渡しまで上杉を追った' },
   ],
+  // 11/27 クラウドせ（K722② 要件書「開始：夜明け前、濃霧、敵が見えない」「見せ場：霧が晴れる途中、正面いっぱいに上杉軍が現れる」）：
+  //   前は八幡原の地面の marchMist（120秒）が戦の始めから一様に薄れ、物見の「霧が晴れてゆく」の時にはもう半ば晴れていた。
+  //   始めの段（陣を整える・報せを待つ）の間は深い霧のまま止め、受けの段（車懸り）の始めに二十秒で晴らす＝霧の奥から上杉の旗が正面に出る（u05 と同じ霧の数字だけ・重さは同じ）
+  update(rt) {
+    const W = rt.world, F = rt.flags, i = F.dp?.i ?? -1;
+    if (!F.d01Fog) { F.d01Fog = true; W.marchMistAt = W.time; W.marchMistT = 1e5; }
+    if (i >= 1 && !F.d01Clear) { F.d01Clear = true; W.marchMistAt = W.time; W.marchMistT = 20; }
+  },
   win: {
     banner: '八幡原', sub: '上杉は犀川を渡って善光寺へ退いた', award: '八幡原で上杉を退けた',
     say: [['物見', '上杉が犀川を渡って退いて行きまする！', 3.2],
