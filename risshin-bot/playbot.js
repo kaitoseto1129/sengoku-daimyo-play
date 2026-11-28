@@ -2537,6 +2537,8 @@ async function playPersona(game, spec, aud, c) {
       if (spec.kind === 'battle') { G.rank = spec.rank; G.aijirushi = 'maru'; if (G.rank >= 2) G.owned.push('katana'); }
       if (spec.kind === 'camp') { G.aijirushi = G.aijirushi || 'maru'; if (spec.i > 0) { G.rank = Q.has('camprank') ? +Q.get('camprank') : Math.min(3, Math.ceil(spec.i / 2)); if (G.rank >= 2) G.owned.push('katana'); } }
       G.battle = spec.i;
+      // 11/27 cloud-01（章の通し --from：?campfrom=19 で岩村から始めると、勝った後に openIndex が勝っていない一番前＝稲生へ戻した）：途中から始める章の通しは、前の戦を勝ちにしておく
+      if (spec.kind === 'camp' && /[?&]campfrom=/.test(location.search) && spec.i > 0) { G.history ||= []; for (let j = 0; j < spec.i; j++) G.history[j] = { ...(G.history[j] || {}), won: true }; }
       game.story(spec.i);
     }
     // 組を持たない足軽は、支度の札を挟まず読み込みへ進む。
