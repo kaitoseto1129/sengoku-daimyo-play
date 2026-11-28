@@ -458,7 +458,7 @@ function retreatRun(b) {
   const gid = b.def.guideMarker?.(b);
   const gmk = gid && b.markers.find((m) => m.id === gid);
   const pin = !gmk && b.def.missionPin?.(b);
-  const mk = gmk || (pin && Number.isFinite(pin.x) ? { pos: pin } : null) || b.markers.find((m) => !m.red);
+  const mk = gmk || (pin && Number.isFinite(pin.x) ? { pos: pin } : null) || b.markers.find((m) => !m.red && m.id !== 'horse-loose');   // 空馬の印は行き先でない（11/28 b_osaka）
   const q = mk ? (typeof mk.pos === 'function' ? mk.pos() : mk.pos) : null;
   if (!q || !Number.isFinite(q.x)) return null;
   const d = Math.hypot(q.x - u.pos.x, q.z - u.pos.z);
