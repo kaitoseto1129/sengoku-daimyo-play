@@ -1,0 +1,161 @@
+// ======================================================================
+// 山崎の戦い　①の段「大返しの到着」（0〜3分）
+//   秀吉の本陣の前から、疲れた池田勢と街道を北へ上り、先陣の高山右近の陣へ合流する。
+//   道すがら：秀吉と官兵衛の言葉（本能寺の焼け落ち・毛利との急ぎの和睦）、遅れる疲れた兵、使番「光秀は山崎に布陣」。
+//   円明寺川の岸の葦から明智の物見が道へ斬りかかる（最初の接触）。着けば高山右近が迎え、斎藤勢が川を越えて来る。
+// 行き先は高山の陣の▼一つ（動かさない）。
+// ======================================================================
+import { enemyGroup, allyGroup } from '../bhelp.js';
+import { report } from './far.js';
+import { sideGuard } from '../guard_refill.js';
+
+export const JOIN = { x: -30, z: 30 };   // 先陣（高山右近の陣の後ろ）
+const near = (p, q, r) => Math.hypot(p.x - q.x, p.z - q.z) < r;
+
+// 終えた段や再開前の場面の声・下知を、今の戦況へ持ち越さない。
+function after(rt, sec, fn) {
+  const F = rt.flags, group = F.tired;
+  rt.after(sec, () => {
+    if (rt.flags !== F || F.tired !== group || F.stage !== 1 || rt.over || rt.retryOpen || !rt.player.u.alive) return;
+    fn();
+  });
+}
+
+export function start(rt, ctx) {
+  const F = rt.flags;
+  // 池田勢は疲れた足で街道を上る（主人公の脇を歩く。走らない）
+  F.ikeda.order = 'move'; F.ikeda.dest = { x: JOIN.x + 8, z: JOIN.z + 6 }; F.ikeda.speed = 3.2;   // 11/18 cloud-06：2.4 では本人が列の後ろで詰まった
+  F.ikeda.onArrive = (g) => { g.order = 'hold'; };
+  // 遅れて歩く疲れた足軽の小組（大返しの強行軍。槍を杖に）
+  F.tired = allyGroup(rt, { name: '大返しの足軽', anchor: { x: ctx.MARCH0.x + 6, z: ctx.MARCH0.z - 26 }, facing: Math.PI, width: 8, formation: 'column', aggro: 4, seekRange: 8, morale: 70, noRout: true, speed: 1.4 },
+    ctx.fl([{ type: 'ashigaru', n: 8, o: { flagScale: 1 } }], ctx.IK));
+  F.tired.order = 'move'; F.tired.dest = { x: JOIN.x + 16, z: JOIN.z + 14 };
+  F.tired.onArrive = (g) => { g.order = 'hold'; };   // 11/18 K365：着いた後も「移る」のまま立ち、act bot の止まり（25回）に出ていた
+  const Y = F.yfar || {};
+  // 後ろ備えは北へ歩き出す（街道を上る大軍の列）
+  try { Y.nobutaka?.moveTo(30, 120, 160); Y.niwa?.moveTo(-74, 128, 170); } catch (e) { /* 動かなくても進む */ }
+  // 山崎の手前（大返しの終わり）：諸将の旗が増え、走っていた軍が戦うための軍勢になる（11/10 指示書）
+  after(rt, 1, () => rt.say('足軽', '……本当に、戻ってきたんじゃな', 3));
+  after(rt, 4.5, () => report(rt, '中川清秀様・高山右近様・池田恒興様、ご着到！'));
+  after(rt, 9, () => rt.say('羽柴秀吉', '上様の仇、日向を討つは今ぞ。槍を立てよ、火縄を確かめよ！', 3.6));
+  after(rt, 14, () => report(rt, '丹羽様・信孝様の備えも、街道を上って参られまする！'));
+  after(rt, 19, () => rt.say('堀秀政', '高山殿の陣へ急ぐぞ。ここからは戦じゃ', 3));
+  after(rt, 26, () => rt.say('黒田官兵衛', '明智の旗、本能寺で見た旗じゃ。今度はこちらが攻める番', 3.4));
+  // 11/19 k365-cloud-41（K306 史実）：光秀の誘いに細川藤孝は髷を落として応じず、大和の筒井順慶も郡山から動かなかった（光秀は洞ヶ峠で待ちぼうけ）
+  after(rt, 32, () => report(rt, '細川様は髷を落とし、筒井様は大和から動かれませぬ。日向に付く大名はおりませぬ！'));
+  after(rt, 40, () => report(rt, '明智日向、山崎に布陣！　御坊塚に桔梗の大旗！'));
+  after(rt, 54, () => rt.say('中川清秀', '天王山を先に取った方が勝ちじゃ。秀長殿の手が登っておる', 3.2));
+  // 物見の斬り込み（最初の接触）：主人公が道の半ばまで来たら、川の岸の葦から明智の物見が道へ
+  F.mStep = 0;
+  F.mSkHoldT = 0;
+}
+
+export function tick(rt, dt, ctx) {
+  const F = rt.flags, P = rt.player.u.pos;
+  // 11/28 クラウド山崎の持ち主（K582）：伏せ足軽に深手で囲まれたら、近い羽柴の先手・池田勢が横を守る（共通の sideGuard。敵は変えない）
+  if (F.mStep >= 1) sideGuard(rt, { key: '_ymMarchSG', hp: 0.6, R: 60, cd: 12 });
+  // 池田勢は本人の脇を行く（騎馬の本人が先へ出て、徒歩2.4の池田勢が六十歩あまり後ろに残り、②までの野原に本人ひとりに見えていた。11/18 クラウド k365-cloud-38 一枚表③）
+  if (F.mStep < 3 && F.ikeda && rt.player.u.alive && (F._ikFollowT = (F._ikFollowT || 0) - dt) <= 0) {
+    F._ikFollowT = 2;
+    const ic = F.ikeda.center?.();
+    // 11/18 夜50-18：b_t01_yamazaki.js の後追い（本人の前 (3,-6)）と行き先を取り合い、二秒ごとに下知を置き直して隊が止まった（act bot 我が備の止まり19回）。行き先が本人の近くなら置き直さない
+    if (ic && !near(ic, P, 26) && !(F.ikeda.order === 'move' && F.ikeda.dest && near(F.ikeda.dest, P, 12))) { F.ikeda.order = 'move'; F.ikeda.speed = 3.6; F.ikeda.dest = { x: P.x - 8, z: P.z + 8 }; F.ikeda.onArrive = (g) => { g.order = 'hold'; }; }
+  }
+  if (F.mStep === 3) {
+    // 迎えの後も陣に留まって開戦を待つ。離れた場所や討たれた間は合流を果たした事にしない。
+    if (!rt.player.u.alive || rt.retryOpen || !near(P, JOIN, 18)) return;
+    F.mJoinWait = (F.mJoinWait || 0) + dt;
+    if (F.mJoinWait >= 14.5) ctx.next();
+    return;
+  }
+  if (F.mStep === 0 && (P.z < 92 || rt.t - F.st0 > 50)) {
+    F.mStep = 1;
+    F.scouts = enemyGroup(rt, { name: '明智の物見', faction: 'akechi', anchor: { x: 26, z: 52 }, facing: -2.2, width: 8, formation: 'line', order: 'attack', aggro: 40, seekRange: 60, morale: 70, dmgMult: 0.4 },
+      ctx.ak([{ type: 'samurai', n: 2, o: { horse: true } }, { type: 'ashigaru', n: 9, o: { flagScale: 1 } }, { type: 'gun', n: 3 }]));
+    F.scouts.dest = { x: P.x, z: P.z };
+    // 11/18 夜50-18 K281：段1の始め（200秒）に本人の30〜60m の敵の本物が0人（物見は67m 先の14人だけ）。
+    //   葦に伏せた明智の足軽の組が物見と一緒に街道の脇へ出る（先手の物見・伏せ勢との小競り合いが山崎の口開け）
+    F.ambush = enemyGroup(rt, { name: '明智の伏せ足軽', faction: 'akechi', anchor: { x: P.x + 34, z: P.z - 30 }, facing: -2.2, width: 14, formation: 'line', order: 'hold', aggro: 14, seekRange: 22, morale: 60, dmgMult: 0.35 },
+      ctx.ak([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 14, o: { flagScale: 1 } }, { type: 'gun', n: 6 }]));
+    //   葦の際に列を並べて鉄砲を撃ちかけ、寄った者へだけ槍を入れる（本人の四十歩あまり先に桔梗の旗の列が見える）
+    // 羽柴の先手の一組も街道の脇から物見へ当たる（野が騎馬二騎だけにならない。本物の兵の塊同士・k365-cloud-07 の照らし）
+    F.vanHelp = allyGroup(rt, { name: '羽柴の先手', anchor: { x: JOIN.x + 34, z: JOIN.z + 34 }, facing: Math.PI, width: 10, formation: 'line', aggro: 30, seekRange: 50, morale: 90, noRout: true, speed: 3.6, dmgMult: 0.45 },
+      ctx.fl([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 10, o: { flagScale: 1 } }], ctx.HA));
+    F.vanHelp.order = 'move'; F.vanHelp.dest = { x: 26, z: 52 }; F.vanHelp.onArrive = (g) => { g.order = 'attack'; };
+    rt.army.play('toki', { x: 26, z: 52 }, 0.8);
+    rt.say('堀秀政', '葦の中に桔梗の旗！　物見じゃ、討ち取れ！', 3);
+    F.mScT = rt.t;
+  }
+  if (F.mStep === 1 && F.scouts) {
+    const left = ctx.aliveN(F.scouts);
+    // 時間だけで健在の物見を撃退した事にしない。
+    // 11/21 kaito（遊んで「①の任務が全く進まない」）：物見が討たれず遠くに残ると段1が止まっていた→七十秒で物見は退く
+    if (left <= 2 || (rt.t - (F.mScT || rt.t) > 70 && rt.player.u.alive && !rt.retryOpen)) {
+      F.mStep = 2;
+      // 11/28 クラウド山崎の持ち主（K582・act bot --mobile 353秒の倒れ）：伏せ足軽に背から囲まれ命四割八分のまま先陣の陣へ歩き、そこで斎藤の先手の騎馬と弓に落ちた。
+      //   段の替わり目（stage）と同じく、物見を払ったら息を整え命を八割五分まで戻す（敵の数と強さは変えない）
+      breathe(rt);
+      ctx.rout(F.scouts);
+      if (F.ambush && ctx.aliveN(F.ambush)) ctx.rout(F.ambush);
+      rt.award((t) => t.side.push('街道で明智の物見を追い払った'), '明智の物見を追い払った');
+      rt.say('堀秀政', 'ようやった。日向は、もう目の前じゃ', 2.8);
+      // 川のこちらの岸に出た明智の鉄砲の小組（前衛との二度目の接触。先陣の陣の手前）
+      F.skirm = enemyGroup(rt, { name: '明智の鉄砲の小組', faction: 'akechi', anchor: { x: 2, z: 22 }, facing: Math.PI, width: 8, formation: 'line', order: 'hold', aggro: 22, seekRange: 30, morale: 70, dmgMult: 0.35 },
+        ctx.ak([{ type: 'gun', n: 4 }, { type: 'ashigaru', n: 3, o: { flagScale: 1 } }, { type: 'samurai', n: 1 }]));
+      after(rt, 4, () => rt.say('高山右近', '川のこちらへ鉄砲が出ておる！　陣の前を払うてくれ！', 3));
+      // 南の後ろ備えはさらに北へ（後ろが厚くなる）
+      try { const Y = F.yfar || {}; Y.hon?.moveTo(-36, 118, 60); } catch (e) { /* 遠くの列 */ }
+    }
+  }
+  // 着いた（物見を払った後、先陣の陣に着き、池田勢も近い）：高山右近が迎え、川向こうから斎藤勢が寄せる
+  const ic = F.ikeda?.center?.();
+  const skLeft = ctx.aliveN(F.skirm);
+  // 六割以上を破り、先陣を一分押さえたら離れた残兵も退く。
+  // 陣の外や討死中の時刻だけで進めず、鉄砲の一人を探し続けさせない。
+  const holding = F.mStep === 2 && rt.player.u.alive && !rt.retryOpen && near(P, JOIN, 18);
+  // 11/28 11:05 UTC クラウド山崎の持ち主（act bot --mobile 444・466秒：先陣の陣の印に着いて六秒なにも起きない★★）：鉄砲の小組は陣から三十三 m 先で
+  //   立ったまま（寄せの間合い二十二 m の外）で、陣に着いた本人へ撃ちも寄りもしなかった。陣に着いたら小組を本人の前へ寄せる（数と強さは同じ）
+  // 11/28 15:58 UTC クラウド山崎の持ち主（K175・15:32 の［未］②：act bot --mobile 351秒 陣の印で六秒なにも起きない★★）：寄せは一度きりで、
+  //   着いた小組が鉄砲の間合いで立ち止まると、また寄らずに待った。陣に居る間は五秒ごとに、十二 m より遠い小組を本人の前へ寄せ直す（数と強さは同じ）
+  if (holding && skLeft && F.skirm && (F.mSkPullT || 0) <= rt.t) {
+    const sc = F.skirm.center?.();
+    if (sc && !near(sc, P, 12)) {
+      F.mSkPullT = rt.t + 5;
+      F.skirm.order = 'move'; F.skirm.dest = { x: P.x + (sc.x - P.x) * 0.3, z: P.z + (sc.z - P.z) * 0.3 };
+      F.skirm.onArrive = (q) => { q.order = 'attack'; };
+    }
+  }
+  if (holding && skLeft <= ctx.allN(F.skirm) * 0.4) F.mSkHoldT += dt;
+  else F.mSkHoldT = 0;
+    // 11/18 K365 iMac n-k15：act bot 918秒の回で先陣の陣が135秒。押さえ60→40秒・池田待ち170→120秒
+  // 11/21 kaito：鉄砲の小組が討たれず・退かず、陣の前で数が減らないと段1が止まっていた→陣で六十秒押さえれば（本人が陣に居る間だけ数える）小組は退く
+  if (holding) F.mHoldAny = (F.mHoldAny || 0) + dt;
+  // 11/28 クラウド山崎の持ち主（K658 一戦15分）：act bot --mobile 2本で段1が115秒・一戦21分。押さえ40→30秒・陣に居る60→45秒・池田待ち120→95秒
+  // 11/28 15:10 UTC クラウド山崎の持ち主（K175・act bot --mobile 355秒：陣の印で六秒なにも起きない★★）：小組を討ち切った後も、池田勢が陣の三十四 m 内に来るまで
+  //   （遅いと段の始めから九十五秒まで）待っていた。小組を討ち切って陣に六秒居れば池田勢を待たずに迎えへ（池田勢は今まで通り本人へ寄る）
+  if (holding && (skLeft <= 1 || F.mSkHoldT >= 30 || F.mHoldAny >= 45) && (!ic || near(ic, JOIN, 34) || rt.t - F.st0 > 95 || skLeft <= 1 && F.mHoldAny >= 6)) {
+    F.mStep = 3;
+    breathe(rt);   // 先陣の陣に着いた：高山右近の陣で息を整える（上と同じ）
+    if (F.skirm && skLeft) ctx.rout(F.skirm);
+    // 着いた：川向こうで明智の備が岸へ出て並ぶ（桔梗の旗の列）。鉄砲が川越しに鳴り、斎藤勢が川へ下りる
+    rt.say('高山右近', 'よう来られた！　見よ、川向こうに桔梗の旗が並ぶ', 3.2);
+    rt.army.play('volley', { x: -10, z: -26 }, 1.0);
+    try { const Y = F.yfar || {}; Y.akRes?.moveTo?.(-20, -150, 30); } catch (e) { /* 遠景 */ }
+    // 11/18 夜50-18 K281：開戦を待つ十四秒、斎藤の先手は川の六十 m 先で構えたままで、陣の六十 m 内に敵が0人だった。
+    //   「川へ下りた」の声の通り、先手の二組が向こう岸の際まで出て並ぶ（陣から五十 m。まだ渡らない。渡るのは②の下知）
+    for (const [g, d] of [[F.w1?.[0], { x: -34, z: -18 }], [F.w1?.[1], { x: -10, z: -16 }]]) {
+      if (!g || !ctx.aliveN(g)) continue;
+      g.order = 'move'; g.dest = d; g.onArrive = (q) => { q.order = 'hold'; };
+    }
+    after(rt, 4, () => rt.say('堀秀政', '斎藤内蔵助の手じゃ。槍を揃えて待て', 3));
+    after(rt, 9, () => rt.army.play('volley', { x: 4, z: -24 }, 1.2));
+    after(rt, 12, () => rt.say('高山右近', '来るぞ……川へ下りた！', 2.6));
+    F.mJoinWait = 0;
+  }
+}
+
+function breathe(rt) { const me = rt.player?.u; if (me?.alive && me.maxHp) me.hp = Math.max(me.hp, me.maxHp * 0.85); }
+
+// bot：近くの物見を討ち、いなければ先陣の陣へ
+export function botTarget(F) { return F.mStep === 1 && F.scouts ? null : JOIN; }
+export function foes(F) { return [F.scouts, F.mStep === 1 && F.ambush, F.skirm].filter(Boolean); }
