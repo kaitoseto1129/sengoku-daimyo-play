@@ -2110,7 +2110,9 @@ function watchStep(b, dt, c) {
     // 11/21 木津川口の持ち主：戦の決めた印（guideMarker）を持たず自前のピンだけで行き先を示す戦（木津川口）も、そのピンを行き先と見る。
     //   無いと印の並びの先頭（甲板にずっと立つ名札「九鬼嘉隆」）を行き先と取り違え、狭い甲板で十m 内に居るだけで「着いて何も起きない」と数えた（act bot 236秒 火の段）
     const mpin = !gmk && (gid || !b.def.guideMarker) && b.def.missionPin?.(b);
-    const mk = gmk || (mpin && Number.isFinite(mpin.x) ? { id: 'pin', label: '行き先', pos: { x: mpin.x, z: mpin.z } } : null) || b.markers.find((m) => !m.red) || b.markers[0];
+    // 11/28 クラウド手取川：戦が印を決める作り（guideMarker）で今は行き先が無い時は、敵の頭上の札（赤）を行き先と取り違えない。
+    //   振り切りの段の 673〜679秒、持ち場の内で行き先を隠した間に、浅瀬を渡る「新手の上杉の先手」の札を「歩けない地面のピン」と数えていた
+    const mk = gmk || (mpin && Number.isFinite(mpin.x) ? { id: 'pin', label: '行き先', pos: { x: mpin.x, z: mpin.z } } : null) || b.markers.find((m) => !m.red) || (b.def.guideMarker ? null : b.markers[0]);
     const mp = mk ? (typeof mk.pos === 'function' ? mk.pos() : mk.pos) : null;
     const mkLab = mk ? String((typeof mk.label === 'function' ? mk.label() : mk.label) || mk.id || '印') : '';
     const mkKey = mk ? `${mk.id || mkLab}:${mp ? `${Math.round(mp.x / 5)},${Math.round(mp.z / 5)}` : ''}` : '';
@@ -2270,7 +2272,7 @@ function listPlayable() {
   // 11/21 cloud-41（章の通し・tools/chapter_walk.mjs）：?campscn=<筋書き> はその筋書きを織田家編と同じ「続けて遊ぶ」（camp）で並べる
   const CS = Q.get('campscn');
   if (CS && CS !== 'oda' && SCENARIOS[CS]) { L.length = 0; setScenario(CS); BATTLES.forEach((bt, i) => L.push({ kind: 'camp', scn: CS, i, id: bt.id, name: bt.name, rank: 0 })); return L; }
-  for (const sk of [...SCENARIO_ORDER, 'toyotomi', 'tokugawa', 'takeda', 'uesugi', 'date', 'shimazu', 'mori', 'imagawa', 'chosokabe', 'hojo']) {   // H3 伊達家編・島津家編・毛利家編も。K563 武田編（cloud-41）・上杉編も bot で流せるように
+  for (const sk of [...SCENARIO_ORDER, 'toyotomi', 'tokugawa', 'takeda', 'uesugi', 'date', 'shimazu', 'mori', 'imagawa', 'chosokabe', 'hojo', 'moshimo']) {   // H3 伊達家編・島津家編・毛利家編も。K563 武田編（cloud-41）・上杉編も bot で流せるように
     if (!SCENARIOS[sk]) continue;
     setScenario(sk);
     BATTLES.forEach((bt, i) => {

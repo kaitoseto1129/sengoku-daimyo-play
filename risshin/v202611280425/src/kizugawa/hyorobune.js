@@ -1,0 +1,92 @@
+// ======================================================================
+// 第二次木津川口 ⑤の後半：兵糧船を止める（約11分〜13分半）
+// 構成：docs/oda15_plan_1108.md の 25（12〜15 毛利船団撤退・補給船撃破・本願寺補給路遮断）。
+// 大将船が崩れて船団が退く陰から、荷を積んだ関船が二艘、大坂（東）へ抜けようとする。
+// 自分は西の大筒で撃つ。味方の大船も漕ぎ出して追う（九十秒たっても動く船は味方が止める＝負けにしない）。
+// 船と兵は既存の物（沖の関船・九鬼の大船）を使い、増やさない。
+// ======================================================================
+import { sfx } from '../audio.js';
+
+// 11/19 クラウド持ち主（act bot 889秒・⑤＋兵糧船＋余韻で212秒・討ち取り2）：二艘目と味方の援護を早め、段を百五十秒→百二十秒の刻限へ（船の数と斬り込みは減らさない）。
+// 11/28 クラウド持ち主（K652・K673 評価の紙「16分で長め・10〜15分」：act bot 932〜992秒）：二艘目を二十秒・味方の撃ち止めを六十秒・刻限を百秒へ詰める。
+export const HYORO_LEN = 100;   // 未処理の船への援護を始める刻限（命中後の八秒は見届ける）
+
+export function start(rt, ctx) {
+  const F = rt.flags;
+  if (F.step >= 6) return;
+  F.step = 6; F.stepT = rt.t;
+  const S = (F.kzHyoro = { t0: rt.t, ships: [], second: false, ally: false, done: false });
+  rt.setPhase('supply'); rt.objProgress('main', '');
+  rt.objDone('main');
+  rt.obj('main', '西の大筒で、大坂へ抜ける兵糧船を止めよ', 'main');
+  rt.army.playFar('sig_kakari', { x: -90, z: 60 }, 0.7);
+  rt.say('物見', '退く船の陰に荷船じゃ！　俵を積んで大坂へ抜ける気ぞ！', 3.5);
+  rt.after(4, () => { if (rt.flags === F && rt.player.u.alive && !F.ending && !rt.over && F.kzHyoro === S && !S.done) rt.say('九鬼嘉隆', '一粒も本願寺へ入れるな。大筒で横腹を撃て！', 3.5); });
+  const b = ctx.launchSupply(rt);
+  if (b) S.ships.push(b);
+  ctx.armCannons(rt);
+}
+
+function sinkByAlly(rt, b) {
+  const F = rt.flags;
+  b.damageStage = 1; b.hitAt = rt.t; b.leak = true; b.rudderLost = true; b.stopping = true; b.smashed = true;
+  rt.army.play('volley', { x: b.x + 30, z: b.z - 30 }, 1.2);
+  rt.army.smoke(b.x, 1, b.z, 0, 0, 3);
+  rt.army.burst?.(b.x, 1.4, b.z, 14, 'dust', 1, 0, 0, true, 2);
+  if (F.cannonSplash) { F.cannonSplash.at = rt.t; F.cannonSplash.mesh.position.set(b.x + 1.5, 0.5, b.z); }
+}
+
+// 毎コマ。段が終わったら true。
+export function tick(rt, dt, ctx) {
+  const F = rt.flags, S = F.kzHyoro;
+  if (!S || S.done) return false;
+  const t = rt.t - S.t0;
+  // 玉込め中も操作札を残し、発砲側で待つ理由を伝える。①④の大筒と同じ扱い。
+  for (const c of F.guns || []) if (c.interact) c.interact.r = 2.6;
+  if (!S.second && t >= 20) {
+    S.second = true;
+    const b = ctx.launchSupply(rt);
+    if (b) { S.ships.push(b); rt.say('物見', 'もう一艘、南の沖から来るぞ！', 3); }
+  }
+  // 11/18 クラウド持ち主（act bot「斬り合う相手が少なくて退屈」・この段の百四十秒は討ち取り0）：
+  //   荷船を通すため、守りの小早が一艘、西の大筒を黙らせに乗り口へ斬り込む（大筒の前で斬り合ってから撃つ）。船と兵は沖の控えの物を使う。
+  if (!S.guard && t >= 8 && ctx.rear) {
+    S.guard = true;
+    const g = ctx.rear(rt, 'w', 0);
+    if (g) rt.after(3, () => { if (rt.flags === F && F.kzHyoro === S && !S.done && rt.player.u.alive && !F.ending && !rt.over) rt.say('物見', '荷船の守りの小早じゃ！　西の大筒を黙らせに乗り移って来るぞ！', 3); });
+  }
+  // 味方の大船が漕ぎ出して荷船を追う（九鬼の船団の動き）
+  if (!S.ally && t >= 24) {
+    S.ally = true;
+    // 下知を受けた二番・三番船だけを出す。残る三艘は川口をふさぐ持ち場に残す。
+    for (let i = 0; i < Math.min(2, F.escorts?.length || 0); i++) {
+      const e = F.escorts[i];
+      if (e.group?.routed) continue;
+      e.sortie = true; e.nextSortie = rt.t + 999; e.t.x = e.homeX - 40; e.t.z = e.homeZ + 20;
+    }
+    rt.say('九鬼嘉隆', '二番・三番船、漕ぎ出せ！　荷船の行く手を塞げ！', 3);
+    sfx('horagai', 0.5);
+  }
+  // 七十五秒たっても動く荷船は、追った味方の大船が撃ち止める（主人公の手柄にはしない）。
+  // 二艘目の到着が遅れても、刻限で未処理の船を残して締めず、命中後の八秒まで見届ける。
+  for (const b of S.ships) if (b.alive && !b.damageStage && !b.passed &&
+      (rt.t - (b.bornAt ?? S.t0) >= 60 || t >= HYORO_LEN)) {
+    sinkByAlly(rt, b);
+    rt.say('九鬼嘉隆', '味方の大船が荷船へ撃ち込んだ！', 3);
+  }
+  // 寄せられる関船が尽きた場合も、存在しない船を待ち続けない。
+  const settled = S.ships.every((b) => !b.alive || b.passed || b.stopped);
+  // 11/16 iMac n-mikata：手負いで止まりも沈みもしない荷船が残ると段が終わらなかった（前の「刻限で締める」が外れていた）。刻限＋三十秒で必ず締める
+  if (S.second && settled && t >= 45 || t >= HYORO_LEN + 30) {
+    S.done = true;
+    const mine = S.ships.filter((b) => b.hitByPlayer && b.stopped).length;
+    if (mine > 0) rt.award((t2) => { t2.special = { label: '大坂へ向かう兵糧船を大筒で止めた', pts: 6 * mine }; }, '兵糧船を止めた');
+    return true;
+  }
+  return false;
+}
+
+export function pin(rt) {
+  const F = rt.flags;
+  return F.step === 6 && !F.kzHyoro?.done ? (F.cannonPost || F.guns?.[1])?.post : null;
+}
