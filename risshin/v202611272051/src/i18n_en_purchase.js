@@ -1,0 +1,63 @@
+// K516 英語：購入の札（完全版・章・全部入り・鍵の入力・買う前の確認）と記録の画面の字（クラウド46・11/27）
+// 英語の時だけ i18n.js の末尾から読む。値段は円のまま（¥800）で、店から届いた値段の字もそのまま通す。
+const yen = (s) => String(s).replace(/月(\d[\d,]*)円/g, '¥$1/month').replace(/(\d[\d,]*)円/g, '¥$1');
+const CH = { '第二章 豊臣編': 'Chapter 2: Toyotomi', '第三章 徳川編': 'Chapter 3: Tokugawa' };
+const price = (p, pre = '') => (p ? `${pre}${yen(p)}` : '');
+export default [
+  // 完全版・章の札
+  ['完全版の購入', 'Buy the full version'],
+  [/^(第二章 豊臣編|第三章 徳川編)の購入$/, (m) => `Buy ${CH[m[1]]}`],
+  [/^最初の(\d+)戦は、ずっと無料で遊べます。完全版を買うと、残りの(\d+)戦がすべて開きます。$/, (m) => `The first ${m[1]} battles are free to play forever. The full version unlocks the remaining ${m[2]}.`],
+  [/^一度買えば、ずっと遊べます（買い切り(?:・(.+))?）。$/, (m) => `Buy once and play forever${m[1] ? ` (one-time purchase, ${yen(m[1])})` : ' (one-time purchase)'}.`],
+  [/^買うと(\d+)戦が開きます(?:（(.+)）)?。一度買えば、ずっと遊べます（買い切り(?:・(.+))?）。$/, (m, tr) => `Buying unlocks ${m[1]} battles${m[2] ? ` (${tr(m[2])})` : ''}. Buy once and play forever${m[3] ? ` (one-time purchase, ${yen(m[3])})` : ' (one-time purchase)'}.`],
+  ['本能寺の後、秀吉に付いて天下統一まで戦う。山崎から小田原まで。侍大将から部将・城主・大名へ。', 'After Honnoji, fight at Hideyoshi’s side until the unification of Japan, from Yamazaki to Odawara. Rise from samurai commander to general, castle lord and daimyo.'],
+  ['豊臣の世が崩れ、徳川に付いて関ヶ原から大坂の陣まで戦う。伏見城から天王寺・岡山まで。', 'As the Toyotomi order crumbles, fight for the Tokugawa from Sekigahara to the Siege of Osaka, from Fushimi Castle to Tennoji and Okayama.'],
+  ['購入の準備中です。今はすべての戦を遊べます。', 'Purchases are being prepared. You can play every battle for now.'],
+  [/^支払いは ?(App Store|Google Play) ?で行います。(.*)$/, (m, tr) => `Payment is made through the ${m[1]}. ${m[2] ? tr(m[2]) : ''}`.trim()],
+  ['買った後は取り消せません。', 'Purchases cannot be undone after buying.'],
+  ['払った月の分は、途中で解約しても戻りません。', 'The month you paid for is not refunded, even if you cancel partway.'],
+  ['全部入り：完全版・豊臣編・徳川編と見た目の品10点が開きます（『広告を消す』は入りません）', 'Everything bundle: unlocks the full version, the Toyotomi and Tokugawa chapters and 10 cosmetic items (Remove Ads is not included).'],
+  [/^(第二章 豊臣編|第三章 徳川編)を買う(?:（(.+)）)?$/, (m) => `Buy ${CH[m[1]]}${m[2] ? ` (${yen(m[2])})` : ''}`],
+  [/^完全版を買う(?:（(.+)）)?$/, (m) => `Buy the full version${m[1] ? ` (${yen(m[1])})` : ''}`],
+  [/^全部入りで買う(?:（(.+?)(?:・別々だと(.+))?）)?$/, (m) => `Buy the everything bundle${m[1] ? ` (${yen(m[1])}${m[2] ? `, ${yen(m[2])} if bought separately` : ''})` : ''}`],
+  ['購入を復元する', 'Restore purchases'],
+  ['買った鍵を入れる', 'Enter your purchase key'],
+  ['買った鍵は、購入先からの便りに書いてあります。鍵を写し取って、ここに貼ってください。', 'Your key is written in the message from the store. Copy it and paste it here.'],
+  ['買い終えると、購入先からの便りに鍵が届きます。鍵を写し取って、ここに貼ってください。', 'When your purchase is complete, the key arrives in a message from the store. Copy it and paste it here.'],
+  ['買った鍵', 'Purchase key'],
+  ['鍵を確かめる', 'Check key'],
+  ['買わずに戻る', 'Go back without buying'],
+  // 知らせ
+  ['購入の画面を開いています…', 'Opening the purchase screen…'],
+  ['購入を確かめています…', 'Checking your purchase…'],
+  ['鍵を確かめています…', 'Checking the key…'],
+  ['購入を確かめられませんでした。少し後でもう一度', 'Could not confirm the purchase. Please try again in a moment.'],
+  ['購入の画面が開きませんでした。もう一度押してください', 'The purchase screen did not open. Please tap again.'],
+  ['購入の画面を開けませんでした', 'Could not open the purchase screen.'],
+  ['買えませんでした。少し後でもう一度', 'The purchase did not go through. Please try again in a moment.'],
+  ['復元できる購入はありません', 'No purchases to restore.'],
+  ['復元しました', 'Restored.'],
+  ['復元できませんでした。少し後でもう一度', 'Could not restore. Please try again in a moment.'],
+  ['この端末では復元できません', 'Restoring is not available on this device.'],
+  ['時間がかかっています。少し後でもう一度', 'This is taking a while. Please try again in a moment.'],
+  ['鍵が違います。便りの鍵をそのまま貼ってください', 'That key is not right. Paste the key from the message exactly as it is.'],
+  ['つながりません。少し後でもう一度', 'Cannot connect. Please try again in a moment.'],
+  ['返事がありません', 'No reply.'],
+  ['開けません', 'Could not open.'],
+  // 広告を消す（定期購読）・見た目の品の確認札
+  [/^広告を消す（(.+)）$/, (m) => `Remove ads (${yen(m[1])})`],
+  [/^(月?\d[\d,]*円)で広告を消す$/, (m) => `Remove ads for ${yen(m[1])}`],
+  ['勝った後の広告が出なくなります。戦の中には、もとから広告は出ません。', 'Ads after a victory stop appearing. There are never ads during a battle.'],
+  ['1か月ごとに自動で更新します。止める時は、端末の設定の「サブスクリプション」から解約できます。', 'Renews automatically every month. To stop, cancel under “Subscriptions” in your device settings.'],
+  [/^(\d[\d,]*円)で買う$/, (m) => `Buy for ${yen(m[1])}`],
+  ['見た目だけで、強さは変わりません。買うと、城下と戦でいつでも着られます。', 'Looks only; strength does not change. Once bought, you can wear it in town and in battle any time.'],
+  [/^利用規約：(https?:\/\/\S+)$/, (m) => `Terms of Use: ${m[1]}`],
+  [/^プライバシー：(https?:\/\/\S+)$/, (m) => `Privacy Policy: ${m[1]}`],
+  ['自動で写せませんでした。選んである字を写してください', 'Could not copy automatically. Please copy the selected text.'],
+  ['自動で写せませんでした。下の結果の文を選んで写してください', 'Could not copy automatically. Please select and copy the result text below.'],
+  // 記録の画面
+  [/^枠(\d)：(.+)$/, (m) => `Slot ${m[1]}: ${m[2]}`],
+  ['最高の評定を見る（年表は最後の結果）', 'View best review (the timeline shows the last result)'],
+  ['最高の評定の記録なし', 'No best review recorded'],
+  ['まだ戦の記録がありません。戦を終えると年表に残ります。', 'No battle records yet. Finished battles appear in the timeline.'],
+];
