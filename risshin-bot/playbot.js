@@ -643,10 +643,18 @@ export function brain(b, inp) {
   }
   // 近くに敵がいれば向き直って突く
   // 逃げる名無しの兵は追わない（人は任務の印へ向かう。11/15 iMac K278：天王寺の終幕で城へ逃げる兵を追い続け、茶臼山の頂へ上らず時間切れ）。名のある武将は逃げても追う
-  const e = b.army.nearestEnemy(u, b.index === 0 && b.phase !== 'assault' ? 0 : 40, (o) => o.type !== 'dummy' && !o.noTarget && !((o.fleeing || o.group?.routed) && !o.name));
+  // 11/28 k365-cloud-23（K582 章の通し・長島：小谷から続けた回の二回に一回、段1 の 1280秒）：40m 内の敵が堤・水の向こうなど歩いて寄れない所にいると、
+  //   既定の動きは印より敵を追い続け、堤の印の十四m 手前で千二百秒立っていた（人は印へ向かう）。六秒追って一m も寄れない敵は、二十秒は追わずに印へ向かう。
+  //   全戦に効かすと小谷の京極丸（塀の上の鉄砲）で倒れが増えた（単独 act 0/3）ので、戦の定義の botSkipStuckFoe を立てた戦だけ
+  const ign = b._botIgnore || (b._botIgnore = new Map());
+  const e = b.army.nearestEnemy(u, b.index === 0 && b.phase !== 'assault' ? 0 : 40, (o) => o.type !== 'dummy' && !o.noTarget && !((o.fleeing || o.group?.routed) && !o.name) && !(ign.get(o) > b.t));
   inp.k.delete('KeyW');
   if (e) {
     const d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
+    const ch = b._botChase;
+    if (!ch || ch.e !== e) b._botChase = { e, d, t: b.t };
+    else if (d < ch.d - 1) { ch.d = d; ch.t = b.t; }
+    else if (b.def.botSkipStuckFoe && d > 3.2 && b.t - ch.t > 6) { ign.set(e, b.t + 20); b._botChase = null; }
     p.yaw = Math.atan2(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
     if (d > 2.4) inp.k.add('KeyW');
     if (d < 3.2 && Math.random() < 0.5) inp.leftPressed = true;
@@ -2112,7 +2120,9 @@ function watchStep(b, dt, c) {
     const mpin = !gmk && (gid || !b.def.guideMarker) && b.def.missionPin?.(b);
     // 11/28 クラウド手取川：戦が印を決める作り（guideMarker）で今は行き先が無い時は、敵の頭上の札（赤）を行き先と取り違えない。
     //   振り切りの段の 673〜679秒、持ち場の内で行き先を隠した間に、浅瀬を渡る「新手の上杉の先手」の札を「歩けない地面のピン」と数えていた
-    const mk = gmk || (mpin && Number.isFinite(mpin.x) ? { id: 'pin', label: '行き先', pos: { x: mpin.x, z: mpin.z } } : null) || b.markers.find((m) => !m.red) || (b.def.guideMarker ? null : b.markers[0]);
+    // 11/28 クラウド 木津川口（徳川編）の持ち主：空馬の頭上の印（horse-loose・手綱を取れる三m半内に来た時だけ立つ）は行き先でない（道しるべも外す・mission_guide.js）。
+    //   木津川口の act bot 6本に2本、③④の間に討った将の空馬の印を行き先と取り違え「着いて6秒何も起きない」★★と数えていた
+    const mk = gmk || (mpin && Number.isFinite(mpin.x) ? { id: 'pin', label: '行き先', pos: { x: mpin.x, z: mpin.z } } : null) || b.markers.find((m) => !m.red && m.id !== 'horse-loose') || (b.def.guideMarker ? null : b.markers.find((m) => m.id !== 'horse-loose'));
     const mp = mk ? (typeof mk.pos === 'function' ? mk.pos() : mk.pos) : null;
     const mkLab = mk ? String((typeof mk.label === 'function' ? mk.label() : mk.label) || mk.id || '印') : '';
     const mkKey = mk ? `${mk.id || mkLab}:${mp ? `${Math.round(mp.x / 5)},${Math.round(mp.z / 5)}` : ''}` : '';
