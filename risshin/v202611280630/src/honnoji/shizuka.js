@@ -1,0 +1,92 @@
+// ======================================================================
+// 本能寺の変　静かな本能寺（0〜2分・docs/oda15_plan_1108.md 32「夜明け前・静かな本能寺」）
+// 襲われる前の、夜明け前の境内で上様のそばに控える（歩かせる見回りはやめた・kaito 11/9）。
+// 済むと、元の「物音・鬨の声」（p1）が始まる。
+// 入れ方：b_honnoji.js で wrap(honnoji) を一度。def.p1 を包む（信長で遊ぶ時は元のまま）。
+// ======================================================================
+import { k15Off, k15Scenes } from '../oda15_kit.js';
+import { PT } from '../honno_tera.js';
+import { evPerson } from '../b_ev6.js';
+import { sfx, dawnAlarm } from '../audio.js';
+
+export function wrap(def) {
+  const p1 = def.p1;
+  def.p1 = function (r) {
+    const F = r.flags;
+    if (F.ending || r.over || !r.player.u.alive) return;
+    if (k15Off(r) || F.shizukaDone || F.hp) return p1.call(this, r);
+    if (F.k15stage === 'shizuka') return;
+    start(r, () => {
+      // 静かな場面の間だけ控える。襲撃後まで攻撃対象外のまま残さない。
+      for (const g of F.templeCourtiers || []) {
+        // 近臣は御殿の戸口を守る。隊の判断で門外の敵へ直進させない。
+        g.order = 'hold'; g.noAI = true; g.noPursue = true;
+        g.aggro = 6;
+        // 11/28 K452 クラウド 本能寺の持ち主（act bot 0710 の跡：三人が 482〜740秒 北の内堀の際 (-50,17) に立ち尽くした）：
+        //   一人の組の名のある将は K468 で敵から四十m 後ろへ退く（army_think.js _loneHome）。広間を守って討ち死にした近臣は退かせない
+        g.noLone = true; for (const u of g.units) { u._loneTo = null; u._loneHome = null; }
+        for (const u of g.units) u.noTarget = false;
+        // 11/19 持ち主 クラウド（act bot 0218・0222 の★「数で勝る隊が小勢に削られた」398・415秒・討ち手の記録：新手十一人のうち十人を湯浅直宗が一人で斬った）：
+        //   寝間着で具足の無い近臣が、武将の命（百九十）と太刀（十八）のまま広間の縁で明智の新手を斬り尽くしていた（要件書 NG-02 超人）。
+        //   近臣は具足の無い侍と同じ命と太刀にする（人の数・置き場は変えない）
+        for (const u of g.units) if (u.type === 'busho' && u.name !== '織田信長') { u.maxHp = Math.min(u.maxHp || 75, 75); u.hp = Math.min(u.hp, u.maxHp); u.dmg = Math.min(u.dmg || 13, 13); }
+      }
+      F.shizukaDone = true; F.k15on = false; F.k15stage = null; p1.call(this, r);
+    });
+  };
+}
+
+function start(rt, done) {
+  const F = rt.flags;
+  F.k15stage = 'shizuka'; F.k15on = true;
+  // 11/9 bot：長くした戦では、御殿の侍の一太刀（六十余り）が段を重ねるほど効き、最後まで持たない。本人の受ける傷だけを四割に
+  if (!rt.player.k15soft) {
+    const P = rt.player, td = P.takeDamage;
+    P.k15soft = true;
+    P.takeDamage = function (a, s) { return td.call(this, a * 0.4, s); };
+  }
+  const stop = () => F.k15stage !== 'shizuka' || F.ending || !rt.player.u.alive;
+  // 11/20 K418 クラウドさ（kaito「『夜が明けて』の出し方が気持ち悪い。時が飛ぶ所を自然に」）：前夜から来た時は、黒の間の時刻（数刻のち・未明）が既に出ている。
+  //   ここで「夜明け前」の札を重ねると、明け方→夜明け前と時が戻って見えた。前夜から来た時は札を出さず、鉄砲で目が覚めた続きの台詞から始める
+  const fromEve = !!F.zenyaDone;
+  if (!fromEve) rt.banner('天正十年六月二日　夜明け前', '京の本能寺。上様の供は、わずか百ほど');
+  // 御殿の近臣（docs/generals_oda_1108.md 32：湯浅直宗）。広間の縁に控える
+  // 寝所に詰める近臣へ共通処理で八人ずつ供を足すと、狭い御殿で一点に重なり、退く口を塞ぐ。
+  // 既に小姓衆と馬廻が守っているので、この三人には別の供回りを増やさない。
+  F.templeCourtiers = [evPerson(rt, 0, '湯浅直宗', { x: PT.hiroma.x + 2, z: PT.hiroma.z - 3 }, Math.PI, { calm: true, mortal: true, g: { noRetinue: true }, u: { kosode: 1, honnoCloth: true, kosodeCol: 0x3e4652, obi: 0x30251c } })];
+  // 11/9 二巡（徳川D）：ほかの近臣も縁に控える（docs/generals_oda_1108.md 32：小倉松寿・金森長則。本能寺で討死）
+  F.templeCourtiers.push(evPerson(rt, 0, '小倉松寿', { x: PT.hiroma.x - 2, z: PT.hiroma.z - 3 }, Math.PI, { calm: true, mortal: true, g: { noRetinue: true }, u: { kosode: 1, honnoCloth: true, kosodeCol: 0x5a4636, obi: 0x30251c } }));
+  F.templeCourtiers.push(evPerson(rt, 0, '金森長則', { x: PT.hiroma.x + 5, z: PT.hiroma.z - 1 }, Math.PI, { calm: true, mortal: true, g: { noRetinue: true }, u: { kosode: 1, honnoCloth: true, kosodeCol: 0x4a3a2c, obi: 0x30251c } }));
+  // 11/9 kaito 試し遊び5：「見回り」「中庭を点検」は歩くだけで意味が無い。歩かせる任務はやめ、
+  // 上様のそばで夜明け前の静けさを聞く短い場面にする（docs/honnoji_spec_1109.md 0:00〜1:00：BGMなし・いつもの信長）。
+  // 11/21 k365-cloud-18（要件書22・25：起きた時は何が起きたか分からない。任務は「外の様子を確かめよ」。自分で表門まで行って旗を見る）：
+  //   前夜から来た時だけ、行き先を上様でなく表門の内にする。門の近くへ着くまで（二十秒まで）襲撃（p1）を待つ。前夜から来ない時は今のまま。
+  F.k22 = fromEve ? 'look' : null;
+  rt.obj('main', fromEve ? '外の様子を確かめよ' : '上様のおそばに控えよ', 'main', true);
+  if (fromEve) F.k15at = { at: () => ({ x: PT.gateIn.x - 3, z: PT.gateIn.z }), r: 3 };
+  if (fromEve) rt.marker('k15', { x: PT.gateIn.x - 3, y: rt.world.heightAt(PT.gateIn.x - 3, PT.gateIn.z), z: PT.gateIn.z }, '表門', { h: 2.3 });
+  else if (F.nb) rt.marker('k15', () => F.nb?.pos, '信長', { h: 2.3, person: true, guidePerson: () => F.nb, guideName: '信長' });
+  const opening = fromEve ? [
+    // 寝床で鉄砲の音に目が覚めた続き。昨夜の茶会と「明日は中国」は遊んで見たので繰り返さない。まだ何が起きたか分からない（要件22）
+    [1.6, () => rt.say('小姓', '……今のは、鉄砲の音か', 2.6)],
+    [3, () => rt.say('森蘭丸', '上様はまだお休みじゃ。表の様子を見てまいれ。足音を立てるな', 3.4)],
+  ] : [
+    // 11/13 クラウドし（K116「中庭に行っても何も起きない」・docs/kaito_honnoji_scene_1110.md「もう寺の中で応戦」）：
+    //   静けさは三十六秒から十八秒ほどに縮め、門番の「兵が通る」を早めて、包囲から門の段へすぐ移す。
+    [1.5, () => rt.say('森蘭丸', '上様は、まだお目覚めじゃ。足音を立てるな', 3)],
+    // 11/17 K355（漫画の手がかり：信長の忍び・信長を殺した男8巻）：前の夜は公家衆との茶会の後、信忠様や碁打ちと遅くまで過ごした。供はわずか。
+    [3, () => rt.say('小姓', '昨夜は公家衆の茶会の後、中将様（信忠）と碁を見て遅うまで。供は百ほどしかおらぬ', 3.5)],
+    [3.5, () => rt.say('織田信長', '蘭丸か。……夜が明ければ中国じゃ。猿めの顔を見に行くか', 4)],
+  ];
+  k15Scenes(rt, [
+    ...opening,
+    [fromEve ? 4 : 4.5, () => { rt.banner('東の空が、わずかに白み始めた', '寺の外を、多くの兵が囲んでいく'); sfx('neigh', 0.3); rt.say('門番', '夜明け前に、ずいぶん多くの兵が通りまする', 3.2); }],
+    [3.5, () => rt.say('小姓', '中国へ向かう明智殿の兵であろう', 2.8)],
+    [3, () => { rt.say('門番', '……それにしては、こちらへ来るような', 2.8); dawnAlarm(); }],   // cloud-28 朝の急報：大勢の足音が寄り、馬がいななき、遠くで鬨
+    [2.5, () => { rt.unmark('k15'); }],
+  ], fromEve ? (r) => {
+    // 表門の内（十歩）へ着くか、二十秒待って p1 へ。
+    const t0 = rt.t, wait = () => { if (stop()) return; const q = rt.player.u.pos; if (Math.hypot(q.x - PT.gateIn.x, q.z - PT.gateIn.z) < 10 || rt.t - t0 > 20) { F.k15at = null; done(r); } else rt.after(0.25, wait, true); };
+    wait();
+  } : done, stop);
+}
